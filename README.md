@@ -33,7 +33,11 @@ npm run check
 - `SOURCE-SNAPSHOT.json`: source provenance and model checksum.
 - `CODEX-HANDOFF.md`: status, limitations and next priorities.
 
-## Hosted app
+## Publishing
+
+`.github/workflows/pages.yml` publishes `dist/` to GitHub Pages on every push to `main` (it runs `npm run check` first). The first run enables Pages for the repo. If it can't, set **Settings → Pages → Source** to **GitHub Actions**. After that, the site at `https://<user>.github.io/<repo>/` updates by itself whenever the repo changes.
+
+## Hosted app (earlier ChatGPT Sites deploy)
 
 https://pocket-kitten-companion.elbrilliant4.chatgpt.site
 
