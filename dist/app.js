@@ -567,7 +567,7 @@ function updateKitten(dt, t) {
   if (e === 'sleepy') { pitch -= .1; roll += .1; }
   if (e === 'lonely' || e === 'hungry') pitch -= .06;
   if (pet.sleeping) { yaw = .1; pitch = -.3; roll = .2 + Math.sin(t * .4) * .03; }
-  if (brain.mode === 'feed' && t - brain.modeStart > .9 && t < brain.modeUntil - 1) pitch = -.5 + Math.sin(t * 7) * .03;
+  if (brain.mode === 'feed' && t - brain.modeStart > .9 && t < brain.modeUntil - 1) pitch = -.38 + Math.sin(t * 7) * .03;
   pitch += yawnPitch;
   const headRate = brain.mode === 'play' ? 7 : 4;
   brain.head.yaw = damp(brain.head.yaw, yaw, headRate, dt);
@@ -625,7 +625,7 @@ function updateKitten(dt, t) {
   }
   let chestDip = 0, wiggle = 0, stretch = 0;
   if (pet.sleeping) chestDip = .1;
-  if (brain.mode === 'feed' && t - brain.modeStart > .7 && t < brain.modeUntil - .8) chestDip = .2;
+  if (brain.mode === 'feed' && t - brain.modeStart > .7 && t < brain.modeUntil - .8) chestDip = .26;
   if (yp >= 0 && yp < 1) chestDip -= Math.sin(Math.PI * yp) * .1;
   const pc = brain.pounce;
   let lunge = 0;
@@ -872,7 +872,12 @@ function trackPointer(e) {
   ray.ray.intersectPlane(gazePlane, brain.pointerWorld);
   if (brain.mode === 'play') {
     const hit = new THREE.Vector3();
-    if (ray.ray.intersectPlane(groundPlane, hit)) toyTarget.set(clamp(hit.x, -2, 2), .13, clamp(hit.z, -.4, 2.1));
+    if (ray.ray.intersectPlane(groundPlane, hit)) {
+      toyTarget.set(clamp(hit.x, -2, 2), .13, clamp(hit.z, -.4, 2.1));
+      // Keep the toy out of the kitten's fluff.
+      const ex = toyTarget.x / 1.0, ez = toyTarget.z / 1.35, r = Math.hypot(ex, ez);
+      if (r < 1) { toyTarget.x /= Math.max(r, .2); toyTarget.z /= Math.max(r, .2); if (r < .2) toyTarget.z = 1.35; }
+    }
   }
   return r;
 }
@@ -1033,10 +1038,10 @@ function updateRoom(dt, t) {
   }
   // Brushing: three slow strokes along the back.
   const brushing = brain.mode === 'brush';
-  brushTool.scale.setScalar(damp(brushTool.scale.x, brushing ? 1 : 0, 8, dt));
+  brushTool.scale.setScalar(damp(brushTool.scale.x, brushing ? 1.5 : 0, 8, dt));
   if (brushTool.scale.x > .01) {
     const p = ((t - brain.modeStart) / 1.1) % 1, s = Math.sin(p * Math.PI);
-    brushRig.position.set(.55 - s * .08, 1.45 + s * .12, lerp(.55, -.55, p));
+    brushRig.position.set(.72 - s * .1, 1.5 + s * .14, lerp(.5, -.6, p));
     brushRig.rotation.set(-.3 + p * .6, 0, .5);
     if (Math.random() < dt * 2) burst('sparkle', 1);
   }

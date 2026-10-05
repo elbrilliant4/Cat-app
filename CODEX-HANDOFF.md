@@ -22,7 +22,23 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
-## Critical limitations
+## October 5 update — expressive face & modern UI
+
+The cat now emotes. Because the GLB has no blend shapes and its face is skinned almost entirely to `Bone_010` (chest), the rig alone cannot move the face. `dist/kitten-face.js` patches the kitten's `MeshStandardMaterial` instead:
+
+- **Vertex stage (before skinning):** head yaw/pitch/roll around a neck pivot and independent left/right ear rotations, using smooth falloff weights in bind space. A matching `customDepthMaterial` keeps shadows in sync.
+- **Fragment stage:** procedural eyes drawn over the painted ones (amber iris, dilating pupils, gaze offset, sparkle highlights, upper/lower lids, lash lines), lids tinted from fur colours sampled around each eye at load time, plus an open mouth with tongue, a ":3" smile line and cheek blush. Everything is positioned in bind space, so it stays attached through deformation.
+- Landmarks (eye centres/radii, mouth, head and ear pivots) were measured on this exact GLB. Re-measure them if the model changes.
+
+Expression presets: content, joy, excited, yum, bliss, curious, sleepy, asleep, hungry, lonely, grumpy, surprised. `app.js` eases between them and layers on blinks (with occasional double and slow "I love you" blinks), gaze tracking of the pointer/toy/bowl/camera, ear twitches, yawns, meow mouth sync, chewing, kneading, hops, a sleeping posture, wake-up yawn and a wiggle-and-pounce sequence while playing.
+
+UI: the room is now the hero with a glass HUD (name, mood, close-up and turn buttons), a floating action dock (Feed, Play, Cuddle, Brush, Rest/Wake), ring meters with +/- delta chips, friendship levels derived from `bond`, a journal and care guide, animated day/night themes and a phone layout. Stroking the cat with the pointer pets it. Petting hits cheap proxy colliders instead of raycasting the 600k-triangle mesh. Synthesized meows and purrs use simple formant and noise synthesis. They are still not recorded audio.
+
+Save format is unchanged (`pocket-kitten-companion-v1`). New journal entries store SVG icon ids, and old unicode icons are mapped on render.
+
+Still procedural: expressions and body motion are code-driven, not authored animation clips. Desktop and phone screenshots were checked in headless Chromium (SwiftShader). Real-device performance has not been profiled.
+
+## Critical limitations (original export)
 
 1. **No professionally authored animation is present.** The supplied asset contains zero animation clips. Current behavior is small procedural bone rotations, slight breathing scale and limited motion. Rest changes lighting/state and nods the head; it does not produce a proper lying-down pose. Feeding is a nod, not realistic eating. Play is basic toy following, not a convincing chase/pounce system.
 2. **No browser visual QA or screenshots were completed in this session.** Verify GLB loading, model pose/orientation, lighting, touch, mobile layout and WebGL performance. Successful publication and logic checks do not prove visual quality.
