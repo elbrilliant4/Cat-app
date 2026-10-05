@@ -1,0 +1,84 @@
+# CODEX HANDOFF — Pocket Kitten
+
+## Start here
+
+Continue this existing app. Preserve the supplied cat at `dist/assets/kitten.glb` and working care features. Run `npm run dev`, inspect desktop/mobile browser previews, and run `npm run check`. All runtime dependencies are local; no installation or build is required.
+
+## User goal
+
+A Tamagotchi-like cat using this model, with viewable previews. The user wants a cute, happy expression and convincing fluid movement, including stretching, rolling, pouncing and kneading. Earlier broader Pocket Kitten goals included playing inside a brown paper bag, occasional attempts to climb out, naming, snacks, breed choices and pleasant playful meows.
+
+This export contains the **new companion app** built October 5, 2026. The earlier separate paper-bag project and reference videos are not included or merged. Do not claim those assets are present or those goals complete.
+
+## Implemented
+
+- Original textured/skinned Meshy model through GLTFLoader.
+- Cozy Three.js room: rug, window, cushion, bowl, decorative paper bag and toy.
+- Responsive cream/sage/terracotta UI with daytime/nighttime lighting.
+- Name (default Mochi), mood, day count, bond, cuddle count and journal.
+- Food, happiness, energy and cleanliness meters.
+- Kibble, salmon or chicken feeding; brush; pet by tapping the model.
+- 15-second pointer/touch toy-follow interaction; rest/wake toggle.
+- localStorage persistence and capped offline progression; optional synthesized sound.
+- Accessible controls and reduced-motion support.
+
+## Critical limitations
+
+1. **No professionally authored animation is present.** The supplied asset contains zero animation clips. Current behavior is small procedural bone rotations, slight breathing scale and limited motion. Rest changes lighting/state and nods the head; it does not produce a proper lying-down pose. Feeding is a nod, not realistic eating. Play is basic toy following, not a convincing chase/pounce system.
+2. **No browser visual QA or screenshots were completed in this session.** Verify GLB loading, model pose/orientation, lighting, touch, mobile layout and WebGL performance. Successful publication and logic checks do not prove visual quality.
+3. The bag is decorative; no inside-bag camera, entry or exit. Only one cat model; no breed selector.
+4. Sound is an oscillator approximation, not natural recorded kitten audio.
+5. Saves are per browser/origin, with no cross-device backend. This is a web app, not a native mobile app. No PWA install flow, service worker or offline asset caching yet.
+6. The GLB is about 23.9 MB. Profile mobile performance before optimizing; keep the original and visually compare any optimized derivative.
+7. Reduced motion disables some visual behavior; verify play remains understandable and usable.
+
+## Model facts
+
+`dist/assets/kitten.glb` is byte-for-byte the user's `Meshy_AI_Character_output 2.glb`:
+
+- glTF 2.0 GLB, 23,909,624 bytes.
+- One mesh, one skin, 22 joints, three embedded PNG textures.
+- Zero animation clips, no required compression extension.
+- Generic joint names `Bone_000`–`Bone_021`.
+- App applies small motions to `Bone_013` (apparent head) and `Bone_017`/`Bone_021` (apparent front legs). Verify anatomical roles/local axes in a 3D editor before extending animation.
+- Source bounds about x [-0.803, 0.800], y [0, 1.700], z [-1.137, 1.135]. The app centers and scales height to 1.75 scene units.
+- Three.js license: `dist/vendor/LICENSE.txt`. No separate model license document was supplied; do not invent commercial redistribution permissions.
+
+## Next priorities
+
+1. Run and inspect this actual app; capture honest daytime/nighttime desktop and phone screenshots.
+2. Inspect the mesh, rig, skin weights and expression in Blender or another 3D editor. Repair rig/weights if necessary.
+3. Create or obtain properly authored idle, stretch, knead, pounce, eat, groom, lie-down, sleep and wake animation clips. Avoid presenting procedural wobble as realistic authored animation.
+4. Integrate AnimationMixer with crossfades, interrupt rules, correct ground contact, and animation state independent of care state. Check deformation closely.
+5. Improve toy-follow/chase on touch; keep expression relaxed and cheerful.
+6. Add suitable licensed kitten audio; then consider real bag interactions, performance and installable PWA support as separate steps.
+7. Clearly identify missing animation assets or reference videos if needed. Do not silently substitute unrelated models.
+
+## Architecture and state
+
+Buildless HTML/CSS/ES modules; `dist/` is the static deploy root. `app.js` owns scene, GLB loading, input, UI, frame loop and audio. `pet-state.js` provides pure helpers (`fresh`, `restore`, `advance`, `care`, `mood`).
+
+Save key: `pocket-kitten-companion-v1`. Need changes are capped at 12 elapsed hours per advance. Sleep restores energy at 25 points/hour; awake drains 2.5/hour. Meters clamp to 0–100; pets do not die. Malformed saves are repaired. Preserve saves or migrate explicitly.
+
+## Checks passed
+
+- `dist/app.js` syntax.
+- Full tummy rejects food; low energy rejects play; sleep blocks care until wake.
+- Sleep/offline rates, long-absence cap, clamping, malformed/future saved state.
+- GLB header/length, mesh/skin/textures and required local runtime assets.
+- Exported model matches original bytes.
+
+These checks are not visual QA.
+
+## Hosting continuity
+
+Live URL: https://pocket-kitten-companion.elbrilliant4.chatgpt.site
+
+Project: `appgprj_6ac3ebb301e88191ac7057b0631f90a1`
+Deployed source commit: `fb0e3501ac40a062696533a442e7fd5619ece42f`
+Deployment: `appgdep_6ac3ed463f608191b6d887c2c1a41bb1`
+Saved version: `appgprj_6ac3ebb301e88191ac7057b0631f90a1~appgver_e722339141f881918cf2317f6d31c286`
+
+Owner-private publication succeeded October 5, 2026. `.openai/hosting.json` retains identity. With Sites tools, open/select this existing Site and obtain a fresh source write credential through the supported workflow; do not create another Site for an update or change sharing without instruction. No credentials or tokens are included.
+
+This is a standalone source export, not a Git clone. It adds handoff docs, source metadata, a portable server and package scripts to the deployed snapshot. These helper additions have not been redeployed. Initialize a repo or copy into the intended existing checkout when continuing elsewhere.
