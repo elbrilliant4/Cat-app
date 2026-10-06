@@ -1,73 +1,120 @@
-// A hand-built cartoon kitten: big head, big glossy eyes, a real body with
-// legs, paws and a striped tail. Every part is its own joint, so the kitten
-// can sit, stand, walk, crouch, pounce, stretch, groom, loaf, sleep curled up
-// and roll onto its back — and its face can blink, squint "^^", wear heart
-// eyes, meow, lick its lips and blush.
+// The kitten: a cream-and-ginger Persian with the colouring of the original
+// model, built from simple shapes so every part can move. Shell-textured fur
+// gives it a soft, realistic coat; the face has copper eyes with dilating
+// pupils and real eyelids, a pink nose with nostrils, a mouth that can meow,
+// lick and yawn, whiskers and springy ears. The body can sit, stand, walk,
+// crouch, pounce, stretch, groom, loaf, sleep curled up and roll onto its back.
 import * as THREE from 'three';
+import {Fur} from './fur.js';
 
-const {damp} = THREE.MathUtils;
+const {damp, clamp} = THREE.MathUtils;
 
 const C = {
-  fur: '#f7bd84',
-  stripe: '#e48d4f',
-  white: '#fff5ea',
-  innerEar: '#f6a9ad',
-  nose: '#f08391',
-  bean: '#f49aa6',
-  eye: '#2b1b16',
-  line: '#4a2a22',
-  mouth: '#7c2d39',
-  tongue: '#f47e8e',
-  blush: '#ff8fa3',
-  heart: '#ff4d7a',
+  cream: '#efdcc4',
+  ginger: '#cf8749',
+  white: '#fbf6ee',
+  innerEar: '#e9a8a4',
+  nose: '#e58b84',
+  bean: '#e9a0a0',
+  line: '#2b1a14',
+  mouth: '#6e2a30',
+  tongue: '#ef8a92',
+  lid: '#ead0b0',
 };
 
 // Face presets. The app eases between them and layers blinks, meows etc. on top.
+// open: upper lids (1 = wide), happy: lower lids push up into a smile-squint,
+// pupil: 0 slit .. 1 round and dilated.
 export const EXPRESSIONS = {
-  content:   {open: 1,   happy: 0,  pupil: .55, smile: 1,  blush: .4,  mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,   heart: 0, tongue: 0},
-  joy:       {open: 0,   happy: 1,  pupil: .6,  smile: 1,  blush: 1,   mouth: .45, sparkle: .8, earBack: -.1,  earOut: .05, heart: 0, tongue: 0},
-  love:      {open: 1,   happy: 0,  pupil: .6,  smile: 1,  blush: 1,   mouth: .3,  sparkle: 1,  earBack: -.1,  earOut: 0,   heart: 1, tongue: 0},
-  excited:   {open: 1,   happy: 0,  pupil: 1,   smile: .8, blush: .5,  mouth: .3,  sparkle: 1,  earBack: -.25, earOut: -.05, heart: 0, tongue: 0},
-  yum:       {open: 0,   happy: 1,  pupil: .6,  smile: 1,  blush: .7,  mouth: 0,   sparkle: .6, earBack: 0,    earOut: .1,  heart: 0, tongue: 0},
-  bliss:     {open: 0,   happy: .2, pupil: .5,  smile: 1,  blush: .8,  mouth: 0,   sparkle: .4, earBack: .15,  earOut: .25, heart: 0, tongue: 0},
-  curious:   {open: 1,   happy: 0,  pupil: .85, smile: .4, blush: .2,  mouth: .12, sparkle: .8, earBack: -.3,  earOut: -.1, heart: 0, tongue: 0},
-  sleepy:    {open: .45, happy: 0,  pupil: .5,  smile: .6, blush: .2,  mouth: 0,   sparkle: .2, earBack: .15,  earOut: .3,  heart: 0, tongue: 0},
-  asleep:    {open: 0,   happy: 0,  pupil: .5,  smile: .7, blush: .3,  mouth: 0,   sparkle: 0,  earBack: .2,   earOut: .35, heart: 0, tongue: 0},
-  hungry:    {open: 1,   happy: 0,  pupil: 1,   smile: 0,  blush: 0,   mouth: 0,   sparkle: 1,  earBack: .25,  earOut: .2,  heart: 0, tongue: 0},
-  lonely:    {open: .85, happy: 0,  pupil: 1,   smile: 0,  blush: 0,   mouth: 0,   sparkle: 1,  earBack: .45,  earOut: .45, heart: 0, tongue: 0},
-  grumpy:    {open: .55, happy: 0,  pupil: .4,  smile: 0,  blush: 0,   mouth: 0,   sparkle: .2, earBack: .6,   earOut: .4,  heart: 0, tongue: 0},
-  surprised: {open: 1,   happy: 0,  pupil: .95, smile: 0,  blush: .2,  mouth: .6,  sparkle: 1,  earBack: -.35, earOut: -.1, heart: 0, tongue: 0},
-  groom:     {open: 0,   happy: .3, pupil: .5,  smile: 0,  blush: .3,  mouth: .25, sparkle: .3, earBack: .05,  earOut: .1,  heart: 0, tongue: 1},
+  content:   {open: .92, happy: .15, pupil: .55, smile: 1,  mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,    tongue: 0},
+  joy:       {open: 0,   happy: 1,   pupil: .7,  smile: 1,  mouth: .35, sparkle: .8, earBack: -.1,  earOut: .05,  tongue: 0},
+  love:      {open: .4,  happy: .8,  pupil: 1,   smile: 1,  mouth: 0,   sparkle: 1,  earBack: .05,  earOut: .12,  tongue: 0},
+  excited:   {open: 1,   happy: 0,   pupil: 1,   smile: .7, mouth: .25, sparkle: 1,  earBack: -.3,  earOut: -.05, tongue: 0},
+  yum:       {open: 0,   happy: .9,  pupil: .6,  smile: 1,  mouth: 0,   sparkle: .6, earBack: 0,    earOut: .1,   tongue: 0},
+  bliss:     {open: 0,   happy: .5,  pupil: .6,  smile: 1,  mouth: 0,   sparkle: .4, earBack: .15,  earOut: .28,  tongue: 0},
+  curious:   {open: 1,   happy: 0,   pupil: .85, smile: .4, mouth: .1,  sparkle: .8, earBack: -.3,  earOut: -.1,  tongue: 0},
+  sleepy:    {open: .4,  happy: .1,  pupil: .5,  smile: .6, mouth: 0,   sparkle: .2, earBack: .15,  earOut: .3,   tongue: 0},
+  asleep:    {open: 0,   happy: 0,   pupil: .5,  smile: .7, mouth: 0,   sparkle: 0,  earBack: .2,   earOut: .35,  tongue: 0},
+  hungry:    {open: 1,   happy: 0,   pupil: 1,   smile: 0,  mouth: 0,   sparkle: 1,  earBack: .25,  earOut: .2,   tongue: 0},
+  lonely:    {open: .8,  happy: 0,   pupil: 1,   smile: 0,  mouth: 0,   sparkle: 1,  earBack: .45,  earOut: .45,  tongue: 0},
+  grumpy:    {open: .5,  happy: 0,   pupil: .25, smile: 0,  mouth: 0,   sparkle: .2, earBack: .6,   earOut: .4,   tongue: 0},
+  surprised: {open: 1,   happy: 0,   pupil: .95, smile: 0,  mouth: .6,  sparkle: 1,  earBack: -.35, earOut: -.1,  tongue: 0},
+  groom:     {open: 0,   happy: .4,  pupil: .5,  smile: 0,  mouth: .2,  sparkle: .3, earBack: .05,  earOut: .1,   tongue: 1},
 };
 
 // Body poses: joint angles (radians) and heights. x-rotation convention:
 // negative pitch lifts the front of a body part; negative leg angles swing a
 // leg forward.
 export const POSES = {
-  stand:   {y: .56, lift: 0, pitch: 0,    roll: 0, spine: 0,    chest: 0,    neck: -.1,  shF: 0,    elF: 0,    shB: 0,     knB: 0,    tailLift: 1.3,  tailCurl: .07,  tailSide: 0, hYaw: 0, hPitch: 0, hRoll: 0},
-  sit:     {y: .3,  lift: 0, pitch: -.85, roll: 0, spine: -.12, chest: -.05, neck: .82,  shF: .95,  elF: .05,  shB: -.55,  knB: 1.6,  tailLift: .55,  tailCurl: .03,  tailSide: .7, hYaw: 0, hPitch: 0, hRoll: 0},
-  loaf:    {y: .27, lift: 0, pitch: 0,    roll: 0, spine: 0,    chest: 0,    neck: -.15, shF: -1.3, elF: 2.5,  shB: -1.25, knB: 2.45, tailLift: -.25, tailCurl: .02,  tailSide: .5, hYaw: 0, hPitch: 0, hRoll: 0},
-  sleep:   {y: .25, lift: 0, pitch: .05,  roll: 0, spine: .05,  chest: .05,  neck: .12,  shF: -1.3, elF: 2.5,  shB: -1.25, knB: 2.45, tailLift: -.3,  tailCurl: .03,  tailSide: 1.0, hYaw: .45, hPitch: -.15, hRoll: .4},
-  crouch:  {y: .36, lift: 0, pitch: .12,  roll: 0, spine: .08,  chest: .05,  neck: -.35, shF: -.7,  elF: 1.35, shB: -.95,  knB: 1.9,  tailLift: .15,  tailCurl: -.02, tailSide: 0, hYaw: 0, hPitch: 0, hRoll: 0},
-  leap:    {y: .6,  lift: 0, pitch: -.2,  roll: 0, spine: -.05, chest: 0,    neck: .05,  shF: -1.25, elF: .2,  shB: .75,   knB: .2,   tailLift: .3,   tailCurl: -.05, tailSide: 0, hYaw: 0, hPitch: 0, hRoll: 0},
-  stretch: {y: .6,  lift: 0, pitch: .35,  roll: 0, spine: .25,  chest: .1,   neck: -.75, shF: -1.95, elF: .05,  shB: -.3,   knB: .35,  tailLift: 1.35, tailCurl: .05,  tailSide: 0, hYaw: 0, hPitch: 0, hRoll: 0},
-  belly:   {y: .4,  lift: 0, pitch: 0,    roll: 1.75, spine: .05, chest: 0,  neck: -.2,  shF: -.7,  elF: 1.5,  shB: -.6,   knB: 1.2,  tailLift: .2,   tailCurl: .1,   tailSide: .3, hYaw: .25, hPitch: 0, hRoll: -1.15},
-  beg:     {y: .3,  lift: 0, pitch: -1.25, roll: 0, spine: -.15, chest: -.1, neck: 1.25, shF: .1,  elF: 1.9,  shB: -.55,  knB: 1.6,  tailLift: .9,   tailCurl: .03,  tailSide: .7, hYaw: 0, hPitch: 0, hRoll: 0},
+  stand:   {y: .56, pitch: 0,     roll: 0,    spine: 0,    chest: 0,    neck: -.1,  shF: 0,     elF: 0,    shB: 0,     knB: 0,    tailLift: 1.3,  tailCurl: .07,  tailSide: 0,   hYaw: 0,   hPitch: 0,    hRoll: 0},
+  sit:     {y: .3,  pitch: -.85,  roll: 0,    spine: -.12, chest: -.05, neck: .82,  shF: .95,   elF: .05,  shB: -.55,  knB: 1.6,  tailLift: .55,  tailCurl: .03,  tailSide: .7,  hYaw: 0,   hPitch: 0,    hRoll: 0},
+  loaf:    {y: .27, pitch: 0,     roll: 0,    spine: 0,    chest: 0,    neck: -.15, shF: -1.3,  elF: 2.5,  shB: -1.25, knB: 2.45, tailLift: -.25, tailCurl: .02,  tailSide: .5,  hYaw: 0,   hPitch: 0,    hRoll: 0},
+  sleep:   {y: .25, pitch: .05,   roll: 0,    spine: .05,  chest: .05,  neck: .12,  shF: -1.3,  elF: 2.5,  shB: -1.25, knB: 2.45, tailLift: -.3,  tailCurl: .03,  tailSide: 1.0, hYaw: .45, hPitch: -.15, hRoll: .4},
+  crouch:  {y: .36, pitch: .12,   roll: 0,    spine: .08,  chest: .05,  neck: -.35, shF: -.7,   elF: 1.35, shB: -.95,  knB: 1.9,  tailLift: .15,  tailCurl: -.02, tailSide: 0,   hYaw: 0,   hPitch: 0,    hRoll: 0},
+  leap:    {y: .6,  pitch: -.2,   roll: 0,    spine: -.05, chest: 0,    neck: .05,  shF: -1.25, elF: .2,   shB: .75,   knB: .2,   tailLift: .3,   tailCurl: -.05, tailSide: 0,   hYaw: 0,   hPitch: 0,    hRoll: 0},
+  stretch: {y: .6,  pitch: .35,   roll: 0,    spine: .25,  chest: .1,   neck: -.75, shF: -1.95, elF: .05,  shB: -.3,   knB: .35,  tailLift: 1.35, tailCurl: .05,  tailSide: 0,   hYaw: 0,   hPitch: 0,    hRoll: 0},
+  belly:   {y: .4,  pitch: 0,     roll: 1.75, spine: .05,  chest: 0,    neck: -.2,  shF: -.7,   elF: 1.5,  shB: -.6,   knB: 1.2,  tailLift: .2,   tailCurl: .1,   tailSide: .3,  hYaw: .25, hPitch: 0,    hRoll: -1.15},
+  beg:     {y: .3,  pitch: -1.25, roll: 0,    spine: -.15, chest: -.1,  neck: 1.25, shF: .1,    elF: 1.9,  shB: -.55,  knB: 1.6,  tailLift: .9,   tailCurl: .03,  tailSide: .7,  hYaw: 0,   hPitch: 0,    hRoll: 0},
 };
 const POSE_KEYS = Object.keys(POSES.stand);
 
-const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({color, roughness: .78, ...extra});
+const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({color, roughness: .8, ...extra});
 
-function heartGeometry() {
-  const s = new THREE.Shape();
-  s.moveTo(0, -.9);
-  s.bezierCurveTo(-.25, -.62, -1, -.25, -1, .25);
-  s.bezierCurveTo(-1, .75, -.4, 1, 0, .55);
-  s.bezierCurveTo(.4, 1, 1, .75, 1, .25);
-  s.bezierCurveTo(1, -.25, .25, -.62, 0, -.9);
-  const g = new THREE.ExtrudeGeometry(s, {depth: .25, bevelEnabled: true, bevelSize: .12, bevelThickness: .12, bevelSegments: 3, curveSegments: 16});
-  g.center();
-  return g;
+// Realistic copper eye: iris striations, limbal ring and a pupil that can
+// narrow to a slit or open wide, shifted for gaze.
+function eyeMaterial(uniforms) {
+  const m = new THREE.MeshPhysicalMaterial({color: '#ffffff', roughness: .12, clearcoat: 1, clearcoatRoughness: .04});
+  m.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vEyeP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEyeP = position.xy;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec2 vEyeP;
+        uniform vec2 eyeLook;
+        uniform vec2 eyePupil;
+        uniform float eyeOpen;
+        uniform float eyeHappy;
+        uniform vec3 lidColor;
+        float eyeInside = 1.0;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec2 q = vEyeP - eyeLook * vec2(0.3, 0.26);
+        float r = length(q);
+        float ang = atan(q.y, q.x);
+        vec3 iris = mix(vec3(1.0, 0.74, 0.25), vec3(0.78, 0.36, 0.05), smoothstep(0.1, 0.8, r));
+        iris *= 0.82 + 0.18 * (0.5 + 0.5 * sin(ang * 37.0 + r * 15.0)) * smoothstep(0.15, 0.6, r);
+        iris = mix(iris, vec3(0.97, 0.86, 0.5), (1.0 - smoothstep(0.0, 0.35, length(q - vec2(-0.1, -0.35)))) * 0.25);
+        iris = mix(iris, vec3(0.22, 0.09, 0.02), smoothstep(0.74, 0.92, r));
+        vec3 col = mix(iris, vec3(0.12, 0.06, 0.03), smoothstep(0.92, 1.0, r));
+        float pd = length(q / eyePupil);
+        col = mix(col, vec3(0.015, 0.01, 0.01), 1.0 - smoothstep(0.92, 1.06, pd));
+        // Eyelids, drawn on the eyeball so they follow its curve. They meet in a
+        // relaxed line when shut, or an upward smile-curve when happy.
+        vec2 e = vEyeP;
+        float aa = max(fwidth(e.y), 0.01) * 1.5;
+        float hw = sqrt(max(0.0, 1.0 - e.x * e.x));
+        float meet = mix(-0.08 - 0.12 * hw, -0.3 + 0.5 * hw, eyeHappy);
+        float yu = mix(meet, hw * 1.04, eyeOpen);
+        float yl = mix(-hw * 1.04, meet, max(eyeHappy * 0.8, 1.0 - eyeOpen));
+        eyeInside = smoothstep(yl - aa, yl + aa, e.y) * (1.0 - smoothstep(yu - aa, yu + aa, e.y));
+        col *= mix(1.0, 0.55, smoothstep(yu - 0.4, yu, e.y));
+        vec3 lid = lidColor * (0.86 + 0.14 * smoothstep(-1.0, 1.0, e.y)) * (0.93 + 0.07 * sin(atan(e.y, e.x) * 41.0 + length(e) * 9.0));
+        lid *= mix(1.0, 0.85, smoothstep(0.75, 1.0, length(e)));
+        col = mix(lid, col, eyeInside);
+        float lash = max(1.0 - smoothstep(0.04, 0.04 + aa * 2.0, abs(e.y - yu - 0.02)), (1.0 - smoothstep(0.03, 0.03 + aa * 2.0, abs(e.y - yl + 0.01))) * 0.8);
+        col = mix(col, vec3(0.07, 0.04, 0.03), lash * (1.0 - smoothstep(0.85, 0.98, abs(e.x))));
+        // A soft dark eyeliner rim where the eye meets the fur, only around the opening.
+        col = mix(col, vec3(0.12, 0.07, 0.05), smoothstep(0.86, 0.98, length(e)) * eyeInside);
+        diffuseColor.rgb = col;`)
+      .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
+        material.roughness = mix(0.9, material.roughness, eyeInside);
+        #ifdef USE_CLEARCOAT
+          material.clearcoat *= eyeInside;
+        #endif`);
+  };
+  m.customProgramCacheKey = () => 'pocket-kitten-eye';
+  return m;
 }
 
 export class CuteCat {
@@ -75,20 +122,21 @@ export class CuteCat {
     this.root = new THREE.Group();
     this.meshes = [];
     this.pose = {...POSES.sit};
-    this.face = {...EXPRESSIONS.content};
     this.walkPhase = 0;
+    this.fur = new Fur();
+    this.eyeUniforms = {eyeLook: {value: new THREE.Vector2()}, eyePupil: {value: new THREE.Vector2(.4, .7)}, eyeOpen: {value: 1}, eyeHappy: {value: 0}, lidColor: {value: new THREE.Color(C.lid)}};
     this.materials = {
-      fur: mat(C.fur), stripe: mat(C.stripe), white: mat(C.white), innerEar: mat(C.innerEar), nose: mat(C.nose, {roughness: .45}),
-      bean: mat(C.bean, {roughness: .6}),
-      eye: new THREE.MeshPhysicalMaterial({color: C.eye, roughness: .18, clearcoat: 1, clearcoatRoughness: .08}),
+      cream: mat(C.cream), ginger: mat(C.ginger), white: mat(C.white), innerEar: mat(C.innerEar),
+      nose: mat(C.nose, {roughness: .4}), bean: mat(C.bean, {roughness: .6}), lid: mat(C.lid, {roughness: .9}),
+      eye: eyeMaterial(this.eyeUniforms),
       shine: new THREE.MeshBasicMaterial({color: '#ffffff'}),
       line: new THREE.MeshBasicMaterial({color: C.line}),
+      rim: mat('#3a2418', {roughness: .5}),
       mouth: mat(C.mouth, {roughness: .5}), tongue: mat(C.tongue, {roughness: .45}),
-      blush: new THREE.MeshBasicMaterial({color: C.blush, transparent: true, opacity: 0, depthWrite: false}),
-      heart: new THREE.MeshPhysicalMaterial({color: C.heart, roughness: .25, clearcoat: 1}),
+      fang: mat('#fffdf7', {roughness: .3}),
       whisker: new THREE.MeshBasicMaterial({color: '#fffaf2'}),
     };
-    this.geo = {sphere: new THREE.SphereGeometry(1, 32, 22), smallSphere: new THREE.SphereGeometry(1, 16, 12), heart: heartGeometry()};
+    this.geo = {sphere: new THREE.SphereGeometry(1, 30, 20), smallSphere: new THREE.SphereGeometry(1, 16, 12)};
     this.build();
   }
 
@@ -98,6 +146,11 @@ export class CuteCat {
     m.castShadow = shadow; m.receiveShadow = true;
     parent.add(m);
     this.meshes.push(m);
+    return m;
+  }
+  furry(parent, geo, p, s, opts, r = [0, 0, 0]) {
+    const m = this.part(parent, geo, this.materials.cream, p, s, r);
+    this.fur.add(m, opts);
     return m;
   }
   joint(parent, x, y, z) {
@@ -113,152 +166,146 @@ export class CuteCat {
 
   build() {
     const {sphere, smallSphere} = this.geo, M = this.materials;
+    const body = {color: C.cream, accent: C.ginger, length: .075, density: 55, pattern: 2};
+    const white = {color: C.white, length: .08, density: 55};
     const pelvis = this.pelvis = this.joint(this.root, 0, .3, -.24);
-    this.part(pelvis, sphere, M.fur, [0, .02, -.02], [.33, .32, .35]);
-    this.part(pelvis, sphere, M.stripe, [0, .2, -.06], [.16, .12, .2]);
+    this.furry(pelvis, sphere, [0, .02, -.02], [.32, .31, .34], {...body, phase: 1});
     const spine = this.spine = this.joint(pelvis, 0, .02, .18);
-    this.part(spine, sphere, M.fur, [0, 0, .08], [.31, .3, .31]);
-    this.part(spine, sphere, M.white, [0, -.1, .07], [.25, .2, .29]);
-    for (const z of [-.02, .12]) this.part(spine, sphere, M.stripe, [0, .27, z], [.12, .05, .045]);
+    this.furry(spine, sphere, [0, 0, .08], [.3, .29, .3], body);
+    this.furry(spine, sphere, [0, -.1, .07], [.24, .19, .28], {...white, length: .07});
     const chest = this.chest = this.joint(spine, 0, .02, .25);
-    this.part(chest, sphere, M.fur, [0, 0, 0], [.29, .31, .28]);
-    this.part(chest, sphere, M.white, [0, -.03, .13], [.2, .23, .16]);
+    this.furry(chest, sphere, [0, 0, 0], [.28, .3, .27], {...body, phase: 2});
+    // The Persian ruff: a big soft white bib.
+    this.furry(chest, sphere, [0, -.02, .12], [.21, .25, .17], {...white, length: .1});
 
     // Legs.
     this.front = []; this.back = [];
+    const leg = {color: C.cream, length: .05, density: 55, shells: 10};
+    const paw = {color: C.white, length: .025, density: 70, shells: 8};
     for (const s of [-1, 1]) {
       const sh = this.joint(chest, s * .15, -.1, .05);
-      this.part(sh, this.capsule(.086, .16), M.fur, [0, -.12, 0]);
+      this.furry(sh, this.capsule(.082, .16), [0, -.12, 0], [1, 1, 1], leg);
       const el = this.joint(sh, 0, -.25, 0);
-      this.part(el, this.capsule(.074, .13), M.fur, [0, -.09, 0]);
-      const paw = this.joint(el, 0, -.2, 0);
-      this.part(paw, sphere, M.white, [0, -.015, .035], [.083, .058, .105]);
-      this.part(paw, smallSphere, M.bean, [0, -.06, .03], [.04, .012, .04], [0, 0, 0], false);
-      for (const tx of [-.04, 0, .04]) this.part(paw, smallSphere, M.bean, [tx, -.055, .095], [.017, .01, .017], [0, 0, 0], false);
-      this.front.push({sh, el, paw});
+      this.furry(el, this.capsule(.07, .13), [0, -.09, 0], [1, 1, 1], leg);
+      const p = this.joint(el, 0, -.2, 0);
+      this.furry(p, sphere, [0, -.015, .035], [.08, .056, .1], paw);
+      this.part(p, smallSphere, M.bean, [0, -.058, .03], [.036, .01, .036], [0, 0, 0], false);
+      for (const tx of [-.035, 0, .035]) this.part(p, smallSphere, M.bean, [tx, -.052, .09], [.015, .009, .015], [0, 0, 0], false);
+      this.front.push({sh, el, paw: p});
 
-      const hp = this.joint(pelvis, s * .16, -.02, .0);
-      this.part(hp, sphere, M.fur, [s * .02, -.05, .03], [.15, .19, .2]);
+      const hp = this.joint(pelvis, s * .16, -.02, 0);
+      this.furry(hp, sphere, [s * .02, -.05, .03], [.14, .18, .19], {...body, length: .07});
       const kn = this.joint(hp, 0, -.2, .05);
-      this.part(kn, this.capsule(.074, .14), M.fur, [0, -.1, 0]);
+      this.furry(kn, this.capsule(.07, .14), [0, -.1, 0], [1, 1, 1], leg);
       const hpaw = this.joint(kn, 0, -.22, 0);
-      this.part(hpaw, sphere, M.white, [0, -.012, .04], [.085, .058, .115]);
+      this.furry(hpaw, sphere, [0, -.012, .04], [.082, .056, .11], paw);
       this.back.push({hp, kn, paw: hpaw});
     }
 
-    // Tail: a chain of joints, striped.
+    // A long, plumed Persian tail with soft ginger bands.
     this.tail = [];
     let prev = this.joint(pelvis, 0, .08, -.3);
     for (let i = 0; i < 10; i++) {
       const seg = i === 0 ? prev : this.joint(prev, 0, 0, -.085);
-      const r = .068 - i * .0028;
-      this.part(seg, smallSphere, i % 3 === 2 ? M.stripe : (i === 9 ? M.stripe : M.fur), [0, 0, -.045], [r, r, .075]);
+      const r = .06 - i * .0022;
+      this.furry(seg, smallSphere, [0, 0, -.045], [r, r, .07], {color: C.cream, accent: C.ginger, pattern: 2, phase: i * .9, length: .09 + i * .003, density: 26, shells: 10});
       this.tail.push(seg);
       prev = seg;
     }
 
     // Neck and head.
     const neck = this.neck = this.joint(chest, 0, .15, .1);
-    this.part(neck, sphere, M.fur, [0, .06, .02], [.21, .21, .21]);
+    this.furry(neck, sphere, [0, .06, .02], [.2, .2, .2], {...white, length: .09});
     const head = this.head = this.joint(neck, 0, .3, .06);
     this.buildHead(head);
   }
 
   buildHead(head) {
     const {sphere, smallSphere} = this.geo, M = this.materials;
-    const R = [.44, .38, .4];
+    const R = [.43, .37, .39];
+    const dir = (az, el) => new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
     // Point on the skull ellipsoid and its outward normal, from yaw/elevation.
     const surf = (az, el, out = 0) => {
-      const d = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
-      const p = new THREE.Vector3(d.x * R[0], d.y * R[1], d.z * R[2]);
+      const d = dir(az, el);
       const n = new THREE.Vector3(d.x / R[0], d.y / R[1], d.z / R[2]).normalize();
-      return {p: p.addScaledVector(n, out), n};
+      return {p: new THREE.Vector3(d.x * R[0], d.y * R[1], d.z * R[2]).addScaledVector(n, out), n};
     };
     const place = (obj, az, el, out = 0) => {
       const {p, n} = surf(az, el, out);
       obj.position.copy(p);
       obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+      head.add(obj);
       return obj;
     };
+    const EYE_AZ = .37, EYE_EL = .03;
+    // Fur is kept off the eyes, nose and mouth; the face itself has short fur.
+    const holes = [[dir(-EYE_AZ, EYE_EL), Math.cos(.215)], [dir(EYE_AZ, EYE_EL), Math.cos(.215)], [dir(0, -.2), Math.cos(.32)], [dir(0, -.5), Math.cos(.35)]];
+    this.furry(head, sphere, [0, 0, 0], R, {color: C.cream, accent: C.ginger, pattern: 1, length: .055, density: 60, holes, shells: 12});
 
-    this.part(head, sphere, M.fur, [0, 0, 0], R);
-    // Muzzle, cheeks and chin.
-    this.part(head, sphere, M.white, [0, -.13, .2], [.25, .15, .2]);
-    for (const s of [-1, 1]) this.part(head, sphere, M.white, [s * .072, -.145, .315], [.088, .072, .07]);
-    this.part(head, sphere, M.white, [0, -.215, .285], [.06, .04, .05]);
-    // Fluffy cheek tufts.
-    const tuft = new THREE.ConeGeometry(.075, .15, 12);
-    for (const s of [-1, 1]) for (const [y, a] of [[-.1, .45], [-.18, .8]]) {
-      this.part(head, tuft, M.fur, [s * .39, y, .12], [1, 1, .7], [0, 0, -s * (Math.PI / 2 + a)]);
-    }
-    // Forehead stripes.
-    for (const [az, rz] of [[-.17, .25], [0, 0], [.17, -.25]]) {
-      const st = place(new THREE.Group(), az, .52, -.004);
-      head.add(st);
-      this.part(st, smallSphere, M.stripe, [0, 0, 0], [.024, .085, .014], [0, 0, rz], false);
-    }
-    // Nose.
-    this.part(head, sphere, M.nose, [0, -.075, .395], [.042, .027, .028], [.25, 0, 0]);
+    // Muzzle puffs and chin, in short white fur.
+    const muzzle = {color: C.white, length: .018, density: 80, shells: 6};
+    this.furry(head, sphere, [0, -.13, .2], [.24, .14, .19], {...muzzle, holes: [[new THREE.Vector3(0, .2, 1).normalize(), Math.cos(.5)]]});
+    for (const s of [-1, 1]) this.furry(head, sphere, [s * .07, -.14, .31], [.085, .07, .068], muzzle);
+    this.furry(head, sphere, [0, -.21, .28], [.06, .04, .05], muzzle);
+    // Fluffy cheek ruff, Persian style.
+    for (const s of [-1, 1]) this.furry(head, sphere, [s * .27, -.16, .09], [.14, .13, .13], {color: C.white, length: .075, density: 50, shells: 10});
 
-    // Mouth: ":3" line, open mouth and tongue.
+    // Nose leather with nostrils.
+    this.part(head, sphere, M.nose, [0, -.07, .392], [.044, .028, .026], [.3, 0, 0]);
+    for (const s of [-1, 1]) this.part(head, smallSphere, M.mouth, [s * .016, -.078, .414], [.008, .005, .004], [0, 0, s * .4], false);
+
+    // Mouth: the ω line, an open mouth with tongue and two tiny fangs.
     const mouth = this.mouthGroup = new THREE.Group();
-    mouth.position.set(0, -.135, .4);
+    mouth.position.set(0, -.132, .395);
     head.add(mouth);
-    const arc = new THREE.TorusGeometry(.032, .008, 8, 20, Math.PI);
-    this.smile = [-1, 1].map(s => this.part(mouth, arc, M.line, [s * .03, .01, 0], [1, 1, 1], [0, 0, Math.PI], false));
-    this.part(mouth, smallSphere, M.line, [0, .032, -.004], [.006, .022, .004], [0, 0, 0], false);
-    this.mouthOpen = this.part(mouth, sphere, M.mouth, [0, -.03, -.012], [.055, .001, .03], [0, 0, 0], false);
-    this.tongue = this.part(mouth, sphere, M.tongue, [0, -.05, .004], [.034, .001, .02], [0, 0, 0], false);
+    const arc = new THREE.TorusGeometry(.03, .005, 6, 20, Math.PI);
+    this.smile = [-1, 1].map(s => this.part(mouth, arc, M.line, [s * .029, .008, .004], [1, 1, 1], [0, 0, Math.PI], false));
+    this.part(mouth, smallSphere, M.line, [0, .034, 0], [.004, .024, .003], [0, 0, 0], false);
+    this.mouthOpen = this.part(mouth, sphere, M.mouth, [0, -.03, -.01], [.05, .001, .03], [0, 0, 0], false);
+    this.tongue = this.part(mouth, sphere, M.tongue, [0, -.05, .004], [.032, .001, .02], [0, 0, 0], false);
+    const fangGeo = new THREE.ConeGeometry(.007, .022, 8);
+    fangGeo.rotateX(Math.PI);
+    this.fangs = [-1, 1].map(s => this.part(mouth, fangGeo, M.fang, [s * .026, -.012, .012], [1, 0, 1], [0, 0, 0], false));
 
-    // Whiskers.
-    const whisker = new THREE.CylinderGeometry(.0035, .002, .2, 5);
-    whisker.translate(0, .1, 0);
+    // Whiskers, plus a couple above each eye.
+    const whisker = new THREE.CylinderGeometry(.0024, .0012, .32, 4);
+    whisker.translate(0, .16, 0);
     this.whiskers = [];
-    for (const s of [-1, 1]) for (const a of [-.18, 0, .18]) {
-      const w = this.part(head, whisker, M.whisker, [s * .14, -.135 + a * .05, .33], [1, 1, 1], [0, s * -.35, -s * (Math.PI / 2 - a)], false);
+    for (const s of [-1, 1]) for (const a of [-.2, -.07, .06, .19]) {
+      const w = this.part(head, whisker, M.whisker, [s * .12, -.13 + a * .06, .34], [1, 1, 1], [0, s * -.4, -s * (Math.PI / 2 - a)], false);
       w.userData = {s, a};
       this.whiskers.push(w);
     }
+    for (const s of [-1, 1]) this.part(head, whisker, M.whisker, [s * .16, .14, .33], [.6, .55, .6], [-.4, 0, -s * .5], false);
 
-    // Blush.
-    this.blush = [-1, 1].map(s => {
-      const b = place(new THREE.Group(), s * .6, -.2, .006);
-      head.add(b);
-      this.part(b, new THREE.CircleGeometry(.065, 24), M.blush, [0, 0, 0], [1, .7, 1], [0, 0, 0], false);
-      return b;
-    });
-
-    // Eyes.
-    const arcGeo = new THREE.TorusGeometry(.068, .015, 8, 24, Math.PI);
+    // Eyes: glossy copper eyeballs; the lids are painted by the eye shader.
+    const EX = .086, EY = .094;
     this.eyes = [-1, 1].map(s => {
-      const g = place(new THREE.Group(), s * .37, .02, -.012);
-      head.add(g);
-      const iris = new THREE.Group();
-      g.add(iris);
-      const dome = this.part(iris, sphere, M.eye, [0, 0, 0], [.088, .105, .05], [0, 0, 0], false);
-      const hi1 = this.part(iris, smallSphere, M.shine, [-.03, .04, .045], [.026, .03, .01], [0, 0, 0], false);
-      const hi2 = this.part(iris, smallSphere, M.shine, [.03, -.035, .045], [.013, .013, .008], [0, 0, 0], false);
-      const hi3 = this.part(iris, smallSphere, M.shine, [.04, .045, .045], [.008, .008, .006], [0, 0, 0], false);
-      const happyArc = this.part(g, arcGeo, M.line, [0, -.02, .03], [1, 1, 1], [0, 0, 0], false);
-      const sleepArc = this.part(g, arcGeo, M.line, [0, .03, .03], [1, .75, 1], [0, 0, Math.PI], false);
-      const heart = this.part(g, this.geo.heart, M.heart, [0, 0, .03], [.0, .0, .0], [0, 0, 0], false);
-      return {g, iris, dome, hi1, hi2, hi3, happyArc, sleepArc, heart, s};
+      const g = place(new THREE.Group(), s * EYE_AZ, EYE_EL, -.004);
+      const ball = this.part(g, sphere, M.eye, [0, 0, 0], [EX, EY, .042], [0, 0, 0], false);
+      const shine = new THREE.Group();
+      g.add(shine);
+      const hi1 = this.part(shine, smallSphere, M.shine, [-.025, .032, .046], [.016, .019, .006], [0, 0, 0], false);
+      const hi2 = this.part(shine, smallSphere, M.shine, [.028, -.03, .045], [.008, .008, .004], [0, 0, 0], false);
+      return {g, ball, shine, hi1, hi2, s, EX};
     });
 
-    // Ears.
-    const earGeo = new THREE.ConeGeometry(.17, .29, 24, 1);
-    earGeo.translate(0, .145, 0);
-    const innerGeo = new THREE.ConeGeometry(.11, .2, 20, 1);
-    innerGeo.translate(0, .1, 0);
+    // Ears: furred outside, pink inside with pale ear tufts.
+    const earGeo = new THREE.ConeGeometry(.16, .27, 24, 1);
+    earGeo.translate(0, .135, 0);
+    const innerGeo = new THREE.ConeGeometry(.1, .19, 20, 1);
+    innerGeo.translate(0, .095, 0);
+    const tuftGeo = new THREE.ConeGeometry(.012, .12, 5);
+    tuftGeo.translate(0, .06, 0);
     this.ears = [-1, 1].map(s => {
       const base = place(new THREE.Group(), s * .6, .72, -.05);
-      head.add(base);
-      // Re-orient: ears point up and a little outward, not along the normal.
-      base.quaternion.setFromEuler(new THREE.Euler(-.12, 0, -s * .38));
+      base.quaternion.setFromEuler(new THREE.Euler(-.12, 0, -s * .4));
       const pivot = new THREE.Group();
       base.add(pivot);
-      this.part(pivot, earGeo, M.fur, [0, 0, 0], [1, 1, .55]);
-      this.part(pivot, innerGeo, M.innerEar, [0, .015, .045], [1, 1, .35], [0, 0, 0], false);
+      const outer = this.part(pivot, earGeo, M.ginger, [0, 0, 0], [1, 1, .55]);
+      this.fur.add(outer, {color: C.ginger, length: .014, density: 70, shells: 6, holes: [[new THREE.Vector3(0, 0, 1), Math.cos(.9)]]});
+      this.part(pivot, innerGeo, M.innerEar, [0, .012, .045], [1, 1, .35], [0, 0, 0], false);
+      for (const [x, rz] of [[-.03, .25], [0, 0], [.03, -.25]]) this.part(pivot, tuftGeo, M.white, [x, .02, .06], [1, 1, 1], [.25, 0, rz], false);
       return {base, pivot, s, twitch: 0, vel: 0};
     });
   }
@@ -276,7 +323,7 @@ export class CuteCat {
   }
 
   /**
-   * ctl: {pose, poseRate, walk (0..1 speed factor), knead, wiggle, purr,
+   * ctl: {pose, poseRate, walk (speed factor), knead, wiggle, purr, groom,
    *       head: {yaw, pitch, roll}, look: {x, y}, face, tail: {amp, speed}, lift}
    */
   update(dt, t, ctl) {
@@ -322,7 +369,7 @@ export class CuteCat {
       leg.paw.rotation.x = -(P.pitch + P.shB + P.knB) * .9;
     });
 
-    const tail = ctl.tail || {amp: .25, speed: 1.6};
+    const tail = ctl.tail || {amp: .25, speed: 1.4};
     this.tail.forEach((seg, i) => {
       const k = i / (this.tail.length - 1);
       const sway = Math.sin(t * tail.speed * 2 - i * .45) * tail.amp * (.3 + k);
@@ -330,44 +377,33 @@ export class CuteCat {
       seg.rotation.y = (i === 0 ? 0 : P.tailSide * .16) + sway * .25;
     });
 
-    this.updateFace(dt, t, ctl.face || this.face, ctl.look || {x: 0, y: 0});
+    this.updateFace(dt, t, ctl.face || EXPRESSIONS.content, ctl.look || {x: 0, y: 0});
   }
 
   updateFace(dt, t, f, look) {
-    const open = THREE.MathUtils.clamp(f.open, 0, 1);
-    const heart = f.heart > .5;
+    const open = clamp(f.open, 0, 1), happy = clamp(f.happy, 0, 1);
+    this.eyeUniforms.eyeOpen.value = open;
+    this.eyeUniforms.eyeHappy.value = happy;
     for (const e of this.eyes) {
-      const eyeOpen = heart ? 0 : open;
-      const size = .85 + f.pupil * .3;
-      const visible = Math.max(.04, eyeOpen);
-      const shown = eyeOpen < .12 ? 0 : 1;
-      e.dome.scale.set(.088 * size * shown + 1e-4, .105 * size * visible * shown + 1e-4, .05);
-      e.iris.position.set(look.x * .026, look.y * .022 - (1 - visible) * .045, 0);
-      const shine = eyeOpen > .3 ? Math.min(1, (eyeOpen - .3) / .4) : 0;
-      const sp = .8 + f.sparkle * .5;
-      e.hi1.scale.set(.026 * sp * shine, .03 * sp * shine * visible, .01);
-      e.hi2.scale.set(.013 * sp * shine, .013 * sp * shine, .008);
-      e.hi3.scale.setScalar(.008 * f.sparkle * shine);
-      e.hi1.position.set(-.03 - look.x * .01, .04 * visible, .045);
-      e.hi2.position.set(.03 - look.x * .01, -.035 * visible, .045);
-      const closed = heart ? 0 : THREE.MathUtils.clamp((.28 - eyeOpen) / .2, 0, 1);
-      const happy = THREE.MathUtils.clamp(f.happy, 0, 1);
-      e.happyArc.scale.setScalar(closed * happy + .0001);
-      e.sleepArc.scale.set(closed * (1 - happy) + .0001, .75 * closed * (1 - happy) + .0001, 1);
-      const hs = damp(e.heart.scale.x, heart ? .085 : 0, 12, dt);
-      e.heart.scale.set(hs, hs, hs * .6);
-      e.heart.rotation.z = Math.sin(t * 4) * .1;
-      e.heart.position.y = Math.sin(t * 6) * .006;
+      e.ball.scale.z = .012 + .03 * open;
+      e.shine.visible = open > .3 && happy < .7;
+      e.shine.position.set(-look.x * .008, 0, 0);
+      const sp = .8 + f.sparkle * .4;
+      e.hi1.scale.set(.016 * sp, .019 * sp, .006);
     }
-    const m = THREE.MathUtils.clamp(f.mouth, 0, 1), tg = THREE.MathUtils.clamp(f.tongue || 0, 0, 1);
-    this.mouthOpen.scale.set(.05 + m * .01, .002 + m * .045, .03);
-    this.mouthOpen.position.y = -.025 - m * .025;
-    this.tongue.scale.set(.032, .002 + Math.max(m * .02, tg * .028), .022);
-    this.tongue.position.set(0, -.04 - m * .04 - tg * .012, .01 + tg * .02);
-    const smile = THREE.MathUtils.clamp(f.smile, 0, 1) * (1 - Math.min(1, m * 2.5));
-    for (const s of this.smile) s.scale.set(.6 + smile * .4, .3 + smile * .7, 1);
-    this.materials.blush.opacity = THREE.MathUtils.clamp(f.blush, 0, 1) * .55;
-    for (const w of this.whiskers) w.rotation.z = -w.userData.s * (Math.PI / 2 - w.userData.a) + Math.sin(t * 3 + w.userData.a * 9) * .03 + m * w.userData.s * .1;
+    this.eyeUniforms.eyeLook.value.set(look.x, look.y);
+    const p = clamp(f.pupil, 0, 1);
+    this.eyeUniforms.eyePupil.value.set(.16 + p * .5, .66 + p * .1);
+
+    const m = clamp(f.mouth, 0, 1), tg = clamp(f.tongue || 0, 0, 1);
+    this.mouthOpen.scale.set(.046 + m * .012, .002 + m * .042, .03);
+    this.mouthOpen.position.y = -.025 - m * .024;
+    this.tongue.scale.set(.03, .002 + Math.max(m * .02, tg * .026), .02);
+    this.tongue.position.set(0, -.04 - m * .036 - tg * .01, .008 + tg * .02);
+    for (const fang of this.fangs) fang.scale.set(1, clamp((m - .3) * 3, 0, 1), 1);
+    const smile = clamp(f.smile, 0, 1) * (1 - Math.min(1, m * 2.5));
+    for (const s of this.smile) s.scale.set(.75 + smile * .25, .4 + smile * .6, 1);
+    for (const w of this.whiskers) w.rotation.z = -w.userData.s * (Math.PI / 2 - w.userData.a) + Math.sin(t * 3 + w.userData.a * 9) * .03 + m * w.userData.s * .12;
 
     for (const ear of this.ears) {
       ear.vel += (-170 * ear.twitch - 10 * ear.vel) * dt;

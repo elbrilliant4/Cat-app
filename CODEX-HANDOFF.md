@@ -22,6 +22,16 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
+## October 6 update, part 2 — realism back in
+
+Feedback on the cartoon kitten: "very cute, on the right track, but keep the realism of the original cat." The kitten keeps its articulated body and behaviours, and gains:
+
+- **Fur:** shell-textured fur on every body part (`dist/fur.js`). Each part is one InstancedMesh drawn 6–14 times along its normals; the shader keeps only the strand pixels. The coat is a long Persian ruff, cheeks and plumed tail, short on the face and paws. The cream/ginger colouring follows the original model: a ginger cap and forehead stripes, a warm mask around the eyes, and a ginger saddle and tail bands.
+- **Eyes:** realistic copper irises with striations and a limbal ring, a pupil that narrows to a slit or dilates, and clear-coat gloss. The upper and lower eyelids are drawn by the eye shader on the eyeball, so blinks, the sleepy half-lid, the smile-squint and closed sleeping eyes follow the eye's curve.
+- Nose leather with nostrils, fangs when meowing, four whiskers per side plus brow whiskers, ear tufts. The cartoon heart eyes and blush were removed.
+
+Load: about 144 draw calls and 330k triangles, including the shadow pass. This hasn't been profiled on a phone yet.
+
 ## October 6 update — new cartoon kitten
 
 User feedback on the Meshy model with a shader-painted face: it looked "freaky, not cute", didn't visibly emote, and read as "a round toy" with no body. The app now uses a hand-built, stylised kitten (`dist/cute-cat.js`) made from simple Three.js shapes, so every part can move:
