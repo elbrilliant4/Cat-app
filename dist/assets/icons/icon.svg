@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc49b"/>
+      <stop offset=".55" stop-color="#ff9a8b"/>
+      <stop offset="1" stop-color="#f06f97"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".38" r=".6">
+      <stop offset="0" stop-color="#fff" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="face" cx=".5" cy=".42" r=".62">
+      <stop offset="0" stop-color="#fffaf4"/>
+      <stop offset="1" stop-color="#f1e2d2"/>
+    </radialGradient>
+    <radialGradient id="mask" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#6a4632" stop-opacity=".95"/>
+      <stop offset=".7" stop-color="#7b5641" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#8a6450" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="iris" cx=".42" cy=".38" r=".7">
+      <stop offset="0" stop-color="#d7ecff"/>
+      <stop offset=".55" stop-color="#7fb0e0"/>
+      <stop offset="1" stop-color="#3f6f9e"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#8a2f4f" flood-opacity=".28"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="230" fill="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <!-- ears -->
+    <path d="M214 520 C 190 360, 214 220, 282 156 C 346 176, 440 262, 480 352 Z" fill="#5d3e2d"/>
+    <path d="M810 520 C 834 360, 810 220, 742 156 C 678 176, 584 262, 544 352 Z" fill="#5d3e2d"/>
+    <path d="M282 400 C 274 330, 284 268, 302 238 C 330 260, 368 302, 392 340 Z" fill="#f2a6a9"/>
+    <path d="M742 400 C 750 330, 740 268, 722 238 C 694 260, 656 302, 632 340 Z" fill="#f2a6a9"/>
+    <!-- head -->
+    <ellipse cx="512" cy="590" rx="330" ry="290" fill="url(#face)"/>
+    <!-- cheek fluff -->
+    <path d="M190 640 l-46 18 l40 12 l-36 30 l52 -4 l-20 40 l56 -30" fill="#f6ebdf"/>
+    <path d="M834 640 l46 18 l-40 12 l36 30 l-52 -4 l20 40 l-56 -30" fill="#f6ebdf"/>
+  </g>
+  <!-- soft seal-point mask and crown -->
+  <g filter="url(#soft)">
+    <ellipse cx="376" cy="562" rx="132" ry="114" fill="url(#mask)"/>
+    <ellipse cx="648" cy="562" rx="132" ry="114" fill="url(#mask)"/>
+    <ellipse cx="512" cy="378" rx="250" ry="92" fill="#6f4c39" opacity=".7"/>
+  </g>
+  <!-- white blaze -->
+  <path d="M512 420 C 488 470, 470 540, 470 600 C 490 640, 534 640, 554 600 C 554 540, 536 470, 512 420 Z" fill="#fffaf4" opacity=".9" filter="url(#soft)"/>
+  <!-- eyes -->
+  <g>
+    <ellipse cx="384" cy="566" rx="74" ry="80" fill="#2a1c15"/>
+    <ellipse cx="640" cy="566" rx="74" ry="80" fill="#2a1c15"/>
+    <ellipse cx="384" cy="568" rx="64" ry="70" fill="url(#iris)"/>
+    <ellipse cx="640" cy="568" rx="64" ry="70" fill="url(#iris)"/>
+    <ellipse cx="390" cy="574" rx="34" ry="46" fill="#120c0a"/>
+    <ellipse cx="646" cy="574" rx="34" ry="46" fill="#120c0a"/>
+    <ellipse cx="366" cy="538" rx="20" ry="23" fill="#fff"/>
+    <ellipse cx="622" cy="538" rx="20" ry="23" fill="#fff"/>
+    <circle cx="410" cy="604" r="8" fill="#fff" opacity=".9"/>
+    <circle cx="666" cy="604" r="8" fill="#fff" opacity=".9"/>
+  </g>
+  <!-- blush -->
+  <ellipse cx="300" cy="690" rx="54" ry="30" fill="#ff8fa3" opacity=".35"/>
+  <ellipse cx="724" cy="690" rx="54" ry="30" fill="#ff8fa3" opacity=".35"/>
+  <!-- muzzle, nose, mouth -->
+  <ellipse cx="470" cy="706" rx="62" ry="48" fill="#fffdf9"/>
+  <ellipse cx="554" cy="706" rx="62" ry="48" fill="#fffdf9"/>
+  <path d="M488 662 Q512 652 536 662 Q532 684 512 696 Q492 684 488 662 Z" fill="#ef8f98"/>
+  <path d="M512 696 v18 M512 714 q-22 26 -46 6 M512 714 q22 26 46 6" fill="none" stroke="#5a3b35" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- whiskers -->
+  <g stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".95">
+    <path d="M420 700 Q330 684 236 692"/><path d="M420 716 Q330 718 244 740"/>
+    <path d="M604 700 Q694 684 788 692"/><path d="M604 716 Q694 718 780 740"/>
+  </g>
+</svg>
