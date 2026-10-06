@@ -22,6 +22,14 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
+## October 6 update, part 3 — seal-point coat from a reference photo
+
+The user asked for realistic fur rather than an animated look, with a seal-point / "snowshoe" cat photo as the colour reference. The photo was used only as a visual guide; none of its pixels are in the app. Changes:
+
+- **Coat:** white base with chocolate points: a dark mask around the eyes, crown, sides of the head and ears, a white inverted-V blaze from the nose up between the eyes, a white muzzle with a smoky chin, a white chest ruff and belly, a taupe-brown back and haunches, and a dark plumed tail. The legs fade to white "snowshoe" paws with pink pads, and the nose is pink.
+- **Fur realism:** strands are combed in the direction the coat lies (back and down on the body, down on the legs, toward the tip on the tail). Each strand varies a little in colour and brightness, the roots are darker, and low-frequency mottling breaks up flat areas. The fur is denser, with up to 16 shells.
+- **Eyes:** pale blue irises, slightly smaller. As the eyes close, the head fur grows in over them, so a shut eye shows only as a soft line in the fur. Bare spots for the eyes now use angles instead of cosines, so their size is accurate.
+
 ## October 6 update, part 2 — realism back in
 
 Feedback on the cartoon kitten: "very cute, on the right track, but keep the realism of the original cat." The kitten keeps its articulated body and behaviours, and gains:

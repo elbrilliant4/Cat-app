@@ -22,8 +22,8 @@ npm run check
 ## Files
 
 - `dist/index.html`, `dist/style.css`, `dist/app.js`: UI, Three.js room, interactions and the kitten's behaviour (gaze, blinks, ears, posture, play/pounce).
-- `dist/cute-cat.js`: the kitten — a cream-and-ginger Persian built from simple shapes: body, legs, plumed tail, copper eyes with shader-drawn eyelids, mouth, whiskers, ears, poses (sit, stand, loaf, sleep, crouch, leap, stretch, belly-up, beg) and expression presets.
-- `dist/fur.js`: shell-textured fur (one instanced draw per body part) with Persian colour markings.
+- `dist/cute-cat.js`: the kitten — a fluffy seal-point cat built from simple shapes: body, legs, plumed tail, blue eyes with shader-drawn eyelids, mouth, whiskers, ears, poses (sit, stand, loaf, sleep, crouch, leap, stretch, belly-up, beg) and expression presets.
+- `dist/fur.js`: shell-textured fur (one instanced draw per body part), combed in the direction the coat lies, with seal-point markings.
 - `dist/assets/kitten.glb`: the original Meshy model, kept for reference. The app no longer loads it.
 - `dist/pet-state.js`: care rules, saves and offline progression.
 - `dist/assets/kitten.glb`: original Meshy GLB, unchanged, with textures and rig embedded.

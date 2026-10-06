@@ -1,6 +1,6 @@
-// The kitten: a cream-and-ginger Persian with the colouring of the original
-// model, built from simple shapes so every part can move. Shell-textured fur
-// gives it a soft, realistic coat; the face has copper eyes with dilating
+// The kitten: a fluffy seal-point cat (white coat, chocolate points, blue
+// eyes), built from simple shapes so every part can move. Shell-textured fur
+// gives it a soft, realistic coat; the face has blue eyes with dilating
 // pupils and real eyelids, a pink nose with nostrils, a mouth that can meow,
 // lick and yawn, whiskers and springy ears. The body can sit, stand, walk,
 // crouch, pounce, stretch, groom, loaf, sleep curled up and roll onto its back.
@@ -9,17 +9,18 @@ import {Fur} from './fur.js';
 
 const {damp, clamp} = THREE.MathUtils;
 
+// Seal-point colouring: white coat, chocolate points, pink skin, blue eyes.
 const C = {
-  cream: '#efdcc4',
-  ginger: '#cf8749',
-  white: '#fbf6ee',
-  innerEar: '#e9a8a4',
-  nose: '#e58b84',
-  bean: '#e9a0a0',
-  line: '#2b1a14',
-  mouth: '#6e2a30',
-  tongue: '#ef8a92',
-  lid: '#ead0b0',
+  white: '#f6f2ec',
+  point: '#4f3426',
+  taupe: '#8f6f5a',
+  innerEar: '#b98c82',
+  nose: '#e9a3a6',
+  bean: '#eaa4ad',
+  line: '#2a1a14',
+  mouth: '#5e2a2f',
+  tongue: '#ec8d96',
+  lid: '#46301f',
 };
 
 // Face presets. The app eases between them and layers blinks, meows etc. on top.
@@ -82,11 +83,11 @@ function eyeMaterial(uniforms) {
         vec2 q = vEyeP - eyeLook * vec2(0.3, 0.26);
         float r = length(q);
         float ang = atan(q.y, q.x);
-        vec3 iris = mix(vec3(1.0, 0.74, 0.25), vec3(0.78, 0.36, 0.05), smoothstep(0.1, 0.8, r));
+        vec3 iris = mix(vec3(0.78, 0.9, 0.98), vec3(0.42, 0.62, 0.8), smoothstep(0.1, 0.85, r));
         iris *= 0.82 + 0.18 * (0.5 + 0.5 * sin(ang * 37.0 + r * 15.0)) * smoothstep(0.15, 0.6, r);
-        iris = mix(iris, vec3(0.97, 0.86, 0.5), (1.0 - smoothstep(0.0, 0.35, length(q - vec2(-0.1, -0.35)))) * 0.25);
-        iris = mix(iris, vec3(0.22, 0.09, 0.02), smoothstep(0.74, 0.92, r));
-        vec3 col = mix(iris, vec3(0.12, 0.06, 0.03), smoothstep(0.92, 1.0, r));
+        iris = mix(iris, vec3(0.92, 0.97, 1.0), (1.0 - smoothstep(0.0, 0.4, length(q - vec2(-0.1, -0.35)))) * 0.3);
+        iris = mix(iris, vec3(0.16, 0.22, 0.3), smoothstep(0.76, 0.93, r));
+        vec3 col = mix(iris, vec3(0.08, 0.06, 0.05), smoothstep(0.93, 1.0, r));
         float pd = length(q / eyePupil);
         col = mix(col, vec3(0.015, 0.01, 0.01), 1.0 - smoothstep(0.92, 1.06, pd));
         // Eyelids, drawn on the eyeball so they follow its curve. They meet in a
@@ -126,11 +127,12 @@ export class CuteCat {
     this.fur = new Fur();
     this.eyeUniforms = {eyeLook: {value: new THREE.Vector2()}, eyePupil: {value: new THREE.Vector2(.4, .7)}, eyeOpen: {value: 1}, eyeHappy: {value: 0}, lidColor: {value: new THREE.Color(C.lid)}};
     this.materials = {
-      cream: mat(C.cream), ginger: mat(C.ginger), white: mat(C.white), innerEar: mat(C.innerEar),
+      white: mat(C.white), point: mat(C.point), innerEar: mat(C.innerEar, {roughness: .7}),
       nose: mat(C.nose, {roughness: .4}), bean: mat(C.bean, {roughness: .6}), lid: mat(C.lid, {roughness: .9}),
       eye: eyeMaterial(this.eyeUniforms),
       shine: new THREE.MeshBasicMaterial({color: '#ffffff'}),
       line: new THREE.MeshBasicMaterial({color: C.line}),
+      lip: mat('#5a3b35', {roughness: .6}),
       rim: mat('#3a2418', {roughness: .5}),
       mouth: mat(C.mouth, {roughness: .5}), tongue: mat(C.tongue, {roughness: .45}),
       fang: mat('#fffdf7', {roughness: .3}),
@@ -149,7 +151,7 @@ export class CuteCat {
     return m;
   }
   furry(parent, geo, p, s, opts, r = [0, 0, 0]) {
-    const m = this.part(parent, geo, this.materials.cream, p, s, r);
+    const m = this.part(parent, geo, this.materials.white, p, s, r);
     this.fur.add(m, opts);
     return m;
   }
@@ -166,27 +168,30 @@ export class CuteCat {
 
   build() {
     const {sphere, smallSphere} = this.geo, M = this.materials;
-    const body = {color: C.cream, accent: C.ginger, length: .075, density: 55, pattern: 2};
-    const white = {color: C.white, length: .08, density: 55};
+    const BACK = new THREE.Vector3(0, -.4, -1), DOWN = new THREE.Vector3(0, -1, .15);
+    const body = {color: C.white, accent: C.taupe, mix: .45, grad: .55, length: .075, density: 55, comb: BACK};
+    const white = {color: C.white, accent: C.taupe, length: .08, density: 55, comb: DOWN};
     const pelvis = this.pelvis = this.joint(this.root, 0, .3, -.24);
-    this.furry(pelvis, sphere, [0, .02, -.02], [.32, .31, .34], {...body, phase: 1});
+    this.furry(pelvis, sphere, [0, .02, -.02], [.32, .31, .34], {...body, mix: .55});
     const spine = this.spine = this.joint(pelvis, 0, .02, .18);
     this.furry(spine, sphere, [0, 0, .08], [.3, .29, .3], body);
-    this.furry(spine, sphere, [0, -.1, .07], [.24, .19, .28], {...white, length: .07});
+    this.furry(spine, sphere, [0, -.1, .07], [.24, .19, .28], {...white, length: .07, mix: -.2});
     const chest = this.chest = this.joint(spine, 0, .02, .25);
-    this.furry(chest, sphere, [0, 0, 0], [.28, .3, .27], {...body, phase: 2});
+    this.furry(chest, sphere, [0, 0, 0], [.28, .3, .27], {...body, mix: .3, grad: .6});
     // The Persian ruff: a big soft white bib.
-    this.furry(chest, sphere, [0, -.02, .12], [.21, .25, .17], {...white, length: .1});
+    this.furry(chest, sphere, [0, -.02, .12], [.21, .25, .17], {...white, length: .1, mix: -.25});
 
     // Legs.
     this.front = []; this.back = [];
-    const leg = {color: C.cream, length: .05, density: 55, shells: 10};
-    const paw = {color: C.white, length: .025, density: 70, shells: 8};
+    const LEGDOWN = new THREE.Vector3(0, -1, 0);
+    const upperLeg = {color: C.white, accent: C.taupe, mix: .55, grad: .4, length: .05, density: 55, shells: 10, comb: LEGDOWN};
+    const lowerLeg = {color: C.white, accent: C.taupe, mix: .05, grad: .7, length: .045, density: 55, shells: 10, comb: LEGDOWN};
+    const paw = {color: C.white, accent: C.taupe, mix: -.3, length: .025, density: 70, shells: 8, comb: new THREE.Vector3(0, -.3, 1)};
     for (const s of [-1, 1]) {
       const sh = this.joint(chest, s * .15, -.1, .05);
-      this.furry(sh, this.capsule(.082, .16), [0, -.12, 0], [1, 1, 1], leg);
+      this.furry(sh, this.capsule(.082, .16), [0, -.12, 0], [1, 1, 1], upperLeg);
       const el = this.joint(sh, 0, -.25, 0);
-      this.furry(el, this.capsule(.07, .13), [0, -.09, 0], [1, 1, 1], leg);
+      this.furry(el, this.capsule(.07, .13), [0, -.09, 0], [1, 1, 1], lowerLeg);
       const p = this.joint(el, 0, -.2, 0);
       this.furry(p, sphere, [0, -.015, .035], [.08, .056, .1], paw);
       this.part(p, smallSphere, M.bean, [0, -.058, .03], [.036, .01, .036], [0, 0, 0], false);
@@ -194,28 +199,28 @@ export class CuteCat {
       this.front.push({sh, el, paw: p});
 
       const hp = this.joint(pelvis, s * .16, -.02, 0);
-      this.furry(hp, sphere, [s * .02, -.05, .03], [.14, .18, .19], {...body, length: .07});
+      this.furry(hp, sphere, [s * .02, -.05, .03], [.14, .18, .19], {...body, mix: .65, length: .07});
       const kn = this.joint(hp, 0, -.2, .05);
-      this.furry(kn, this.capsule(.07, .14), [0, -.1, 0], [1, 1, 1], leg);
+      this.furry(kn, this.capsule(.07, .14), [0, -.1, 0], [1, 1, 1], {...lowerLeg, mix: .25});
       const hpaw = this.joint(kn, 0, -.22, 0);
       this.furry(hpaw, sphere, [0, -.012, .04], [.082, .056, .11], paw);
       this.back.push({hp, kn, paw: hpaw});
     }
 
-    // A long, plumed Persian tail with soft ginger bands.
+    // A long, plumed tail in the dark point colour.
     this.tail = [];
     let prev = this.joint(pelvis, 0, .08, -.3);
     for (let i = 0; i < 10; i++) {
       const seg = i === 0 ? prev : this.joint(prev, 0, 0, -.085);
       const r = .06 - i * .0022;
-      this.furry(seg, smallSphere, [0, 0, -.045], [r, r, .07], {color: C.cream, accent: C.ginger, pattern: 2, phase: i * .9, length: .09 + i * .003, density: 26, shells: 10});
+      this.furry(seg, smallSphere, [0, 0, -.045], [r, r, .07], {color: C.white, accent: C.point, mix: .55 + i * .03, grad: .2, length: .09 + i * .003, density: 30, shells: 12, comb: new THREE.Vector3(0, 0, -1)});
       this.tail.push(seg);
       prev = seg;
     }
 
     // Neck and head.
     const neck = this.neck = this.joint(chest, 0, .15, .1);
-    this.furry(neck, sphere, [0, .06, .02], [.2, .2, .2], {...white, length: .09});
+    this.furry(neck, sphere, [0, .06, .02], [.2, .2, .2], {...white, mix: .1, grad: .6, length: .09});
     const head = this.head = this.joint(neck, 0, .3, .06);
     this.buildHead(head);
   }
@@ -239,16 +244,18 @@ export class CuteCat {
     };
     const EYE_AZ = .37, EYE_EL = .03;
     // Fur is kept off the eyes, nose and mouth; the face itself has short fur.
-    const holes = [[dir(-EYE_AZ, EYE_EL), Math.cos(.215)], [dir(EYE_AZ, EYE_EL), Math.cos(.215)], [dir(0, -.2), Math.cos(.32)], [dir(0, -.5), Math.cos(.35)]];
-    this.furry(head, sphere, [0, 0, 0], R, {color: C.cream, accent: C.ginger, pattern: 1, length: .055, density: 60, holes, shells: 12});
+    const holes = [[dir(-EYE_AZ, EYE_EL), Math.cos(.185)], [dir(EYE_AZ, EYE_EL), Math.cos(.185)], [dir(0, -.2), Math.cos(.14)]];
+    this.furry(head, sphere, [0, 0, 0], R, {color: C.white, accent: C.point, pattern: 1, length: .05, density: 65, holes, shells: 14, comb: new THREE.Vector3(0, -.15, -1)});
+    // Kept so the fur can close in over shut eyes.
+    this.headFur = this.fur.parts[this.fur.parts.length - 1].uniforms;
 
     // Muzzle puffs and chin, in short white fur.
-    const muzzle = {color: C.white, length: .018, density: 80, shells: 6};
+    const muzzle = {color: C.white, accent: C.taupe, length: .02, density: 85, shells: 7, comb: new THREE.Vector3(0, -.6, -.4)};
     this.furry(head, sphere, [0, -.13, .2], [.24, .14, .19], {...muzzle, holes: [[new THREE.Vector3(0, .2, 1).normalize(), Math.cos(.5)]]});
     for (const s of [-1, 1]) this.furry(head, sphere, [s * .07, -.14, .31], [.085, .07, .068], muzzle);
-    this.furry(head, sphere, [0, -.21, .28], [.06, .04, .05], muzzle);
+    this.furry(head, sphere, [0, -.21, .28], [.06, .04, .05], {...muzzle, mix: .45});
     // Fluffy cheek ruff, Persian style.
-    for (const s of [-1, 1]) this.furry(head, sphere, [s * .27, -.16, .09], [.14, .13, .13], {color: C.white, length: .075, density: 50, shells: 10});
+    for (const s of [-1, 1]) this.furry(head, sphere, [s * .27, -.16, .09], [.14, .13, .13], {color: C.white, accent: C.taupe, mix: .05, grad: .5, length: .075, density: 50, shells: 10, comb: new THREE.Vector3(0, -1, -.3)});
 
     // Nose leather with nostrils.
     this.part(head, sphere, M.nose, [0, -.07, .392], [.044, .028, .026], [.3, 0, 0]);
@@ -258,9 +265,9 @@ export class CuteCat {
     const mouth = this.mouthGroup = new THREE.Group();
     mouth.position.set(0, -.132, .395);
     head.add(mouth);
-    const arc = new THREE.TorusGeometry(.03, .005, 6, 20, Math.PI);
-    this.smile = [-1, 1].map(s => this.part(mouth, arc, M.line, [s * .029, .008, .004], [1, 1, 1], [0, 0, Math.PI], false));
-    this.part(mouth, smallSphere, M.line, [0, .034, 0], [.004, .024, .003], [0, 0, 0], false);
+    const arc = new THREE.TorusGeometry(.028, .0035, 6, 20, Math.PI);
+    this.smile = [-1, 1].map(s => this.part(mouth, arc, M.lip, [s * .029, .008, .004], [1, 1, 1], [0, 0, Math.PI], false));
+    this.part(mouth, smallSphere, M.lip, [0, .032, 0], [.003, .022, .003], [0, 0, 0], false);
     this.mouthOpen = this.part(mouth, sphere, M.mouth, [0, -.03, -.01], [.05, .001, .03], [0, 0, 0], false);
     this.tongue = this.part(mouth, sphere, M.tongue, [0, -.05, .004], [.032, .001, .02], [0, 0, 0], false);
     const fangGeo = new THREE.ConeGeometry(.007, .022, 8);
@@ -279,14 +286,14 @@ export class CuteCat {
     for (const s of [-1, 1]) this.part(head, whisker, M.whisker, [s * .16, .14, .33], [.6, .55, .6], [-.4, 0, -s * .5], false);
 
     // Eyes: glossy copper eyeballs; the lids are painted by the eye shader.
-    const EX = .086, EY = .094;
+    const EX = .072, EY = .078;
     this.eyes = [-1, 1].map(s => {
       const g = place(new THREE.Group(), s * EYE_AZ, EYE_EL, -.004);
       const ball = this.part(g, sphere, M.eye, [0, 0, 0], [EX, EY, .042], [0, 0, 0], false);
       const shine = new THREE.Group();
       g.add(shine);
-      const hi1 = this.part(shine, smallSphere, M.shine, [-.025, .032, .046], [.016, .019, .006], [0, 0, 0], false);
-      const hi2 = this.part(shine, smallSphere, M.shine, [.028, -.03, .045], [.008, .008, .004], [0, 0, 0], false);
+      const hi1 = this.part(shine, smallSphere, M.shine, [-.022, .028, .042], [.011, .013, .005], [0, 0, 0], false);
+      const hi2 = this.part(shine, smallSphere, M.shine, [.025, -.026, .041], [.005, .005, .003], [0, 0, 0], false);
       return {g, ball, shine, hi1, hi2, s, EX};
     });
 
@@ -302,8 +309,8 @@ export class CuteCat {
       base.quaternion.setFromEuler(new THREE.Euler(-.12, 0, -s * .4));
       const pivot = new THREE.Group();
       base.add(pivot);
-      const outer = this.part(pivot, earGeo, M.ginger, [0, 0, 0], [1, 1, .55]);
-      this.fur.add(outer, {color: C.ginger, length: .014, density: 70, shells: 6, holes: [[new THREE.Vector3(0, 0, 1), Math.cos(.9)]]});
+      const outer = this.part(pivot, earGeo, M.point, [0, 0, 0], [1, 1, .55]);
+      this.fur.add(outer, {color: C.point, accent: C.point, length: .016, density: 70, shells: 7, comb: new THREE.Vector3(0, 1, 0), holes: [[new THREE.Vector3(0, 0, 1), Math.cos(.9)]]});
       this.part(pivot, innerGeo, M.innerEar, [0, .012, .045], [1, 1, .35], [0, 0, 0], false);
       for (const [x, rz] of [[-.03, .25], [0, 0], [.03, -.25]]) this.part(pivot, tuftGeo, M.white, [x, .02, .06], [1, 1, 1], [.25, 0, rz], false);
       return {base, pivot, s, twitch: 0, vel: 0};
@@ -383,13 +390,16 @@ export class CuteCat {
   updateFace(dt, t, f, look) {
     const open = clamp(f.open, 0, 1), happy = clamp(f.happy, 0, 1);
     this.eyeUniforms.eyeOpen.value = open;
+    const bare = Math.cos(.095 + .09 * open);
+    this.headFur.furHoles.value[0].w = bare;
+    this.headFur.furHoles.value[1].w = bare;
     this.eyeUniforms.eyeHappy.value = happy;
     for (const e of this.eyes) {
       e.ball.scale.z = .012 + .03 * open;
       e.shine.visible = open > .3 && happy < .7;
       e.shine.position.set(-look.x * .008, 0, 0);
       const sp = .8 + f.sparkle * .4;
-      e.hi1.scale.set(.016 * sp, .019 * sp, .006);
+      e.hi1.scale.set(.011 * sp, .013 * sp, .005);
     }
     this.eyeUniforms.eyeLook.value.set(look.x, look.y);
     const p = clamp(f.pupil, 0, 1);
