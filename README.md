@@ -13,7 +13,7 @@ cd Pocket-Kitten-Codex
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ in a WebGL-capable browser. Add `?debug` to expose `window.kitten` (e.g. `kitten.express('joy', 5)`, `kitten.yawn()`) for visual QA. Serve over HTTP; do not double-click index.html. Set PORT to change the port. For a remote preview, set HOST to 0.0.0.0 and use the environment's port forwarding.
+Open http://127.0.0.1:5173/ in a WebGL-capable browser. Add `?debug` to expose `window.kitten` (e.g. `kitten.express('love', 5)`, `kitten.setActivity('belly', 5)`, `kitten.yawn()`) for visual QA. Serve over HTTP; do not double-click index.html. Set PORT to change the port. For a remote preview, set HOST to 0.0.0.0 and use the environment's port forwarding.
 
 ```sh
 npm run check
@@ -22,7 +22,8 @@ npm run check
 ## Files
 
 - `dist/index.html`, `dist/style.css`, `dist/app.js`: UI, Three.js room, interactions and the kitten's behaviour (gaze, blinks, ears, posture, play/pounce).
-- `dist/kitten-face.js`: expressive face — shader-painted eyes, lids, mouth and blush, plus head/ear deformation, and the expression presets.
+- `dist/cute-cat.js`: the hand-built cartoon kitten — body, legs, tail, face parts, poses (sit, stand, loaf, sleep, crouch, leap, stretch, belly-up, beg) and expression presets.
+- `dist/assets/kitten.glb`: the original Meshy model, kept for reference. The app no longer loads it.
 - `dist/pet-state.js`: care rules, saves and offline progression.
 - `dist/assets/kitten.glb`: original Meshy GLB, unchanged, with textures and rig embedded.
 - `dist/assets/paw.svg`: app icon.

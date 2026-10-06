@@ -22,7 +22,19 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
-## October 5 update — expressive face & modern UI
+## October 6 update — new cartoon kitten
+
+User feedback on the Meshy model with a shader-painted face: it looked "freaky, not cute", didn't visibly emote, and read as "a round toy" with no body. The app now uses a hand-built, stylised kitten (`dist/cute-cat.js`) made from simple Three.js shapes, so every part can move:
+
+- **Body:** pelvis → spine → chest → neck → head joints; two-segment front and back legs with paws and pink toe beans; a 10-joint striped tail.
+- **Poses:** sit, stand (with a walk/run cycle), loaf, sleep (curled), crouch, leap, stretch, belly-up and beg, eased between with damping.
+- **Face:** big glossy eyes with highlights and gaze, blink/squint, closed "^^" and "‿" eyes, heart eyes, ":3" mouth, open mouth, tongue, blush, whiskers, springy ears.
+
+`app.js` drives behaviours on top: walking around the rug, going to the bowl to eat and then grooming, chasing the toy and doing a wiggle-and-pounce, rolling onto its back after a few cuddles in a row, loafing while brushed, stretching and yawning, zoomies, begging at the bowl when hungry, and walking to the cushion to sleep. The camera follows the kitten, and dragging the room orbits it.
+
+The original GLB stays in `dist/assets/` for reference but is no longer loaded, so the page no longer has a 24 MB download.
+
+## October 5 update — expressive face & modern UI (superseded for the cat itself)
 
 The cat now emotes. Because the GLB has no blend shapes and its face is skinned almost entirely to `Bone_010` (chest), the rig alone cannot move the face. `dist/kitten-face.js` patches the kitten's `MeshStandardMaterial` instead:
 

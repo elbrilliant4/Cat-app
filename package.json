@@ -5,6 +5,6 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check dist/app.js && node --check dist/kitten-face.js && node checks.mjs"
+    "check": "node --check dist/app.js && node --check dist/cute-cat.js && node checks.mjs"
   }
 }
