@@ -1,0 +1,10 @@
+{
+  "name": "pocket-kitten-companion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check dist/app.js && node --check dist/kitten-face.js && node checks.mjs"
+  }
+}

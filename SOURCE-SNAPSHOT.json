@@ -1,0 +1,14 @@
+{
+  "title": "Pocket Kitten",
+  "exported_at": "2026-10-05",
+  "live_url": "https://pocket-kitten-companion.elbrilliant4.chatgpt.site",
+  "project_id": "appgprj_6ac3ebb301e88191ac7057b0631f90a1",
+  "deployed_commit": "fb0e3501ac40a062696533a442e7fd5619ece42f",
+  "model": {
+    "path": "dist/assets/kitten.glb",
+    "original_name": "Meshy_AI_Character_output 2.glb",
+    "bytes": 23909624,
+    "sha256": "fc13eec796e717c653125c6d0c6535265c19fce897859bc43ca5cdaa4c22f542"
+  },
+  "visual_qa_completed": false
+}
