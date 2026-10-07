@@ -22,6 +22,19 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
+## October 7 update, part 2 — cozy study room, fountain and Water need
+
+Orion supplied five design references (a daytime room, an evening room, a plaid bed, an ivory bowl and an olive fountain). They were used only as style guides. `dist/room.js` builds the room in 3D, and all its textures (oak planks, plaid, leather, sherpa, linen, plaster, jute, botanical print, sky, ivy leaf) are drawn on canvases in code, so no reference pixels are shipped.
+
+- **Layout:** follows the daytime reference. The window and bed are back-left, the club chair and side table with lamp back-right, the botanical print on the back wall, the bookcase on the right wall, and the food bowl and fountain front-right off the rug. The centre of the rug stays open for play. The wide camera now sits low, near Mochi's eye level, like the reference photos.
+- **Evening:** when Mochi sleeps, the window turns night-blue, the lamp glows strongly, the reflections switch to a warm dark version, a warm front fill keeps Mochi readable, and the page theme turns warm espresso instead of navy.
+- **Water need** (`pet-state.js`, `water`): drops 3.5 per hour awake and 1.5 asleep. `drink` adds 35 and declines above 94. Saves without `water` restore to 85. The mood "A little thirsty" shows below 25.
+  - Mochi drinks on her own when water is below 60, as one of her idle choices. Tapping the fountain invites a drink.
+  - While drinking she crouches at the fountain lapping with her tongue, the ripples grow, and she grooms afterwards.
+  - With sound on, there's a soft synthesized trickle.
+- When she has low energy she sometimes naps in her bed. Sleep happens in the bed.
+- Walk timeouts now scale with distance, so slow devices don't cut walks short.
+
 ## October 7 update — realistic ragdoll Mochi
 
 The user switched to a ragdoll cat (seal-point face mask, white blaze, blue eyes) so the character isn't mistaken for Grumpy Cat. The model is `dist/assets/mochi-ragdoll.glb`: a static Meshy free-plan model (one mesh, about 40k vertices, three 2048² JPEG textures). Free-plan output is CC BY 4.0, so the footer credits Meshy. Check Meshy's current terms before a commercial launch.

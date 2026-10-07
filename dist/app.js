@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {KEY, restore, fresh, advance, care, mood} from './pet-state.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
+import {Room} from './room.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp} = THREE.MathUtils;
@@ -34,11 +35,12 @@ function toast(text) {
 
 const icon = (id, cls = '') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 const LEGACY_ICONS = {'♡': 'i-heart', '◡': 'i-bowl', '≋': 'i-brush', '✺': 'i-yarn', '☾': 'i-moon', '✦': 'i-sparkle'};
-const ICON_TINT = {'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
+const ICON_TINT = {'i-drop': '--water', 'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
 
 const NEEDS = [
   {key: 'food', label: 'Tummy', icon: 'i-bowl', tint: '--food'},
   {key: 'happiness', label: 'Joy', icon: 'i-heart', tint: '--happy'},
+  {key: 'water', label: 'Water', icon: 'i-drop', tint: '--water'},
   {key: 'energy', label: 'Energy', icon: 'i-bolt', tint: '--energy'},
   {key: 'cleanliness', label: 'Fluff', icon: 'i-sparkle', tint: '--clean'},
 ];
@@ -66,13 +68,14 @@ function levelInfo(bond) {
 }
 let shownLevel = levelInfo(pet.bond).level;
 
-const MOOD_COLORS = {'Dreaming softly': '#8f9cff', 'A little hungry': '#f28c5b', 'Ready for a nap': '#e9ad2f', 'Needs a little brush': '#3fb3c9', 'Missing you': '#b48ad8', 'Feeling lovely': '#5cc489'};
+const MOOD_COLORS = {'Dreaming softly': '#8f9cff', 'A little hungry': '#f28c5b', 'A little thirsty': '#5b8def', 'Ready for a nap': '#e9ad2f', 'Needs a little brush': '#3fb3c9', 'Missing you': '#b48ad8', 'Feeling lovely': '#5cc489'};
 
 function greeting() {
   const h = new Date().getHours();
   const part = h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   if (pet.sleeping) return `${part}. ${pet.name} is fast asleep — shh.`;
   if (pet.food < 25) return `${part}. ${pet.name} keeps glancing at the bowl…`;
+  if (pet.water < 25) return `${part}. ${pet.name} is eyeing the fountain.`;
   if (pet.happiness < 35) return `${part}. ${pet.name} missed you.`;
   return `${part}. ${pet.name} is so happy you’re here.`;
 }
@@ -109,7 +112,7 @@ function refresh() {
   $('#sleep-label').textContent = pet.sleeping ? 'Wake' : 'Rest';
   $('#sleep-icon').setAttribute('href', pet.sleeping ? '#i-sun' : '#i-moon');
   document.body.classList.toggle('night', pet.sleeping);
-  document.querySelector('meta[name=theme-color]').content = pet.sleeping ? '#141a2e' : '#f7f1ea';
+  document.querySelector('meta[name=theme-color]').content = pet.sleeping ? '#1c1612' : '#f7f1ea';
   for (const b of document.querySelectorAll('.dock [data-action]')) {
     const off = pet.sleeping && b.dataset.action !== 'sleep';
     b.setAttribute('aria-disabled', String(off));
@@ -117,6 +120,7 @@ function refresh() {
   }
   $('#care-tip').textContent = pet.sleeping ? 'Resting restores energy, even while you’re away.'
     : pet.food < 25 ? 'A tasty snack would be lovely.'
+    : pet.water < 25 ? 'Tap the fountain to invite a drink.'
     : pet.energy < 25 ? 'A nap will put the bounce back.'
     : pet.cleanliness < 30 ? 'Time for a gentle brush.'
     : pet.happiness < 35 ? 'A cuddle or a game would help.'
@@ -253,6 +257,27 @@ function purr(seconds = 2.2) {
   } catch {}
 }
 
+// A soft fountain trickle while sound is on.
+let trickle = null;
+function startTrickle() {
+  if (!pet.sound) { if (trickle) { trickle.gain.gain.setTargetAtTime(0, audio.currentTime, .3); } return; }
+  try {
+    const a = audioCtx();
+    if (!trickle) {
+      const len = a.sampleRate * 4, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (.4 + .6 * Math.abs(Math.sin(i / a.sampleRate * 9.3) * Math.sin(i / a.sampleRate * 3.1)));
+      const src = a.createBufferSource(), bp = a.createBiquadFilter(), gain = a.createGain();
+      src.buffer = buf; src.loop = true;
+      bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = .8;
+      gain.gain.value = 0;
+      src.connect(bp).connect(gain).connect(a.destination);
+      src.start();
+      trickle = {gain};
+    }
+    trickle.gain.gain.setTargetAtTime(.035, a.currentTime, .5);
+  } catch {}
+}
+
 // ---------------------------------------------------------------------------
 // 3D room
 // ---------------------------------------------------------------------------
@@ -265,7 +290,7 @@ try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.05;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.prepend(renderer.domElement);
@@ -275,25 +300,27 @@ try {
   console.error(e);
 }
 
-const ambient = new THREE.HemisphereLight(0xfff4e2, 0xa89c8a, 2.3);
+const ambient = new THREE.HemisphereLight(0xfff0dc, 0x8a6446, 1.5);
 scene.add(ambient);
-const sun = new THREE.DirectionalLight(0xffe9c9, 3.4);
+const sun = new THREE.DirectionalLight(0xffdcae, 3.2);
 sun.position.set(-3, 6, 4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-Object.assign(sun.shadow.camera, {left: -4, right: 4, top: 4, bottom: -4});
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left: -6, right: 6, top: 6, bottom: -6, far: 25});
 sun.shadow.bias = -.0005;
 sun.shadow.normalBias = .02;
 scene.add(sun);
-const rim = new THREE.DirectionalLight(0xfff2f6, 1.5);
-rim.position.set(4, 3, -3);
+// Golden window light from behind-left gives Mochi a warm rim.
+const rim = new THREE.DirectionalLight(0xffd29a, 1.8);
+rim.position.set(-3, 4, -5);
 scene.add(rim);
 const moon = new THREE.DirectionalLight(0x9fb4ff, 0);
-moon.position.set(-3, 4, 4);
+moon.position.set(-3, 4, -4);
 scene.add(moon);
-const lamp = new THREE.PointLight(0xffb36b, 0, 6, 1.6);
-lamp.position.set(1.6, 1.4, 1.6);
-scene.add(lamp);
+// A warm fill from the front so Mochi stays readable in the evening.
+const fill = new THREE.DirectionalLight(0xffcf9a, 0);
+fill.position.set(2, 3, 6);
+scene.add(fill);
 
 const mat = (color, roughness = .85) => new THREE.MeshStandardMaterial({color, roughness});
 function mesh(geo, material, parent = scene) {
@@ -302,55 +329,9 @@ function mesh(geo, material, parent = scene) {
   parent.add(o);
   return o;
 }
-const DAY = {floor: new THREE.Color('#eadfce'), wall: new THREE.Color('#f3ebdf'), rug: new THREE.Color('#b9c8a6'), glass: new THREE.Color('#e3eedb')};
-const NIGHT = {floor: new THREE.Color('#2a3150'), wall: new THREE.Color('#283055'), rug: new THREE.Color('#3f4f6b'), glass: new THREE.Color('#5d6fa8')};
-const floorMat = mat('#eadfce'), wallMat = mat('#f3ebdf', .95), rugMat = mat('#b9c8a6', .95);
-const floor = mesh(new THREE.PlaneGeometry(200, 200), floorMat);
-floor.rotation.x = -Math.PI / 2; floor.position.y = -.026;
-const rug = mesh(new THREE.CylinderGeometry(2.1, 2.1, .035, 96), rugMat);
-rug.scale.z = .8; rug.position.set(0, -.005, .15);
-const rugRim = mesh(new THREE.TorusGeometry(2.0, .012, 6, 96), mat('#dfe6d2'));
-rugRim.rotation.x = -Math.PI / 2; rugRim.scale.y = .8; rugRim.position.set(0, .016, .15);
-const wall = mesh(new THREE.PlaneGeometry(40, 14), wallMat);
-wall.position.set(0, 5, -3.5);
-mesh(new THREE.BoxGeometry(40, .16, .08), mat('#e2d6c4')).position.set(0, .06, -3.44);
-
-const windowFrame = new THREE.Group();
-windowFrame.position.set(-2.5, 2.2, -3.43);
-scene.add(windowFrame);
-const glass = mesh(new THREE.PlaneGeometry(1.8, 2.2), new THREE.MeshBasicMaterial({color: 0xe3eedb}), windowFrame);
-for (const x of [-.97, 0, .97]) mesh(new THREE.BoxGeometry(.075, 2.4, .08), mat('#fffaf0'), windowFrame).position.set(x, 0, .03);
-for (const y of [-1.16, 0, 1.16]) mesh(new THREE.BoxGeometry(2, .075, .08), mat('#fffaf0'), windowFrame).position.set(0, y, .03);
-const sunPatch = mesh(new THREE.PlaneGeometry(1.9, 2.5), new THREE.MeshBasicMaterial({color: 0xfff1c4, transparent: true, opacity: .3, depthWrite: false}));
-sunPatch.rotation.set(-Math.PI / 2, 0, -.2); sunPatch.position.set(-1.6, .006, -.9); sunPatch.castShadow = sunPatch.receiveShadow = false;
-
-// Food bowl, close enough for the kitten to lean into.
-const bowl = new THREE.Group();
-bowl.position.set(1.3, .1, .9);
-scene.add(bowl);
-mesh(new THREE.CylinderGeometry(.3, .24, .16, 48, 1, true), new THREE.MeshStandardMaterial({color: 0xf08f6a, side: THREE.DoubleSide, roughness: .4}), bowl);
-const bowlRim = mesh(new THREE.TorusGeometry(.295, .032, 12, 48), mat('#ffd2bd', .4), bowl);
-bowlRim.rotation.x = Math.PI / 2; bowlRim.position.y = .075;
-mesh(new THREE.CylinderGeometry(.24, .21, .03, 32), mat('#f6e2d2'), bowl).position.y = -.04;
-const kibbles = [];
-for (let i = 0; i < 18; i++) {
-  const k = mesh(new THREE.SphereGeometry(.03, 7, 5), mat(i % 3 ? '#a8763f' : '#c99257'), bowl);
-  const a = i * 2.4, r = .19 * Math.sqrt((i + 1) / 18);
-  k.position.set(Math.cos(a) * r, -.01 + (i % 4) * .008, Math.sin(a) * r);
-  k.visible = false;
-  kibbles.push(k);
-}
-
-const cushion = mesh(new THREE.CylinderGeometry(.8, .78, .19, 48), mat('#e7c9b3'));
-cushion.scale.z = .63; cushion.position.set(1.55, .075, -1.25);
-
-const bag = new THREE.Group();
-bag.position.set(-1.9, .02, -1.4); bag.rotation.y = .25;
-scene.add(bag);
-const paper = mat('#c89a6c');
-mesh(new THREE.BoxGeometry(.75, .035, .55), paper, bag);
-for (const x of [-.375, .375]) mesh(new THREE.BoxGeometry(.02, .86, .55), paper, bag).position.set(x, .43, 0);
-for (const z of [-.275, .275]) mesh(new THREE.BoxGeometry(.75, .86, .02), paper, bag).position.set(0, .43, z);
+// The room: furniture, bowls, fountain and bed (room.js).
+const room = new Room(scene, renderer, {mobile: matchMedia('(pointer: coarse)').matches});
+const {bowl, kibbles, fountain, bed} = room;
 
 // Toy ball.
 const TOY_HOME = new THREE.Vector3(-1.15, .13, 1.35);
@@ -392,10 +373,12 @@ cat.root.add(contact);
 
 // Places in the room.
 const HOME = new THREE.Vector3(0, 0, .3);
-const RUG = {x: 0, z: .15, rx: 1.7, rz: 1.3};
+const RUG = {x: -.4, z: .3, rx: 1.55, rz: 1.2};
 const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
 const EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
-const CUSHION_SPOT = new THREE.Vector3(cushion.position.x, 0, cushion.position.z);
+const CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
+const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
+const DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
 function onRug(v) {
   const dx = (v.x - RUG.x) / RUG.rx, dz = (v.z - RUG.z) / RUG.rz, r = Math.hypot(dx, dz);
   if (r > 1) { v.x = RUG.x + dx / r * RUG.rx; v.z = RUG.z + dz / r * RUG.rz; }
@@ -458,7 +441,8 @@ function setActivity(name, seconds = Infinity, after = null) {
 function walkTo(point, then = null, run = false, anywhere = false) {
   brain.target = anywhere ? point.clone() : onRug(point.clone());
   brain.run = run;
-  setActivity('walk', 14, then);
+  const dist = Math.hypot(brain.target.x - brain.pos.x, brain.target.z - brain.pos.z);
+  setActivity('walk', 8 + dist / (run ? 1.2 : .45), then);
 }
 function restingActivity() {
   if (pet.sleeping) return 'sleep';
@@ -468,7 +452,7 @@ function restingActivity() {
 function baseExpression() {
   if (pet.sleeping) return 'asleep';
   if (pet.energy < 25) return 'sleepy';
-  if (pet.food < 25) return 'hungry';
+  if (pet.food < 25 || pet.water < 25) return 'hungry';
   if (pet.cleanliness < 30) return 'grumpy';
   if (pet.happiness < 35) return 'lonely';
   return 'content';
@@ -479,6 +463,7 @@ function currentExpression() {
   if (a === 'sleep') return 'asleep';
   if (pet.sleeping) return 'sleepy';
   if (a === 'eat') return since < .5 ? 'curious' : 'yum';
+  if (a === 'drink') return since < .5 ? 'curious' : 'bliss';
   if (a === 'groom') return 'groom';
   if (a === 'belly') return pet.bond >= 40 ? 'love' : 'joy';
   if (a === 'stretch') return 'sleepy';
@@ -544,11 +529,12 @@ function updateCat(dt, t) {
     brain.pos.z += Math.cos(brain.heading) * brain.speed * dt;
   }
   if (a === 'eat') desiredHeading = angleTo(brain.pos, bowl.position);
+  if (a === 'drink') desiredHeading = angleTo(brain.pos, fountain.position);
   if (brain.mode === 'play' && !pc && a !== 'walk') desiredHeading = angleTo(brain.pos, toy.position);
   if (desiredHeading === null && ['sit', 'loaf', 'beg', 'belly', 'sleep'].includes(a)) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : a === 'sleep' ? -.5 : 0);
   if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc ? 7 : 1.6, dt);
-  const onCushion = Math.hypot((brain.pos.x - cushion.position.x) / .78, (brain.pos.z - cushion.position.z) / .5) < 1;
-  brain.elevation = damp(brain.elevation, onCushion ? .17 : 0, 8, dt);
+  const onCushion = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < room.bedRadius;
+  brain.elevation = damp(brain.elevation, onCushion ? room.bedTop : 0, 8, dt);
   cat.root.position.set(brain.pos.x, brain.elevation, brain.pos.z);
   cat.root.rotation.y = brain.heading;
 
@@ -573,6 +559,7 @@ function updateCat(dt, t) {
     if (p >= 1) brain.mouthAnim = null;
     else face.mouth = Math.max(face.mouth, Math.sin(Math.PI * p) ** .7 * m.peak);
   }
+  if (brain.activity === 'drink' && t - brain.actStart > .6) { face.tongue = .5 + .5 * Math.sin(t * 13); face.mouth = Math.max(face.mouth, .12); }
   if (t < brain.chewUntil) face.mouth = Math.max(face.mouth, .15 + .25 * (.5 + .5 * Math.sin(t * 14)));
   const yp = (t - brain.yawnAt) / 2;
   let yawnPitch = 0;
@@ -588,6 +575,7 @@ function updateCat(dt, t) {
   let gazeTarget;
   if (brain.mode === 'play') gazeTarget = toy.position;
   else if (a === 'eat') gazeTarget = tmpV2.copy(bowl.position).setY(0);
+  else if (a === 'drink') gazeTarget = tmpV2.copy(fountain.position).setY(.2);
   else if (t - brain.pointerAt < 2.2) gazeTarget = brain.pointerWorld;
   else if (a === 'walk' && brain.target) gazeTarget = tmpV2.copy(brain.target).setY(.5);
   else if (brain.glance && t < brain.glanceUntil) gazeTarget = brain.glance;
@@ -608,7 +596,7 @@ function updateCat(dt, t) {
   if (e === 'sleepy') { pitch -= .12; roll += .12; }
   if (e === 'lonely' || e === 'hungry') { pitch += .05; roll -= .1; }
   if (a === 'sleep' || a === 'belly') { yaw = 0; pitch = 0; roll = 0; }
-  if (a === 'eat' && t - brain.actStart > .5) { yaw = 0; pitch = -.75 + Math.sin(t * 7) * .05; }
+  if ((a === 'eat' || a === 'drink') && t - brain.actStart > .5) { yaw = 0; pitch = (a === 'drink' ? -.62 : -.75) + Math.sin(t * 7) * .05; }
   if (a === 'groom') { yaw = .35; pitch = -.3 + Math.sin(t * 5) * .1; roll = .2; }
   pitch += yawnPitch;
   brain.head.yaw = damp(brain.head.yaw, yaw, brain.mode === 'play' ? 8 : 5, dt);
@@ -629,7 +617,7 @@ function updateCat(dt, t) {
   if (a === 'walk' || brain.speed > .05) { pose = 'stand'; walk = brain.speed / .8; tail = {amp: .3, speed: 2.5}; }
   if (a === 'loaf') pose = 'loaf';
   if (a === 'sleep') { pose = 'sleep'; tail = {amp: .05, speed: .5}; }
-  if (a === 'eat') { pose = 'crouch'; tail = {amp: .45, speed: 1.2}; }
+  if (a === 'eat' || a === 'drink') { pose = 'crouch'; tail = {amp: .45, speed: 1.2}; }
   if (a === 'groom') pose = 'sit';
   if (a === 'belly') { pose = 'belly'; tail = {amp: .5, speed: 2}; }
   if (a === 'stretch') { pose = 'stretch'; poseRate = 3.5; }
@@ -672,6 +660,8 @@ function idleLife(t) {
   if (pet.energy < 55) options.push('yawn', 'loaf', 'stretch');
   if (pet.energy > 50) options.push('stretch');
   if (pet.food < 40) options.push('bowl', 'bowl');
+  if (pet.water < 60) options.push('drink', 'drink', 'drink');
+  if (pet.energy < 50) options.push('nap');
   if (pet.happiness > 50) options.push('meow');
   const choice = pick(options);
   if (choice === 'glance') glanceAt(new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.2, 2.6));
@@ -688,6 +678,8 @@ function idleLife(t) {
     express('excited', 3);
     walkTo(randomRugPoint(), () => walkTo(randomRugPoint(), () => walkTo(HOME, null, true), true), true);
   }
+  if (choice === 'drink') act('drink', {auto: true});
+  if (choice === 'nap') walkTo(CUSHION_SPOT, () => { setActivity('loaf', rand(8, 14)); setTimeout(slowBlink, 1500); }, false, true);
   if (choice === 'bowl') {
     walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); });
   }
@@ -717,7 +709,7 @@ function act(a, opts = {}) {
   advance(pet);
   if (!ready && a !== 'sleep') { toast('Your kitten is still settling in. One moment.'); return false; }
   if (brain.mode === 'play' && a !== 'sleep' && a !== 'pet') { toast('Playtime is in progress. Move the toy around!'); return false; }
-  if ((brain.mode === 'feed' || brain.mode === 'brush') && a !== 'sleep' && a !== 'pet') { toast('One thing at a time — almost done!'); return false; }
+  if ((brain.mode === 'feed' || brain.mode === 'brush' || brain.mode === 'drink') && a !== 'sleep' && a !== 'pet') { if (!opts.auto) toast('One thing at a time — almost done!'); return false; }
   if (a === 'pet' && clockNow - lastPet < .9) return false;
   if (pet.sleeping && a === 'pet') {
     twitchEar(undefined, .8);
@@ -727,6 +719,8 @@ function act(a, opts = {}) {
   const before = {...pet};
   const r = care(pet, a, opts.snack);
   if (!r.ok) {
+    if (opts.auto) return false;
+    if (a === 'drink') { glanceAt(fountain.position, 1.5); say('Not thirsty right now, thanks!', 2600); return false; }
     toast(r.message);
     if (a === 'feed') { twitchEar(); say('I’m stuffed, thank you!'); }
     if (a === 'play') { yawn(); say('Too sleepy to play…'); }
@@ -751,6 +745,12 @@ function act(a, opts = {}) {
       brain.chewUntil = clockNow + 3.6;
     }, true);
     moment(`A happy tummy, thanks to ${name}.`, 'i-bowl');
+  } else if (a === 'drink') {
+    setMode('drink');
+    if (!opts.auto) { say(pick(['Ooh, fresh water!', 'Sip sip sip…', 'Mrrp! Water time.']), 2600); moment('A refreshing drink from the fountain.', 'i-drop'); }
+    walkTo(DRINK_SPOT, () => {
+      setActivity('drink', 3.4, () => setActivity('groom', 1.6, () => { finishMode(); setActivity('sit'); }));
+    }, false, true);
   } else if (a === 'brush') {
     setMode('brush', 4);
     setActivity('loaf', 4);
@@ -904,6 +904,7 @@ function setPointer(e) {
   return r;
 }
 function hitsCat() { return ready && ray.intersectObjects(cat.meshes, false).length > 0; }
+function hitsFountain() { return ready && ray.intersectObjects(room.clickables, false).length > 0; }
 function trackPointer(e) {
   const r = setPointer(e);
   brain.pointerAt = clockNow;
@@ -921,14 +922,16 @@ host.addEventListener('pointerdown', e => {
   const r = trackPointer(e);
   host.setPointerCapture(e.pointerId);
   const onCat = brain.mode !== 'play' && hitsCat();
-  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, angle: view.target, moved: false, onCat, stroke: 0, rect: r};
+  const onFountain = !onCat && brain.mode !== 'play' && hitsFountain();
+  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, angle: view.target, moved: false, onCat, onFountain, stroke: 0, rect: r};
+  startTrickle();
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
   if (e.target.closest('.hud, .dock')) return;
   trackPointer(e);
   if (!gesture) {
-    if (e.pointerType === 'mouse') host.classList.toggle('over-cat', brain.mode !== 'play' && hitsCat());
+    if (e.pointerType === 'mouse') host.classList.toggle('over-cat', brain.mode !== 'play' && (hitsCat() || hitsFountain()));
     return;
   }
   const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
@@ -949,6 +952,10 @@ host.addEventListener('pointermove', e => {
   gesture.lastX = e.clientX; gesture.lastY = e.clientY;
 });
 function endGesture(e) {
+  if (gesture && !gesture.moved && gesture.onFountain) {
+    if (pet.sleeping) toast('Shh… wake your kitten first.');
+    else act('drink');
+  }
   if (gesture && !gesture.moved && gesture.onCat) act('pet', {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
   gesture = null;
   host.classList.remove('stroking', 'dragging');
@@ -988,6 +995,7 @@ $('#sound').onclick = () => {
   pet.sound = !pet.sound;
   refresh(); save();
   if (pet.sound) { meow('mew'); twitchEar(0); twitchEar(1); }
+  startTrickle();
 };
 $('#view').onclick = () => { view.target = view.target > .5 ? -.9 : view.target + .9; view.lastDrag = clockNow; };
 $('#zoom').onclick = () => {
@@ -1025,10 +1033,10 @@ renderJournal();
 // Camera & frame loop
 // ---------------------------------------------------------------------------
 const CAM = {
-  wide: {offset: new THREE.Vector3(1.35, 1.75, 4.6), lookY: .7, fov: 32},
-  close: {offset: new THREE.Vector3(.55, 1.45, 2.7), lookY: 1.0, fov: 30},
-  tallWide: {offset: new THREE.Vector3(1.2, 2.0, 5.5), lookY: .75, fov: 38},
-  tallClose: {offset: new THREE.Vector3(.5, 1.5, 3.1), lookY: 1.0, fov: 34},
+  wide: {offset: new THREE.Vector3(.45, .9, 5.1), lookY: 1.0, fov: 40},
+  close: {offset: new THREE.Vector3(.55, .45, 2.9), lookY: 1.0, fov: 30},
+  tallWide: {offset: new THREE.Vector3(.6, 1.0, 6.0), lookY: 1.0, fov: 44},
+  tallClose: {offset: new THREE.Vector3(.5, .5, 3.4), lookY: 1.0, fov: 34},
 };
 const camLook = new THREE.Vector3(0, .8, .2), parallax = new THREE.Vector2(), camOffset = new THREE.Vector3();
 function resize() {
@@ -1049,7 +1057,7 @@ function updateCamera(dt) {
   if (Math.abs(camera.fov - fov) > .01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   // Frame the room, drifting toward the kitten (fully on it in close-up).
   const follow = lerp(.6, 1, view.zoom);
-  const tx = lerp(RUG.x, brain.pos.x, follow), tz = lerp(RUG.z, brain.pos.z, follow);
+  const tx = lerp(RUG.x + .5, brain.pos.x, follow), tz = lerp(RUG.z, brain.pos.z, follow);
   const ty = lerp(a.lookY, ready ? cat.headCenter(tmpV).y - .1 : b.lookY, view.zoom);
   camLook.x = damp(camLook.x, tx, 2.5, dt); camLook.y = damp(camLook.y, ty, 2.5, dt); camLook.z = damp(camLook.z, tz, 2.5, dt);
   parallax.x = damp(parallax.x, reduceMotion ? 0 : pointer.x, 2, dt);
@@ -1062,14 +1070,12 @@ function updateCamera(dt) {
 
 function updateRoom(dt, t) {
   const night = pet.sleeping;
-  sun.intensity = damp(sun.intensity, night ? .12 : 3.4, 3, dt);
-  ambient.intensity = damp(ambient.intensity, night ? .75 : 2.3, 3, dt);
-  rim.intensity = damp(rim.intensity, night ? .3 : 1.5, 3, dt);
-  moon.intensity = damp(moon.intensity, night ? 1.6 : 0, 3, dt);
-  lamp.intensity = damp(lamp.intensity, night ? 2.2 : 0, 3, dt);
-  const pal = night ? NIGHT : DAY, k = 1 - Math.exp(-2.5 * dt);
-  floorMat.color.lerp(pal.floor, k); wallMat.color.lerp(pal.wall, k); rugMat.color.lerp(pal.rug, k); glass.material.color.lerp(pal.glass, k);
-  sunPatch.material.opacity = damp(sunPatch.material.opacity, night ? 0 : .3, 3, dt);
+  sun.intensity = damp(sun.intensity, night ? .05 : 3.2, 3, dt);
+  ambient.intensity = damp(ambient.intensity, night ? .35 : 1.5, 3, dt);
+  rim.intensity = damp(rim.intensity, night ? 0 : 1.8, 3, dt);
+  moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
+  fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
+  room.update(dt, t, night, {drinking: brain.activity === 'drink'});
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat') {

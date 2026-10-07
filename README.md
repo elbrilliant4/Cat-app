@@ -25,6 +25,7 @@ npm run check
 - `dist/assets/mochi-ragdoll.glb`: Mochi, a realistic ragdoll cat made with Meshy (free plan, CC BY 4.0, credited in the footer). It's a static model.
 - `dist/cat-rig.js`: builds a cat skeleton inside that model at load time and computes skin weights.
 - `dist/real-cat.js`: Mochi in the app — poses (stand, sit, loaf, sleep, crouch, leap, stretch, belly-up, beg), walking, kneading, pouncing, tail motion, shell-textured fur coloured from the model's own texture, and realistic eyes (lids, blinks, dilating pupils, gaze), ears and jaw.
+- `dist/room.js`: the 3D room — oak floor, wainscoting, window with linen curtains, plaid rug, tufted leather club chair with throw, side table and brass lamp, botanical print, bookcase, ivy, plaid cat bed, ivory food bowl and olive ceramic water fountain (with animated ripples). All textures are drawn in code. It also sets up the day and evening reflections.
 - `models/kitten-original-meshy.glb`: the first Meshy model, kept for reference. It isn't deployed.
 - `dist/pet-state.js`: care rules, saves and offline progression.
 - `dist/assets/kitten.glb`: original Meshy GLB, unchanged, with textures and rig embedded.
