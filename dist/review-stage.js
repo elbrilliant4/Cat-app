@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
-import {synthPurr} from './sound.js';
+import {synthPurr, MEOW_LEVEL} from './sound.js';
 import {meowV1, meowV2} from './meows.js';
 
 const q = new URLSearchParams(location.search);
@@ -119,12 +119,23 @@ window.shot(q.get('expr') || 'content', q.get('view') || 'front', q.get('light')
 document.title = 'ready';
 
 // Offline audio for the pack: the bundled recordings (meows, purr loop), the
-// synthesized purr, and the synthesized meows (meows.js).
+// synthesized purr, the synthesized meows (meows.js), and 'together': her
+// meow and purr at their real relative levels.
 window.renderAudio = async (kind, seconds = 6) => {
   const sr = 44100, ctx = new OfflineAudioContext(1, sr * seconds, sr);
   const list = await fetch('./assets/sounds/sounds.json').then(r => r.ok ? r.json() : {clips: []}).catch(() => ({clips: []}));
   const purrClip = (list.clips || []).find(c => c.kind === 'purr' && c.status !== 'reference');
-  if (kind === 'meow-v1') { let at = .3; while (at + .6 < seconds) at += meowV1(ctx, ctx.destination, at) + 1.2; }
+  if (kind === 'meow-v1') { let at = .3; while (at + .6 < seconds) at += meowV1(ctx, ctx.destination, at, MEOW_LEVEL) + 1.2; }
+  else if (kind === 'together') {
+    // Two meows, then the purr, at the levels the app plays them (the whole
+    // sample is scaled together, so their balance is kept).
+    for (const at of [.3, 1.6]) meowV1(ctx, ctx.destination, at, MEOW_LEVEL);
+    if (purrClip) {
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = await ctx.decodeAudioData(await (await fetch('./assets/sounds/' + purrClip.file)).arrayBuffer());
+      src.loop = true; g.gain.value = purrClip.gain ?? 1; src.connect(g).connect(ctx.destination); src.start(3); src.stop(seconds);
+    } else synthPurr(ctx, ctx.destination, 3, seconds - 3);
+  }
   else if (kind === 'meow-v2') { let at = .3; for (const k of ['mew', 'meow', 'chirp', 'sleepy']) at += meowV2(ctx, ctx.destination, at, k) + 1.2; }
   else if (kind === 'purr-synth') synthPurr(ctx, ctx.destination, 0, seconds);
   else if (kind === 'purr' && purrClip) {

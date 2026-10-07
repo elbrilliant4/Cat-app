@@ -1,5 +1,5 @@
 // Mochi's sounds: her voice only, on one volume. Meows are synthesized
-// (meows.js) unless sounds.json lists recordings for them; the purr is the
+// (meows.js, the first version's meow) unless sounds.json lists recordings for them; the purr is the
 // recording listed there (or a synthesized one if none is).
 // There is deliberately no background ambience: both the old fountain
 // trickle and the later room tone came across as white noise. The fountain
@@ -9,7 +9,11 @@
 // loudness envelope is measured when it loads, so the mouth can open and
 // close with the actual sound.
 
-import {meowV2, meowV2Envelope} from './meows.js';
+import {meowV1, meowV1Envelope} from './meows.js';
+
+// Peak gain of her meow: the original tone, brought up to sit level with the
+// purr (it was about 8 dB quieter as first written).
+export const MEOW_LEVEL = .11;
 
 const MANIFEST = 'sounds.json';
 
@@ -92,15 +96,16 @@ export class Sounds {
     if (pool.length > 1) pool = pool.filter(c => c !== this.lastClip);
     const clip = pick(pool);
     if (!clip) {
-      // No recorded meow for this: her own synthesized voice (meows.js), with
-      // the same small variation in pitch and loudness.
-      const {dur, env} = meowV2Envelope(kind, ENV_RATE);
+      // No recorded meow for this: her own voice, the first version's meow
+      // (meows.js), the same tone for every kind, a little softer or louder
+      // each time.
+      const {dur, env} = meowV1Envelope(ENV_RATE);
       this.busyUntil = now + dur;
       if (this.enabled && this.ctx) {
         const g = this.ctx.createGain();
         g.gain.value = .85 + Math.random() * .15;
         g.connect(this.bus.cat);
-        meowV2(this.ctx, g, this.ctx.currentTime + .02, kind);
+        meowV1(this.ctx, g, this.ctx.currentTime + .02, MEOW_LEVEL);
       }
       return {dur, env, rate: ENV_RATE};
     }

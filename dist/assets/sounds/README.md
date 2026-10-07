@@ -1,8 +1,8 @@
 # Mochi's sounds
 
 `sounds.json` lists the recordings the app plays. Mochi's meows are
-synthesized (`../../meows.js`, version 2, chosen by ear) unless a recording is
-listed for that kind of call; her purr is the recorded sleepy purr.
+synthesized (`../../meows.js`: the first version's meow, chosen by ear)
+unless a recording is listed for that kind of call; her purr is the recorded sleepy purr.
 
 - No status: plays everywhere. `"candidate"`: preview only, until approved by
   ear. `"reference"`: never played, shown in the review pack for comparison.

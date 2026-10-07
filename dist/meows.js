@@ -1,23 +1,35 @@
 // Mochi's synthesized meows. Neither uses any recording: they're generated
 // tones written for this project, so no third-party licence is involved.
-// meowV2 is her voice in the app (chosen by ear over the recorded
-// candidates); meowV1, the original project's meow, is kept for comparison
-// in the review pack.
+// meowV1, the original project's meow, is her voice in the app (chosen by
+// ear); meowV2 is kept for comparison in the review pack.
 
 // Version 1, from the original Pocket Kitten project (Codex handoff, commit
-// 11099b9): one soft triangle tone rising and falling.
-export function meowV1(ctx, out, t) {
+// 11099b9): one soft triangle tone rising and falling. `level` is its peak
+// gain; the original played it at .055 straight to the speakers.
+export function meowV1(ctx, out, t, level = .055) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = 'triangle';
   o.frequency.setValueAtTime(620, t);
   o.frequency.exponentialRampToValueAtTime(920, t + .14);
   o.frequency.exponentialRampToValueAtTime(430, t + .42);
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(.055, t + .04);
-  g.gain.exponentialRampToValueAtTime(.001, t + .5);
+  g.gain.linearRampToValueAtTime(level, t + .04);
+  g.gain.exponentialRampToValueAtTime(level / 55, t + .5);
   o.connect(g); g.connect(out);
   o.start(t); o.stop(t + .55);
   return .55;
+}
+
+// Loudness envelope of a version 1 meow (0..1 at `rate` per second), for the
+// mouth: it follows the same gain curve as the sound.
+export function meowV1Envelope(rate = 60) {
+  const n = Math.ceil(.55 * rate), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    const g = t < .04 ? t / .04 : t < .5 ? Math.pow(1 / 55, (t - .04) / .46) : 0;
+    out[i] = Math.sqrt(g);
+  }
+  return {dur: .55, env: out};
 }
 
 // Version 2 (first written in commit 24fdab9): a buzzy tone through two

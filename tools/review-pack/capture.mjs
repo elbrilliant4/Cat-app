@@ -34,9 +34,12 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}/`;
 
-const browser = await chromium.launch({args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required']});
+// The page is rewritten after every item, so if rendering is cut short (the
+// workflow gives it a time budget) whatever is done still gets published.
+const browser = await chromium.launch({channel: process.env.PLAYWRIGHT_CHANNEL || undefined, timeout: 120000, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required']});
 const made = [];
 const errors = [];
+let finished = false;
 async function page(url, viewport) {
   const p = await browser.newPage({viewport, deviceScaleFactor: 1});
   p.setDefaultTimeout(600000);
@@ -59,81 +62,14 @@ async function clip(p, name, fn, seconds, fps = 15) {
   fs.rmSync(dir, {recursive: true, force: true});
 }
 
-// Close-ups, eyes, walk and sounds from the review stage (one page load).
-log('stage');
-const stage = await page('review-stage.html', {width: 720, height: 720});
-await ready(stage);
-for (const [file, expr, view] of [['face-front', 'content', 'front'], ['face-three', 'content', 'three'], ['face-left', 'content', 'left'], ['face-right', 'content', 'right'], ['eyes-open', 'open', 'front'], ['eyes-half', 'half', 'front'], ['eyes-closed', 'closed', 'front']]) {
-  await stage.evaluate(([e, v]) => window.shot(e, v), [expr, view]);
-  await stage.screenshot({path: path.join(out, file + '.png')});
-  made.push(file + '.png');
-  log(file);
-}
-for (const [kind, seconds] of [['meow', 8], ['meow-v1', 6], ['meow-v2', 8], ['purr', 6], ['purr-synth', 6]]) {
-  const b64 = await stage.evaluate(([k, s]) => window.renderAudio(k, s), [kind, seconds]);
-  if (b64) { fs.writeFileSync(path.join(out, kind + '.wav'), Buffer.from(b64, 'base64')); made.push(kind + '.wav'); }
-  log(kind, b64 ? 'ok' : 'none');
-}
-await stage.setViewportSize({width: 960, height: 540});
-await stage.waitForTimeout(500);
-await stage.evaluate(() => window.walkAt(0));
-await clip(stage, 'walk', 'walkAt', 5);
-log('walk');
-await stage.close();
-
-// The idle loop.
-const idle = await page('idle.html?record', {width: 720, height: 720});
-await ready(idle);
-await clip(idle, 'idle', 'renderAt', 6);
-log('idle');
-await idle.close();
-
-// The room, as people see it.
-async function roomShot(viewport, file, night = false) {
-  const p = await page('index.html?debug', viewport);
-  await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
-  await p.evaluate(night => {
-    kitten.brain.nextIdle = 1e9;
-    kitten.CAMERA_VIEWS.room();
-    if (night) kitten.pet.sleeping = true;
-  }, night);
-  await p.waitForTimeout(night ? 9000 : 5000);
-  await p.evaluate(() => document.querySelector('#speech').classList.remove('show'));
-  await p.screenshot({path: path.join(out, file)});
-  made.push(file);
-  log(file);
-  await p.close();
-}
-await roomShot({width: 390, height: 844}, 'room-day.png');
-await roomShot({width: 390, height: 844}, 'room-night.png', true);
-await roomShot({width: 1280, height: 800}, 'room-desktop.png');
-
-await browser.close();
-server.close();
-
 // The review page.
-// Each recorded clip on its own, exactly as the app plays it, with its
-// measurements; loops also get a three-times-through copy to hear the seam.
-const soundList = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).clips || []; } catch { return []; } })();
-const clipRows = [];
-for (const c of soundList) {
-  try {
-    const bytes = fs.readFileSync(path.join(site, 'assets/sounds', c.file)), wav = readWav(bytes), loop = c.kind === 'purr';
-    const name = 'sound-' + c.file;
-    fs.writeFileSync(path.join(out, name), bytes); made.push(name);
-    let looped = null;
-    if (loop) { looped = name.replace(/\.wav$/, '-x3.wav'); fs.writeFileSync(path.join(out, looped), loopThrice(bytes, wav)); made.push(looped); }
-    clipRows.push({...c, name, looped, qa: analyse(wav, {loop})});
-  } catch (e) { errors.push(`${c.file}: ${e.message}`); }
-}
-log('clips', clipRows.length);
-const credits = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).credits || []; } catch { return []; } })();
 const has = f => made.includes(f);
 const img = (f, cap) => has(f) ? `<figure><a href="${f}"><img src="${f}" alt="${cap}" loading="lazy"></a><figcaption>${cap}</figcaption></figure>` : '';
 const vid = (f, cap) => has(f) ? `<figure><video src="${f}" controls loop muted playsinline preload="metadata"></video><figcaption>${cap} · <a href="${f}">download</a></figcaption></figure>` : '';
 const aud = (f, cap) => has(f) ? `<figure class="audio"><figcaption>${cap}</figcaption><audio src="${f}" controls preload="none"></audio><a href="${f}">download</a></figure>` : `<figure class="audio"><figcaption>${cap}</figcaption><p class="none">Not available in this build.</p></figure>`;
-const when = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
-fs.writeFileSync(path.join(out, 'index.html'), `<!doctype html>
+function writePage() {
+  const when = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  fs.writeFileSync(path.join(out, 'index.html'), `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Mochi review · build ${version.build}</title>
 <style>
@@ -159,6 +95,7 @@ th { color: var(--muted); font-weight: 650; }
 </style></head><body><main>
 <h1>Mochi review pack</h1>
 <p class="meta"><b>Build ${version.build}</b> · commit ${version.commit} · ${version.channel} · rendered ${when}</p>
+${finished ? '' : '<p class="meta"><b>This pack is incomplete:</b> rendering ran out of time or is still going. Anything missing below will be there in the next build.</p>'}
 <p class="meta">This page always shows the newest preview build. The same build number appears in the app's top bar and on every image and clip below. <a href="../">Open this build of the app</a></p>
 <h2>Face</h2>
 <div class="grid">${img('face-front.png', 'Front')}${img('face-three.png', 'Three-quarter')}${img('face-left.png', 'Left side')}${img('face-right.png', 'Right side')}</div>
@@ -170,7 +107,7 @@ th { color: var(--muted); font-weight: 650; }
 <div class="grid">${img('room-day.png', 'Phone, day')}${img('room-night.png', 'Phone, evening')}${img('room-desktop.png', 'Wide screen, day')}</div>
 <h2>Sound</h2>
 <p class="meta">There's no background ambience any more; the fountain is silent. These samples are brought to the same peak level so they're easy to compare; the clips below are at their real levels.</p>
-<div class="grid">${aud('meow-v2.wav', "Mochi's meow: version 2, synthesized (mew, meow, chirp, sleepy)")}${aud('purr.wav', "Mochi's purr: the recorded sleepy purr")}${aud('meow-v1.wav', 'For comparison: the first version\'s meow')}${aud('purr-synth.wav', 'For comparison: the old synthesized purr')}${has('meow.wav') ? aud('meow.wav', 'Recorded meow candidates') : ''}</div>
+<div class="grid">${aud('meow-v1.wav', "Mochi's meow: the first version's meow")}${aud('purr.wav', "Mochi's purr: the recorded sleepy purr")}${aud('together.wav', 'Meow and purr together, at the levels the app plays them')}${aud('meow-v2.wav', 'For comparison: version 2 meow (mew, meow, chirp, sleepy)')}${aud('purr-synth.wav', 'For comparison: the old synthesized purr')}</div>
 ${clipRows.length ? `<h2>Recorded clips, one by one</h2>
 <p class="meta">Exactly as the app plays them (before Mochi's volume and the small random pitch and level variation). Clips marked candidate play in the preview only.</p>
 <div class="grid">${clipRows.map(c => `<figure class="audio"><figcaption>${c.file} · ${c.kind}${c.status === 'candidate' ? ' · candidate' : c.status === 'reference' ? ' · original, for comparison' : ''}${c.note ? `<br><span style="font-weight:500">${c.note}</span>` : ''}</figcaption><audio src="${c.name}" controls preload="none"></audio><a href="${c.name}">download</a>${c.looped ? `<figcaption>Loop seam check (three times through)</figcaption><audio src="${c.looped}" controls preload="none"></audio>` : ''}</figure>`).join('')}</div>
@@ -182,5 +119,82 @@ ${credits.length ? `<h2>Sound credits</h2><ul>${credits.map(c => `<li>${c}</li>`
 ${errors.length ? `<h2>Capture notes</h2><ul>${errors.map(e => `<li>${e.replace(/</g, '&lt;')}</li>`).join('')}</ul>` : ''}
 </main></body></html>
 `);
+}
+
+// Each recorded clip on its own, exactly as the app plays it, with its
+// measurements; loops also get a three-times-through copy to hear the seam.
+const soundList = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).clips || []; } catch { return []; } })();
+const clipRows = [];
+for (const c of soundList) {
+  try {
+    const bytes = fs.readFileSync(path.join(site, 'assets/sounds', c.file)), wav = readWav(bytes), loop = c.kind === 'purr';
+    const name = 'sound-' + c.file;
+    fs.writeFileSync(path.join(out, name), bytes); made.push(name);
+    let looped = null;
+    if (loop) { looped = name.replace(/\.wav$/, '-x3.wav'); fs.writeFileSync(path.join(out, looped), loopThrice(bytes, wav)); made.push(looped); }
+    clipRows.push({...c, name, looped, qa: analyse(wav, {loop})});
+  } catch (e) { errors.push(`${c.file}: ${e.message}`); }
+}
+log('clips', clipRows.length);
+const credits = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).credits || []; } catch { return []; } })();
+writePage();
+
+// Close-ups, eyes, sounds and walk from the review stage (one page load).
+log('stage');
+const stage = await page('review-stage.html', {width: 720, height: 720});
+await ready(stage);
+for (const [file, expr, view] of [['face-front', 'content', 'front'], ['face-three', 'content', 'three'], ['face-left', 'content', 'left'], ['face-right', 'content', 'right'], ['eyes-open', 'open', 'front'], ['eyes-half', 'half', 'front'], ['eyes-closed', 'closed', 'front']]) {
+  await stage.evaluate(([e, v]) => window.shot(e, v), [expr, view]);
+  await stage.screenshot({path: path.join(out, file + '.png')});
+  made.push(file + '.png');
+  log(file);
+}
+for (const [kind, seconds] of [['meow-v1', 6], ['together', 7], ['meow-v2', 8], ['purr', 6], ['purr-synth', 6]]) {
+  const b64 = await stage.evaluate(([k, s]) => window.renderAudio(k, s), [kind, seconds]);
+  if (b64) { fs.writeFileSync(path.join(out, kind + '.wav'), Buffer.from(b64, 'base64')); made.push(kind + '.wav'); }
+  log(kind, b64 ? 'ok' : 'none');
+}
+writePage();
+
+// The room, as people see it.
+async function roomShot(viewport, file, night = false) {
+  const p = await page('index.html?debug', viewport);
+  await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
+  await p.evaluate(night => {
+    kitten.brain.nextIdle = 1e9;
+    kitten.CAMERA_VIEWS.room();
+    if (night) kitten.pet.sleeping = true;
+  }, night);
+  await p.waitForTimeout(night ? 9000 : 5000);
+  await p.evaluate(() => document.querySelector('#speech').classList.remove('show'));
+  await p.screenshot({path: path.join(out, file)});
+  made.push(file);
+  log(file);
+  await p.close();
+  writePage();
+}
+await roomShot({width: 390, height: 844}, 'room-day.png');
+await roomShot({width: 390, height: 844}, 'room-night.png', true);
+await roomShot({width: 1280, height: 800}, 'room-desktop.png');
+
+// The clips take longest, so they come last.
+await stage.setViewportSize({width: 960, height: 540});
+await stage.waitForTimeout(500);
+await stage.evaluate(() => window.walkAt(0));
+await clip(stage, 'walk', 'walkAt', 5);
+log('walk');
+await stage.close();
+writePage();
+
+const idle = await page('idle.html?record', {width: 720, height: 720});
+await ready(idle);
+await clip(idle, 'idle', 'renderAt', 6);
+log('idle');
+await idle.close();
+
+await browser.close();
+server.close();
+finished = true;
+writePage();
 log('done', made.length, 'files', errors.length ? `${errors.length} notes` : '');
 if (errors.length) console.log(errors.join('\n'));

@@ -61,7 +61,7 @@ jobs:
       - name: Render the preview's review pack
         if: steps.preview.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 40
+        timeout-minutes: 50
         run: |
           if [ -x preview-src/tools/review-pack/run.sh ]; then
             preview-src/tools/review-pack/run.sh preview-src/dist
