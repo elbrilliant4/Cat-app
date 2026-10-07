@@ -110,14 +110,15 @@ function frame(t) {
   const tall = camera.aspect < .9;
   // Frame her whole body, centred, from about her eye level.
   if (!frameBox) {
-    cat.skinned.boundingBox = null;
-    frameBox = new THREE.Box3().setFromObject(cat.skinned);
-    frameCentre = frameBox.getCenter(new THREE.Vector3());
+    // Measured from her actual pose: top of the head and the body's middle.
+    const top = cat.headTop(new THREE.Vector3()), mid = cat.headCenter(new THREE.Vector3());
+    frameBox = {h: top.y + .05};
+    frameCentre = new THREE.Vector3((mid.x + HOLD.x) / 2, 0, (mid.z + HOLD.z) / 2 - .1);
   }
-  const h = frameBox.max.y;
-  const lookAt = _v2.set(frameCentre.x, h * .5, frameCentre.z);
+  const h = frameBox.h;
+  const lookAt = _v2.set(frameCentre.x, h * .48, frameCentre.z);
   camera.fov = tall ? 40 : 30;
-  const dist = (h * .5 + .15) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (tall ? 1.15 : 1);
+  const dist = (h * .5 + .3) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (tall ? 1.15 : 1);
   camera.position.set(lookAt.x + dist * .28, h * .62, lookAt.z + dist * .96);
   camera.lookAt(lookAt);
   camera.updateProjectionMatrix();
