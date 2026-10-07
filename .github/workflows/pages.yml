@@ -1,6 +1,11 @@
 # Publishes the site to GitHub Pages:
-#   /          the app from main (what everyone sees)
-#   /preview/  the work-in-progress branch, for review before it goes live
+#   /                 the app from main (what everyone sees)
+#   /preview/         the work-in-progress branch, for review before it goes live
+#   /preview/review/  a review pack rendered from that preview build (close-ups,
+#                     eyes, clips, room views, sounds), made by the branch's
+#                     tools/review-pack/run.sh
+# Each build gets a version.json (build number = commits on its branch, plus
+# the commit), which the app shows as its build label.
 # Runs on every push to main, and on demand (a push to the review branch
 # triggers it through preview.yml).
 name: Deploy site
@@ -32,6 +37,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -43,6 +49,23 @@ jobs:
         with:
           ref: ${{ env.PREVIEW_BRANCH }}
           path: preview-src
+          fetch-depth: 0
+      - name: Stamp build numbers
+        run: |
+          stamp() {
+            printf '{"build": %s, "commit": "%s", "channel": "%s", "date": "%s"}\n' \
+              "$(git -C "$1" rev-list --count HEAD)" "$(git -C "$1" rev-parse --short HEAD)" "$2" "$(date -u +%FT%TZ)" > "$1/dist/version.json"
+          }
+          stamp . live
+          if [ -d preview-src/dist ]; then stamp preview-src preview; fi
+      - name: Render the preview's review pack
+        if: steps.preview.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 40
+        run: |
+          if [ -x preview-src/tools/review-pack/run.sh ]; then
+            preview-src/tools/review-pack/run.sh preview-src/dist
+          fi
       - name: Assemble site
         run: |
           mkdir -p _site

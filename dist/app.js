@@ -222,6 +222,8 @@ function meow(kind = 'meow', priority = 'reply') {
   return true;
 }
 const purr = seconds => sounds.purr(seconds);
+// Browsers only allow audio after a tap; start it on the first one anywhere.
+document.addEventListener('pointerdown', () => { if (pet.sound) sounds.setEnabled(true); }, {capture: true});
 
 // ---------------------------------------------------------------------------
 // 3D room
@@ -1014,7 +1016,6 @@ host.addEventListener('pointerdown', e => {
   const onCat = !panning && brain.mode !== 'play' && hitsCat();
   const onFountain = !panning && !onCat && brain.mode !== 'play' && hitsFountain();
   gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, panning, stroke: 0, rect: r};
-  if (pet.sound) sounds.start();
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
@@ -1137,6 +1138,16 @@ window.addEventListener('pagehide', save);
 setInterval(() => { advance(pet); refresh(); save(); }, 15000);
 refresh();
 renderJournal();
+
+// Build label: version.json is written by the site's deploy workflow (build
+// number = commits on the branch, plus the commit itself). Preview builds
+// show it at the top so reviewers can match what they see to a review pack.
+fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(v => {
+  if (!v) return;
+  const text = `${v.channel === 'preview' ? 'Preview' : 'Version'} build ${v.build} · ${v.commit}`;
+  $('#build-label').textContent = text;
+  if (v.channel === 'preview') { $('#build-chip').textContent = `Preview · build ${v.build}`; $('#build-chip').hidden = false; }
+}).catch(() => {});
 
 // ---------------------------------------------------------------------------
 // Camera & frame loop

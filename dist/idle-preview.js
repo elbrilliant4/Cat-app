@@ -133,6 +133,9 @@ addEventListener('resize', () => {
 camera.aspect = innerWidth / innerHeight;
 
 await cat.load('./assets/mochi-ragdoll.glb');
+fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(v => {
+  if (v) document.getElementById('note').textContent = `Mochi · idle preview · build ${v.build} · ${v.commit}`;
+}).catch(() => {});
 // Settle into the sitting pose before anything is shown.
 for (let i = 0; i < 90; i++) frame(i / 30 - 3);
 frameBox = null;

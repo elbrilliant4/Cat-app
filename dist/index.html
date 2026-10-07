@@ -41,9 +41,10 @@
 
 <div class="app">
   <header class="topbar">
-    <a class="brand" href="./" aria-label="Pocket Kitten home"><span class="brand-mark"><svg><use href="#i-paw"/></svg></span><span>pocket kitten</span></a>
+    <a class="brand" href="./" aria-label="Pocket Kitten home"><img class="brand-mark" src="./assets/icons/icon-192.png" alt="" width="38" height="38"><span>pocket kitten</span></a>
     <p class="greeting" id="greeting">Hello again.</p>
     <div class="top-actions">
+      <span class="chip build-chip" id="build-chip" hidden></span>
       <span class="chip day-chip"><svg><use href="#i-heart"/></svg><span id="age">Day 1</span></span>
       <div class="sound-wrap">
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
@@ -126,7 +127,7 @@
       </section>
     </aside>
   </main>
-  <footer><span>Made for small, happy moments.</span><span>3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Pocket Kitten</span></footer>
+  <footer><span>Made for small, happy moments. <span id="build-label">Build: dev</span></span><span>3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Pocket Kitten</span></footer>
 </div>
 
 <dialog id="feed-dialog" aria-labelledby="feed-title">

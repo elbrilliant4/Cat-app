@@ -548,11 +548,12 @@ export class RealCat {
     const fangGeo = new THREE.ConeGeometry(.0028, .009, 10);
     fangGeo.rotateX(Math.PI);
     const fangMat = new THREE.MeshPhysicalMaterial({color: '#f4efe4', roughness: .25, clearcoat: .6});
-    for (const s of [-1, 1]) {
+    this.fangs = [-1, 1].map(s => {
       const f = new THREE.Mesh(fangGeo, fangMat);
       f.position.copy(at('head', MOUTH.midX + s * .019, .2795, .858));
       bones.head.add(f);
-    }
+      return f;
+    });
     this.tongue = tongue;
     this.tongueRest = tongue.position.clone();
   }
@@ -773,6 +774,7 @@ export class RealCat {
       this.tongue.scale.set(.02, .0055 + tg * .002, .032 + tg * .006);
       // Closed lips leave a hairline gap; keep it a dark lip line.
       this.tongue.visible = m + tg > .03;
+      for (const f of this.fangs) f.visible = m + tg > .05;
     }
     for (const [i, ear] of this.ears.entries()) {
       ear.vel += (-170 * ear.twitch - 10 * ear.vel) * dt;
