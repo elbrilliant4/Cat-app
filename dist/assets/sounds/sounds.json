@@ -1,9 +1,26 @@
 {
-  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Status: candidates for review, not yet approved.",
+  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Clips with \"status\": \"candidate\" play in the preview only; remove the status once a clip is approved for the live app.",
   "clips": [
-    {"file": "mew-soft-1.wav", "kind": "mew", "gain": 0.7},
-    {"file": "meow-ask-1.wav", "kind": "meow", "gain": 0.6},
-    {"file": "purr-sleepy-loop.wav", "kind": "purr", "gain": 0.55}
+    {
+      "file": "mew-soft-1.wav",
+      "kind": "mew",
+      "gain": 0.7,
+      "status": "candidate"
+    },
+    {
+      "file": "meow-ask-1.wav",
+      "kind": "meow",
+      "gain": 0.6,
+      "status": "candidate"
+    },
+    {
+      "file": "purr-sleepy-loop.wav",
+      "kind": "purr",
+      "gain": 0.55,
+      "status": "candidate"
+    }
   ],
-  "credits": ["Cat recordings by Kerzoven, via <a href=\"https://opengameart.org/content/cat-purr-meow\">OpenGameArt.org</a> (CC0)"]
+  "credits": [
+    "Cat recordings by Kerzoven, via <a href=\"https://opengameart.org/content/cat-purr-meow\">OpenGameArt.org</a> (CC0)"
+  ]
 }

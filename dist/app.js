@@ -1147,7 +1147,7 @@ fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).t
   if (!v) return;
   const text = `${v.channel === 'preview' ? 'Preview' : 'Version'} build ${v.build} · ${v.commit}`;
   $('#build-label').textContent = text;
-  if (v.channel === 'preview') { $('#build-chip').textContent = `Preview · build ${v.build}`; $('#build-chip').hidden = false; }
+  if (v.channel === 'preview') { $('#build-chip').textContent = `Preview · build ${v.build}`; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
 }).catch(() => {});
 
 // ---------------------------------------------------------------------------

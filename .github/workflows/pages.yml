@@ -74,6 +74,12 @@ jobs:
             mkdir -p _site/preview
             cp -r preview-src/dist/. _site/preview/
           fi
+          # Short links for reviewers: /review/ opens the latest preview's
+          # review pack.
+          mkdir -p _site/review
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>Mochi review pack</title>' \
+            '<meta http-equiv="refresh" content="0; url=../preview/review/">' \
+            '<p>Opening the latest review pack: <a href="../preview/review/">preview/review/</a></p>' > _site/review/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

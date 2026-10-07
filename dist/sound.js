@@ -50,8 +50,12 @@ export class Sounds {
       const res = await fetch(this.base + MANIFEST);
       if (!res.ok) return;
       const list = await res.json();
-      this.credits = list.credits || [];
-      await Promise.all((list.clips || []).map(async c => {
+      // Clips marked "candidate" are still being reviewed: they play in the
+      // preview build only, not in the live app.
+      const channel = await fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : {}).then(v => v.channel).catch(() => null);
+      const clips = (list.clips || []).filter(c => c.status !== 'candidate' || channel !== 'live');
+      this.credits = clips.length ? list.credits || [] : [];
+      await Promise.all(clips.map(async c => {
         const data = await (await fetch(this.base + c.file)).arrayBuffer();
         const buffer = await this.ctx.decodeAudioData(data);
         this.clips.push({...c, buffer, env: envelope(buffer)});
