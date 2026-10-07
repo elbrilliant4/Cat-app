@@ -1,5 +1,8 @@
-# Publishes dist/ to GitHub Pages on every push to main, so the live site
-# always matches the repository.
+# Publishes the site to GitHub Pages:
+#   /          the app from main (what everyone sees)
+#   /preview/  the work-in-progress branch, for review before it goes live
+# Runs on every push to main, and on demand (a push to the review branch
+# triggers it through preview.yml).
 name: Deploy site
 
 on:
@@ -16,6 +19,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  PREVIEW_BRANCH: claude/expressive-cat-modern-ui-65z6r5
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -24,13 +30,30 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm run check
+      - name: Fetch the review branch
+        id: preview
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PREVIEW_BRANCH }}
+          path: preview-src
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r dist/. _site/
+          if [ -d preview-src/dist ]; then
+            mkdir -p _site/preview
+            cp -r preview-src/dist/. _site/preview/
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
