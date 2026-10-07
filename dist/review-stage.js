@@ -7,7 +7,8 @@
 import * as THREE from 'three';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
-import {synthPurr, roomTone} from './sound.js';
+import {synthPurr} from './sound.js';
+import {meowV1, meowV2} from './legacy-meows.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
@@ -117,20 +118,23 @@ window.walkAt = s => {
 window.shot(q.get('expr') || 'content', q.get('view') || 'front', q.get('light') || 'day');
 document.title = 'ready';
 
-// Offline audio for the pack: the bundled recordings (meows, purr loop), and
-// the synthesized room tone (and purr, when no purr recording is bundled).
+// Offline audio for the pack: the bundled recordings (meows, purr loop), the
+// synthesized purr, and earlier versions' synthesized meows (legacy-meows.js)
+// for comparison.
 window.renderAudio = async (kind, seconds = 6) => {
   const sr = 44100, ctx = new OfflineAudioContext(1, sr * seconds, sr);
   const list = await fetch('./assets/sounds/sounds.json').then(r => r.ok ? r.json() : {clips: []}).catch(() => ({clips: []}));
-  const purrClip = (list.clips || []).find(c => c.kind === 'purr');
-  if (kind === 'purr' && purrClip) {
+  const purrClip = (list.clips || []).find(c => c.kind === 'purr' && c.status !== 'reference');
+  if (kind === 'meow-v1') { let at = .3; while (at + .6 < seconds) at += meowV1(ctx, ctx.destination, at) + 1.2; }
+  else if (kind === 'meow-v2') { let at = .3; for (const k of ['mew', 'meow', 'chirp', 'sleepy']) at += meowV2(ctx, ctx.destination, at, k) + 1.2; }
+  else if (kind === 'purr-synth') synthPurr(ctx, ctx.destination, 0, seconds);
+  else if (kind === 'purr' && purrClip) {
     const src = ctx.createBufferSource();
     src.buffer = await ctx.decodeAudioData(await (await fetch('./assets/sounds/' + purrClip.file)).arrayBuffer());
     src.loop = true; src.connect(ctx.destination); src.start(0);
   } else if (kind === 'purr') synthPurr(ctx, ctx.destination, 0, seconds);
-  else if (kind === 'room') roomTone(ctx, ctx.destination);
   else {
-    const clips = (list.clips || []).filter(c => c.kind !== 'purr');
+    const clips = (list.clips || []).filter(c => c.kind !== 'purr' && c.status !== 'reference');
     if (!clips.length) return null;
     let at = .3;
     for (const c of clips) {
@@ -153,7 +157,7 @@ function wav(data, sr) {
   d.setUint32(28, sr * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); str(36, 'data'); d.setUint32(40, n * 2, true);
   let peak = 1e-6;
   for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(data[i]));
-  const gain = Math.min(1, .9 / peak);
+  const gain = .89 / peak; // every sample at the same peak (-1 dB), so they compare easily
   for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i] * gain)) * 32767, true);
   let bin = '';
   const bytes = new Uint8Array(buf);

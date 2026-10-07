@@ -161,6 +161,30 @@ seam = abs(y[-1] - y[0])
 report[name] = {'from': src, 'before': measure(d, sr), 'after': measure(y, sr), 'loop_seam_step': round(float(seam), 4), 'clicks_repaired_at_s': clicks}
 clips.append({'file': name, 'kind': 'purr'})
 
+# A softer version of the purr (feedback: a little too low and growly):
+# about two semitones higher, lighter bass, the pulse's peaks evened out and
+# its edges softened, keeping the natural flutter.
+soft_name = 'purr-sleepy-soft-loop.wav'
+x = y.copy()
+shift = 2 ** (2 / 12)                                  # +2 semitones (and pulses ~12% quicker)
+n_out = int(len(x) / shift)
+x = np.interp(np.arange(n_out) * shift, np.arange(len(x)), x)
+x = highpass(highpass(x, sr, 70), sr, 70)               # lighter bass: 4th-order cut below ~70 Hz
+x = lowpass(x, sr, 2200)                                # smoother, less gritty top
+win = int(sr * 0.006)                                   # pulse envelope (6 ms)
+env = np.sqrt(np.convolve(x ** 2, np.ones(win) / win, 'same')) + 1e-6
+smooth = np.convolve(env, np.ones(int(sr * 0.04)) / int(sr * 0.04), 'same')
+x *= (smooth / env) ** 0.35                             # pulses 35% less peaky
+xf2 = int(sr * 0.3)                                     # re-make the loop seam
+t2 = np.linspace(0, np.pi / 2, xf2)
+x[:xf2] = x[:xf2] * np.sin(t2) + x[-xf2:] * np.cos(t2)
+x = x[:-xf2]
+x *= 10 ** ((-21 - 10 * np.log10(np.mean(x ** 2))) / 20)
+x *= min(1, 10 ** (-3 / 20) / np.abs(x).max())
+save(os.path.join(DST, soft_name), x, sr)
+report[soft_name] = {'from': name + ' (pitched up 2 semitones, bass and pulse softened)', 'after': measure(x, sr)}
+clips.append({'file': soft_name, 'kind': 'purr'})
+
 print(json.dumps(report, indent=1))
 if REPORT:
     os.makedirs(REPORT, exist_ok=True)

@@ -6,7 +6,7 @@
 //   idle.mp4, walk.mp4                short clips (needs ffmpeg)
 //   room-day.png, room-night.png      the room on a phone, day and evening
 //   room-desktop.png                  the room on a wide screen
-//   meow.wav, purr.wav, room.wav      isolated sounds
+//   meow-*.wav, purr-*.wav            isolated sounds (and each recorded clip)
 //   index.html                        the review page, labelled with the build
 // Set PLAYWRIGHT_MODULE to use a Playwright install outside node_modules.
 import fs from 'node:fs';
@@ -69,7 +69,7 @@ for (const [file, expr, view] of [['face-front', 'content', 'front'], ['face-thr
   made.push(file + '.png');
   log(file);
 }
-for (const [kind, seconds] of [['meow', 8], ['purr', 6], ['room', 10]]) {
+for (const [kind, seconds] of [['meow', 8], ['meow-v1', 6], ['meow-v2', 8], ['purr', 6], ['purr-synth', 6]]) {
   const b64 = await stage.evaluate(([k, s]) => window.renderAudio(k, s), [kind, seconds]);
   if (b64) { fs.writeFileSync(path.join(out, kind + '.wav'), Buffer.from(b64, 'base64')); made.push(kind + '.wav'); }
   log(kind, b64 ? 'ok' : 'none');
@@ -169,10 +169,11 @@ th { color: var(--muted); font-weight: 650; }
 <h2>Room</h2>
 <div class="grid">${img('room-day.png', 'Phone, day')}${img('room-night.png', 'Phone, evening')}${img('room-desktop.png', 'Wide screen, day')}</div>
 <h2>Sound</h2>
-<div class="grid">${aud('meow.wav', 'Meows (recorded candidates)')}${aud('purr.wav', 'Purr (recorded candidate)')}${aud('room.wav', 'Room ambience')}</div>
+<p class="meta">There's no background ambience any more; the fountain is silent. These samples are brought to the same peak level so they're easy to compare; the clips below are at their real levels.</p>
+<div class="grid">${aud('meow-v1.wav', 'Meow, first version (original project, synthesized)')}${aud('meow-v2.wav', 'Meow, version 2 (live until build 32: mew, meow, chirp, sleepy; synthesized)')}${aud('meow.wav', 'Meows, recorded candidates')}${aud('purr-synth.wav', 'Purr, synthesized (used in the live app)')}${aud('purr.wav', 'Purr, recorded candidate as the preview plays it')}</div>
 ${clipRows.length ? `<h2>Recorded clips, one by one</h2>
 <p class="meta">Exactly as the app plays them (before Mochi's volume and the small random pitch and level variation). Clips marked candidate play in the preview only.</p>
-<div class="grid">${clipRows.map(c => `<figure class="audio"><figcaption>${c.file} · ${c.kind}${c.status === 'candidate' ? ' · candidate' : ''}</figcaption><audio src="${c.name}" controls preload="none"></audio><a href="${c.name}">download</a>${c.looped ? `<figcaption>Loop seam check (three times through)</figcaption><audio src="${c.looped}" controls preload="none"></audio>` : ''}</figure>`).join('')}</div>
+<div class="grid">${clipRows.map(c => `<figure class="audio"><figcaption>${c.file} · ${c.kind}${c.status === 'candidate' ? ' · candidate' : c.status === 'reference' ? ' · original, for comparison' : ''}${c.note ? `<br><span style="font-weight:500">${c.note}</span>` : ''}</figcaption><audio src="${c.name}" controls preload="none"></audio><a href="${c.name}">download</a>${c.looped ? `<figcaption>Loop seam check (three times through)</figcaption><audio src="${c.looped}" controls preload="none"></audio>` : ''}</figure>`).join('')}</div>
 <table><thead><tr><th>Clip</th><th>Length</th><th>Peak</th><th>Clipped samples</th><th>Quietest 10% (background)</th><th>Loudest</th><th>Clicks found</th><th>Loop seam</th></tr></thead><tbody>
 ${clipRows.map(c => { const q = c.qa; return `<tr><td>${c.file}</td><td>${q.seconds} s</td><td>${q.peakDb} dBFS</td><td>${q.clippedSamples}</td><td>${c.kind === 'purr' ? 'n/a (continuous)' : q.noiseFloorDb + ' dBFS'}</td><td>${q.loudestDb} dBFS</td><td>${q.clicks.length ? q.clicks.join(', ') + ' s' : 'none'}</td><td>${q.loopSeam ? `step ${q.loopSeam.stepVsTypical}× a normal step, ${q.loopSeam.loudnessChangeDb} dB across it` : '—'}</td></tr>`; }).join('')}
 </tbody></table>

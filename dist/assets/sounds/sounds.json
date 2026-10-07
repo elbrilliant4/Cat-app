@@ -1,5 +1,5 @@
 {
-  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Clips with \"status\": \"candidate\" play in the preview only; remove the status once a clip is approved for the live app.",
+  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Clips with \"status\": \"candidate\" play in the preview only; remove the status once a clip is approved for the live app. \"reference\" clips are never played; they're only shown in the review pack for comparison.",
   "clips": [
     {
       "file": "mew-soft-1.wav",
@@ -14,10 +14,18 @@
       "status": "candidate"
     },
     {
+      "file": "purr-sleepy-soft-loop.wav",
+      "kind": "purr",
+      "gain": 0.6,
+      "status": "candidate",
+      "note": "softer version: about two semitones higher, lighter bass, smoother pulse"
+    },
+    {
       "file": "purr-sleepy-loop.wav",
       "kind": "purr",
       "gain": 0.55,
-      "status": "candidate"
+      "status": "reference",
+      "note": "original recording, for comparison in the review pack only"
     }
   ],
   "credits": [

@@ -129,7 +129,6 @@ function refresh() {
   $('#sound').innerHTML = icon(pet.sound ? 'i-sound' : 'i-mute');
   $('#sound-on').checked = pet.sound;
   $('#vol-cat').value = pet.catVolume;
-  $('#vol-room').value = pet.roomVolume;
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
@@ -210,11 +209,11 @@ function burst(kind = 'heart', count = 5, at = headScreen) {
 
 // ---------------------------------------------------------------------------
 // Sound (sound.js): recorded meows with a mouth that follows them, a purr,
-// and a quiet room tone, each on its own volume.
+// with one volume control (no background ambience).
 // ---------------------------------------------------------------------------
 const sounds = new Sounds();
 sounds.enabled = pet.sound;
-sounds.volume = {cat: pet.catVolume, room: pet.roomVolume};
+sounds.volume = {cat: pet.catVolume};
 function meow(kind = 'meow', priority = 'reply') {
   const m = sounds.meow(kind, priority);
   if (!m) return false;
@@ -1099,7 +1098,7 @@ $('#name-form').onsubmit = e => {
   toast('Hello, ' + pet.name);
   if (ready && !pet.sleeping) { express('joy', 1.6); hop(); meow('mew'); say(`${pet.name}? I love it!`, 3600, true); }
 };
-// Sound panel: an on/off switch and separate volumes for Mochi and the room.
+// Sound panel: an on/off switch and Mochi's volume.
 function toggleSoundPanel(open = $('#sound-panel').hidden) {
   $('#sound-panel').hidden = !open;
   $('#sound').setAttribute('aria-expanded', String(open));
@@ -1112,7 +1111,7 @@ $('#sound-on').onchange = e => {
   refresh(); save();
   if (pet.sound) { meow('mew'); twitchEar(0); twitchEar(1); }
 };
-for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume'], ['#vol-room', 'room', 'roomVolume']]) {
+for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume']]) {
   $(id).oninput = e => { pet[key] = +e.target.value; sounds.setVolume(kind, pet[key]); };
   $(id).onchange = () => { save(); if (kind === 'cat' && pet.sound) meow('mew'); };
 }
@@ -1246,7 +1245,6 @@ function updateRoom(dt, t) {
   moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
   fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
   room.update(dt, t, night, {drinking: brain.activity === 'drink', camera});
-  if (night !== updateRoom.night) { updateRoom.night = night; sounds.setNight(night); }
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat') {

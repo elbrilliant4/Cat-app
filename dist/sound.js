@@ -1,9 +1,8 @@
-// Mochi's sounds, on two separately controlled buses:
-//   cat  - her voice: recorded meows and purr (assets/sounds/sounds.json
-//          lists them),
-//   room - ambience: a quiet, warm room tone.
-// The old looping fountain trickle (filtered white noise with a fast wobble,
-// heard as a constant "maracas" shake) is gone; the fountain is visual only.
+// Mochi's sounds: her voice only (recorded meows and purr listed in
+// assets/sounds/sounds.json, or the synthesized purr), on one volume.
+// There is deliberately no background ambience: both the old fountain
+// trickle and the later room tone came across as white noise. The fountain
+// is visual only.
 //
 // Meows never overlap and leave quiet gaps between them. Each recording's
 // loudness envelope is measured when it loads, so the mouth can open and
@@ -16,7 +15,7 @@ export class Sounds {
     this.base = base;
     this.ctx = null;
     this.enabled = false;
-    this.volume = {cat: .8, room: .5};
+    this.volume = {cat: .8};
     this.clips = [];
     this.credits = [];
     // Call timing runs on the page clock (seconds), which keeps going even
@@ -24,7 +23,6 @@ export class Sounds {
     this.busyUntil = -Infinity; // no new call starts before this
     this.purrUntil = -Infinity; // she doesn't meow while purring
     this.lastClip = null;
-    this.room = null;
   }
 
   // Must first be called from a user gesture (browsers keep audio locked
@@ -36,7 +34,7 @@ export class Sounds {
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
-      this.bus = {cat: this.ctx.createGain(), room: this.ctx.createGain()};
+      this.bus = {cat: this.ctx.createGain()};
       for (const [k, g] of Object.entries(this.bus)) { g.gain.value = this.volume[k]; g.connect(this.master); }
       this.master.gain.value = this.enabled ? 1 : 0;
       this.loading = this.load();
@@ -51,9 +49,10 @@ export class Sounds {
       if (!res.ok) return;
       const list = await res.json();
       // Clips marked "candidate" are still being reviewed: they play in the
-      // preview build only, not in the live app.
+      // preview build only, not in the live app. "reference" clips are only
+      // for comparison in the review pack and are never played.
       const channel = await fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : {}).then(v => v.channel).catch(() => null);
-      const clips = (list.clips || []).filter(c => c.status !== 'candidate' || channel !== 'live');
+      const clips = (list.clips || []).filter(c => c.status !== 'reference' && (c.status !== 'candidate' || channel !== 'live'));
       this.credits = clips.length ? list.credits || [] : [];
       await Promise.all(clips.map(async c => {
         const data = await (await fetch(this.base + c.file)).arrayBuffer();
@@ -67,7 +66,6 @@ export class Sounds {
     this.enabled = on;
     if (on) this.start();
     if (this.ctx) this.master.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, .08);
-    if (on) this.startRoom(); else this.stopRoom();
   }
   setVolume(kind, v) {
     this.volume[kind] = v;
@@ -133,16 +131,6 @@ export class Sounds {
     synthPurr(this.ctx, this.bus.cat, t, seconds);
   }
 
-  startRoom() {
-    if (this.room || !this.enabled || !this.start()) return;
-    this.room = roomTone(this.ctx, this.bus.room);
-  }
-  stopRoom() {
-    if (!this.room) return;
-    this.room.stop();
-    this.room = null;
-  }
-  setNight(night) { this.room?.setLevel(night ? .55 : 1, this.ctx.currentTime); }
 }
 
 const clock = () => performance.now() / 1000;
@@ -194,31 +182,4 @@ export function synthPurr(ctx, out, t, seconds) {
   g.gain.exponentialRampToValueAtTime(.0001, t + seconds);
   src.connect(low).connect(g).connect(out);
   src.start(t); src.stop(t + seconds);
-}
-
-// A quiet, warm room tone: soft low rumble with a very slow swell, no
-// rhythm and no hiss.
-export function roomTone(ctx, out) {
-  const sr = ctx.sampleRate, len = sr * 8;
-  const buf = ctx.createBuffer(1, len, sr), d = buf.getChannelData(0);
-  let b = 0;
-  for (let i = 0; i < len; i++) { b = (b + .02 * (Math.random() * 2 - 1)) / 1.02; d[i] = b * 3.5; }
-  // Cross-fade the loop's ends so it repeats without a click.
-  const fadeN = sr * .5;
-  for (let i = 0; i < fadeN; i++) { const k = i / fadeN; d[len - fadeN + i] = d[len - fadeN + i] * (1 - k) + d[i] * k; }
-  const src = ctx.createBufferSource(), low = ctx.createBiquadFilter(), g = ctx.createGain(), level = ctx.createGain();
-  const swell = ctx.createOscillator(), depth = ctx.createGain();
-  src.buffer = buf; src.loop = true; src.loopStart = .5; src.loopEnd = 8;
-  low.type = 'lowpass'; low.frequency.value = 260;
-  g.gain.value = .05; swell.frequency.value = .06; depth.gain.value = .012;
-  swell.connect(depth).connect(g.gain);
-  level.gain.value = 0;
-  src.connect(low).connect(g).connect(level).connect(out);
-  const t = ctx.currentTime;
-  level.gain.setTargetAtTime(1, t, 1.5);
-  src.start(t); swell.start(t);
-  return {
-    stop() { level.gain.setTargetAtTime(0, ctx.currentTime, .4); src.stop(ctx.currentTime + 2); swell.stop(ctx.currentTime + 2); },
-    setLevel(v, at) { level.gain.setTargetAtTime(v, at, 2); },
-  };
 }
