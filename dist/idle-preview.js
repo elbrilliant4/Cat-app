@@ -58,7 +58,8 @@ const LOOK_SHIFTS = [[4.6, 6.0, {x: .35, y: .05}]]; // glance off to the window,
 
 const face = {...EXPRESSIONS.content};
 const head = {yaw: 0, pitch: 0, roll: 0}, look = {x: 0, y: 0};
-let lastT = 0;
+let lastT = 0, frameBox = null, frameCentre = null;
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 
 function frame(t) {
   const dt = clamp(t - lastT, 0, .1) || 1 / 30;
@@ -83,8 +84,12 @@ function frame(t) {
   }
   look.x = damp(look.x, gx * .6, 8, dt);
   look.y = damp(look.y, gy * .6, 8, dt);
-  head.yaw = damp(head.yaw, gx * .55 + Math.sin(t * .5) * .015, 3, dt);
-  head.pitch = damp(head.pitch, .04 + Math.sin(t * .37) * .012, 3, dt);
+  // Turn the head toward the camera (with a little lag), like the app does.
+  cat.root.updateMatrixWorld(true);
+  const local = cat.neck.worldToLocal(_v.copy(camera.position)).sub(cat.head.position);
+  const toYaw = Math.atan2(local.x, Math.max(.12, local.z)), toPitch = Math.atan2(local.y, Math.hypot(local.x, local.z));
+  head.yaw = damp(head.yaw, clamp(toYaw * .8, -.8, .8) + gx * .5 + Math.sin(t * .5) * .015, 3, dt);
+  head.pitch = damp(head.pitch, clamp(toPitch * .75, -.45, .35) + Math.sin(t * .37) * .012, 3, dt);
   head.roll = damp(head.roll, .05 + Math.sin(t * .41) * .02, 3, dt);
 
   // Ear flicks: one ear, a quick twitch and settle.
@@ -103,10 +108,17 @@ function frame(t) {
   room.update(dt, t, false);
   // Camera: low and close, like sitting on the floor with her.
   const tall = camera.aspect < .9;
-  const target = cat.headCenter(new THREE.Vector3());
-  const lookAt = new THREE.Vector3(HOLD.x + .05, target.y * .62, HOLD.z);
-  camera.fov = tall ? 38 : 30;
-  camera.position.set(lookAt.x + .9, target.y * .74, lookAt.z + (tall ? 3.6 : 3.0));
+  // Frame her whole body, centred, from about her eye level.
+  if (!frameBox) {
+    cat.skinned.boundingBox = null;
+    frameBox = new THREE.Box3().setFromObject(cat.skinned);
+    frameCentre = frameBox.getCenter(new THREE.Vector3());
+  }
+  const h = frameBox.max.y;
+  const lookAt = _v2.set(frameCentre.x, h * .5, frameCentre.z);
+  camera.fov = tall ? 40 : 30;
+  const dist = (h * .5 + .15) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (tall ? 1.15 : 1);
+  camera.position.set(lookAt.x + dist * .28, h * .62, lookAt.z + dist * .96);
   camera.lookAt(lookAt);
   camera.updateProjectionMatrix();
   renderer.render(scene, camera);
@@ -122,6 +134,8 @@ camera.aspect = innerWidth / innerHeight;
 await cat.load('./assets/mochi-ragdoll.glb');
 // Settle into the sitting pose before anything is shown.
 for (let i = 0; i < 90; i++) frame(i / 30 - 3);
+frameBox = null;
+for (let i = 0; i < 30; i++) frame(i / 30 - 1);
 if (record) {
   window.renderAt = s => { frame(s); return true; };
   document.title = 'ready';
