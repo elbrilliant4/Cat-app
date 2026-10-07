@@ -35,6 +35,7 @@ fill.position.set(1, 1.6, 6);
 scene.add(fill);
 
 const camera = new THREE.PerspectiveCamera(26, innerWidth / innerHeight, .05, 60);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 const cat = new RealCat();
 await cat.load('./assets/mochi-ragdoll.glb');
 scene.add(cat.root);
@@ -87,8 +88,8 @@ window.walkAt = s => {
   const walking = s > .4 && s < 4.6;
   cat.root.position.set(WALK.x0 + WALK.speed * Math.max(0, Math.min(s, 4.6) - .4), 0, .5);
   step(dt, {pose: 'stand', poseRate: 8, walk: walking ? WALK.speed / .65 : 0, face: EXPRESSIONS.content, look: {x: .2, y: 0}, head: {yaw: .15, pitch: -.05, roll: 0}, tail: {amp: .3, speed: 2.2}});
-  camera.position.set(cat.root.position.x + .15, .55, 3.4);
-  camera.lookAt(cat.root.position.x + .15, .38, .4);
+  camera.position.set(cat.root.position.x + .1, .6, 5.2);
+  camera.lookAt(cat.root.position.x + .1, .36, .5);
   renderer.render(scene, camera);
   return true;
 };

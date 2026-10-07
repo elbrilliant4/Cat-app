@@ -74,6 +74,8 @@ for (const [kind, seconds] of [['meow', 8], ['purr', 6], ['room', 10]]) {
   log(kind, b64 ? 'ok' : 'none');
 }
 await stage.setViewportSize({width: 960, height: 540});
+await stage.waitForTimeout(500);
+await stage.evaluate(() => window.walkAt(0));
 await clip(stage, 'walk', 'walkAt', 5);
 log('walk');
 await stage.close();
