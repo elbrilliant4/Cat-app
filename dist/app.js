@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {KEY, restore, fresh, advance, care, mood} from './pet-state.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
+import {Sounds} from './sound.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp} = THREE.MathUtils;
@@ -126,8 +127,10 @@ function refresh() {
     : pet.happiness < 35 ? 'A cuddle or a game would help.'
     : 'All good. Just be here.';
   $('#sound').innerHTML = icon(pet.sound ? 'i-sound' : 'i-mute');
-  $('#sound').setAttribute('aria-pressed', String(pet.sound));
-  $('#sound').setAttribute('aria-label', pet.sound ? 'Turn sound off' : 'Turn sound on');
+  $('#sound-on').checked = pet.sound;
+  $('#vol-cat').value = pet.catVolume;
+  $('#vol-room').value = pet.roomVolume;
+  $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
     : matchMedia('(pointer: coarse)').matches ? 'Stroke Mochi to pet · drag to look around · pinch to zoom' : 'Stroke Mochi to pet · drag to look around · scroll to zoom · right-drag to move';
@@ -170,9 +173,13 @@ function renderJournal(fresh = false) {
   $('#journal-count').textContent = pet.journal.length;
 }
 
-// Speech bubble anchored above the kitten's head.
-let speechTimer;
-function say(text, ms = 4200) {
+// Speech bubble beside the kitten's head. She mostly speaks through what she
+// does; words are kept for things you need to know (`important`) and the odd
+// remark, at most one every 40 seconds or so.
+let speechTimer, lastSay = -100;
+function say(text, ms = 3600, important = false) {
+  if (!important && (clockNow - lastSay < 40 || Math.random() > .4)) return;
+  lastSay = clockNow;
   $('#speech-text').textContent = text;
   $('#speech').classList.add('show');
   clearTimeout(speechTimer);
@@ -202,81 +209,19 @@ function burst(kind = 'heart', count = 5, at = headScreen) {
 }
 
 // ---------------------------------------------------------------------------
-// Sound: small synthesized meows and purrs (no recorded audio is bundled).
+// Sound (sound.js): recorded meows with a mouth that follows them, a purr,
+// and a quiet room tone, each on its own volume.
 // ---------------------------------------------------------------------------
-let audio;
-function audioCtx() {
-  audio ??= new (window.AudioContext || window.webkitAudioContext)();
-  if (audio.state === 'suspended') audio.resume();
-  return audio;
+const sounds = new Sounds();
+sounds.enabled = pet.sound;
+sounds.volume = {cat: pet.catVolume, room: pet.roomVolume};
+function meow(kind = 'meow', priority = 'reply') {
+  const m = sounds.meow(kind, priority);
+  if (!m) return false;
+  brain.mouthAnim = {start: clockNow, dur: m.dur + .08, env: m.env, rate: m.rate, peak: kind === 'chirp' ? .45 : kind === 'sleepy' ? .5 : .75};
+  return true;
 }
-function meow(kind = 'meow') {
-  const dur = {chirp: .2, mew: .36, meow: .6, sleepy: .8}[kind] ?? .6;
-  brain.mouthAnim = {start: clockNow, dur: dur + .08, peak: kind === 'chirp' ? .45 : kind === 'sleepy' ? .5 : .8};
-  if (!pet.sound) return;
-  try {
-    const a = audioCtx(), t = a.currentTime + .02;
-    const base = {chirp: 760, mew: 700, meow: 540, sleepy: 430}[kind] ?? 540;
-    const o = a.createOscillator(), lfo = a.createOscillator(), lfoGain = a.createGain();
-    const f1 = a.createBiquadFilter(), f2 = a.createBiquadFilter(), out = a.createGain(), g2 = a.createGain();
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(base * .82, t);
-    o.frequency.linearRampToValueAtTime(base * 1.32, t + dur * .32);
-    o.frequency.exponentialRampToValueAtTime(base * .72, t + dur);
-    lfo.frequency.value = 6.5; lfoGain.gain.value = base * .018;
-    lfo.connect(lfoGain).connect(o.frequency);
-    f1.type = f2.type = 'bandpass'; f1.Q.value = 5; f2.Q.value = 7;
-    f1.frequency.setValueAtTime(650, t); f1.frequency.linearRampToValueAtTime(1150, t + dur * .4); f1.frequency.linearRampToValueAtTime(600, t + dur);
-    f2.frequency.setValueAtTime(2700, t); f2.frequency.linearRampToValueAtTime(1800, t + dur * .5); f2.frequency.linearRampToValueAtTime(1100, t + dur);
-    g2.gain.value = .55;
-    o.connect(f1).connect(out); o.connect(f2).connect(g2).connect(out); out.connect(a.destination);
-    out.gain.setValueAtTime(.0001, t);
-    out.gain.exponentialRampToValueAtTime(.32, t + .05);
-    out.gain.setValueAtTime(.32, t + dur * .55);
-    out.gain.exponentialRampToValueAtTime(.0001, t + dur);
-    o.start(t); lfo.start(t); o.stop(t + dur + .05); lfo.stop(t + dur + .05);
-  } catch {}
-}
-function purr(seconds = 2.2) {
-  if (!pet.sound) return;
-  try {
-    const a = audioCtx(), t = a.currentTime, len = Math.floor(a.sampleRate * seconds);
-    const buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < len; i++) { last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
-    const src = a.createBufferSource(), lp = a.createBiquadFilter(), am = a.createGain(), lfo = a.createOscillator(), depth = a.createGain(), out = a.createGain();
-    src.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 420;
-    am.gain.value = .5; lfo.frequency.value = 25; depth.gain.value = .5;
-    lfo.connect(depth).connect(am.gain);
-    src.connect(lp).connect(am).connect(out).connect(a.destination);
-    out.gain.setValueAtTime(.0001, t);
-    out.gain.exponentialRampToValueAtTime(.9, t + .35);
-    out.gain.setValueAtTime(.9, t + seconds - .5);
-    out.gain.exponentialRampToValueAtTime(.0001, t + seconds);
-    src.start(t); lfo.start(t); src.stop(t + seconds); lfo.stop(t + seconds);
-  } catch {}
-}
-
-// A soft fountain trickle while sound is on.
-let trickle = null;
-function startTrickle() {
-  if (!pet.sound) { if (trickle) { trickle.gain.gain.setTargetAtTime(0, audio.currentTime, .3); } return; }
-  try {
-    const a = audioCtx();
-    if (!trickle) {
-      const len = a.sampleRate * 4, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (.4 + .6 * Math.abs(Math.sin(i / a.sampleRate * 9.3) * Math.sin(i / a.sampleRate * 3.1)));
-      const src = a.createBufferSource(), bp = a.createBiquadFilter(), gain = a.createGain();
-      src.buffer = buf; src.loop = true;
-      bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = .8;
-      gain.gain.value = 0;
-      src.connect(bp).connect(gain).connect(a.destination);
-      src.start();
-      trickle = {gain};
-    }
-    trickle.gain.gain.setTargetAtTime(.035, a.currentTime, .5);
-  } catch {}
-}
+const purr = seconds => sounds.purr(seconds);
 
 // ---------------------------------------------------------------------------
 // 3D room
@@ -415,8 +360,9 @@ const brain = {
   override: null, overrideUntil: 0,
   face: {...EXPRESSIONS.content},
   blinkAt: -10, nextBlink: 1.5, blinkDouble: false, slowBlinkAt: -10,
-  mouthAnim: null, chewUntil: 0, yawnAt: -10, hopAt: -10, kneadUntil: 0, strokeUntil: 0,
-  gaze: new THREE.Vector3(0, 1.2, 4), glance: null, glanceUntil: 0,
+  mouthAnim: null, rubUntil: 0, tailUpUntil: 0, chewUntil: 0, yawnAt: -10, hopAt: -10, kneadUntil: 0, strokeUntil: 0,
+  gaze: new THREE.Vector3(0, 1.2, 4), headGaze: new THREE.Vector3(0, 1.2, 4), headWait: null, headMoving: false,
+  bodyWait: null, bodyTurning: false, glance: null, glanceUntil: 0,
   head: {yaw: 0, pitch: 0, roll: 0}, look: {x: 0, y: 0},
   nextIdle: 6, nextZ: 0, nextTwitch: 3,
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
@@ -480,10 +426,11 @@ function greet(first = false) {
   express('surprised', .6);
   setTimeout(() => { express('joy', 1.8); hop(); meow('mew'); burst('heart', 4); }, 600);
   const lines = pet.food < 25 ? ['You’re back! Is it… snack o’clock?'] : pet.happiness < 35 ? ['There you are! I missed you.'] : first ? ['Oh! Hi, you! Got a little time for me?', 'Mrrp! You came back!', 'Hello, my favourite human.'] : ['Welcome back!', 'Mrrp! There you are.'];
-  setTimeout(() => say(pick(lines)), 450);
+  setTimeout(() => say(pick(lines), 3600, first), 450);
+  brain.tailUpUntil = clockNow + 4;
 }
 
-const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3();
 const angleTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 function dampAngle(a, b, rate, dt) {
   const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -507,7 +454,7 @@ function updateCat(dt, t) {
     const dx = brain.target.x - brain.pos.x, dz = brain.target.z - brain.pos.z, dist = Math.hypot(dx, dz);
     desiredHeading = Math.atan2(dx, dz);
     const facing = Math.abs(Math.atan2(Math.sin(desiredHeading - brain.heading), Math.cos(desiredHeading - brain.heading)));
-    const top = brain.run ? 2.1 : .8;
+    const top = brain.run ? 2.1 : .65;
     brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * 2.5 + .2) : .15, 5, dt);
     if (dist < .06) {
       brain.speed = 0;
@@ -531,7 +478,15 @@ function updateCat(dt, t) {
   if (a === 'eat') desiredHeading = angleTo(brain.pos, bowl.position);
   if (a === 'drink') desiredHeading = angleTo(brain.pos, fountain.position);
   if (brain.mode === 'play' && !pc && a !== 'walk') desiredHeading = angleTo(brain.pos, toy.position);
-  if (desiredHeading === null && ['sit', 'loaf', 'beg', 'belly', 'sleep'].includes(a)) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : a === 'sleep' ? -.5 : 0);
+  if (desiredHeading === null && (['belly', 'sleep'].includes(a) || brain.mode === 'brush')) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : -.5);
+  else if (desiredHeading === null && ['sit', 'loaf', 'beg'].includes(a)) {
+    // Settled: the body only turns once the head has been turned well round
+    // for a moment, and then just until she faces what she's watching.
+    if (Math.abs(brain.head.yaw) > .42) brain.bodyWait ??= t + .6; else brain.bodyWait = null;
+    if (brain.bodyWait !== null && t > brain.bodyWait) brain.bodyTurning = true;
+    if (Math.abs(brain.head.yaw) < .1) brain.bodyTurning = false;
+    if (brain.bodyTurning) desiredHeading = angleTo(brain.pos, brain.headGaze);
+  }
   if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc ? 7 : 1.6, dt);
   const onCushion = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < room.bedRadius;
   brain.elevation = damp(brain.elevation, onCushion ? room.bedTop : 0, 8, dt);
@@ -557,6 +512,7 @@ function updateCat(dt, t) {
   if (m) {
     const p = (t - m.start) / m.dur;
     if (p >= 1) brain.mouthAnim = null;
+    else if (m.env) face.mouth = Math.max(face.mouth, (m.env[Math.min(m.env.length - 1, Math.floor((t - m.start) * m.rate))] || 0) * m.peak);
     else face.mouth = Math.max(face.mouth, Math.sin(Math.PI * p) ** .7 * m.peak);
   }
   if (brain.activity === 'drink' && t - brain.actStart > .6) { face.tongue = .5 + .5 * Math.sin(t * 13); face.mouth = Math.max(face.mouth, .12); }
@@ -580,13 +536,31 @@ function updateCat(dt, t) {
   else if (a === 'walk' && brain.target) gazeTarget = tmpV2.copy(brain.target).setY(.5);
   else if (brain.glance && t < brain.glanceUntil) gazeTarget = brain.glance;
   else gazeTarget = camera.position;
-  brain.gaze.x = damp(brain.gaze.x, gazeTarget.x, 9, dt);
-  brain.gaze.y = damp(brain.gaze.y, gazeTarget.y, 9, dt);
-  brain.gaze.z = damp(brain.gaze.z, gazeTarget.z, 9, dt);
+  // Eyes first: they jump to whatever caught her attention. The head
+  // follows a beat later and more slowly; the body (above) last of all.
+  const quick = brain.mode === 'play';
+  brain.gaze.x = damp(brain.gaze.x, gazeTarget.x, 18, dt);
+  brain.gaze.y = damp(brain.gaze.y, gazeTarget.y, 18, dt);
+  brain.gaze.z = damp(brain.gaze.z, gazeTarget.z, 18, dt);
   cat.root.updateMatrixWorld(true);
-  const local = cat.neck.worldToLocal(tmpV.copy(brain.gaze)).sub(cat.head.position);
+  const eyeAt = cat.headCenter(tmpV3);
+  const apart = tmpV.subVectors(brain.gaze, eyeAt).normalize().angleTo(tmpV2.subVectors(brain.headGaze, eyeAt).normalize());
+  if (apart > .12 && !brain.headMoving) brain.headWait ??= t + (quick ? .05 : .2);
+  if (brain.headWait !== null && t >= brain.headWait) { brain.headMoving = true; brain.headWait = null; }
+  if (brain.headMoving) {
+    const r = quick ? 9 : 3.4;
+    brain.headGaze.x = damp(brain.headGaze.x, brain.gaze.x, r, dt);
+    brain.headGaze.y = damp(brain.headGaze.y, brain.gaze.y, r, dt);
+    brain.headGaze.z = damp(brain.headGaze.z, brain.gaze.z, r, dt);
+    if (apart < .03) brain.headMoving = false;
+  }
+  const toLocal = p => cat.neck.worldToLocal(tmpV.copy(p)).sub(cat.head.position);
+  let local = toLocal(brain.headGaze);
   const wantYaw = Math.atan2(local.x, Math.max(.12, local.z));
   const wantPitch = Math.atan2(local.y, Math.hypot(local.x, local.z));
+  local = toLocal(brain.gaze);
+  const eyeYaw = Math.atan2(local.x, Math.max(.12, local.z));
+  const eyePitch = Math.atan2(local.y, Math.hypot(local.x, local.z));
   let yaw = clamp(wantYaw * .75, -.85, .85), pitch = clamp(wantPitch * .7, -.5, .45), roll = 0;
   const e = currentExpression();
   roll += Math.sin(t * .7) * .04 * motion;
@@ -598,13 +572,15 @@ function updateCat(dt, t) {
   if (a === 'sleep' || a === 'belly') { yaw = 0; pitch = 0; roll = 0; }
   if ((a === 'eat' || a === 'drink') && t - brain.actStart > .5) { yaw = 0; pitch = (a === 'drink' ? -.62 : -.75) + Math.sin(t * 7) * .05; }
   if (a === 'groom') { yaw = .35; pitch = -.3 + Math.sin(t * 5) * .1; roll = .2; }
+  // Rubbing her cheek against your hand.
+  if (t < brain.rubUntil && !['sleep', 'belly', 'eat', 'drink'].includes(a)) { const k = Math.min(1, (brain.rubUntil - t) * 2); roll += Math.sin(t * 6.5) * .28 * k; yaw += Math.sin(t * 3.2) * .12 * k; pitch += .08 * k; }
   pitch += yawnPitch;
   brain.head.yaw = damp(brain.head.yaw, yaw, brain.mode === 'play' ? 8 : 5, dt);
   brain.head.pitch = damp(brain.head.pitch, pitch, 5, dt);
   brain.head.roll = damp(brain.head.roll, roll, 4, dt);
   const sleepy = a === 'sleep';
-  brain.look.x = damp(brain.look.x, sleepy ? 0 : clamp((wantYaw - brain.head.yaw) / .45, -1, 1), 16, dt);
-  brain.look.y = damp(brain.look.y, sleepy ? 0 : clamp((wantPitch - brain.head.pitch) / .35, -1, 1), 16, dt);
+  brain.look.x = damp(brain.look.x, sleepy ? 0 : clamp((eyeYaw - brain.head.yaw) / .45, -1, 1), 22, dt);
+  brain.look.y = damp(brain.look.y, sleepy ? 0 : clamp((eyePitch - brain.head.pitch) / .35, -1, 1), 22, dt);
 
   if (t > brain.nextTwitch) {
     brain.nextTwitch = t + rand(3, 8);
@@ -639,12 +615,35 @@ function updateCat(dt, t) {
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
     groom: a === 'groom', head: brain.head, look: brain.look, face, tail,
+    tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
   });
 
-  // Screen anchor above the head for speech and particles.
+  // Screen anchor above the head for particles, and the face's rough
+  // on-screen box (so the speech bubble can stay clear of it).
+  const W = host.clientWidth, H = host.clientHeight;
   const top = cat.headTop(tmpV).project(camera);
-  headScreen.x = (top.x * .5 + .5) * host.clientWidth;
-  headScreen.y = (-top.y * .5 + .5) * host.clientHeight;
+  headScreen.x = (top.x * .5 + .5) * W;
+  headScreen.y = (-top.y * .5 + .5) * H;
+  const mid = cat.headCenter(tmpV).project(camera);
+  const cx = (mid.x * .5 + .5) * W, cy = (-mid.y * .5 + .5) * H, r = Math.max(28, Math.abs(cy - headScreen.y) * 1.15);
+  Object.assign(faceBox, {cx, cy, l: cx - r, r: cx + r, t: Math.min(headScreen.y, cy - r), b: cy + r * .9});
+}
+const faceBox = {cx: 0, cy: 0, l: 0, r: 0, t: 0, b: 0};
+
+// Put the speech bubble above her head, or beside it when there's no room
+// above; never over her face.
+function placeSpeech() {
+  const sp = $('#speech');
+  if (!sp.classList.contains('show')) return;
+  const w = sp.offsetWidth, h = sp.offsetHeight, W = host.clientWidth, H = host.clientHeight;
+  const top = 78, right = W - 72, bottom = H - 130, f = faceBox;
+  let x, y;
+  if (f.t - 10 - h >= top) { x = clamp(f.cx - w * .3, 12, right - w); y = f.t - 10; }
+  else if (f.r + 12 + w <= right) { x = f.r + 12; y = clamp(f.cy, top + h, bottom); }
+  else if (f.l - 12 - w >= 12) { x = f.l - 12 - w; y = clamp(f.cy, top + h, bottom); }
+  else { x = clamp(f.cx - w / 2, 12, right - w); y = clamp(f.b + 12 + h, top + h, bottom); }
+  sp.style.setProperty('--x', x.toFixed(1) + 'px');
+  sp.style.setProperty('--y', y.toFixed(1) + 'px');
 }
 
 // Little unprompted behaviours that make the kitten feel alive.
@@ -683,7 +682,7 @@ function idleLife(t) {
   if (choice === 'bowl') {
     walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); });
   }
-  if (choice === 'meow') { meow(pick(['mew', 'chirp'])); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
+  if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
 }
 
 // ---------------------------------------------------------------------------
@@ -720,10 +719,10 @@ function act(a, opts = {}) {
   const r = care(pet, a, opts.snack);
   if (!r.ok) {
     if (opts.auto) return false;
-    if (a === 'drink') { glanceAt(fountain.position, 1.5); say('Not thirsty right now, thanks!', 2600); return false; }
+    if (a === 'drink') { glanceAt(fountain.position, 1.5); say('Not thirsty right now, thanks!', 2600, true); return false; }
     toast(r.message);
-    if (a === 'feed') { twitchEar(); say('I’m stuffed, thank you!'); }
-    if (a === 'play') { yawn(); say('Too sleepy to play…'); }
+    if (a === 'feed') { twitchEar(); say('I’m stuffed, thank you!', 3600, true); }
+    if (a === 'play') { yawn(); say('Too sleepy to play…', 3600, true); }
     return false;
   }
   showDeltas(before);
@@ -733,6 +732,7 @@ function act(a, opts = {}) {
     const name = {kibble: 'crunchy kibble', salmon: 'salmon bites', chicken: 'chicken morsels'}[opts.snack] || 'crunchy kibble';
     kibbles.forEach(k => k.visible = true);
     setMode('feed');
+    brain.tailUpUntil = t + 5;
     meow('chirp');
     express('excited', 1);
     say(pick([`${name[0].toUpperCase() + name.slice(1)}?! Best. Human. Ever.`, `Mmm, ${name}! You know the way to my heart.`]));
@@ -789,6 +789,8 @@ function act(a, opts = {}) {
       burst('heart', 7);
     } else {
       express(opts.stroke ? 'bliss' : pet.bond >= 100 && Math.random() < .4 ? 'love' : 'joy', 2.2);
+      brain.rubUntil = t + (opts.stroke ? 1.2 : 1.8);
+      brain.tailUpUntil = t + 2.5;
       if (!opts.stroke && brain.activity !== 'belly') hop();
       burst('heart', opts.stroke ? 3 : 5, opts.at || headScreen);
       if (!opts.quiet) say(pick(['I like it here. Especially with you.', 'More of that, please.', 'You have excellent petting skills.', 'Purrrr…', 'Right behind the ears. Perfect.']), 3000);
@@ -817,7 +819,7 @@ function startPlay() {
   $('#play-score').textContent = '0 catches';
   express('surprised', .4);
   meow('chirp');
-  say('Catch me if you can! Steer the toy around.');
+  say('Catch me if you can! Steer the toy around.', 3600, true);
 }
 function endPlay(silent = false) {
   if (brain.mode !== 'play') return;
@@ -897,7 +899,7 @@ function updatePlay(dt, t) {
 const view = {
   focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
   goal: {focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7},
-  mode: 'room', lastDrag: -10,
+  mode: 'room', lastDrag: -10, zoomedAt: -100,
 };
 const LIMITS = {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]};
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
@@ -957,7 +959,7 @@ function pan(dx, dy) {
 }
 function zoomBy(f) {
   view.goal.dist *= f;
-  view.lastDrag = clockNow;
+  view.lastDrag = view.zoomedAt = clockNow;
   clampGoal();
 }
 
@@ -978,7 +980,7 @@ const CAMERA_VIEWS = {
     setCamMode('room');
   },
   follow() {
-    Object.assign(view.goal, {dist: tallScreen() ? 4.2 : 3.4, pitch: .26});
+    Object.assign(view.goal, {dist: ready ? clamp(fitDistance(framing(false).radius), 2.6, 6) : tallScreen() ? 4.2 : 3.4, pitch: .26});
     view.goal.yaw = Math.atan2(camera.position.x - brain.pos.x, camera.position.z - brain.pos.z);
     setCamMode('follow');
   },
@@ -1012,7 +1014,7 @@ host.addEventListener('pointerdown', e => {
   const onCat = !panning && brain.mode !== 'play' && hitsCat();
   const onFountain = !panning && !onCat && brain.mode !== 'play' && hitsFountain();
   gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, panning, stroke: 0, rect: r};
-  startTrickle();
+  if (pet.sound) sounds.start();
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
@@ -1091,14 +1093,25 @@ $('#name-form').onsubmit = e => {
   refresh();
   $('#name-dialog').close();
   toast('Hello, ' + pet.name);
-  if (ready && !pet.sleeping) { express('joy', 1.6); hop(); meow('mew'); say(`${pet.name}? I love it!`); }
+  if (ready && !pet.sleeping) { express('joy', 1.6); hop(); meow('mew'); say(`${pet.name}? I love it!`, 3600, true); }
 };
-$('#sound').onclick = () => {
-  pet.sound = !pet.sound;
+// Sound panel: an on/off switch and separate volumes for Mochi and the room.
+function toggleSoundPanel(open = $('#sound-panel').hidden) {
+  $('#sound-panel').hidden = !open;
+  $('#sound').setAttribute('aria-expanded', String(open));
+}
+$('#sound').onclick = () => toggleSoundPanel();
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.sound-wrap')) toggleSoundPanel(false); });
+$('#sound-on').onchange = e => {
+  pet.sound = e.target.checked;
+  sounds.setEnabled(pet.sound);
   refresh(); save();
   if (pet.sound) { meow('mew'); twitchEar(0); twitchEar(1); }
-  startTrickle();
 };
+for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume'], ['#vol-room', 'room', 'roomVolume']]) {
+  $(id).oninput = e => { pet[key] = +e.target.value; sounds.setVolume(kind, pet[key]); };
+  $(id).onchange = () => { save(); if (kind === 'cat' && pet.sound) meow('mew'); };
+}
 $('.tabs').onclick = e => {
   const b = e.target.closest('[data-tab]');
   if (!b) return;
@@ -1129,6 +1142,24 @@ renderJournal();
 // Camera & frame loop
 // ---------------------------------------------------------------------------
 const camOffset = new THREE.Vector3();
+// The space Mochi takes up right now (head, hips, tail, paws), and the toy
+// too while playing, as a centre and radius.
+const frameBox = new THREE.Box3(), framePt = new THREE.Vector3(), frameOut = {center: new THREE.Vector3(), radius: 1};
+function framing(withToy) {
+  frameBox.makeEmpty();
+  frameBox.expandByPoint(cat.headTop(framePt));
+  for (const b of ['hips', 'tail4', 'tail7', 'wristR', 'wristL', 'hockR', 'hockL']) frameBox.expandByPoint(cat.bones[b].getWorldPosition(framePt));
+  if (withToy) frameBox.expandByPoint(toy.position);
+  frameBox.getCenter(frameOut.center);
+  frameOut.center.y = clamp(frameOut.center.y, .3, 1);
+  frameOut.radius = frameBox.getSize(framePt).length() / 2 + .15;
+  return frameOut;
+}
+// Camera distance that fits a sphere of this radius on screen.
+function fitDistance(radius) {
+  const half = THREE.MathUtils.degToRad(camera.fov / 2), halfH = Math.atan(Math.tan(half) * camera.aspect);
+  return radius / Math.sin(Math.min(half, halfH)) * 1.05;
+}
 function resize() {
   const w = host.clientWidth, h = host.clientHeight;
   camera.aspect = w / h;
@@ -1148,18 +1179,28 @@ const CAM_BOX = {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]};
 // Tall furniture the camera must not end up inside: [x, z, radius, height].
 const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.25, .75, 4.4], [-2.35, -1.75, 1.0, .55]];
 function updateCamera(dt) {
-  const g = view.goal;
-  if (view.mode === 'follow' && ready) {
-    g.focus.set(brain.pos.x, clamp(cat.headCenter(tmpV).y * .55, .3, 1), brain.pos.z);
+  const g = view.goal, following = view.mode === 'follow' && ready;
+  let distGoal = g.dist;
+  if (following) {
+    // Keep Mochi (and, while playing, the toy) comfortably in frame. The
+    // camera only re-centres once she has moved a little way off, eases
+    // there gently, and backs off when cat and toy are far apart. Turning
+    // and zoom stay yours: this never changes the angle, and your zoom is
+    // the closest it will go.
+    const playing = brain.mode === 'play';
+    const frame = framing(playing);
+    if (frame.center.distanceTo(g.focus) > (playing ? .2 : .3)) g.focus.copy(frame.center);
     clampGoal();
+    // Your own zoom wins for a while after you pinch or scroll.
+    if (clockNow - view.zoomedAt > 8) distGoal = Math.max(g.dist, fitDistance(frame.radius));
   }
-  const r = view.mode === 'follow' ? 3 : 5;
+  const r = following ? 2.2 : 5;
   view.focus.x = damp(view.focus.x, g.focus.x, r, dt);
   view.focus.y = damp(view.focus.y, g.focus.y, r, dt);
   view.focus.z = damp(view.focus.z, g.focus.z, r, dt);
   view.yaw = damp(view.yaw, g.yaw, 8, dt);
   view.pitch = damp(view.pitch, g.pitch, 8, dt);
-  view.dist = damp(view.dist, g.dist, 7, dt);
+  view.dist = damp(view.dist, distGoal, following && distGoal > g.dist ? 1.6 : 7, dt);
   camOffset.set(Math.sin(view.yaw) * Math.cos(view.pitch), Math.sin(view.pitch), Math.cos(view.yaw) * Math.cos(view.pitch));
   // Spring arm: if the camera would leave the room, shorten the arm instead.
   let d = view.dist;
@@ -1191,6 +1232,7 @@ function updateRoom(dt, t) {
   moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
   fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
   room.update(dt, t, night, {drinking: brain.activity === 'drink', camera});
+  if (night !== updateRoom.night) { updateRoom.night = night; sounds.setNight(night); }
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat') {
@@ -1222,15 +1264,12 @@ function frame(now) {
   updateRoom(dt, t);
   if (ready) {
     idleLife(t);
-    const sp = $('#speech');
-    const w = sp.offsetWidth, x = clamp(headScreen.x + 24, 12, host.clientWidth - w - 70), y = clamp(headScreen.y - 6, sp.offsetHeight + 74, host.clientHeight);
-    sp.style.setProperty('--x', x.toFixed(1) + 'px');
-    sp.style.setProperty('--y', y.toFixed(1) + 'px');
+    placeSpeech();
   }
   renderer.render(scene, camera);
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, renderer, orbit, pan, zoomBy};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });

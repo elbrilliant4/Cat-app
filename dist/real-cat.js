@@ -302,15 +302,21 @@ export class RealCat {
     };
     const endOf = (b) => BONES[b][2].clone().sub(BONES[b][1]);
     this.contacts = [
-      pt('wristR', ...endOf('wristR').setY(-0.09)), pt('wristL', ...endOf('wristL').setY(-0.09)),
+      pt('wristR', ...endOf('wristR').setY(-0.105)), pt('wristL', ...endOf('wristL').setY(-0.105)),
       pt('wristR', 0, -0.06, 0), pt('wristL', 0, -0.06, 0),
-      pt('hockR', ...endOf('hockR').setY(-0.13)), pt('hockL', ...endOf('hockL').setY(-0.13)),
+      pt('hockR', ...endOf('hockR').setY(-0.145)), pt('hockL', ...endOf('hockL').setY(-0.145)),
       pt('hockR', 0, -0.06, 0), pt('hockL', 0, -0.06, 0),
       pt('hips', 0, -0.3, -0.1), pt('hips', 0, -0.2, -0.28), pt('hips', 0.25, -0.15, -0.05), pt('hips', -0.25, -0.15, -0.05),
       pt('spine', 0, -0.3, 0), pt('spine', 0.3, -0.05, 0), pt('spine', -0.3, -0.05, 0), pt('spine', 0, 0.3, 0),
       pt('chest', 0, -0.3, 0.05), pt('chest', 0.28, -0.1, 0), pt('chest', -0.28, -0.1, 0),
       pt('head', 0, -0.12, 0.2), pt('head', 0.2, 0, 0.05), pt('head', -0.2, 0, 0.05),
     ];
+
+    // Legs for foot planting: three bones each, and a sole point under the paw.
+    this.legs = [['R', 'shoulderR', 'elbowR', 'wristR', 0, true], ['L', 'shoulderL', 'elbowL', 'wristL', Math.PI, true],
+      ['R', 'hipR', 'kneeR', 'hockR', Math.PI, false], ['L', 'hipL', 'kneeL', 'hockL', 0, false]]
+      .map(([s, a, b, c, phase, front]) => ({s, a: bones[a], b: bones[b], c: bones[c], phase, front,
+        sole: pt(c, ...endOf(c).multiplyScalar(.6).setY(front ? -0.105 : -0.145)), plant: null, step: null, w: 0, bendSign: 1}));
 
     // Cheap invisible colliders for petting (raycasting a skinned mesh is slow).
     const hidden = new THREE.MeshBasicMaterial({visible: false});
@@ -575,9 +581,11 @@ export class RealCat {
     if (walk > .01) this.walkPhase += dt * (5 + walk * 6);
     const ph = this.walkPhase, stride = Math.min(1, walk) * .5;
     const swing = side => Math.sin(ph + side) * stride;
-    const lift = side => Math.max(0, Math.cos(ph + side)) * Math.min(1, walk);
+    // A paw lifts while it swings forward (its angle decreasing) and is down
+    // while it pushes back.
+    const lift = side => Math.max(0, -Math.cos(ph + side)) * Math.min(1, walk);
 
-    rot('hips', P.pitch + Math.sin(ph * 2) * .02 * walk, (ctl.wiggle || 0) * Math.sin(t * 20) * .16, P.roll);
+    rot('hips', P.pitch + (this.lean || 0) + Math.sin(ph * 2) * .02 * walk, (ctl.wiggle || 0) * Math.sin(t * 20) * .16, P.roll);
     rot('spine', P.spine + breathe * .3, -(ctl.wiggle || 0) * Math.sin(t * 20) * .08);
     rot('chest', P.chest - breathe * .3);
     rot('neck', P.neck);
@@ -603,6 +611,7 @@ export class RealCat {
       rot('hock' + s, P.hkB - lift(side) * .3);
     });
 
+    this.tailUp = damp(this.tailUp || 0, ctl.tailUp || 0, 3, dt);
     this.poseTail(t, ctl.tail || {amp: .25, speed: 1.4});
     this.updateFace(dt, t, ctl.face || EXPRESSIONS.content, ctl.look || {x: 0, y: 0});
 
@@ -610,26 +619,129 @@ export class RealCat {
     const purr = ctl.purr ? Math.sin(t * 55) * .004 : 0;
     B.spine.scale.set(1 + breathe * .5 + purr, 1 + breathe + purr, 1);
 
-    // Stand on the floor: lowest contact point touches y = 0.
+    // Stand on the floor. Lower the body until the highest paw that should
+    // be planted reaches the floor (the planting IK bends the others), but
+    // never push the body itself or any other paw through it.
     this.model.position.y = 0;
     this.root.updateMatrixWorld(true);
-    let low = Infinity;
-    for (const c of this.contacts) low = Math.min(low, c.getWorldPosition(_v).y);
-    const want = this.model.position.y - (low - this.root.getWorldPosition(_v2).y) + (ctl.lift || 0);
+    let low = Infinity, lowBody = Infinity, highPaw = -Infinity;
+    this.contacts.forEach((c, i) => { const y = c.getWorldPosition(_v).y; low = Math.min(low, y); if (i >= 8) lowBody = Math.min(lowBody, y); });
+    this.legs.forEach(leg => {
+      leg.can = this.canPlant(leg, ctl, lift);
+      const y = leg.sole.getWorldPosition(_v).y;
+      if (leg.can && y - low < .14) highPaw = Math.max(highPaw, y);
+    });
+    const rest = highPaw > -Infinity ? Math.min(lowBody, highPaw) : low;
+    const want = this.model.position.y - (rest - this.root.getWorldPosition(_v2).y) + (ctl.lift || 0);
     this.ground = this.ground === undefined ? want : damp(this.ground, want, 14, dt);
     this.model.position.y = this.ground;
+    this.plantPaws(dt, t, ctl, lift);
+  }
+
+  // Planted paws: a paw in contact with the floor stays where it was put
+  // down while the body moves over it (two-bone IK on the upper leg), and
+  // takes a small lifted step when the body has drifted too far from it.
+  // Walking legs plant during their stance phase only.
+  plantPaws(dt, t, ctl, lift) {
+    this.root.updateMatrixWorld(true);
+    const floor = this.root.getWorldPosition(_v3).y;
+    let stepping = this.legs.filter(l => l.step).length, reachGap = -Infinity, fronts = 0;
+    for (const leg of this.legs) {
+      const sole = leg.sole.getWorldPosition(_s1);
+      const want = leg.can && sole.y - floor < .14;
+      // While walking, a paw is put down exactly where it is (no blend in);
+      // standing still, planting eases in.
+      const walking = (ctl.walk || 0) > .01;
+      leg.w = want && walking ? 1 : damp(leg.w, want ? 1 : 0, want ? 6 : 14, dt);
+      if (!want) {
+        leg.plant = null; leg.step = null;
+        // A swinging paw may brush the floor but never go through it.
+        if (sole.y < floor) this.reach(leg, _s2.copy(sole).setY(floor), sole);
+        continue;
+      }
+      else if (!leg.plant) leg.plant = sole.clone().setY(floor);
+      if (!leg.plant || leg.w < .01) continue;
+      // Standing, sitting or turning on the spot: when the body has moved too
+      // far from a paw, step it over. (Walking legs step by themselves.)
+      const home = _s3.copy(sole).setY(floor);
+      if (!leg.step && (home.distanceTo(leg.plant) > (walking ? .4 : .07)) && stepping < 2) {
+        leg.step = {from: leg.plant.clone(), t0: t};
+        stepping++;
+      }
+      const target = _s2.copy(leg.plant);
+      if (leg.step) {
+        const k = Math.min(1, (t - leg.step.t0) / .2), e = k * k * (3 - 2 * k);
+        target.lerpVectors(leg.step.from, home, e).y += Math.sin(Math.PI * k) * .035;
+        if (k >= 1) { leg.plant.copy(home); leg.step = null; stepping--; }
+      }
+      target.lerpVectors(sole, target, leg.w);
+      const short = this.reach(leg, target, sole);
+      if (leg.front && leg.w > .9) { reachGap = Math.max(reachGap, short); fronts++; }
+    }
+    // If a planted front paw can't reach the floor (its leg fully
+    // stretched), lean the body forward just enough; when the front legs have
+    // slack again, ease back.
+    const L = .5, lean = this.lean || 0;
+    const goal = !fronts ? 0 : reachGap > 0 ? lean + reachGap / L : lean - Math.max(0, -reachGap - .015) / L;
+    this.lean = damp(lean, clamp(goal, 0, .45), 4, dt);
+  }
+
+  canPlant(leg, ctl, lift) {
+    const allowed = {stand: 'all', sit: 'all', crouch: 'all', stretch: 'all', beg: 'hind'}[ctl.pose || 'stand'];
+    if (!allowed || (allowed === 'hind' && leg.front) || (ctl.lift || 0) > .02) return false;
+    if (leg.front && (ctl.knead || (ctl.groom && leg.s === 'L'))) return false;
+    return !((ctl.walk || 0) > .01 && lift(leg.phase) > .03);
+  }
+
+  // Two-bone IK: turn the upper and middle bones so the sole reaches
+  // `target`, keeping the paw's own orientation. Returns how far short the
+  // leg falls (negative: how much slack it has left).
+  reach(leg, target, sole) {
+    const {a: A, b: Bn, c: C} = leg;
+    const a = A.getWorldPosition(_ka), b = Bn.getWorldPosition(_kb), c = C.getWorldPosition(_kc);
+    const t = _kt.copy(target).sub(sole).add(c); // where the wrist/hock joint must go
+    const lab = a.distanceTo(b), lcb = b.distanceTo(c);
+    const want = a.distanceTo(t);
+    const lat = clamp(want, Math.abs(lab - lcb) + 1e-4, lab + lcb - 1e-4);
+    const ang = (u, v) => Math.acos(clamp(u.dot(v), -1, 1));
+    const ac = _k1.subVectors(c, a).normalize(), ab = _k2.subVectors(b, a).normalize();
+    const ba = _k3.subVectors(a, b).normalize(), bc = _k4.subVectors(c, b).normalize(), at = _k5.subVectors(t, a).normalize();
+    const acab0 = ang(ac, ab), babc0 = ang(ba, bc), acat0 = ang(ac, at);
+    const acab1 = Math.acos(clamp((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat), -1, 1));
+    const babc1 = Math.acos(clamp((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb), -1, 1));
+    // Bend in the leg's current plane (or, when it's straight, about its
+    // own side-to-side axis, bending the way it last did).
+    const axis0 = _k6.crossVectors(ac, ab);
+    if (axis0.lengthSq() > 1e-8) { axis0.normalize(); leg.bendSign = Math.sign(axis0.dot(_x.clone().applyQuaternion(A.getWorldQuaternion(_kq)))) || 1; }
+    else axis0.copy(_x).applyQuaternion(A.getWorldQuaternion(_kq)).multiplyScalar(leg.bendSign);
+    const axis1 = _k7.crossVectors(ac, at);
+    const aW = A.getWorldQuaternion(_kqa).invert(), bW = Bn.getWorldQuaternion(_kqb).invert();
+    const cW = C.getWorldQuaternion(_kqc).clone();
+    A.quaternion.multiply(_kq.setFromAxisAngle(_k8.copy(axis0).applyQuaternion(aW), acab1 - acab0));
+    Bn.quaternion.multiply(_kq.setFromAxisAngle(_k8.copy(axis0).applyQuaternion(bW), babc1 - babc0));
+    if (axis1.lengthSq() > 1e-10) A.quaternion.multiply(_kq.setFromAxisAngle(_k8.copy(axis1).normalize().applyQuaternion(aW), acat0));
+    // Keep the paw's world orientation (so it stays flat on the floor).
+    A.updateMatrixWorld(true);
+    const parentW = Bn.getWorldQuaternion(_kq).invert();
+    C.quaternion.copy(parentW.multiply(cW));
+    C.updateMatrixWorld(true);
+    return want - (lab + lcb);
   }
 
   // Tail: each segment is aimed along a smooth curve behind the cat.
   poseTail(t, tail) {
     const P = this.pose, B = this.bones;
     let parentQ = _pq.identity();
-    let pitch = P.tailLift, yaw = 0;
+    // Tail up (a happy greeting): raised high, the tip hooked forward like a
+    // question mark, with a little quiver.
+    const up = this.tailUp || 0;
+    let pitch = P.tailLift + (1.3 - P.tailLift) * up, yaw = 0;
+    const curl = P.tailCurl + (-.16 - P.tailCurl) * up, side = P.tailSide * (1 - up);
     for (let i = 0; i < 8; i++) {
       const k = i / 7;
-      const sway = Math.sin(t * tail.speed * 2 - i * .55) * tail.amp * (.25 + k) * .35;
-      yaw += (i === 0 ? 0 : P.tailSide * .14) + sway;
-      if (i > 0) pitch += P.tailCurl * (.4 + k);
+      const sway = Math.sin(t * tail.speed * 2 - i * .55) * tail.amp * (.25 + k) * .35 * (1 - up * .7) + up * Math.sin(t * 24 - i) * .02 * k;
+      yaw += (i === 0 ? 0 : side * .14) + sway;
+      if (i > 0) pitch += curl * (.4 + k);
       // Direction in the hips' frame: straight back is -z, rotated by pitch/yaw.
       _v.set(0, 0, -1).applyAxisAngle(_x, pitch).applyAxisAngle(_y, -yaw);
       // Carry the parent's rotation along, then bend by the smallest arc, so
@@ -674,3 +786,6 @@ export class RealCat {
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _pq = new THREE.Quaternion();
 const _e = new THREE.Euler(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const _x = new THREE.Vector3(1, 0, 0), _y = new THREE.Vector3(0, 1, 0);
+const _v3 = new THREE.Vector3(), _s1 = new THREE.Vector3(), _s2 = new THREE.Vector3(), _s3 = new THREE.Vector3();
+const [_ka, _kb, _kc, _kt, _k1, _k2, _k3, _k4, _k5, _k6, _k7, _k8] = Array.from({length: 12}, () => new THREE.Vector3());
+const _kq = new THREE.Quaternion(), _kqa = new THREE.Quaternion(), _kqb = new THREE.Quaternion(), _kqc = new THREE.Quaternion();
