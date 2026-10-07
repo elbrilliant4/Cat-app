@@ -22,6 +22,22 @@ This export contains the **new companion app** built October 5, 2026. The earlie
 - localStorage persistence and capped offline progression; optional synthesized sound.
 - Accessible controls and reduced-motion support.
 
+## October 7 update — realistic ragdoll Mochi
+
+The user switched to a ragdoll cat (seal-point face mask, white blaze, blue eyes) so the character isn't mistaken for Grumpy Cat. The model is `dist/assets/mochi-ragdoll.glb`: a static Meshy free-plan model (one mesh, about 40k vertices, three 2048² JPEG textures). Free-plan output is CC BY 4.0, so the footer credits Meshy. Check Meshy's current terms before a commercial launch.
+
+- **Rigging at load time** (`cat-rig.js`): a 28-bone skeleton (hips, spine, chest, neck, head, jaw, two ears, three joints per leg, an eight-bone tail) is placed from landmarks measured on this exact model.
+  - Skin weights use inverse distance to each bone segment, with region gates (the tail is found by distance plus its dark fur colour; legs by their columns; jaw and ears by region), then four rounds of smoothing across welded UV seams.
+  - The tail is weighted only along its own chain, so where it curls back on itself it doesn't split apart.
+  - Weighting takes about 0.6–0.9 s in software rendering.
+- **Rest fixes:** the model stands curved, with its left hind leg stepped out and its tail wrapped along its haunch. At runtime the legs are aimed under the body, the head is levelled, and the tail is posed along a curve.
+- **Fur:** an instanced SkinnedMesh draws 11 shells (7 on touch devices) in one draw call. Each shell takes its colour from the model's texture, and fur length is set per vertex (long ruff and tail, short face and paws, none on eyes, nose, mouth or whiskers).
+- **Face:** realistic eyes are painted in the skin shader in bind space: pale-blue iris fibres, a slit-to-round pupil, gaze, a catchlight, and upper and lower lids coloured from the fur around each eye. A jaw bone with a painted mouth interior and tongue handles meows, yawns and grooming, and ear bones twitch and flatten.
+- **Ground contact:** the lowest of about 22 contact points sits on the floor each frame, so sitting, loafing and rolling over land naturally.
+- `RealCat` has the same interface as the earlier cartoon cat, so app.js behaviours carry over.
+
+Limits: the motion is still procedural, not hand-animated. Large poses (sit, belly-up) stretch the fur texture somewhat at the hips and shoulders. Performance is not yet profiled on real phones (about 545k triangles including the shadow pass on mobile).
+
 ## October 6 update, part 3 — seal-point coat from a reference photo
 
 The user asked for realistic fur rather than an animated look, with a seal-point / "snowshoe" cat photo as the colour reference. The photo was used only as a visual guide; none of its pixels are in the app. Changes:

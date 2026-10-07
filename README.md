@@ -22,9 +22,10 @@ npm run check
 ## Files
 
 - `dist/index.html`, `dist/style.css`, `dist/app.js`: UI, Three.js room, interactions and the kitten's behaviour (gaze, blinks, ears, posture, play/pounce).
-- `dist/cute-cat.js`: the kitten — a fluffy seal-point cat built from simple shapes: body, legs, plumed tail, blue eyes with shader-drawn eyelids, mouth, whiskers, ears, poses (sit, stand, loaf, sleep, crouch, leap, stretch, belly-up, beg) and expression presets.
-- `dist/fur.js`: shell-textured fur (one instanced draw per body part), combed in the direction the coat lies, with seal-point markings.
-- `dist/assets/kitten.glb`: the original Meshy model, kept for reference. The app no longer loads it.
+- `dist/assets/mochi-ragdoll.glb`: Mochi, a realistic ragdoll cat made with Meshy (free plan, CC BY 4.0, credited in the footer). It's a static model.
+- `dist/cat-rig.js`: builds a cat skeleton inside that model at load time and computes skin weights.
+- `dist/real-cat.js`: Mochi in the app — poses (stand, sit, loaf, sleep, crouch, leap, stretch, belly-up, beg), walking, kneading, pouncing, tail motion, shell-textured fur coloured from the model's own texture, and realistic eyes (lids, blinks, dilating pupils, gaze), ears and jaw.
+- `models/kitten-original-meshy.glb`: the first Meshy model, kept for reference. It isn't deployed.
 - `dist/pet-state.js`: care rules, saves and offline progression.
 - `dist/assets/kitten.glb`: original Meshy GLB, unchanged, with textures and rig embedded.
 - `dist/assets/paw.svg`: app icon.

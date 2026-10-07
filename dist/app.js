@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {KEY, restore, fresh, advance, care, mood} from './pet-state.js';
-import {CuteCat, EXPRESSIONS} from './cute-cat.js';
+import {RealCat, EXPRESSIONS} from './real-cat.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp} = THREE.MathUtils;
@@ -374,7 +374,7 @@ brushRig.add(brushTool);
 // ---------------------------------------------------------------------------
 // Kitten
 // ---------------------------------------------------------------------------
-const cat = new CuteCat();
+const cat = new RealCat();
 scene.add(cat.root);
 cat.root.add(brushRig);
 
@@ -386,7 +386,7 @@ const shadowTex = (() => {
   g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
 })();
-const contact = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.8), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
+const contact = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false}));
 contact.rotation.x = -Math.PI / 2; contact.position.y = .02;
 cat.root.add(contact);
 
@@ -394,7 +394,7 @@ cat.root.add(contact);
 const HOME = new THREE.Vector3(0, 0, .3);
 const RUG = {x: 0, z: .15, rx: 1.7, rz: 1.3};
 const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
-const EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .78).setY(0);
+const EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
 const CUSHION_SPOT = new THREE.Vector3(cushion.position.x, 0, cushion.position.z);
 function onRug(v) {
   const dx = (v.x - RUG.x) / RUG.rx, dz = (v.z - RUG.z) / RUG.rz, r = Math.hypot(dx, dz);
@@ -404,13 +404,22 @@ function onRug(v) {
 const randomRugPoint = () => onRug(new THREE.Vector3(rand(-1.4, 1.4), 0, rand(-.7, 1.2)));
 
 let ready = false;
-setTimeout(() => {
+cat.load('./assets/mochi-ragdoll.glb', p => {
+  if (!p.total) return;
+  const pct = Math.round(p.loaded / p.total * 100);
+  $('#load-fill').style.width = pct + '%';
+  $('#load-progress').textContent = pct < 100 ? pct + '% · bringing your kitten home' : 'Fluffing the fur…';
+}).then(() => {
   ready = true;
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
   greet(true);
-}, 350);
+}).catch(e => {
+  $('#loading strong').textContent = 'Your kitten couldn’t load.';
+  $('#load-progress').textContent = 'Please reload to try again.';
+  console.error(e);
+});
 
 // ---------------------------------------------------------------------------
 // Behaviour: what the kitten is doing, how it feels, where it looks
@@ -769,6 +778,8 @@ function act(a, opts = {}) {
     }
   } else if (a === 'pet') {
     lastPet = t;
+    // Stop wandering to enjoy the attention.
+    if (brain.mode === 'idle' && brain.activity === 'walk') { brain.target = null; brain.after = null; setActivity('sit'); }
     brain.petTimes = brain.petTimes.filter(x => t - x < 12).concat(t);
     const rollOver = brain.petTimes.length >= 3 && ['sit', 'loaf'].includes(brain.activity) && brain.mode === 'idle';
     if (rollOver) {
@@ -1039,7 +1050,7 @@ function updateCamera(dt) {
   // Frame the room, drifting toward the kitten (fully on it in close-up).
   const follow = lerp(.6, 1, view.zoom);
   const tx = lerp(RUG.x, brain.pos.x, follow), tz = lerp(RUG.z, brain.pos.z, follow);
-  const ty = lerp(a.lookY, cat.headCenter(tmpV).y - .1, view.zoom);
+  const ty = lerp(a.lookY, ready ? cat.headCenter(tmpV).y - .1 : b.lookY, view.zoom);
   camLook.x = damp(camLook.x, tx, 2.5, dt); camLook.y = damp(camLook.y, ty, 2.5, dt); camLook.z = damp(camLook.z, tz, 2.5, dt);
   parallax.x = damp(parallax.x, reduceMotion ? 0 : pointer.x, 2, dt);
   parallax.y = damp(parallax.y, reduceMotion ? 0 : pointer.y, 2, dt);
@@ -1087,7 +1098,7 @@ function frame(now) {
   if (t - view.lastDrag > 6 && !gesture) view.target = damp(view.target, 0, .8, dt);
   view.angle = damp(view.angle, view.target, 6, dt);
   updatePlay(dt, t);
-  updateCat(dt, t);
+  if (ready) updateCat(dt, t);
   updateCamera(dt);
   updateRoom(dt, t);
   if (ready) {
