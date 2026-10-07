@@ -1,0 +1,18 @@
+# When the review branch changes, republish the site so /preview/ updates.
+# (Pages deploys run from main; this just asks that workflow to run.)
+name: Update preview
+
+on:
+  push:
+    branches: ['claude/**']
+
+permissions:
+  actions: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh workflow run pages.yml --ref main --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}

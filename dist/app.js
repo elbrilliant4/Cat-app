@@ -1063,6 +1063,9 @@ function updateCamera(dt) {
   parallax.x = damp(parallax.x, reduceMotion ? 0 : pointer.x, 2, dt);
   parallax.y = damp(parallax.y, reduceMotion ? 0 : pointer.y, 2, dt);
   camera.position.copy(camLook).add(camOffset);
+  // Stay inside the room when the view is turned.
+  camera.position.x = clamp(camera.position.x, -3.9, 3.5);
+  camera.position.z = Math.max(camera.position.z, -2.6);
   camera.position.x += parallax.x * .2;
   camera.position.y += parallax.y * .1;
   camera.lookAt(camLook);
@@ -1075,7 +1078,7 @@ function updateRoom(dt, t) {
   rim.intensity = damp(rim.intensity, night ? 0 : 1.8, 3, dt);
   moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
   fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
-  room.update(dt, t, night, {drinking: brain.activity === 'drink'});
+  room.update(dt, t, night, {drinking: brain.activity === 'drink', camera});
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat') {

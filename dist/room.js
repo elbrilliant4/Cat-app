@@ -21,6 +21,7 @@ function rng(seed) {
 }
 
 let maxAniso = 4;
+const _n = new THREE.Vector3(), _d = new THREE.Vector3();
 function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -324,9 +325,8 @@ export class Room {
       skirt.position.set(0, .11, .04);
       return g;
     };
-    wall(9.2, 0, W.back, 0);
-    wall(12, W.left, 2.6, Math.PI / 2);
-    wall(12, W.right, 2.6, -Math.PI / 2);
+    // Kept so a wall the camera swings behind can be hidden (dollhouse style).
+    this.wallGroups = [wall(9.2, 0, W.back, 0), wall(12, W.left, 2.6, Math.PI / 2), wall(12, W.right, 2.6, -Math.PI / 2)];
   }
 
   buildWindow() {
@@ -529,6 +529,7 @@ export class Room {
   buildBookcase() {
     const M = this.materials, g = new THREE.Group();
     g.position.set(this.walls.right - .32, 0, -1.25); g.rotation.y = -Math.PI / 2;
+    this.bookcase = g;
     this.group.add(g);
     const W = 1.9, H = 4.2, D = .6;
     const box = (w, h, d, x, y, z) => { const b = this.mesh(new THREE.BoxGeometry(w, h, d), M.darkWood, g); b.position.set(x, y, z); return b; };
@@ -753,7 +754,16 @@ export class Room {
     pm.dispose();
   }
 
-  update(dt, t, night, {drinking = false} = {}) {
+  update(dt, t, night, {drinking = false, camera = null} = {}) {
+    if (camera) {
+      for (const w of this.wallGroups) {
+        // A wall faces into the room along its local +z.
+        _n.set(0, 0, 1).applyQuaternion(w.quaternion);
+        w.visible = _d.subVectors(camera.position, w.position).dot(_n) > .05;
+      }
+      // Furniture standing against a hidden wall goes with it.
+      if (this.bookcase) this.bookcase.visible = this.wallGroups[2].visible;
+    }
     const k = night ? 1 : 0;
     this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
     this.shadeMat.emissiveIntensity = damp(this.shadeMat.emissiveIntensity, night ? 2.2 : .45, 3, dt);
