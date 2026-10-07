@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {buildSkeleton, computeWeights, BONES, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
-import {sculptMouth, padWeight, shellRadius, MOUTH, fade} from './face-sculpt.js';
+import {sculptFace, MOUTH, fade} from './face-sculpt.js';
 
 const {damp, clamp} = THREE.MathUtils;
 const MODEL_SCALE = 0.86;
@@ -50,10 +50,12 @@ const POSE_KEYS = Object.keys(POSES.stand);
 
 const skinVertexHead = /* glsl */`
 attribute float furLen;
-attribute float whisk;
+attribute float facePatch;
+attribute vec3 patchColor;
 varying vec3 vBind;
 varying float vFurLen;
-varying float vWhisk;
+varying float vPatch;
+varying vec3 vPatchColor;
 `;
 
 const eyeFragment = /* glsl */`
@@ -154,8 +156,11 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   float glint = 1.0 - smoothstep(0.13 + 0.04 * eyeSparkle, 0.2 + 0.04 * eyeSparkle, length((s - vec2(-0.3, 0.3)) / vec2(1.0, 1.15)));
   float glint2 = 1.0 - smoothstep(0.05, 0.09, length(s - vec2(0.32, -0.28)));
   col = mix(col, vec3(1.0), max(glint * 0.92, glint2 * 0.6));
-  // Lids: the fur around the eye, darkening into a fine rim at the lash line.
-  vec3 lid = mix(lidColorAt(atan(e.y, e.x)), lidDark, 0.75) * (0.92 + 0.08 * sin(atan(e.y, e.x) * 37.0 + r * 9.0));
+  // Lids: the same fur as around the eye (only a touch deeper toward the
+  // lash line), so closed eyes read as soft fur over a rounded eyeball, not a
+  // hollow. A fine dark rim marks the lash line.
+  float toLash = 1.0 - smoothstep(0.0, 0.35, min(abs(e.y - yu), abs(e.y - yl)));
+  vec3 lid = mix(lidColorAt(atan(e.y, e.x)), lidDark, 0.15 + 0.25 * toLash) * (0.96 + 0.025 * sin(p.y * 1500.0 + p.x * 260.0) + 0.02 * sin(p.x * 2100.0 - p.y * 400.0));
   float distU = e.y - yu, distL = yl - e.y;
   float rimU = 1.0 - smoothstep(0.0, 0.07 + aa, abs(distU - 0.02));
   float rimL = (1.0 - smoothstep(0.0, 0.05 + aa, abs(distL - 0.015))) * 0.8;
@@ -221,28 +226,28 @@ export class RealCat {
   build(gltf) {
     let src;
     gltf.scene.traverse(o => { if (o.isMesh && !src) src = o; });
-    // Sculpt a real mouth into the muzzle before rigging (face-sculpt.js).
-    const geometry = sculptMouth(src.geometry);
     const material = src.material;
     material.metalness = 0;
     material.roughness = 1;
     material.metalnessMap = null;
     material.needsUpdate = true;
 
-    // Texture brightness per vertex (tells the dark tail from the haunch, and
-    // gives the eyelids the colour of the fur around each eye).
+    // Texture colours: tell the dark tail from the haunch, give the eyelids
+    // the colour of the fur around each eye, and colour the face patches.
     const img = material.map.image;
     const canvas = document.createElement('canvas');
     canvas.width = img.width; canvas.height = img.height;
     const ctx = canvas.getContext('2d', {willReadFrequently: true});
     ctx.drawImage(img, 0, 0);
     const px = ctx.getImageData(0, 0, img.width, img.height).data;
+    const texelAt = (u, v) => (Math.min(img.height - 1, Math.floor(v * img.height)) * img.width + Math.min(img.width - 1, Math.floor(u * img.width))) * 4;
+    const toLin = c => Math.pow(c / 255, 2.2);
+    const sampleUV = (u, v) => { const k = texelAt(u, v); return [toLin(px[k]), toLin(px[k + 1]), toLin(px[k + 2])]; };
+
+    // Real mouth, rounded eyeballs, and no whisker clumps (face-sculpt.js).
+    const geometry = sculptFace(src.geometry, sampleUV);
     const uv = geometry.attributes.uv, pos = geometry.attributes.position;
-    const texel = i => {
-      const x = Math.min(img.width - 1, Math.floor(uv.getX(i) * img.width));
-      const y = Math.min(img.height - 1, Math.floor(uv.getY(i) * img.height));
-      return (y * img.width + x) * 4;
-    };
+    const texel = i => texelAt(uv.getX(i), uv.getY(i));
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };
     const {weld, names} = computeWeights(geometry, bright);
     this.weightMouth(geometry, names);
@@ -352,7 +357,7 @@ export class RealCat {
   // How long the fur grows at each vertex (model units).
   furLengths(geometry, weld) {
     const pos = geometry.attributes.position, N = pos.count;
-    const len = new Float32Array(N), whisk = new Float32Array(N);
+    const len = new Float32Array(N);
     // Tiny disconnected pieces (whiskers) get no fur.
     const idx = geometry.index, parent = new Int32Array(N).map((_, i) => i);
     const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
@@ -362,7 +367,7 @@ export class RealCat {
     }
     const size = new Map();
     for (let i = 0; i < N; i++) { const r = find(weld[i]); size.set(r, (size.get(r) || 0) + 1); }
-    const eyes = [FACE.eyeR, FACE.eyeL], shell0 = geometry.attributes.shell0;
+    const eyes = [FACE.eyeR, FACE.eyeL];
     const p = new THREE.Vector3();
     for (let i = 0; i < N; i++) {
       p.fromBufferAttribute(pos, i);
@@ -385,21 +390,11 @@ export class RealCat {
       if (p.z > 0.82 && dn < 0.06) l = 0;
       const dm = Math.hypot((p.x - FACE.mouth.x) / 0.05, (p.y - FACE.mouth.y) / 0.025);
       if (p.z > 0.8 && dm < 1) l = 0;
-      // The sculpted whiskers are thick clumps; they're hidden and replaced
-      // by fine strands (addWhiskers).
-      // On the muzzle pads the face itself bulges close to that line, so only
-      // what stood well out before the pads were sculpted counts there;
-      // otherwise the pads would get holes.
-      if (p.z > 0.8 && p.y > 0.15 && p.y < 0.43) {
-        const r = shell0 ? shell0.getX(i) : shellRadius(p.x, p.y, p.z), pad = padWeight(p.x, p.y, p.z);
-        whisk[i] = fade(r, .86 + .075 * pad, .97 + .01 * pad);
-      }
       // Restrained coat: no fur on the face and ears, shorter elsewhere.
       if (p.z > 0.5 && p.y > 0.08) l = 0;
       len[i] = l * 0.62;
     }
     geometry.setAttribute('furLen', new THREE.BufferAttribute(len, 1));
-    geometry.setAttribute('whisk', new THREE.BufferAttribute(whisk, 1));
   }
 
   patchSkin(material) {
@@ -408,10 +403,10 @@ export class RealCat {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\n' + skinVertexHead)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvWhisk = whisk;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvPatch = facePatch;\nvPatchColor = patchColor;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n' + eyeFragment + '\nvarying float vWhisk;')
-        .replace('#include <map_fragment>', '#include <map_fragment>\nif (vWhisk > 0.55) discard;\ndiffuseColor.rgb = mix(paintFace(diffuseColor.rgb), vec3(0.84, 0.81, 0.78), smoothstep(0.02, 0.4, vWhisk));')
+        .replace('#include <common>', '#include <common>\n' + eyeFragment + '\nvarying float vPatch;\nvarying vec3 vPatchColor;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\nvec3 patchCol = vPatchColor * (0.95 + 0.035 * sin(vBind.y * 1500.0 + vBind.x * 260.0) + 0.025 * sin(vBind.x * 2100.0 - vBind.y * 400.0));\ndiffuseColor.rgb = paintFace(mix(diffuseColor.rgb, patchCol, vPatch));')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.2, eyeMask);');
     };
     material.customProgramCacheKey = () => 'mochi-skin';
@@ -431,14 +426,14 @@ export class RealCat {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\n' + skinVertexHead + furVertex)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvWhisk = whisk;\nvLayer = (float(gl_InstanceID) + 1.0) / furShells;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvLayer = (float(gl_InstanceID) + 1.0) / furShells;')
         .replace('#include <skinning_vertex>', `#include <skinning_vertex>
           vec3 furN = normalize(objectNormal);
           transformed += furN * vLayer * furLen + vec3(0.0, -1.0, -0.4) * vLayer * vLayer * furLen * 0.6;`);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n' + furFragment + '\nvarying vec3 vBind;\nvarying float vWhisk;')
+        .replace('#include <common>', '#include <common>\n' + furFragment + '\nvarying vec3 vBind;')
         .replace('#include <map_fragment>', `#include <map_fragment>
-          if (vFurLen < 0.002 || vWhisk > 0.3) discard;
+          if (vFurLen < 0.002) discard;
           vec2 furG = vMapUv * vec2(furDensity);
           vec2 furCell = floor(furG);
           float furSeed = furHash(furCell);
@@ -459,23 +454,25 @@ export class RealCat {
     this.fur = fur;
   }
 
-  // Fine, tapered whiskers from the muzzle pads and above the eyes. They're
-  // children of the head bone, so they move with her face.
+  // A sparse set of fine, tapered whiskers from the muzzle pads, plus two
+  // above each eye. They're children of the head bone, so they move with her
+  // face. Each one arcs gently: out and slightly forward, then down.
   addWhiskers(bones) {
     const headPos = BONES.head[1];
-    const mat = new THREE.MeshStandardMaterial({color: '#fbf7f0', roughness: .4, transparent: true, opacity: .8, depthWrite: false});
+    const mat = new THREE.MeshStandardMaterial({color: '#f7f2ea', roughness: .35, transparent: true, opacity: .85, depthWrite: false});
     const group = new THREE.Group();
     bones.head.add(group);
-    const strand = (root, dir, len, droop, radius = .0016) => {
-      const d = dir.clone().normalize();
-      const pts = [0, .33, .66, 1].map(t => root.clone().addScaledVector(d, len * t).add(new THREE.Vector3(0, -droop * t * t, 0)).sub(headPos));
+    const strand = (root, dir, len, droop, bow, radius) => {
+      const d = dir.clone().normalize(), side = new THREE.Vector3(0, 1, 0).cross(d).normalize();
+      const pts = [0, .25, .5, .75, 1].map(t => root.clone().addScaledVector(d, len * t)
+        .add(new THREE.Vector3(0, -droop * t * t, 0)).addScaledVector(side, bow * Math.sin(Math.PI * t)).sub(headPos));
       const curve = new THREE.CatmullRomCurve3(pts);
-      const segs = 16, radial = 5;
+      const segs = 20, radial = 5;
       const geo = new THREE.TubeGeometry(curve, segs, radius, radial, false);
       const p = geo.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
       for (let i = 0; i <= segs; i++) {
         curve.getPointAt(i / segs, c);
-        const k = 1 - .85 * (i / segs);
+        const k = Math.pow(1 - i / segs, .8) * .94 + .06; // tapers to a fine tip
         for (let j = 0; j <= radial; j++) {
           const idx = i * (radial + 1) + j;
           v.fromBufferAttribute(p, idx).sub(c).multiplyScalar(k).add(c);
@@ -487,13 +484,14 @@ export class RealCat {
       group.add(m);
     };
     for (const s of [-1, 1]) {
-      const rows = [[.302, .06, .02], [.292, .015, .03], [.282, -.03, .04], [.272, -.07, .05], [.296, .035, .0]];
-      rows.forEach(([y, up, fwd], i) => {
-        const root = new THREE.Vector3(MIDLINE_X + s * (.034 + i * .004), y, .878 - i * .003);
-        strand(root, new THREE.Vector3(s, up, .18 + fwd), .3 + (i % 3) * .05, .03 + i * .006);
-      });
-      // Two long brow whiskers.
-      for (const [dx, up] of [[.045, .9], [.07, .75]]) strand(new THREE.Vector3(MIDLINE_X + s * dx, .452, .842), new THREE.Vector3(s * .5, up, .35), .16, .015, .0012);
+      // [root height, root offset from midline, rise, forward, length, droop]
+      const rows = [[.3, .036, .07, .02, .27, .028], [.292, .041, .02, .05, .32, .04], [.284, .045, -.03, .07, .3, .045], [.276, .048, -.08, .09, .25, .04], [.297, .05, .045, -.02, .22, .03]];
+      for (const [y, off, up, fwd, len, droop] of rows) {
+        const root = new THREE.Vector3(MIDLINE_X + s * off, y, .881 - (off - .036) * .4);
+        strand(root, new THREE.Vector3(s, up, .16 + fwd), len, droop, -.012 * s, .0009);
+      }
+      // Two brow whiskers above each eye.
+      for (const [dx, up, len] of [[.045, .9, .13], [.07, .75, .15]]) strand(new THREE.Vector3(MIDLINE_X + s * dx, .452, .842), new THREE.Vector3(s * .5, up, .35), len, .012, 0, .0008);
     }
     this.whiskers = group;
   }
