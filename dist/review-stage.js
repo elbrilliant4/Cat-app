@@ -96,14 +96,19 @@ window.walkAt = s => {
 window.shot(q.get('expr') || 'content', q.get('view') || 'front');
 document.title = 'ready';
 
-// Offline audio for the pack: 'purr' and 'room' are synthesized here; a meow
-// is read from the recordings, if any are bundled.
+// Offline audio for the pack: the bundled recordings (meows, purr loop), and
+// the synthesized room tone (and purr, when no purr recording is bundled).
 window.renderAudio = async (kind, seconds = 6) => {
   const sr = 44100, ctx = new OfflineAudioContext(1, sr * seconds, sr);
-  if (kind === 'purr') synthPurr(ctx, ctx.destination, 0, seconds);
+  const list = await fetch('./assets/sounds/sounds.json').then(r => r.ok ? r.json() : {clips: []}).catch(() => ({clips: []}));
+  const purrClip = (list.clips || []).find(c => c.kind === 'purr');
+  if (kind === 'purr' && purrClip) {
+    const src = ctx.createBufferSource();
+    src.buffer = await ctx.decodeAudioData(await (await fetch('./assets/sounds/' + purrClip.file)).arrayBuffer());
+    src.loop = true; src.connect(ctx.destination); src.start(0);
+  } else if (kind === 'purr') synthPurr(ctx, ctx.destination, 0, seconds);
   else if (kind === 'room') roomTone(ctx, ctx.destination);
   else {
-    const list = await fetch('./assets/sounds/sounds.json').then(r => r.ok ? r.json() : {clips: []}).catch(() => ({clips: []}));
     const clips = (list.clips || []).filter(c => c.kind !== 'purr');
     if (!clips.length) return null;
     let at = .3;

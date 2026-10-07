@@ -1,0 +1,49 @@
+Mochi audio candidates — not yet auditioned or approved
+
+Creator: Kerzoven
+Source: https://opengameart.org/content/cat-purr-meow
+Licence shown on source page: CC0
+Checked: 2026-10-07
+
+Original files are included unchanged. Creator notes that meows contain some background noise from the cat moving. These are candidates for listening, selection and cleanup, not final game assets. Purr files are labelled as loops by their creator; verify the seam in the game before shipping. No chirps or sleepy meow included.
+
+Suggested optional acknowledgement: Cat recordings by Kerzoven, via OpenGameArt.org (CC0).
+
+[
+  {
+    "file": "cat_mewfood.wav",
+    "seconds": 1.127,
+    "channels": 1,
+    "sample_rate": 44100
+  },
+  {
+    "file": "cat_mewpurr.wav",
+    "seconds": 1.411,
+    "channels": 1,
+    "sample_rate": 44100
+  },
+  {
+    "file": "cat_mewpurr2.wav",
+    "seconds": 2.42,
+    "channels": 1,
+    "sample_rate": 44100
+  },
+  {
+    "file": "cat_purractive_loop.wav",
+    "seconds": 8.313,
+    "channels": 1,
+    "sample_rate": 44100
+  },
+  {
+    "file": "cat_purrsleepy_loop.wav",
+    "seconds": 5.654,
+    "channels": 1,
+    "sample_rate": 44100
+  },
+  {
+    "file": "cat_softmew.wav",
+    "seconds": 2.478,
+    "channels": 1,
+    "sample_rate": 44100
+  }
+]

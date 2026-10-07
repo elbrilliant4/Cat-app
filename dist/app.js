@@ -218,7 +218,8 @@ sounds.volume = {cat: pet.catVolume, room: pet.roomVolume};
 function meow(kind = 'meow', priority = 'reply') {
   const m = sounds.meow(kind, priority);
   if (!m) return false;
-  brain.mouthAnim = {start: clockNow, dur: m.dur + .08, env: m.env, rate: m.rate, peak: kind === 'chirp' ? .45 : kind === 'sleepy' ? .5 : .75};
+  // Subtle: a gentle mew barely parts the lips.
+  brain.mouthAnim = {start: clockNow, dur: m.dur + .08, env: m.env, rate: m.rate, peak: {mew: .36, meow: .45, chirp: .3, sleepy: .3}[kind] ?? .4};
   return true;
 }
 const purr = seconds => sounds.purr(seconds);

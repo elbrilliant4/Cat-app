@@ -45,7 +45,7 @@ async function page(url, viewport) {
 }
 const ready = p => p.waitForFunction(() => document.title === 'ready', null, {timeout: 600000});
 
-async function clip(p, name, fn, seconds, fps = 20) {
+async function clip(p, name, fn, seconds, fps = 15) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), name));
   for (let i = 0; i < seconds * fps; i++) {
     await p.evaluate(([f, s]) => window[f](s), [fn, i / fps]);
@@ -150,7 +150,7 @@ ul { padding-left: 18px; }
 <h2>Room</h2>
 <div class="grid">${img('room-day.png', 'Phone, day')}${img('room-night.png', 'Phone, evening')}${img('room-desktop.png', 'Wide screen, day')}</div>
 <h2>Sound</h2>
-<div class="grid">${aud('meow.wav', 'Meows (recordings)')}${aud('purr.wav', 'Purr')}${aud('room.wav', 'Room ambience')}</div>
+<div class="grid">${aud('meow.wav', 'Meows (recorded candidates)')}${aud('purr.wav', 'Purr (recorded candidate)')}${aud('room.wav', 'Room ambience')}</div>
 ${credits.length ? `<h2>Sound credits</h2><ul>${credits.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}
 ${errors.length ? `<h2>Capture notes</h2><ul>${errors.map(e => `<li>${e.replace(/</g, '&lt;')}</li>`).join('')}</ul>` : ''}
 </main></body></html>

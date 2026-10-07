@@ -1,6 +1,6 @@
 // Mochi's sounds, on two separately controlled buses:
-//   cat  - her voice: recorded meows (assets/sounds/sounds.json lists them)
-//          and a soft synthesized purr,
+//   cat  - her voice: recorded meows and purr (assets/sounds/sounds.json
+//          lists them),
 //   room - ambience: a quiet, warm room tone.
 // The old looping fountain trickle (filtered white noise with a fast wobble,
 // heard as a constant "maracas" shake) is gone; the fountain is visual only.
@@ -19,7 +19,10 @@ export class Sounds {
     this.volume = {cat: .8, room: .5};
     this.clips = [];
     this.credits = [];
-    this.busyUntil = 0; // nothing new starts before this (seconds, ctx time)
+    // Call timing runs on the page clock (seconds), which keeps going even
+    // while audio is still locked or muted.
+    this.busyUntil = -Infinity; // no new call starts before this
+    this.purrUntil = -Infinity; // she doesn't meow while purring
     this.lastClip = null;
     this.room = null;
   }
@@ -74,12 +77,15 @@ export class Sounds {
    * second), or null when it's too soon to speak again.
    */
   meow(kind = 'meow', priority = 'reply') {
-    const now = this.ctx ? this.ctx.currentTime : performance.now() / 1000;
-    const gap = priority === 'idle' ? 6 + Math.random() * 6 : 1.2;
-    if (now < this.busyUntil + gap) return null;
-    const pool = this.clips.filter(c => c.kind === kind && c !== this.lastClip);
-    const any = this.clips.filter(c => c.kind !== 'purr' && c !== this.lastClip);
-    const clip = pick(pool.length ? pool : any);
+    const now = clock();
+    const gap = priority === 'idle' ? 6 + Math.random() * 6 : 2.5;
+    if (now < this.busyUntil + gap || now < this.purrUntil) return null;
+    // The right kind of call, not the same recording twice in a row when
+    // there's a choice.
+    let pool = this.clips.filter(c => c.kind === kind);
+    if (!pool.length) pool = this.clips.filter(c => c.kind === 'mew' || c.kind === 'meow');
+    if (pool.length > 1) pool = pool.filter(c => c !== this.lastClip);
+    const clip = pick(pool);
     if (!clip) {
       // No recordings available: she meows silently (the mouth still moves).
       const dur = {chirp: .25, mew: .4, meow: .6, sleepy: .8}[kind] ?? .6;
@@ -91,8 +97,9 @@ export class Sounds {
     if (this.enabled && this.ctx) {
       const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
       src.buffer = clip.buffer;
-      src.playbackRate.value = 1 + (Math.random() - .5) * .06; // tiny natural variation
-      g.gain.value = clip.gain ?? 1;
+      // A little natural variation in pitch and loudness each time.
+      src.playbackRate.value = 1 + (Math.random() - .5) * .07;
+      g.gain.value = (clip.gain ?? 1) * (.85 + Math.random() * .15);
       src.connect(g).connect(this.bus.cat);
       src.start();
     }
@@ -101,9 +108,15 @@ export class Sounds {
 
   purr(seconds = 2.2) {
     if (!this.enabled || !this.start()) return;
+    // Never over a meow: start once she's finished, and keep calls away
+    // while she purrs.
+    const now = clock(), start = Math.max(now, this.busyUntil + .25);
+    if (start < this.purrUntil) return;
+    this.purrUntil = start + seconds;
+    const t = this.ctx.currentTime + (start - now);
     const recorded = this.clips.filter(c => c.kind === 'purr');
     if (recorded.length) {
-      const clip = pick(recorded), src = this.ctx.createBufferSource(), g = this.ctx.createGain(), t = this.ctx.currentTime;
+      const clip = pick(recorded), src = this.ctx.createBufferSource(), g = this.ctx.createGain();
       src.buffer = clip.buffer; src.loop = true;
       g.gain.setValueAtTime(.0001, t);
       g.gain.exponentialRampToValueAtTime(clip.gain ?? 1, t + .4);
@@ -113,7 +126,7 @@ export class Sounds {
       src.start(t); src.stop(t + seconds);
       return;
     }
-    synthPurr(this.ctx, this.bus.cat, this.ctx.currentTime, seconds);
+    synthPurr(this.ctx, this.bus.cat, t, seconds);
   }
 
   startRoom() {
@@ -128,6 +141,7 @@ export class Sounds {
   setNight(night) { this.room?.setLevel(night ? .55 : 1, this.ctx.currentTime); }
 }
 
+const clock = () => performance.now() / 1000;
 const pick = list => list[Math.floor(Math.random() * list.length)];
 
 // Loudness envelope of a recording, 0..1 at ENV_RATE samples per second.
@@ -153,7 +167,7 @@ function envelope(buffer) {
   return out;
 }
 
-// A purr: a ~26 Hz flutter of low, breathy noise, louder on the out-breath
+// Synthesized purr, used only when no purr recording is bundled: a ~26 Hz flutter of low, breathy noise, louder on the out-breath
 // and softer on the in-breath, which alternate about every second.
 export function synthPurr(ctx, out, t, seconds) {
   const sr = ctx.sampleRate, len = Math.floor(sr * seconds);
