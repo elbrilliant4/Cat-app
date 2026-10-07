@@ -15,7 +15,7 @@ const MODEL_SCALE = 0.86;
 // Face presets: real-cat expressions. open = upper lids, happy = lower lids
 // push up (a contented squint), pupil = 0 narrow slit .. 1 round and wide.
 export const EXPRESSIONS = {
-  content:   {open: .95, happy: .1,  pupil: .7,  smile: 0, mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,    tongue: 0},
+  content:   {open: .8,  happy: .12, pupil: .62, smile: 0, mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,    tongue: 0},
   joy:       {open: .35, happy: .7,  pupil: .55, smile: 0, mouth: .12, sparkle: .6, earBack: -.05, earOut: .05,  tongue: 0},
   love:      {open: .25, happy: .6,  pupil: .8,  smile: 0, mouth: 0,   sparkle: .8, earBack: .05,  earOut: .1,   tongue: 0},
   excited:   {open: 1,   happy: 0,   pupil: 1,   smile: 0, mouth: .1,  sparkle: 1,  earBack: -.3,  earOut: -.05, tongue: 0},
@@ -49,8 +49,10 @@ const POSE_KEYS = Object.keys(POSES.stand);
 
 const skinVertexHead = /* glsl */`
 attribute float furLen;
+attribute float whisk;
 varying vec3 vBind;
 varying float vFurLen;
+varying float vWhisk;
 `;
 
 const eyeFragment = /* glsl */`
@@ -67,6 +69,7 @@ uniform float eyeSparkle;
 uniform float mouthOpen;
 uniform float tongueOut;
 uniform vec3 lidRing[8];
+uniform vec3 lidDark;
 float eyeMask = 0.0;
 
 vec3 lidColorAt(float a) {
@@ -78,50 +81,92 @@ vec3 lidColorAt(float a) {
   return mix(c0, c1, smoothstep(0.0, 1.0, f - i0));
 }
 
+// Gentle retouch of the baked face texture, in bind space: a wider white
+// blaze between the eyes (like the Ragdoll reference), softer inner-brow and
+// tear marks (the source texture paints a frown there), and a relaxed,
+// neutral mouth in place of the down-turned one.
+vec3 retouch(vec3 base, vec3 p) {
+  if (p.z < 0.78 || p.y < 0.24 || p.y > 0.52) return base;
+  float dx = abs(p.x - mouthPos.x);
+  float y = p.y;
+  float n = sin(p.y * 260.0 + p.x * 90.0) * 0.0025;
+  float hwBlaze = y < 0.42 ? 0.022 + (0.42 - y) * 0.45 : max(0.006, 0.022 - (y - 0.42) * 0.22);
+  float blaze = (1.0 - smoothstep(hwBlaze - 0.01, hwBlaze + 0.012, dx + n)) * smoothstep(0.3, 0.33, y) * (1.0 - smoothstep(0.48, 0.5, y));
+  vec3 cream = vec3(0.86, 0.83, 0.79) * (0.96 + 0.04 * sin(p.y * 1400.0 + dx * 300.0));
+  // Keep the eyes themselves out of the blaze.
+  float nearEye = min(length((p.xy - eyeR.xy) / eyeRadius), length((p.xy - eyeL.xy) / eyeRadius));
+  blaze *= smoothstep(1.05, 1.5, nearEye);
+  base = mix(base, cream, blaze);
+  // Lift the darkest frown marks to the soft chocolate of the mask.
+  float brow = smoothstep(0.012, 0.03, dx) * (1.0 - smoothstep(0.07, 0.1, dx)) * smoothstep(0.34, 0.36, y) * (1.0 - smoothstep(0.47, 0.5, y));
+  brow *= smoothstep(1.1, 1.5, nearEye);
+  base = mix(base, max(base, vec3(0.17, 0.09, 0.05)), brow);
+  // Soften the heavy dark patches under the eyes toward warm fawn.
+  float under = smoothstep(0.045, 0.07, dx) * (1.0 - smoothstep(0.17, 0.22, dx)) * smoothstep(0.29, 0.32, y) * (1.0 - smoothstep(0.37, 0.39, y)) * smoothstep(1.05, 1.4, nearEye);
+  base = mix(base, base * 1.45 + vec3(0.03, 0.02, 0.012), under * 0.7);
+  // Mouth: smooth the painted frown into white muzzle fur, then draw a
+  // soft, level line: a short philtrum and two shallow curves.
+  vec2 m = vec2(dx, y - mouthPos.y);
+  float pad = (1.0 - smoothstep(0.75, 1.0, length(m / vec2(0.04, 0.022)))) * step(y, 0.305);
+  base = mix(base, vec3(0.84, 0.81, 0.78), pad);
+  float aa = max(fwidth(y), 0.0004) * 1.5;
+  float philtrum = (1.0 - smoothstep(0.0012, 0.0012 + aa, dx)) * step(mouthPos.y - 0.001, y) * step(y, 0.308);
+  float curveY = mouthPos.y - 0.004 * sin(clamp(dx / 0.024, 0.0, 1.0) * 3.14159) + 0.0015 * smoothstep(0.016, 0.024, dx);
+  float lip = (1.0 - smoothstep(0.0011, 0.0011 + aa, abs(y - curveY))) * (1.0 - smoothstep(0.022, 0.026, dx));
+  base = mix(base, vec3(0.3, 0.17, 0.15), max(philtrum, lip) * 0.55 * (1.0 - smoothstep(0.0, 0.2, mouthOpen)));
+  return base;
+}
+
 vec4 drawEye(vec3 p, vec3 c, float side) {
   vec2 e = (p.xy - c.xy) / eyeRadius;
   e.x *= side;
   float r = length(e);
-  if (r > 1.35 || p.z < c.z - 0.06) return vec4(0.0);
-  float aa = max(fwidth(e.y), 0.01) * 1.3;
+  if (r > 1.3 || p.z < c.z - 0.06) return vec4(0.0);
+  float aa = max(fwidth(e.y), 0.01) * 1.4;
   float hw = sqrt(max(0.0, 1.0 - e.x * e.x));
-  // Lids meet in a relaxed line when shut; the lower lid rises when content.
-  float meet = -0.12 - 0.08 * hw;
-  float yu = mix(meet, hw * 1.02 + 0.03 * e.x, eyeOpen);
-  float yl = mix(-hw * 1.0, meet, max(eyeHappy * 0.75, 1.0 - eyeOpen));
+  // Lids meet in a soft, relaxed line when shut.
+  float meet = -0.1 - 0.06 * hw;
+  float yu = mix(meet, hw * 1.0, eyeOpen);
+  float yl = mix(-hw * 1.0, meet, max(eyeHappy * 0.6, 1.0 - eyeOpen));
   float inside = smoothstep(yl - aa, yl + aa, e.y) * (1.0 - smoothstep(yu - aa, yu + aa, e.y));
-  inside *= 1.0 - smoothstep(0.96, 1.02, abs(e.x));
-  // Iris: pale ragdoll blue with fine radial fibres and a darker limbal ring.
-  vec2 g = e - vec2(eyeLook.x * side, eyeLook.y) * vec2(0.22, 0.16);
+  inside *= 1.0 - smoothstep(0.95, 1.01, abs(e.x));
+  // Iris fills the eye (cats show almost no white): deep ragdoll sapphire,
+  // lighter around the pupil, with fine fibres and a soft darker edge.
+  vec2 g = e - vec2(eyeLook.x * side, eyeLook.y) * vec2(0.16, 0.1);
   float d = length(g);
   float ang = atan(g.y, g.x);
-  vec3 iris = mix(vec3(0.78, 0.86, 0.92), vec3(0.42, 0.56, 0.7), smoothstep(0.15, 0.85, d));
-  iris *= 0.86 + 0.14 * (0.5 + 0.5 * sin(ang * 41.0 + d * 13.0)) * smoothstep(0.2, 0.7, d);
-  iris = mix(iris, vec3(0.62, 0.72, 0.62), (1.0 - smoothstep(0.0, 0.32, d)) * 0.35);
-  iris = mix(iris, vec3(0.16, 0.22, 0.28), smoothstep(0.78, 0.98, d));
+  vec3 iris = mix(vec3(0.32, 0.56, 0.86), vec3(0.08, 0.22, 0.58), smoothstep(0.1, 0.95, d));
+  iris *= 0.9 + 0.1 * (0.5 + 0.5 * sin(ang * 47.0 + d * 11.0)) * smoothstep(0.25, 0.8, d);
+  iris = mix(iris, vec3(0.03, 0.06, 0.15), smoothstep(0.86, 1.02, d));
   vec3 col = iris;
-  // Pupil: a vertical slit that opens to a round, dark pool.
-  float pw = mix(0.16, 0.6, eyePupil), ph = mix(0.74, 0.64, eyePupil);
+  // Pupil: round and soft indoors, narrowing to an oval in bright light.
+  float pw = mix(0.3, 0.6, eyePupil), ph = mix(0.6, 0.64, eyePupil);
   float pd = length(g / vec2(pw, ph));
-  col = mix(col, vec3(0.02, 0.018, 0.02), 1.0 - smoothstep(0.9, 1.08, pd));
-  // Wet look: shadow under the upper lid and a soft catchlight.
-  col *= mix(1.0, 0.5, smoothstep(yu - 0.45, yu, e.y));
-  vec2 s = e * vec2(side, 1.0);
-  float glint = 1.0 - smoothstep(0.1 + 0.05 * eyeSparkle, 0.16 + 0.05 * eyeSparkle, length(s - vec2(-0.3, 0.32)));
-  col = mix(col, vec3(0.97), glint * 0.9);
-  // Lids: the dark seal-point fur around the eye, with a thin black rim.
-  vec3 lid = lidColorAt(atan(e.y, e.x)) * (0.9 + 0.1 * sin(atan(e.y, e.x) * 37.0 + r * 9.0));
-  float rim = max(1.0 - smoothstep(0.05, 0.05 + aa * 2.0, abs(e.y - yu - 0.025)),
-                  (1.0 - smoothstep(0.04, 0.04 + aa * 2.0, abs(e.y - yl + 0.02))) * 0.9);
-  rim *= 1.0 - smoothstep(0.92, 1.05, abs(e.x));
+  col = mix(col, vec3(0.008, 0.01, 0.018), 1.0 - smoothstep(0.92, 1.06, pd));
+  // Wet, rounded look: shade from the upper lid and the eye's curve,
+  // a soft window reflection and two catchlights.
+  col *= mix(1.0, 0.5, smoothstep(yu - 0.55, yu, e.y));
+  col *= 0.85 + 0.15 * (1.0 - smoothstep(0.3, 1.0, r));
+  vec2 s = e * vec2(side, 1.0) - vec2(eyeLook.x, eyeLook.y) * 0.03;
+  float glint = 1.0 - smoothstep(0.13 + 0.04 * eyeSparkle, 0.2 + 0.04 * eyeSparkle, length((s - vec2(-0.3, 0.3)) / vec2(1.0, 1.15)));
+  float glint2 = 1.0 - smoothstep(0.05, 0.09, length(s - vec2(0.32, -0.28)));
+  col = mix(col, vec3(1.0), max(glint * 0.92, glint2 * 0.6));
+  // Lids: the fur around the eye, darkening into a fine rim at the lash line.
+  vec3 lid = mix(lidColorAt(atan(e.y, e.x)), lidDark, 0.75) * (0.92 + 0.08 * sin(atan(e.y, e.x) * 37.0 + r * 9.0));
+  float distU = e.y - yu, distL = yl - e.y;
+  float rimU = 1.0 - smoothstep(0.0, 0.07 + aa, abs(distU - 0.02));
+  float rimL = (1.0 - smoothstep(0.0, 0.05 + aa, abs(distL - 0.015))) * 0.8;
+  float rim = max(rimU, rimL) * (1.0 - smoothstep(0.9, 1.04, abs(e.x)));
+  lid *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.25, min(abs(distU), abs(distL))));
   vec3 outc = mix(lid, col, inside);
-  outc = mix(outc, vec3(0.04, 0.03, 0.03), rim);
-  float region = 1.0 - smoothstep(1.05, 1.3, r);
+  outc = mix(outc, vec3(0.05, 0.035, 0.03), rim * 0.85);
+  float region = 1.0 - smoothstep(mix(0.9, 1.02, eyeOpen), mix(1.1, 1.22, eyeOpen), r);
   eyeMask = max(eyeMask, region * inside);
   return vec4(outc, region);
 }
 
 vec3 paintFace(vec3 base) {
+  base = retouch(base, vBind);
   vec4 a = drawEye(vBind, eyeR, -1.0);
   base = mix(base, a.rgb, a.a);
   vec4 b = drawEye(vBind, eyeL, 1.0);
@@ -171,6 +216,7 @@ export class RealCat {
       eyeOpen: {value: .9}, eyeHappy: {value: 0}, eyePupil: {value: .4}, eyeLook: {value: new THREE.Vector2()},
       eyeSparkle: {value: .5}, mouthOpen: {value: 0}, tongueOut: {value: 0},
       lidRing: {value: Array.from({length: 8}, () => new THREE.Color(0.25, 0.16, 0.12))},
+      lidDark: {value: new THREE.Color(0.12, 0.07, 0.045)},
     };
     this.ready = false;
   }
@@ -280,6 +326,7 @@ export class RealCat {
     collider('spine', .32, 0, 0, 0, 1, 1, 1.2);
     collider('hips', .3, 0, 0, -.05);
 
+    this.addWhiskers(bones);
     this.neck = bones.neck;
     this.head = bones.head;
     this.ready = true;
@@ -301,12 +348,15 @@ export class RealCat {
       }
     }
     sums.forEach((s, i) => { if (s[3]) this.faceUniforms.lidRing.value[i].setRGB(s[0] / s[3], s[1] / s[3], s[2] / s[3]); });
+    // The lids take the mask's chocolate, not the white blaze beside them.
+    const sorted = [...this.faceUniforms.lidRing.value].sort((a, b) => (a.r + a.g + a.b) - (b.r + b.g + b.b)).slice(0, 4);
+    this.faceUniforms.lidDark.value.setRGB(...['r', 'g', 'b'].map(k => sorted.reduce((t, c) => t + c[k], 0) / 4));
   }
 
   // How long the fur grows at each vertex (model units).
   furLengths(geometry, weld) {
     const pos = geometry.attributes.position, N = pos.count;
-    const len = new Float32Array(N);
+    const len = new Float32Array(N), whisk = new Float32Array(N);
     // Tiny disconnected pieces (whiskers) get no fur.
     const idx = geometry.index, parent = new Int32Array(N).map((_, i) => i);
     const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
@@ -339,9 +389,15 @@ export class RealCat {
       if (p.z > 0.82 && dn < 0.06) l = 0;
       const dm = Math.hypot((p.x - FACE.mouth.x) / 0.05, (p.y - FACE.mouth.y) / 0.025);
       if (p.z > 0.8 && dm < 1) l = 0;
-      len[i] = l;
+      // The sculpted whiskers are thick clumps; they're hidden and replaced
+      // by fine strands (addWhiskers).
+      if (p.z > 0.8 && p.y > 0.15 && p.y < 0.43) whisk[i] = THREE.MathUtils.smoothstep(Math.hypot((p.x - MIDLINE_X) / .3, (p.y - .38) / .27, (p.z - .66) / .27), .86, .97);
+      // Restrained coat: no fur on the face and ears, shorter elsewhere.
+      if (p.z > 0.5 && p.y > 0.08) l = 0;
+      len[i] = l * 0.62;
     }
     geometry.setAttribute('furLen', new THREE.BufferAttribute(len, 1));
+    geometry.setAttribute('whisk', new THREE.BufferAttribute(whisk, 1));
   }
 
   patchSkin(material) {
@@ -350,10 +406,10 @@ export class RealCat {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\n' + skinVertexHead)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvWhisk = whisk;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n' + eyeFragment)
-        .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb = paintFace(diffuseColor.rgb);')
+        .replace('#include <common>', '#include <common>\n' + eyeFragment + '\nvarying float vWhisk;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\nif (vWhisk > 0.55) discard;\ndiffuseColor.rgb = mix(paintFace(diffuseColor.rgb), vec3(0.84, 0.81, 0.78), smoothstep(0.02, 0.4, vWhisk));')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.2, eyeMask);');
     };
     material.customProgramCacheKey = () => 'mochi-skin';
@@ -362,7 +418,7 @@ export class RealCat {
 
   addFur(skinned, baseMaterial) {
     const coarse = matchMedia('(pointer: coarse)').matches;
-    const shells = coarse ? 7 : 11;
+    const shells = coarse ? 6 : 9;
     const g = new THREE.InstancedBufferGeometry();
     for (const [name, attr] of Object.entries(skinned.geometry.attributes)) g.setAttribute(name, attr);
     g.setIndex(skinned.geometry.index);
@@ -373,14 +429,14 @@ export class RealCat {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\n' + skinVertexHead + furVertex)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvLayer = (float(gl_InstanceID) + 1.0) / furShells;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvWhisk = whisk;\nvLayer = (float(gl_InstanceID) + 1.0) / furShells;')
         .replace('#include <skinning_vertex>', `#include <skinning_vertex>
           vec3 furN = normalize(objectNormal);
           transformed += furN * vLayer * furLen + vec3(0.0, -1.0, -0.4) * vLayer * vLayer * furLen * 0.6;`);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n' + furFragment + '\nvarying vec3 vBind;')
+        .replace('#include <common>', '#include <common>\n' + furFragment + '\nvarying vec3 vBind;\nvarying float vWhisk;')
         .replace('#include <map_fragment>', `#include <map_fragment>
-          if (vFurLen < 0.002) discard;
+          if (vFurLen < 0.002 || vWhisk > 0.3) discard;
           vec2 furG = vMapUv * vec2(furDensity);
           vec2 furCell = floor(furG);
           float furSeed = furHash(furCell);
@@ -388,7 +444,7 @@ export class RealCat {
           float furH = mix(0.4, 1.0, furSeed);
           if (vLayer > furH) discard;
           if (length(furF) > 0.6 * (1.0 - vLayer / furH) + 0.08) discard;
-          diffuseColor.rgb *= mix(0.72, 1.08, vLayer) * (0.93 + 0.14 * furHash(furCell + 1.7));`);
+          diffuseColor.rgb *= mix(0.86, 1.03, vLayer) * (0.96 + 0.07 * furHash(furCell + 1.7));`);
     };
     m.customProgramCacheKey = () => 'mochi-fur';
     const fur = new THREE.SkinnedMesh(g, m);
@@ -399,6 +455,45 @@ export class RealCat {
     fur.bind(skinned.skeleton, skinned.bindMatrix);
     skinned.parent.add(fur);
     this.fur = fur;
+  }
+
+  // Fine, tapered whiskers from the muzzle pads and above the eyes. They're
+  // children of the head bone, so they move with her face.
+  addWhiskers(bones) {
+    const headPos = BONES.head[1];
+    const mat = new THREE.MeshStandardMaterial({color: '#fbf7f0', roughness: .4, transparent: true, opacity: .8, depthWrite: false});
+    const group = new THREE.Group();
+    bones.head.add(group);
+    const strand = (root, dir, len, droop, radius = .0016) => {
+      const d = dir.clone().normalize();
+      const pts = [0, .33, .66, 1].map(t => root.clone().addScaledVector(d, len * t).add(new THREE.Vector3(0, -droop * t * t, 0)).sub(headPos));
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const segs = 16, radial = 5;
+      const geo = new THREE.TubeGeometry(curve, segs, radius, radial, false);
+      const p = geo.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+      for (let i = 0; i <= segs; i++) {
+        curve.getPointAt(i / segs, c);
+        const k = 1 - .85 * (i / segs);
+        for (let j = 0; j <= radial; j++) {
+          const idx = i * (radial + 1) + j;
+          v.fromBufferAttribute(p, idx).sub(c).multiplyScalar(k).add(c);
+          p.setXYZ(idx, v.x, v.y, v.z);
+        }
+      }
+      const m = new THREE.Mesh(geo, mat);
+      m.renderOrder = 2;
+      group.add(m);
+    };
+    for (const s of [-1, 1]) {
+      const rows = [[.302, .06, .02], [.292, .015, .03], [.282, -.03, .04], [.272, -.07, .05], [.296, .035, .0]];
+      rows.forEach(([y, up, fwd], i) => {
+        const root = new THREE.Vector3(MIDLINE_X + s * (.034 + i * .004), y, .878 - i * .003);
+        strand(root, new THREE.Vector3(s, up, .18 + fwd), .3 + (i % 3) * .05, .03 + i * .006);
+      });
+      // Two long brow whiskers.
+      for (const [dx, up] of [[.045, .9], [.07, .75]]) strand(new THREE.Vector3(MIDLINE_X + s * dx, .452, .842), new THREE.Vector3(s * .5, up, .35), .16, .015, .0012);
+    }
+    this.whiskers = group;
   }
 
   headTop(target = new THREE.Vector3()) { return this.head.localToWorld(target.set(0, .34, .05)); }

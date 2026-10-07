@@ -55,7 +55,7 @@ const LEGS = {
 export const FACE = {
   eyeR: V(-0.388, 0.396, 0.826),
   eyeL: V(-0.238, 0.396, 0.826),
-  eyeRadius: new THREE.Vector2(0.032, 0.0285),
+  eyeRadius: new THREE.Vector2(0.035, 0.032),
   mouth: V(-0.313, 0.29, 0.876),
   nose: V(-0.313, 0.327, 0.89),
 };
