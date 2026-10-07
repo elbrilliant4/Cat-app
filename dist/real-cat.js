@@ -75,6 +75,7 @@ uniform vec3 lidRing[32]; // 16 directions around each eye: right eye, then left
 uniform vec3 lidMid[2];   // each lid's overall colour
 uniform vec3 lidDark;
 float eyeMask = 0.0;
+float lidMask = 0.0; // where the lid fur is painted (its normal-map detail is ignored there)
 
 vec3 lidColorAt(float a, float side) {
   float f = (a / 6.2831853 + 0.5) * 16.0 - 0.5;
@@ -122,8 +123,8 @@ vec3 retouch(vec3 base, vec3 p) {
   float philtrum = (1.0 - smoothstep(0.0012, 0.0012 + aa, dx)) * step(mouthPos.y - 0.001, y) * step(y, 0.308);
   // Lips: the sculpted lip line, tinted the soft grey-brown of a cat's lip edge.
   float curveY = 0.2835 - 0.0058 * smoothstep(0.002, 0.02, dx) + 0.0022 * smoothstep(0.02, 0.036, dx);
-  float lipEdge = (1.0 - smoothstep(0.0, 0.0018, abs(y - curveY))) * (1.0 - smoothstep(0.028, 0.036, dx));
-  base = mix(base, vec3(0.34, 0.24, 0.23), lipEdge * 0.75);
+  float lipEdge = (1.0 - smoothstep(0.0, 0.0013, abs(y - curveY))) * (1.0 - smoothstep(0.026, 0.036, dx));
+  base = mix(base, vec3(0.36, 0.26, 0.25), lipEdge * 0.6);
   base = mix(base, vec3(0.3, 0.17, 0.15), philtrum * 0.35);
   return base;
 }
@@ -132,7 +133,7 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   vec2 e = (p.xy - c.xy) / eyeRadius;
   e.x *= side;
   float r = length(e);
-  if (r > 1.55 || p.z < c.z - 0.06) return vec4(0.0);
+  if (r > 1.7 || p.z < c.z - 0.06) return vec4(0.0);
   float aa = max(fwidth(e.y), 0.01) * 1.4;
   float hw = sqrt(max(0.0, 1.0 - e.x * e.x));
   // Lids meet in a soft, relaxed line when shut.
@@ -141,27 +142,31 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   float yl = mix(-hw * 1.0, meet, max(eyeHappy * 0.6, 1.0 - eyeOpen));
   float inside = smoothstep(yl - aa, yl + aa, e.y) * (1.0 - smoothstep(yu - aa, yu + aa, e.y));
   inside *= 1.0 - smoothstep(0.95, 1.01, abs(e.x));
-  // Iris fills the eye (cats show almost no white): deep ragdoll sapphire,
-  // lighter around the pupil, with fine fibres and a soft darker edge.
+  // Iris fills the eye (cats show almost no white): ragdoll sapphire with a
+  // paler ring round the pupil, uneven fibres and flecks, and only a soft,
+  // thin darker edge (a heavy dark ring is what makes eyes look like toys).
   vec2 g = e - vec2(eyeLook.x * side, eyeLook.y) * vec2(0.16, 0.1);
   float d = length(g);
   float ang = atan(g.y, g.x);
-  vec3 iris = mix(vec3(0.32, 0.56, 0.86), vec3(0.08, 0.22, 0.58), smoothstep(0.1, 0.95, d));
-  iris *= 0.9 + 0.1 * (0.5 + 0.5 * sin(ang * 47.0 + d * 11.0)) * smoothstep(0.25, 0.8, d);
-  iris = mix(iris, vec3(0.03, 0.06, 0.15), smoothstep(0.86, 1.02, d));
+  vec3 iris = mix(vec3(0.42, 0.62, 0.84), vec3(0.13, 0.3, 0.6), smoothstep(0.15, 0.9, d));
+  float fib = 0.5 + 0.5 * sin(ang * 47.0 + d * 11.0 + 1.7 * sin(ang * 13.0));
+  float fleck = 0.5 + 0.5 * sin(ang * 23.0 - d * 19.0) * sin(ang * 7.0 + d * 5.0);
+  iris *= (0.86 + 0.14 * fib) * (0.94 + 0.08 * fleck * smoothstep(0.3, 0.8, d));
+  iris = mix(iris, vec3(0.09, 0.15, 0.27), smoothstep(0.9, 1.02, d) * 0.7);
   vec3 col = iris;
-  // Pupil: round and soft indoors, narrowing to an oval in bright light.
-  float pw = mix(0.3, 0.6, eyePupil), ph = mix(0.6, 0.64, eyePupil);
+  // Pupil: a soft upright oval, rounder in dim light.
+  float pw = mix(0.24, 0.55, eyePupil), ph = mix(0.58, 0.64, eyePupil);
   float pd = length(g / vec2(pw, ph));
-  col = mix(col, vec3(0.008, 0.01, 0.018), 1.0 - smoothstep(0.92, 1.06, pd));
-  // Wet, rounded look: shade from the upper lid and the eye's curve,
-  // a soft window reflection and two catchlights.
-  col *= mix(1.0, 0.5, smoothstep(yu - 0.55, yu, e.y));
-  col *= 0.85 + 0.15 * (1.0 - smoothstep(0.3, 1.0, r));
+  col = mix(col, vec3(0.01, 0.012, 0.02), 1.0 - smoothstep(0.9, 1.08, pd));
+  // Wet, rounded look: the upper lid shades the top of the eye, the eye's
+  // curve darkens its edge, and the window gives one soft, small catchlight
+  // (plus a faint second) rather than big round highlights.
+  col *= mix(1.0, 0.45, smoothstep(yu - 0.75, yu, e.y));
+  col *= 0.84 + 0.16 * (1.0 - smoothstep(0.3, 1.0, r));
   vec2 s = e * vec2(side, 1.0) - vec2(eyeLook.x, eyeLook.y) * 0.03;
-  float glint = 1.0 - smoothstep(0.13 + 0.04 * eyeSparkle, 0.2 + 0.04 * eyeSparkle, length((s - vec2(-0.3, 0.3)) / vec2(1.0, 1.15)));
-  float glint2 = 1.0 - smoothstep(0.05, 0.09, length(s - vec2(0.32, -0.28)));
-  col = mix(col, vec3(1.0), max(glint * 0.92, glint2 * 0.6));
+  float glint = 1.0 - smoothstep(0.06 + 0.03 * eyeSparkle, 0.13 + 0.03 * eyeSparkle, length((s - vec2(-0.28, 0.28)) / vec2(1.25, 0.9)));
+  float glint2 = 1.0 - smoothstep(0.02, 0.06, length(s - vec2(0.3, -0.3)));
+  col = mix(col, vec3(0.97, 0.98, 1.0), max(glint * 0.85, glint2 * 0.35));
   // Lids: soft fur over a rounded eyeball, in the colour of the fur around
   // the eye. Fine hairs comb away from the lash line, the lid's curve catches
   // a little light, and only the lash line itself is dark.
@@ -179,8 +184,9 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   outc = mix(outc, vec3(0.07, 0.05, 0.04), rim * mix(0.5, 0.8, eyeOpen));
   // As the eye closes, the lid fur also covers the dark rim painted into the
   // texture around the eye, so a closed eye never looks sunken.
-  float region = 1.0 - smoothstep(mix(1.0, 0.9, eyeOpen), mix(1.5, 1.12, eyeOpen), r);
+  float region = 1.0 - smoothstep(mix(1.3, 0.9, eyeOpen), mix(1.68, 1.12, eyeOpen), r);
   eyeMask = max(eyeMask, region * inside);
+  lidMask = max(lidMask, region * (1.0 - inside));
   return vec4(outc, region);
 }
 
@@ -362,7 +368,7 @@ export class RealCat {
         if (pos.getZ(i) < c.z - 0.06) continue;
         const ex = (pos.getX(i) - c.x) / FACE.eyeRadius.x * side, ey = (pos.getY(i) - c.y) / FACE.eyeRadius.y;
         const r = Math.hypot(ex, ey);
-        if (r < 1.55 || r > 2.1) continue;
+        if (r < 1.62 || r > 1.85) continue;
         const k = texel(i);
         bins[Math.min(15, Math.floor((Math.atan2(ey, ex) / (Math.PI * 2) + .5) * 16))].push([toLin(px[k]), toLin(px[k + 1]), toLin(px[k + 2])]);
       }
@@ -437,7 +443,11 @@ export class RealCat {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\n' + eyeFragment + '\nvarying float vPatch;\nvarying vec3 vPatchColor;')
         .replace('#include <map_fragment>', '#include <map_fragment>\nvec3 patchCol = vPatchColor * (0.95 + 0.035 * sin(vBind.y * 1500.0 + vBind.x * 260.0) + 0.025 * sin(vBind.x * 2100.0 - vBind.y * 400.0));\ndiffuseColor.rgb = paintFace(mix(diffuseColor.rgb, patchCol, vPatch));')
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.2, eyeMask);');
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.2, eyeMask);')
+        // The model's normal map still holds the sculpted socket of the
+        // original open eye; under the lid fur it would draw a ring.
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nvec3 lidBaseNormal = normal;')
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(normal, lidBaseNormal, lidMask));');
     };
     material.customProgramCacheKey = () => 'mochi-skin';
     material.needsUpdate = true;
@@ -552,23 +562,26 @@ export class RealCat {
     si.needsUpdate = sw.needsUpdate = true;
   }
 
-  // Inside of the mouth: a dark cavity behind the lips, a tongue resting on
-  // the jaw, and two small fangs tucked behind the upper lip.
+  // Inside of the mouth: a dark cavity behind the lips (big enough to cover
+  // the whole opening, corners included, so nothing shows through), a solid
+  // floor and tongue on the jaw, and two small fangs tucked behind the
+  // upper lip.
   addMouthInterior(bones) {
     const at = (bone, x, y, z) => new THREE.Vector3(x, y, z).sub(BONES[bone][1]);
-    const cavity = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshStandardMaterial({color: '#3a1216', roughness: .7, side: THREE.BackSide}));
-    cavity.scale.set(.036, .026, .04);
-    cavity.position.copy(at('head', MOUTH.midX, .278, .838));
+    const cavity = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), new THREE.MeshStandardMaterial({color: '#34101a', roughness: .75, side: THREE.BackSide}));
+    cavity.scale.set(.05, .032, .046);
+    cavity.position.copy(at('head', MOUTH.midX, .276, .836));
     bones.head.add(cavity);
-    const tongueMat = new THREE.MeshPhysicalMaterial({color: '#d9707c', roughness: .45, clearcoat: .4, clearcoatRoughness: .3});
-    const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), tongueMat);
-    tongue.scale.set(.02, .0055, .032);
-    tongue.position.copy(at('jaw', MOUTH.midX, .26, .826));
-    bones.jaw.add(tongue);
-    const floor = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshStandardMaterial({color: '#4a161c', roughness: .7}));
-    floor.scale.set(.03, .012, .036);
-    floor.position.copy(at('jaw', MOUTH.midX, .27, .832));
+    const floor = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), new THREE.MeshStandardMaterial({color: '#5a1c26', roughness: .7}));
+    floor.scale.set(.034, .008, .036);
+    floor.position.copy(at('jaw', MOUTH.midX, .262, .832));
     bones.jaw.add(floor);
+    // Solid pink from every side; it rests on the floor of the mouth.
+    const tongueMat = new THREE.MeshPhysicalMaterial({color: '#d9727f', roughness: .45, clearcoat: .35, clearcoatRoughness: .35, side: THREE.DoubleSide});
+    const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), tongueMat);
+    tongue.scale.set(.019, .006, .03);
+    tongue.position.copy(at('jaw', MOUTH.midX, .268, .83));
+    bones.jaw.add(tongue);
     const fangGeo = new THREE.ConeGeometry(.0028, .009, 10);
     fangGeo.rotateX(Math.PI);
     const fangMat = new THREE.MeshPhysicalMaterial({color: '#f4efe4', roughness: .25, clearcoat: .6});
@@ -794,8 +807,11 @@ export class RealCat {
     // Tongue: lapping/grooming pushes it forward past the lips.
     if (this.tongue) {
       // At rest it lies low and back, out of sight between closed lips.
-      this.tongue.position.copy(this.tongueRest).add(_v.set(0, m * .005 + tg * .008, m * .004 + tg * .04));
-      this.tongue.scale.set(.02, .0055 + tg * .002, .032 + tg * .006);
+      // Out for lapping or grooming, it rises over the lower lip (never
+      // through it) and its tip drapes down a little.
+      this.tongue.position.copy(this.tongueRest).add(_v.set(0, m * .003 + tg * .016, m * .003 + tg * .036));
+      this.tongue.scale.set(.019, .006 + tg * .0015, .03 + tg * .006);
+      this.tongue.rotation.x = tg * .25;
       // Closed lips leave a hairline gap; keep it a dark lip line.
       this.tongue.visible = m + tg > .03;
       for (const f of this.fangs) f.visible = m + tg > .05;

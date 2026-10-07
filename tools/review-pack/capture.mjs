@@ -14,6 +14,7 @@ import path from 'node:path';
 import http from 'node:http';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
+import {readWav, analyse, loopThrice} from './audio-qa.mjs';
 
 const [site, out] = process.argv.slice(2).map(p => path.resolve(p));
 if (!site || !out) { console.error('usage: capture.mjs <site dir> <output dir>'); process.exit(1); }
@@ -111,6 +112,21 @@ await browser.close();
 server.close();
 
 // The review page.
+// Each recorded clip on its own, exactly as the app plays it, with its
+// measurements; loops also get a three-times-through copy to hear the seam.
+const soundList = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).clips || []; } catch { return []; } })();
+const clipRows = [];
+for (const c of soundList) {
+  try {
+    const bytes = fs.readFileSync(path.join(site, 'assets/sounds', c.file)), wav = readWav(bytes), loop = c.kind === 'purr';
+    const name = 'sound-' + c.file;
+    fs.writeFileSync(path.join(out, name), bytes); made.push(name);
+    let looped = null;
+    if (loop) { looped = name.replace(/\.wav$/, '-x3.wav'); fs.writeFileSync(path.join(out, looped), loopThrice(bytes, wav)); made.push(looped); }
+    clipRows.push({...c, name, looped, qa: analyse(wav, {loop})});
+  } catch (e) { errors.push(`${c.file}: ${e.message}`); }
+}
+log('clips', clipRows.length);
 const credits = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'assets/sounds/sounds.json'), 'utf8')).credits || []; } catch { return []; } })();
 const has = f => made.includes(f);
 const img = (f, cap) => has(f) ? `<figure><a href="${f}"><img src="${f}" alt="${cap}" loading="lazy"></a><figcaption>${cap}</figcaption></figure>` : '';
@@ -137,6 +153,9 @@ figure.audio { padding: 4px 12px 12px; } figure.audio audio { width: 100%; } fig
 .none { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
 a { color: var(--accent); }
 ul { padding-left: 18px; }
+table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; display: block; overflow-x: auto; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 650; }
 </style></head><body><main>
 <h1>Mochi review pack</h1>
 <p class="meta"><b>Build ${version.build}</b> · commit ${version.commit} · ${version.channel} · rendered ${when}</p>
@@ -151,6 +170,13 @@ ul { padding-left: 18px; }
 <div class="grid">${img('room-day.png', 'Phone, day')}${img('room-night.png', 'Phone, evening')}${img('room-desktop.png', 'Wide screen, day')}</div>
 <h2>Sound</h2>
 <div class="grid">${aud('meow.wav', 'Meows (recorded candidates)')}${aud('purr.wav', 'Purr (recorded candidate)')}${aud('room.wav', 'Room ambience')}</div>
+${clipRows.length ? `<h2>Recorded clips, one by one</h2>
+<p class="meta">Exactly as the app plays them (before Mochi's volume and the small random pitch and level variation). Clips marked candidate play in the preview only.</p>
+<div class="grid">${clipRows.map(c => `<figure class="audio"><figcaption>${c.file} · ${c.kind}${c.status === 'candidate' ? ' · candidate' : ''}</figcaption><audio src="${c.name}" controls preload="none"></audio><a href="${c.name}">download</a>${c.looped ? `<figcaption>Loop seam check (three times through)</figcaption><audio src="${c.looped}" controls preload="none"></audio>` : ''}</figure>`).join('')}</div>
+<table><thead><tr><th>Clip</th><th>Length</th><th>Peak</th><th>Clipped samples</th><th>Quietest 10% (background)</th><th>Loudest</th><th>Clicks found</th><th>Loop seam</th></tr></thead><tbody>
+${clipRows.map(c => { const q = c.qa; return `<tr><td>${c.file}</td><td>${q.seconds} s</td><td>${q.peakDb} dBFS</td><td>${q.clippedSamples}</td><td>${c.kind === 'purr' ? 'n/a (continuous)' : q.noiseFloorDb + ' dBFS'}</td><td>${q.loudestDb} dBFS</td><td>${q.clicks.length ? q.clicks.join(', ') + ' s' : 'none'}</td><td>${q.loopSeam ? `step ${q.loopSeam.stepVsTypical}× a normal step, ${q.loopSeam.loudnessChangeDb} dB across it` : '—'}</td></tr>`; }).join('')}
+</tbody></table>
+<p class="meta">Clicks: sudden spikes far above their surroundings. Loop seam: the jump from the last sample back to the first, compared with an ordinary sample-to-sample step (about 1–3× is seamless), and the loudness either side of it.</p>` : ''}
 ${credits.length ? `<h2>Sound credits</h2><ul>${credits.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}
 ${errors.length ? `<h2>Capture notes</h2><ul>${errors.map(e => `<li>${e.replace(/</g, '&lt;')}</li>`).join('')}</ul>` : ''}
 </main></body></html>

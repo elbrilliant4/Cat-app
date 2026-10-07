@@ -44,7 +44,7 @@ const inPad = (x, y, z) => z > 0.82 && padQ(x, y) < 1;
 
 const inMouth = (x, y, z) => z > 0.8 && Math.abs(x - MOUTH.midX) < 0.085 && y > 0.235 && y < 0.34;
 export const eyeDist = (x, y, c) => Math.hypot((x - c.x) / FACE.eyeRadius.x, (y - c.y) / FACE.eyeRadius.y);
-const inEyes = (x, y, z) => z > 0.76 && Math.min(eyeDist(x, y, FACE.eyeR), eyeDist(x, y, FACE.eyeL)) < 1.5;
+const inEyes = (x, y, z) => z > 0.76 && Math.min(eyeDist(x, y, FACE.eyeR), eyeDist(x, y, FACE.eyeL)) < 1.7;
 
 const posKey = (pos, i) => Math.round(pos.getX(i) * 1e5) + ',' + Math.round(pos.getY(i) * 1e5) + ',' + Math.round(pos.getZ(i) * 1e5);
 function weldIds(pos) {
@@ -274,15 +274,15 @@ function mouthHeight(x, y) {
   let h = 0;
   // Muzzle (whisker) pads: two soft mounds either side of the philtrum.
   const px = (ax - 0.028) / 0.024, py = (y - 0.297) / 0.019;
-  h += 0.0075 * Math.exp(-(px * px + py * py) * 1.6);
+  h += 0.0062 * Math.exp(-(px * px + py * py) * 1.6);
   // Philtrum: a narrow groove from the nose down to the lip.
   if (y > seam && y < 0.316) h -= 0.0026 * gauss(dx, 0.0032) * fade(y, seam, seam + 0.004);
   // Lip line: a fine crease; the upper lip overhangs a touch, the lower lip
   // sits back.
   const lips = 1 - fade(ax, MOUTH.halfWidth - 0.006, MOUTH.halfWidth + 0.006);
-  h -= 0.0038 * gauss(y - seam, 0.0022) * lips;
-  h += 0.0012 * gauss(y - (seam + 0.004), 0.003) * lips;
-  h -= 0.0022 * fade(seam - y, 0.001, 0.008) * (1 - fade(seam - y, 0.012, 0.03)) * lips;
+  h -= 0.0022 * gauss(y - seam, 0.0016) * lips;
+  h += 0.0005 * gauss(y - (seam + 0.004), 0.003) * lips;
+  h -= 0.0012 * fade(seam - y, 0.001, 0.008) * (1 - fade(seam - y, 0.012, 0.03)) * lips;
   // Chin: a small rounded bump below the lower lip.
   const cx = dx / 0.022, cy = (y - 0.258) / 0.013;
   h += 0.0042 * Math.exp(-(cx * cx + cy * cy) * 1.4);
@@ -292,12 +292,12 @@ function mouthHeight(x, y) {
 
 // 4. Eyeballs: the painted eyes sit in flat, slightly sunken discs. Raise a
 // rounded dome under each, blending into the rim of the socket.
-const EYE_REACH = 1.4;
+const EYE_REACH = 1.6;
 function eyeHeight(x, y) {
   let h = 0;
   for (const c of [FACE.eyeR, FACE.eyeL]) {
     const r = eyeDist(x, y, c);
-    if (r < EYE_REACH) h += 0.015 * Math.pow(1 - (r / EYE_REACH) ** 2, 1.5);
+    if (r < EYE_REACH) h += 0.009 * Math.pow(1 - (r / EYE_REACH) ** 2, 2);
   }
   return h;
 }
@@ -379,7 +379,7 @@ export function sculptFace(geometry, sampleUV) {
   // New normals where the surface changed, blended into the originals at the
   // rim of each region.
   smoothNormals(g, inMouth, (x, y, z) => fade(Math.abs(x - MOUTH.midX), 0.085, 0.07) * fade(y, 0.235, 0.245) * fade(y, 0.34, 0.33) * fade(z, 0.8, 0.82) * fade(padQ(x, y), 0.7, 1));
-  smoothNormals(g, inEyes, (x, y) => fade(Math.min(eyeDist(x, y, FACE.eyeR), eyeDist(x, y, FACE.eyeL)), 1.5, 1.35));
+  smoothNormals(g, inEyes, (x, y) => fade(Math.min(eyeDist(x, y, FACE.eyeR), eyeDist(x, y, FACE.eyeL)), 1.7, 1.5));
   return g;
 }
 
