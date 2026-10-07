@@ -18,9 +18,11 @@ import {FACE} from './cat-rig.js';
 
 export const MOUTH = {
   midX: -0.313,
-  // Lip line: y at a given distance from the midline. A small peak under the
-  // philtrum, falling gently to the corners.
-  seamY: dx => 0.2835 - 0.0052 * fade(Math.abs(dx), 0.002, 0.03) - 0.004 * fade(Math.abs(dx), 0.026, 0.038),
+  // Lip line: y at a given distance from the midline. A cat's relaxed mouth
+  // is a soft "w": a small peak under the philtrum, dipping either side and
+  // curving gently back up at the corners (a corner that drops reads as a
+  // frown). real-cat.js paints the same curve.
+  seamY: dx => 0.2835 - 0.0058 * fade(Math.abs(dx), 0.002, 0.02) + 0.0022 * fade(Math.abs(dx), 0.02, 0.036),
   halfWidth: 0.034,
   frontZ: 0.86,
 };
@@ -37,7 +39,7 @@ const inClumpBand = (x, y, z) => z > 0.78 && y > 0.12 && y < 0.45;
 // The muzzle pads, where the clumps grew out of the face. Whatever is left
 // of their roots is pressed onto a smooth surface fitted to the skin around
 // them (then sculpted into rounded pads below).
-export const padQ = (x, y) => Math.hypot((Math.abs(x - MOUTH.midX) - 0.068) / 0.042, (y - 0.296) / 0.03);
+export const padQ = (x, y) => Math.hypot((Math.abs(x - MOUTH.midX) - 0.066) / 0.047, (y - 0.293) / 0.033);
 const inPad = (x, y, z) => z > 0.82 && padQ(x, y) < 1;
 
 const inMouth = (x, y, z) => z > 0.8 && Math.abs(x - MOUTH.midX) < 0.085 && y > 0.235 && y < 0.34;
@@ -142,7 +144,17 @@ function removeWhiskerClumps(geometry, sampleUV) {
       centre.addScaledVector(p, 1 / loop.length);
       rMean += shellRadius(p.x, p.y, p.z) / loop.length;
     }
-    // Two rings and a centre point, lifted onto the face's curve.
+    // A tiny opening inside one patch of texture is simply closed with a fan
+    // that keeps the texture (it takes the colour of what's around it).
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const v of loop) { const i = rep.get(v); u0 = Math.min(u0, uv.getX(i)); u1 = Math.max(u1, uv.getX(i)); v0 = Math.min(v0, uv.getY(i)); v1 = Math.max(v1, uv.getY(i)); }
+    if (loop.length <= 8 && u1 - u0 < 0.02 && v1 - v0 < 0.02) {
+      const hub = addVertex(rep.get(loop[0]), centre.clone(), col);
+      A.facePatch.data[hub] = 0;
+      A.uv.data.splice(hub * 2, 2, (u0 + u1) / 2, (v0 + v1) / 2);
+      for (let k = 0; k < loop.length; k++) kept.push(rep.get(loop[k]), rep.get(loop[(k + 1) % loop.length]), hub);
+      continue;
+    }
     const outer = loop.map(v => addVertex(rep.get(v), P(v), col));
     // Rings stepping in to a centre point, on the face's curve.
     const rings = [outer];
@@ -327,8 +339,22 @@ export function sculptFace(geometry, sampleUV) {
   }
   for (const [i, x, y, z] of moved) pos.setXYZ(i, x, y, z);
   pressPads(g, padSurface);
+  // Pressed flat, the folds left from the clump roots face backwards and
+  // flicker against the pad (the model is double-sided). Drop them, and any
+  // other backward fold on the front of the muzzle: the forward-facing
+  // surface already covers it.
+  {
+    const idx = Array.from(g.index.array), keep = [], a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let t = 0; t < idx.length; t += 3) {
+      a.fromBufferAttribute(pos, idx[t]); b.fromBufferAttribute(pos, idx[t + 1]); c.fromBufferAttribute(pos, idx[t + 2]);
+      const inside = [a, b, c].every(v => (v.z > 0.8 && padQ(v.x, v.y) < 0.98) || (v.z > 0.85 && inMouth(v.x, v.y, v.z)));
+      if (inside && b.clone().sub(a).cross(c.clone().sub(a)).z <= 0) continue;
+      keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    }
+    g.setIndex(new THREE.Uint32BufferAttribute(keep, 1));
+  }
   // 5. Open the lip line: drop the thin band of triangles that straddle it.
-  const index = Array.from(g.index.array), kept = [];
+  const index = Array.from(g.index.array), kept = [], cut = [];
   for (let t = 0; t < index.length; t += 3) {
     const tri = [index[t], index[t + 1], index[t + 2]];
     let above = 0, below = 0, front = true;
@@ -337,10 +363,19 @@ export function sculptFace(geometry, sampleUV) {
       if (pos.getZ(i) < MOUTH.frontZ || Math.abs(dx) > MOUTH.halfWidth - 0.002) front = false;
       if (pos.getY(i) > MOUTH.seamY(dx)) above++; else below++;
     }
-    if (front && above && below) continue;
+    if (front && above && below) { cut.push(...tri); continue; }
     kept.push(...tri);
   }
   g.setIndex(new THREE.Uint32BufferAttribute(kept, 1));
+  // The cut follows triangle edges, so its edges zigzag. Snap every point on
+  // them onto the lip line itself (a hair above or below), so the closed
+  // mouth is one clean, fine line.
+  const onCut = new Set(cut.map(i => posKey(pos, i))), inKept = new Set();
+  for (const i of kept) if (onCut.has(posKey(pos, i))) inKept.add(i);
+  for (const i of inKept) {
+    const dx = pos.getX(i) - MOUTH.midX, seam = MOUTH.seamY(dx);
+    pos.setY(i, seam + (pos.getY(i) > seam ? 0.00025 : -0.00025));
+  }
   // New normals where the surface changed, blended into the originals at the
   // rim of each region.
   smoothNormals(g, inMouth, (x, y, z) => fade(Math.abs(x - MOUTH.midX), 0.085, 0.07) * fade(y, 0.235, 0.245) * fade(y, 0.34, 0.33) * fade(z, 0.8, 0.82) * fade(padQ(x, y), 0.7, 1));

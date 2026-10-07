@@ -16,8 +16,8 @@ const MODEL_SCALE = 0.86;
 // Face presets: real-cat expressions. open = upper lids, happy = lower lids
 // push up (a contented squint), pupil = 0 narrow slit .. 1 round and wide.
 export const EXPRESSIONS = {
-  content:   {open: .8,  happy: .12, pupil: .62, smile: 0, mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,    tongue: 0},
-  joy:       {open: .35, happy: .7,  pupil: .55, smile: 0, mouth: .12, sparkle: .6, earBack: -.05, earOut: .05,  tongue: 0},
+  content:   {open: .68, happy: .22, pupil: .62, smile: 0, mouth: 0,   sparkle: .5, earBack: 0,    earOut: 0,    tongue: 0},
+  joy:       {open: .35, happy: .7,  pupil: .55, smile: 0, mouth: 0,   sparkle: .6, earBack: -.05, earOut: .05,  tongue: 0},
   love:      {open: .25, happy: .6,  pupil: .8,  smile: 0, mouth: 0,   sparkle: .8, earBack: .05,  earOut: .1,   tongue: 0},
   excited:   {open: 1,   happy: 0,   pupil: 1,   smile: 0, mouth: .1,  sparkle: 1,  earBack: -.3,  earOut: -.05, tongue: 0},
   yum:       {open: .3,  happy: .6,  pupil: .5,  smile: 0, mouth: 0,   sparkle: .5, earBack: 0,    earOut: .1,   tongue: 0},
@@ -71,16 +71,18 @@ uniform vec2 eyeLook;
 uniform float eyeSparkle;
 uniform float mouthOpen;
 uniform float tongueOut;
-uniform vec3 lidRing[8];
+uniform vec3 lidRing[32]; // 16 directions around each eye: right eye, then left
+uniform vec3 lidMid[2];   // each lid's overall colour
 uniform vec3 lidDark;
 float eyeMask = 0.0;
 
-vec3 lidColorAt(float a) {
-  float f = (a / 6.2831853 + 0.5) * 8.0 - 0.5;
+vec3 lidColorAt(float a, float side) {
+  float f = (a / 6.2831853 + 0.5) * 16.0 - 0.5;
   float i0 = floor(f);
-  int a0 = int(mod(i0, 8.0)), a1 = int(mod(i0 + 1.0, 8.0));
+  int off = side < 0.0 ? 0 : 16;
+  int a0 = off + int(mod(i0, 16.0)), a1 = off + int(mod(i0 + 1.0, 16.0));
   vec3 c0 = lidRing[0], c1 = lidRing[0];
-  for (int k = 0; k < 8; k++) { if (k == a0) c0 = lidRing[k]; if (k == a1) c1 = lidRing[k]; }
+  for (int k = 0; k < 32; k++) { if (k == a0) c0 = lidRing[k]; if (k == a1) c1 = lidRing[k]; }
   return mix(c0, c1, smoothstep(0.0, 1.0, f - i0));
 }
 
@@ -112,12 +114,16 @@ vec3 retouch(vec3 base, vec3 p) {
   vec2 m = vec2(dx, y - mouthPos.y);
   float pad = (1.0 - smoothstep(0.75, 1.0, length(m / vec2(0.04, 0.022)))) * step(y, 0.305);
   base = mix(base, vec3(0.84, 0.81, 0.78), pad);
+  // Whisker pads: a few bright scribbles are left where the whisker clumps
+  // grew; cap the brightness at the cream of the muzzle fur.
+  float pads = smoothstep(0.02, 0.035, dx) * (1.0 - smoothstep(0.1, 0.125, dx)) * smoothstep(0.26, 0.275, y) * (1.0 - smoothstep(0.33, 0.345, y)) * step(0.83, p.z);
+  base = mix(base, min(base, vec3(0.8, 0.77, 0.73)), pads);
   float aa = max(fwidth(y), 0.0004) * 1.5;
   float philtrum = (1.0 - smoothstep(0.0012, 0.0012 + aa, dx)) * step(mouthPos.y - 0.001, y) * step(y, 0.308);
   // Lips: the sculpted lip line, tinted the soft grey-brown of a cat's lip edge.
-  float curveY = 0.2835 - 0.0052 * smoothstep(0.002, 0.03, dx) - 0.004 * smoothstep(0.026, 0.038, dx);
-  float lipEdge = (1.0 - smoothstep(0.0, 0.0024, abs(y - curveY))) * (1.0 - smoothstep(0.03, 0.037, dx));
-  base = mix(base, vec3(0.42, 0.3, 0.29), lipEdge * 0.7);
+  float curveY = 0.2835 - 0.0058 * smoothstep(0.002, 0.02, dx) + 0.0022 * smoothstep(0.02, 0.036, dx);
+  float lipEdge = (1.0 - smoothstep(0.0, 0.0018, abs(y - curveY))) * (1.0 - smoothstep(0.028, 0.036, dx));
+  base = mix(base, vec3(0.34, 0.24, 0.23), lipEdge * 0.75);
   base = mix(base, vec3(0.3, 0.17, 0.15), philtrum * 0.35);
   return base;
 }
@@ -126,7 +132,7 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   vec2 e = (p.xy - c.xy) / eyeRadius;
   e.x *= side;
   float r = length(e);
-  if (r > 1.3 || p.z < c.z - 0.06) return vec4(0.0);
+  if (r > 1.55 || p.z < c.z - 0.06) return vec4(0.0);
   float aa = max(fwidth(e.y), 0.01) * 1.4;
   float hw = sqrt(max(0.0, 1.0 - e.x * e.x));
   // Lids meet in a soft, relaxed line when shut.
@@ -156,19 +162,24 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
   float glint = 1.0 - smoothstep(0.13 + 0.04 * eyeSparkle, 0.2 + 0.04 * eyeSparkle, length((s - vec2(-0.3, 0.3)) / vec2(1.0, 1.15)));
   float glint2 = 1.0 - smoothstep(0.05, 0.09, length(s - vec2(0.32, -0.28)));
   col = mix(col, vec3(1.0), max(glint * 0.92, glint2 * 0.6));
-  // Lids: the same fur as around the eye (only a touch deeper toward the
-  // lash line), so closed eyes read as soft fur over a rounded eyeball, not a
-  // hollow. A fine dark rim marks the lash line.
-  float toLash = 1.0 - smoothstep(0.0, 0.35, min(abs(e.y - yu), abs(e.y - yl)));
-  vec3 lid = mix(lidColorAt(atan(e.y, e.x)), lidDark, 0.15 + 0.25 * toLash) * (0.96 + 0.025 * sin(p.y * 1500.0 + p.x * 260.0) + 0.02 * sin(p.x * 2100.0 - p.y * 400.0));
+  // Lids: soft fur over a rounded eyeball, in the colour of the fur around
+  // the eye. Fine hairs comb away from the lash line, the lid's curve catches
+  // a little light, and only the lash line itself is dark.
   float distU = e.y - yu, distL = yl - e.y;
-  float rimU = 1.0 - smoothstep(0.0, 0.07 + aa, abs(distU - 0.02));
-  float rimL = (1.0 - smoothstep(0.0, 0.05 + aa, abs(distL - 0.015))) * 0.8;
-  float rim = max(rimU, rimL) * (1.0 - smoothstep(0.9, 1.04, abs(e.x)));
-  lid *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.25, min(abs(distU), abs(distL))));
+  float toLash = 1.0 - smoothstep(0.0, 0.18, min(abs(distU), abs(distL)));
+  vec2 hair = vec2(p.x * 1700.0 + e.y * 6.0, p.y * 380.0 + e.x * 3.0);
+  float grain = 0.95 + 0.03 * sin(hair.x + 2.0 * sin(hair.y)) + 0.02 * sin(p.y * 2300.0 - p.x * 500.0);
+  vec3 furAround = mix(lidMid[side < 0.0 ? 0 : 1], lidColorAt(atan(e.y, e.x), side), smoothstep(0.35, 1.25, r));
+  vec3 lid = mix(furAround * 0.9, lidDark, 0.1 * toLash) * grain;
+  lid *= 1.0 + 0.05 * (1.0 - smoothstep(0.0, 1.0, r)) * (1.0 - eyeOpen); // the closed lid's soft dome
+  float rimU = 1.0 - smoothstep(0.0, 0.05 + aa, abs(distU - 0.015));
+  float rimL = (1.0 - smoothstep(0.0, 0.04 + aa, abs(distL - 0.012))) * 0.75;
+  float rim = max(rimU, rimL) * (1.0 - smoothstep(0.85, 1.02, abs(e.x)));
   vec3 outc = mix(lid, col, inside);
-  outc = mix(outc, vec3(0.05, 0.035, 0.03), rim * 0.85);
-  float region = 1.0 - smoothstep(mix(0.9, 1.02, eyeOpen), mix(1.1, 1.22, eyeOpen), r);
+  outc = mix(outc, vec3(0.07, 0.05, 0.04), rim * mix(0.5, 0.8, eyeOpen));
+  // As the eye closes, the lid fur also covers the dark rim painted into the
+  // texture around the eye, so a closed eye never looks sunken.
+  float region = 1.0 - smoothstep(mix(1.0, 0.9, eyeOpen), mix(1.5, 1.12, eyeOpen), r);
   eyeMask = max(eyeMask, region * inside);
   return vec4(outc, region);
 }
@@ -213,7 +224,8 @@ export class RealCat {
       mouthPos: {value: FACE.mouth.clone()},
       eyeOpen: {value: .9}, eyeHappy: {value: 0}, eyePupil: {value: .4}, eyeLook: {value: new THREE.Vector2()},
       eyeSparkle: {value: .5}, mouthOpen: {value: 0}, tongueOut: {value: 0},
-      lidRing: {value: Array.from({length: 8}, () => new THREE.Color(0.25, 0.16, 0.12))},
+      lidRing: {value: Array.from({length: 32}, () => new THREE.Color(0.25, 0.16, 0.12))},
+      lidMid: {value: [new THREE.Color(0.25, 0.16, 0.12), new THREE.Color(0.25, 0.16, 0.12)]},
       lidDark: {value: new THREE.Color(0.12, 0.07, 0.045)},
     };
     this.ready = false;
@@ -339,26 +351,38 @@ export class RealCat {
     this.ready = true;
   }
 
+  // The lids' colour: for each eye, the median colour of the fur just
+  // outside it, in 16 directions, so a closed lid matches what's around it.
   sampleLidRing(pos, texel, px) {
-    const sums = Array.from({length: 8}, () => [0, 0, 0, 0]);
     const toLin = c => Math.pow(c / 255, 2.2);
-    for (const c of [FACE.eyeR, FACE.eyeL]) {
-      const side = c.x < MIDLINE_X ? -1 : 1;
+    const ring = this.faceUniforms.lidRing.value, dark = [];
+    [FACE.eyeR, FACE.eyeL].forEach((c, eye) => {
+      const side = c.x < MIDLINE_X ? -1 : 1, bins = Array.from({length: 16}, () => []);
       for (let i = 0; i < pos.count; i++) {
         if (pos.getZ(i) < c.z - 0.06) continue;
         const ex = (pos.getX(i) - c.x) / FACE.eyeRadius.x * side, ey = (pos.getY(i) - c.y) / FACE.eyeRadius.y;
         const r = Math.hypot(ex, ey);
-        if (r < 1.25 || r > 1.8) continue;
-        const bin = Math.min(7, Math.floor((Math.atan2(ey, ex) / (Math.PI * 2) + .5) * 8));
+        if (r < 1.55 || r > 2.1) continue;
         const k = texel(i);
-        sums[bin][0] += toLin(px[k]); sums[bin][1] += toLin(px[k + 1]); sums[bin][2] += toLin(px[k + 2]); sums[bin][3]++;
+        bins[Math.min(15, Math.floor((Math.atan2(ey, ex) / (Math.PI * 2) + .5) * 16))].push([toLin(px[k]), toLin(px[k + 1]), toLin(px[k + 2])]);
       }
-    }
-    sums.forEach((s, i) => { if (s[3]) this.faceUniforms.lidRing.value[i].setRGB(s[0] / s[3], s[1] / s[3], s[2] / s[3]); });
-    // The lids take the mask's chocolate, not the white blaze beside them.
-    const sorted = [...this.faceUniforms.lidRing.value].sort((a, b) => (a.r + a.g + a.b) - (b.r + b.g + b.b)).slice(0, 4);
-    this.faceUniforms.lidDark.value.setRGB(...['r', 'g', 'b'].map(k => sorted.reduce((t, c) => t + c[k], 0) / 4));
+      const mid = (list, ch) => list.map(v => v[ch]).sort((x, y) => x - y)[list.length >> 1];
+      let cols = bins.map((list, b) => {
+        // An empty direction borrows its neighbour's colour.
+        const use = list.length ? list : bins[(b + 1) % 16].length ? bins[(b + 1) % 16] : bins[(b + 15) % 16];
+        return use.length ? [mid(use, 0), mid(use, 1), mid(use, 2)] : [.25, .16, .12];
+      });
+      // Soften the changes from one direction to the next.
+      for (let pass = 0; pass < 3; pass++) cols = cols.map((c, b) => c.map((v, ch) => (cols[(b + 15) % 16][ch] + 2 * v + cols[(b + 1) % 16][ch]) / 4));
+      cols.forEach((c, b) => { ring[eye * 16 + b].setRGB(...c); dark.push(ring[eye * 16 + b]); });
+      const byLight = [...cols].sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+      this.faceUniforms.lidMid.value[eye].setRGB(...byLight[8]);
+    });
+    // The lash line takes the mask's deepest chocolate.
+    const sorted = dark.sort((a, b) => (a.r + a.g + a.b) - (b.r + b.g + b.b)).slice(0, 6);
+    this.faceUniforms.lidDark.value.setRGB(...['r', 'g', 'b'].map(k => sorted.reduce((t, c) => t + c[k], 0) / 6));
   }
+
 
   // How long the fur grows at each vertex (model units).
   furLengths(geometry, weld) {

@@ -22,7 +22,8 @@ document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 const room = new Room(scene, renderer);
 room.kibbles.forEach(k => k.visible = false);
-scene.add(new THREE.HemisphereLight(0xfff0dc, 0x8a6446, 1.25));
+const hemi = new THREE.HemisphereLight(0xfff0dc, 0x8a6446, 1.25);
+scene.add(hemi);
 const key = new THREE.DirectionalLight(0xffdcae, 2.2);
 key.position.set(-4, 5, 3);
 key.castShadow = true;
@@ -33,6 +34,22 @@ scene.add(key);
 const fill = new THREE.DirectionalLight(0xffe7cc, .9);
 fill.position.set(1, 1.6, 6);
 scene.add(fill);
+const moon = new THREE.DirectionalLight(0x9fb4ff, 0);
+moon.position.set(-3, 4, -4);
+scene.add(moon);
+// Daylight, or the app's evening: lamps on, a cool moon through the window
+// and a warm fill from the front.
+let night = false;
+window.light = mode => {
+  night = mode === 'evening';
+  hemi.intensity = night ? .35 : 1.25;
+  key.intensity = night ? .05 : 2.2;
+  moon.intensity = night ? .45 : 0;
+  fill.color.set(night ? 0xffcf9a : 0xffe7cc);
+  fill.intensity = night ? .7 : .9;
+  for (let i = 0; i < 60; i++) room.update(1 / 30, i / 30, night, {camera});
+  return true;
+};
 
 const camera = new THREE.PerspectiveCamera(26, innerWidth / innerHeight, .05, 60);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
@@ -57,17 +74,21 @@ let t = 0;
 function step(dt, ctl) { t += dt; cat.update(dt, t, ctl); }
 const still = f => ({pose: 'sit', poseRate: 8, face: f, look: {x: 0, y: 0}, head: {yaw: 0, pitch: .05, roll: 0}});
 
-// A still close-up. view: front | left | right | three (three-quarter).
-window.shot = (expr = 'content', view = 'front') => {
+// A still close-up. view: front | left | right | three (three-quarter), or
+// mouth-front | mouth-three | mouth-side for the muzzle.
+window.shot = (expr = 'content', view = 'front', lighting) => {
+  if (lighting) window.light(lighting);
   const f = face(expr), eyes = ['half', 'closed', 'open'].includes(expr);
   cat.root.position.set(0, 0, .6);
   cat.root.rotation.y = 0;
   for (let i = 0; i < 90; i++) step(1 / 30, still(f));
   cat.root.updateMatrixWorld(true);
   const c = cat.headCenter(new THREE.Vector3());
-  const yaw = {front: 0, left: -1.25, right: 1.25, three: .6}[view] ?? 0, dist = eyes ? .62 : 1.3;
-  camera.position.set(c.x + Math.sin(yaw) * dist, c.y + .04, c.z + Math.cos(yaw) * dist);
-  camera.lookAt(c.x, c.y + (eyes ? .03 : .02), c.z);
+  const mouth = view.startsWith('mouth');
+  const yaw = {front: 0, left: -1.25, right: 1.25, three: .6, 'mouth-front': 0, 'mouth-three': .6, 'mouth-side': 1.1}[view] ?? 0;
+  const dist = mouth ? .48 : eyes ? .62 : 1.3, aimY = mouth ? -.1 : eyes ? .03 : .02;
+  camera.position.set(c.x + Math.sin(yaw) * dist, c.y + aimY + .02, c.z + Math.cos(yaw) * dist);
+  camera.lookAt(c.x, c.y + aimY, c.z + (mouth ? .08 : 0));
   renderer.render(scene, camera);
   return true;
 };
@@ -93,7 +114,7 @@ window.walkAt = s => {
   renderer.render(scene, camera);
   return true;
 };
-window.shot(q.get('expr') || 'content', q.get('view') || 'front');
+window.shot(q.get('expr') || 'content', q.get('view') || 'front', q.get('light') || 'day');
 document.title = 'ready';
 
 // Offline audio for the pack: the bundled recordings (meows, purr loop), and

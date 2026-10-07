@@ -218,8 +218,10 @@ sounds.volume = {cat: pet.catVolume, room: pet.roomVolume};
 function meow(kind = 'meow', priority = 'reply') {
   const m = sounds.meow(kind, priority);
   if (!m) return false;
-  // Subtle: a gentle mew barely parts the lips.
-  brain.mouthAnim = {start: clockNow, dur: m.dur + .08, env: m.env, rate: m.rate, peak: {mew: .36, meow: .45, chirp: .3, sleepy: .3}[kind] ?? .4};
+  // Subtle: a mew or meow parts the lips a little; a trill or a sleepy call
+  // barely opens them (and purring, which doesn't come through here, keeps
+  // the jaw closed).
+  brain.mouthAnim = {start: clockNow, dur: m.dur + .08, env: m.env, rate: m.rate, peak: {mew: .36, meow: .45, chirp: .15, sleepy: .22}[kind] ?? .36};
   return true;
 }
 const purr = seconds => sounds.purr(seconds);
