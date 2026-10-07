@@ -1,5 +1,6 @@
-// Mochi's sounds: her voice only (recorded meows and purr listed in
-// assets/sounds/sounds.json, or the synthesized purr), on one volume.
+// Mochi's sounds: her voice only, on one volume. Meows are synthesized
+// (meows.js) unless sounds.json lists recordings for them; the purr is the
+// recording listed there (or a synthesized one if none is).
 // There is deliberately no background ambience: both the old fountain
 // trickle and the later room tone came across as white noise. The fountain
 // is visual only.
@@ -7,6 +8,8 @@
 // Meows never overlap and leave quiet gaps between them. Each recording's
 // loudness envelope is measured when it loads, so the mouth can open and
 // close with the actual sound.
+
+import {meowV2, meowV2Envelope} from './meows.js';
 
 const MANIFEST = 'sounds.json';
 
@@ -89,10 +92,17 @@ export class Sounds {
     if (pool.length > 1) pool = pool.filter(c => c !== this.lastClip);
     const clip = pick(pool);
     if (!clip) {
-      // No recordings available: she meows silently (the mouth still moves).
-      const dur = {chirp: .25, mew: .4, meow: .6, sleepy: .8}[kind] ?? .6;
+      // No recorded meow for this: her own synthesized voice (meows.js), with
+      // the same small variation in pitch and loudness.
+      const {dur, env} = meowV2Envelope(kind, ENV_RATE);
       this.busyUntil = now + dur;
-      return {dur, env: null, rate: 0};
+      if (this.enabled && this.ctx) {
+        const g = this.ctx.createGain();
+        g.gain.value = .85 + Math.random() * .15;
+        g.connect(this.bus.cat);
+        meowV2(this.ctx, g, this.ctx.currentTime + .02, kind);
+      }
+      return {dur, env, rate: ENV_RATE};
     }
     this.lastClip = clip;
     this.busyUntil = now + clip.buffer.duration;

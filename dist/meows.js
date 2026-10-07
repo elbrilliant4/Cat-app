@@ -1,7 +1,8 @@
-// Earlier versions' synthesized meows, reproduced exactly from their source
-// so they can be heard side by side in the review pack. Neither uses any
-// recording: they're generated tones, written for this project, so there's
-// no third-party licence involved.
+// Mochi's synthesized meows. Neither uses any recording: they're generated
+// tones written for this project, so no third-party licence is involved.
+// meowV2 is her voice in the app (chosen by ear over the recorded
+// candidates); meowV1, the original project's meow, is kept for comparison
+// in the review pack.
 
 // Version 1, from the original Pocket Kitten project (Codex handoff, commit
 // 11099b9): one soft triangle tone rising and falling.
@@ -19,8 +20,8 @@ export function meowV1(ctx, out, t) {
   return .55;
 }
 
-// Version 2, live from commit 24fdab9 until build 32: a buzzy tone through
-// two vowel-like filters, with a little vibrato; four kinds.
+// Version 2 (first written in commit 24fdab9): a buzzy tone through two
+// vowel-like filters, with a little vibrato; four kinds.
 export function meowV2(ctx, dest, t, kind = 'meow') {
   const dur = {chirp: .2, mew: .36, meow: .6, sleepy: .8}[kind] ?? .6;
   const base = {chirp: 760, mew: 700, meow: 540, sleepy: 430}[kind] ?? 540;
@@ -43,4 +44,17 @@ export function meowV2(ctx, dest, t, kind = 'meow') {
   out.gain.exponentialRampToValueAtTime(.0001, t + dur);
   o.start(t); lfo.start(t); o.stop(t + dur + .05); lfo.stop(t + dur + .05);
   return dur + .05;
+}
+
+// Loudness envelope of a version 2 meow (0..1 at `rate` per second), for the
+// mouth: it follows the same gain curve as the sound.
+export function meowV2Envelope(kind = 'meow', rate = 60) {
+  const dur = {chirp: .2, mew: .36, meow: .6, sleepy: .8}[kind] ?? .6;
+  const n = Math.ceil((dur + .05) * rate), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    let g = t < .05 ? Math.pow(.0001 / .32, 1 - t / .05) : t < dur * .55 ? 1 : t < dur ? Math.pow(.0001 / .32, (t - dur * .55) / (dur * .45)) : 0;
+    out[i] = Math.pow(g, .5);
+  }
+  return {dur: dur + .05, env: out};
 }

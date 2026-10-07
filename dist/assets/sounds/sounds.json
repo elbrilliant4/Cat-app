@@ -1,31 +1,18 @@
 {
-  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Clips with \"status\": \"candidate\" play in the preview only; remove the status once a clip is approved for the live app. \"reference\" clips are never played; they're only shown in the review pack for comparison.",
+  "about": "Mochi's recorded sounds. Each clip: file (in this folder), kind (mew | meow | chirp | sleepy | purr), optional gain (default 1). Only use recordings you may use commercially (CC0, or CC BY with the credit listed below). See README.md. Made from sources/audio by tools/audio/prepare.py. Clips with \"status\": \"candidate\" play in the preview only; \"reference\" clips are never played (review pack only); clips with no status play everywhere. Meows are synthesized (meows.js) unless a recording is listed here for that kind; the recorded meow candidates were auditioned and not approved.",
   "clips": [
     {
-      "file": "mew-soft-1.wav",
-      "kind": "mew",
-      "gain": 0.7,
-      "status": "candidate"
-    },
-    {
-      "file": "meow-ask-1.wav",
-      "kind": "meow",
-      "gain": 0.6,
-      "status": "candidate"
+      "file": "purr-sleepy-loop.wav",
+      "kind": "purr",
+      "gain": 0.55,
+      "note": "approved by ear for the live app"
     },
     {
       "file": "purr-sleepy-soft-loop.wav",
       "kind": "purr",
       "gain": 0.6,
-      "status": "candidate",
-      "note": "softer version: about two semitones higher, lighter bass, smoother pulse"
-    },
-    {
-      "file": "purr-sleepy-loop.wav",
-      "kind": "purr",
-      "gain": 0.55,
       "status": "reference",
-      "note": "original recording, for comparison in the review pack only"
+      "note": "softer version (two semitones higher, lighter bass), kept for comparison"
     }
   ],
   "credits": [

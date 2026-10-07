@@ -12,7 +12,7 @@ import os, sys, json, wave
 import numpy as np
 
 SRC, DST = sys.argv[1], sys.argv[2]
-REPORT = sys.argv[3] if len(sys.argv) > 3 else None
+REPORT = sys.argv[3] if len(sys.argv) > 3 and not sys.argv[3].startswith('--') else None
 
 # file, start s, end s, kind, output name. Chosen by listening notes +
 # measurements: clean harmonic calls only; anything with clicks left out.
@@ -20,6 +20,10 @@ CALLS = [
     ('cat_softmew.wav', 1.33, 1.95, 'mew', 'mew-soft-1.wav'),
     ('cat_mewfood.wav', 0.565, 1.0, 'meow', 'meow-ask-1.wav'),
 ]
+# Auditioned in the app and not approved (they sounded like short barks); the
+# app uses its synthesized meow instead, so these are only written when asked.
+if '--with-meows' not in sys.argv:
+    CALLS = []
 # Auditioned and left out: cat_softmew 0.31-0.66 s (breathy, weakly voiced
 # after cleanup) and its later half (handling clicks); cat_mewfood's faint
 # first call (barely above the background); cat_mewpurr and cat_mewpurr2

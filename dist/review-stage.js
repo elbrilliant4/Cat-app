@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
 import {synthPurr} from './sound.js';
-import {meowV1, meowV2} from './legacy-meows.js';
+import {meowV1, meowV2} from './meows.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
@@ -119,8 +119,7 @@ window.shot(q.get('expr') || 'content', q.get('view') || 'front', q.get('light')
 document.title = 'ready';
 
 // Offline audio for the pack: the bundled recordings (meows, purr loop), the
-// synthesized purr, and earlier versions' synthesized meows (legacy-meows.js)
-// for comparison.
+// synthesized purr, and the synthesized meows (meows.js).
 window.renderAudio = async (kind, seconds = 6) => {
   const sr = 44100, ctx = new OfflineAudioContext(1, sr * seconds, sr);
   const list = await fetch('./assets/sounds/sounds.json').then(r => r.ok ? r.json() : {clips: []}).catch(() => ({clips: []}));
