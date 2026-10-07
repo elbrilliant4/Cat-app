@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {buildSkeleton, computeWeights, BONES, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
+import {sculptMouth, padWeight, shellRadius, MOUTH, fade} from './face-sculpt.js';
 
 const {damp, clamp} = THREE.MathUtils;
 const MODEL_SCALE = 0.86;
@@ -111,9 +112,11 @@ vec3 retouch(vec3 base, vec3 p) {
   base = mix(base, vec3(0.84, 0.81, 0.78), pad);
   float aa = max(fwidth(y), 0.0004) * 1.5;
   float philtrum = (1.0 - smoothstep(0.0012, 0.0012 + aa, dx)) * step(mouthPos.y - 0.001, y) * step(y, 0.308);
-  float curveY = mouthPos.y - 0.004 * sin(clamp(dx / 0.024, 0.0, 1.0) * 3.14159) + 0.0015 * smoothstep(0.016, 0.024, dx);
-  float lip = (1.0 - smoothstep(0.0011, 0.0011 + aa, abs(y - curveY))) * (1.0 - smoothstep(0.022, 0.026, dx));
-  base = mix(base, vec3(0.3, 0.17, 0.15), max(philtrum, lip) * 0.55 * (1.0 - smoothstep(0.0, 0.2, mouthOpen)));
+  // Lips: the sculpted lip line, tinted the soft grey-brown of a cat's lip edge.
+  float curveY = 0.2835 - 0.0052 * smoothstep(0.002, 0.03, dx) - 0.004 * smoothstep(0.026, 0.038, dx);
+  float lipEdge = (1.0 - smoothstep(0.0, 0.0024, abs(y - curveY))) * (1.0 - smoothstep(0.03, 0.037, dx));
+  base = mix(base, vec3(0.42, 0.3, 0.29), lipEdge * 0.7);
+  base = mix(base, vec3(0.3, 0.17, 0.15), philtrum * 0.35);
   return base;
 }
 
@@ -171,16 +174,6 @@ vec3 paintFace(vec3 base) {
   base = mix(base, a.rgb, a.a);
   vec4 b = drawEye(vBind, eyeL, 1.0);
   base = mix(base, b.rgb, b.a);
-  // Mouth: when the jaw drops, the stretched skin below the lip line shows
-  // the inside of the mouth and the tongue.
-  float m = max(mouthOpen, tongueOut * 0.4);
-  if (m > 0.01 && vBind.z > mouthPos.z - 0.06) {
-    vec2 q = vec2((vBind.x - mouthPos.x) / (0.034 + 0.01 * m), (vBind.y - (mouthPos.y - 0.014)) / (0.004 + 0.016 * m));
-    float hole = (1.0 - smoothstep(0.8, 1.0, length(q))) * smoothstep(0.0, 0.15, m);
-    vec3 inner = mix(vec3(0.3, 0.07, 0.09), vec3(0.16, 0.03, 0.05), smoothstep(-0.6, 0.8, q.y));
-    inner = mix(inner, vec3(0.92, 0.5, 0.55), (1.0 - smoothstep(0.45, 0.62, length((q - vec2(0.0, -0.45)) / vec2(0.85, 0.55)))) * clamp(tongueOut + m * 0.6, 0.0, 1.0));
-    base = mix(base, inner, hole);
-  }
   return base;
 }
 `;
@@ -228,7 +221,8 @@ export class RealCat {
   build(gltf) {
     let src;
     gltf.scene.traverse(o => { if (o.isMesh && !src) src = o; });
-    const geometry = src.geometry;
+    // Sculpt a real mouth into the muzzle before rigging (face-sculpt.js).
+    const geometry = sculptMouth(src.geometry);
     const material = src.material;
     material.metalness = 0;
     material.roughness = 1;
@@ -250,7 +244,8 @@ export class RealCat {
       return (y * img.width + x) * 4;
     };
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };
-    const {weld} = computeWeights(geometry, bright);
+    const {weld, names} = computeWeights(geometry, bright);
+    this.weightMouth(geometry, names);
     this.sampleLidRing(pos, texel, px);
     this.furLengths(geometry, weld);
 
@@ -327,6 +322,7 @@ export class RealCat {
     collider('hips', .3, 0, 0, -.05);
 
     this.addWhiskers(bones);
+    this.addMouthInterior(bones);
     this.neck = bones.neck;
     this.head = bones.head;
     this.ready = true;
@@ -366,7 +362,7 @@ export class RealCat {
     }
     const size = new Map();
     for (let i = 0; i < N; i++) { const r = find(weld[i]); size.set(r, (size.get(r) || 0) + 1); }
-    const eyes = [FACE.eyeR, FACE.eyeL];
+    const eyes = [FACE.eyeR, FACE.eyeL], shell0 = geometry.attributes.shell0;
     const p = new THREE.Vector3();
     for (let i = 0; i < N; i++) {
       p.fromBufferAttribute(pos, i);
@@ -391,7 +387,13 @@ export class RealCat {
       if (p.z > 0.8 && dm < 1) l = 0;
       // The sculpted whiskers are thick clumps; they're hidden and replaced
       // by fine strands (addWhiskers).
-      if (p.z > 0.8 && p.y > 0.15 && p.y < 0.43) whisk[i] = THREE.MathUtils.smoothstep(Math.hypot((p.x - MIDLINE_X) / .3, (p.y - .38) / .27, (p.z - .66) / .27), .86, .97);
+      // On the muzzle pads the face itself bulges close to that line, so only
+      // what stood well out before the pads were sculpted counts there;
+      // otherwise the pads would get holes.
+      if (p.z > 0.8 && p.y > 0.15 && p.y < 0.43) {
+        const r = shell0 ? shell0.getX(i) : shellRadius(p.x, p.y, p.z), pad = padWeight(p.x, p.y, p.z);
+        whisk[i] = fade(r, .86 + .075 * pad, .97 + .01 * pad);
+      }
       // Restrained coat: no fur on the face and ears, shorter elsewhere.
       if (p.z > 0.5 && p.y > 0.08) l = 0;
       len[i] = l * 0.62;
@@ -496,6 +498,61 @@ export class RealCat {
     this.whiskers = group;
   }
 
+  // The jaw carries the lower lip and chin; the upper lip stays with the head,
+  // so the lips part along the sculpted lip line.
+  weightMouth(geometry, names) {
+    const head = names.indexOf('head'), jaw = names.indexOf('jaw');
+    const pos = geometry.attributes.position, si = geometry.attributes.skinIndex, sw = geometry.attributes.skinWeight;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), dx = x - MOUTH.midX, ax = Math.abs(dx);
+      if (z < .78 || ax > .07 || y < .2 || y > .335) continue;
+      let oldJaw = 0;
+      for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === jaw) oldJaw += sw.getComponent(i, k);
+      // Rounded opening: fully open at the middle, pinching in at the corners.
+      const c = fade(ax, MOUTH.halfWidth + .012, MOUTH.halfWidth * .35);
+      const below = y < MOUTH.seamY(dx);
+      // Below the lip line the jaw takes over; above it the upper lip stays on
+      // the head, blending back to the original weights beside the mouth.
+      // Beside the corners, the skin just under the lip line stays with the
+      // head too, so the opening curves up into the corners instead of
+      // tearing straight down.
+      const drop = 1 + (fade(MOUTH.seamY(dx) - y, 0, .035) - 1) * fade(ax, .07, .04);
+      const j = below ? c + (1 - c) * oldJaw * drop : (1 - c) * oldJaw * fade(ax, .04, .07);
+      si.setXYZW(i, jaw, head, 0, 0);
+      sw.setXYZW(i, j, 1 - j, 0, 0);
+    }
+    si.needsUpdate = sw.needsUpdate = true;
+  }
+
+  // Inside of the mouth: a dark cavity behind the lips, a tongue resting on
+  // the jaw, and two small fangs tucked behind the upper lip.
+  addMouthInterior(bones) {
+    const at = (bone, x, y, z) => new THREE.Vector3(x, y, z).sub(BONES[bone][1]);
+    const cavity = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshStandardMaterial({color: '#3a1216', roughness: .7, side: THREE.BackSide}));
+    cavity.scale.set(.036, .026, .04);
+    cavity.position.copy(at('head', MOUTH.midX, .278, .838));
+    bones.head.add(cavity);
+    const tongueMat = new THREE.MeshPhysicalMaterial({color: '#d9707c', roughness: .45, clearcoat: .4, clearcoatRoughness: .3});
+    const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), tongueMat);
+    tongue.scale.set(.02, .0055, .032);
+    tongue.position.copy(at('jaw', MOUTH.midX, .26, .826));
+    bones.jaw.add(tongue);
+    const floor = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshStandardMaterial({color: '#4a161c', roughness: .7}));
+    floor.scale.set(.03, .012, .036);
+    floor.position.copy(at('jaw', MOUTH.midX, .27, .832));
+    bones.jaw.add(floor);
+    const fangGeo = new THREE.ConeGeometry(.0028, .009, 10);
+    fangGeo.rotateX(Math.PI);
+    const fangMat = new THREE.MeshPhysicalMaterial({color: '#f4efe4', roughness: .25, clearcoat: .6});
+    for (const s of [-1, 1]) {
+      const f = new THREE.Mesh(fangGeo, fangMat);
+      f.position.copy(at('head', MOUTH.midX + s * .019, .2795, .858));
+      bones.head.add(f);
+    }
+    this.tongue = tongue;
+    this.tongueRest = tongue.position.clone();
+  }
+
   headTop(target = new THREE.Vector3()) { return this.head.localToWorld(target.set(0, .34, .05)); }
   headCenter(target = new THREE.Vector3()) { return this.head.localToWorld(target.set(0, .06, .12)); }
   twitchEar(i, strength = 1) { this.ears[i].vel += (Math.random() < .5 ? -10 : 8) * strength; }
@@ -598,7 +655,15 @@ export class RealCat {
     u.mouthOpen.value = m;
     u.tongueOut.value = tg;
     const B = this.bones;
-    B.jaw.quaternion.multiply(_q.setFromEuler(_e.set(m * .42 + tg * .12, 0, 0)));
+    B.jaw.quaternion.multiply(_q.setFromEuler(_e.set(m * .3 + tg * .1, 0, 0)));
+    // Tongue: lapping/grooming pushes it forward past the lips.
+    if (this.tongue) {
+      // At rest it lies low and back, out of sight between closed lips.
+      this.tongue.position.copy(this.tongueRest).add(_v.set(0, m * .005 + tg * .008, m * .004 + tg * .04));
+      this.tongue.scale.set(.02, .0055 + tg * .002, .032 + tg * .006);
+      // Closed lips leave a hairline gap; keep it a dark lip line.
+      this.tongue.visible = m + tg > .03;
+    }
     for (const [i, ear] of this.ears.entries()) {
       ear.vel += (-170 * ear.twitch - 10 * ear.vel) * dt;
       ear.twitch += ear.vel * dt;
