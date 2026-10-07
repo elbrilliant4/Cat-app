@@ -118,6 +118,9 @@ svg { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
 @keyframes pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 .hud-buttons { display: flex; gap: 8px; }
 .hud-buttons .icon-btn { width: 44px; height: 44px; }
+.cam-buttons { flex-direction: column; gap: 6px; }
+.cam-buttons .icon-btn { width: 52px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 17px; border-radius: 14px; }
+.cam-buttons .icon-btn span { font-size: 9.5px; font-weight: 800; letter-spacing: .2px; line-height: 1; }
 
 /* Speech bubble, anchored above the kitten's head from JS */
 .speech { position: absolute; left: 0; top: 0; z-index: 3; width: max-content; max-width: min(300px, 72%); padding: 11px 16px; border-radius: 18px 18px 18px 6px; background: var(--card-solid); color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; box-shadow: var(--shadow); pointer-events: none; opacity: 0; scale: .8; transform: translate(var(--x, 0px), var(--y, 0px)) translate(0, -100%); transform-origin: 0 100%; transition: opacity .35s var(--ease), scale .5s var(--spring); will-change: transform; }
@@ -266,6 +269,8 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px 
   .nameplate h1 { font-size: 20px; }
   .hud-buttons { flex-direction: column; }
   .hud-buttons .icon-btn { width: 40px; height: 40px; border-radius: 13px; }
+  .cam-buttons .icon-btn { width: 46px; height: 44px; font-size: 16px; }
+  .cam-buttons .icon-btn span { font-size: 8.5px; }
   .dock { left: 10px; right: 10px; bottom: 10px; transform: none; justify-content: space-between; gap: 0; padding: 6px; border-radius: 22px; }
   .dock button { min-width: 0; flex: 1; padding: 6px 2px; font-size: 11px; }
   .dock-icon { width: 40px; height: 40px; border-radius: 14px; font-size: 20px; }

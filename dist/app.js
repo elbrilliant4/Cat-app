@@ -130,7 +130,7 @@ function refresh() {
   $('#sound').setAttribute('aria-label', pet.sound ? 'Turn sound off' : 'Turn sound on');
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : 'Stroke your kitten to pet · drag the room to turn';
+    : matchMedia('(pointer: coarse)').matches ? 'Stroke Mochi to pet · drag to look around · pinch to zoom' : 'Stroke Mochi to pet · drag to look around · scroll to zoom · right-drag to move';
 }
 
 function showDeltas(before) {
@@ -891,11 +891,21 @@ function updatePlay(dt, t) {
 // ---------------------------------------------------------------------------
 // Input: stroke the kitten, drag to orbit, steer the toy, look at the pointer
 // ---------------------------------------------------------------------------
-const view = {angle: 0, target: 0, lastDrag: -10, zoom: 0, zoomTarget: 0};
+// Camera: an orbit around a focus point. Everything is eased toward `goal`.
+//   one finger / left mouse  orbit        pinch / wheel           zoom
+//   two fingers / right drag pan          buttons                 whole room, follow Mochi, food, water, bed
+const view = {
+  focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
+  goal: {focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7},
+  mode: 'room', lastDrag: -10,
+};
+const LIMITS = {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]};
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.13);
 const gazePlane = new THREE.Plane();
 let gesture = null;
+const touches = new Map();
+let pinch = null;
 
 function setPointer(e) {
   const r = host.getBoundingClientRect();
@@ -917,41 +927,133 @@ function trackPointer(e) {
   return r;
 }
 
+function setCamMode(mode) {
+  view.mode = mode;
+  for (const b of document.querySelectorAll('[data-cam]')) b.setAttribute('aria-pressed', String(b.dataset.cam === mode));
+}
+function clampGoal() {
+  const g = view.goal;
+  g.dist = clamp(g.dist, ...LIMITS.dist);
+  g.pitch = clamp(g.pitch, ...LIMITS.pitch);
+  g.focus.x = clamp(g.focus.x, ...LIMITS.x);
+  g.focus.y = clamp(g.focus.y, ...LIMITS.y);
+  g.focus.z = clamp(g.focus.z, ...LIMITS.z);
+}
+function orbit(dx, dy) {
+  view.goal.yaw -= dx * .008;
+  view.goal.pitch += dy * .006;
+  view.lastDrag = clockNow;
+  if (view.mode === 'room' || view.mode === 'spot') setCamMode('free');
+  clampGoal();
+}
+function pan(dx, dy) {
+  const k = view.goal.dist * .0016, yaw = view.goal.yaw;
+  view.goal.focus.x += (-dx * Math.cos(yaw) - dy * Math.sin(yaw) * .6) * k;
+  view.goal.focus.z += (dx * Math.sin(yaw) - dy * Math.cos(yaw) * .6) * k;
+  view.goal.focus.y += dy * k * .5;
+  view.lastDrag = clockNow;
+  setCamMode('free');
+  clampGoal();
+}
+function zoomBy(f) {
+  view.goal.dist *= f;
+  view.lastDrag = clockNow;
+  clampGoal();
+}
+
+// Ready-made views. Tall (phone) screens stand back a little further.
+const tallScreen = () => camera.aspect < .9;
+function lookAtSpot(pos, {dist = 2.6, pitch = .42, y = .25} = {}) {
+  // View the spot from the open middle of the room, so walls stay behind it.
+  const yaw = Math.atan2(.3 - pos.x, 3.2 - pos.z);
+  Object.assign(view.goal, {yaw, pitch, dist: dist * (tallScreen() ? 1.35 : 1)});
+  view.goal.focus.set(pos.x, y, pos.z);
+  setCamMode('spot');
+  clampGoal();
+}
+const CAMERA_VIEWS = {
+  room() {
+    Object.assign(view.goal, {yaw: 0, pitch: .3, dist: tallScreen() ? 10.5 : 7.4});
+    view.goal.focus.set(0, .75, -.1);
+    setCamMode('room');
+  },
+  follow() {
+    Object.assign(view.goal, {dist: tallScreen() ? 4.2 : 3.4, pitch: .26});
+    view.goal.yaw = Math.atan2(camera.position.x - brain.pos.x, camera.position.z - brain.pos.z);
+    setCamMode('follow');
+  },
+  food: () => lookAtSpot(bowl.position, {y: .15}),
+  water: () => lookAtSpot(fountain.position, {y: .2}),
+  bed: () => lookAtSpot(bed.position, {dist: 3, y: .3}),
+};
+for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => CAMERA_VIEWS[b.dataset.cam]());
+
+host.addEventListener('contextmenu', e => e.preventDefault());
+host.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomBy(Math.exp(e.deltaY * (e.ctrlKey ? .01 : .0012)));
+}, {passive: false});
+
 host.addEventListener('pointerdown', e => {
   if (e.target.closest('button, .hud, .dock, dialog')) return;
-  const r = trackPointer(e);
   host.setPointerCapture(e.pointerId);
-  const onCat = brain.mode !== 'play' && hitsCat();
-  const onFountain = !onCat && brain.mode !== 'play' && hitsFountain();
-  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, angle: view.target, moved: false, onCat, onFountain, stroke: 0, rect: r};
+  touches.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (touches.size === 2) {
+    // A second finger: switch from stroking/orbiting to pinch and pan.
+    gesture = null;
+    host.classList.remove('stroking', 'dragging');
+    const [p1, p2] = [...touches.values()];
+    pinch = {d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2};
+    return;
+  }
+  if (touches.size > 2) return;
+  const r = trackPointer(e);
+  const panning = e.button === 2 || e.shiftKey;
+  const onCat = !panning && brain.mode !== 'play' && hitsCat();
+  const onFountain = !panning && !onCat && brain.mode !== 'play' && hitsFountain();
+  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, panning, stroke: 0, rect: r};
   startTrickle();
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
   if (e.target.closest('.hud, .dock')) return;
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (pinch && touches.size >= 2) {
+    const [p1, p2] = [...touches.values()];
+    const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d);
+    pan(mx - pinch.mx, my - pinch.my);
+    pinch = {d, mx, my};
+    return;
+  }
   trackPointer(e);
   if (!gesture) {
     if (e.pointerType === 'mouse') host.classList.toggle('over-cat', brain.mode !== 'play' && (hitsCat() || hitsFountain()));
     return;
   }
   const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+  const sx = e.clientX - gesture.lastX, sy = e.clientY - gesture.lastY;
   if (Math.abs(dx) + Math.abs(dy) > 8) gesture.moved = true;
   if (gesture.onCat) {
-    const step = Math.hypot(e.clientX - gesture.lastX, e.clientY - gesture.lastY);
+    const step = Math.hypot(sx, sy);
     gesture.stroke += step;
     if (!pet.sleeping && step > 1) brain.strokeUntil = clockNow + .5;
     if (gesture.stroke > 240) {
       gesture.stroke = 0;
       act('pet', {stroke: true, quiet: clockNow - lastPet < 6, at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
     }
-  } else if (brain.mode !== 'play') {
-    view.target = clamp(gesture.angle - dx * .006, -1.1, 1.1);
-    view.lastDrag = clockNow;
+  } else if (gesture.panning) {
+    pan(sx, sy);
+    host.classList.add('dragging');
+  } else if (brain.mode !== 'play' && gesture.moved) {
+    orbit(sx, sy);
     host.classList.add('dragging');
   }
   gesture.lastX = e.clientX; gesture.lastY = e.clientY;
 });
 function endGesture(e) {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
   if (gesture && !gesture.moved && gesture.onFountain) {
     if (pet.sleeping) toast('Shh… wake your kitten first.');
     else act('drink');
@@ -961,7 +1063,7 @@ function endGesture(e) {
   host.classList.remove('stroking', 'dragging');
 }
 host.addEventListener('pointerup', endGesture);
-host.addEventListener('pointercancel', () => { gesture = null; host.classList.remove('stroking', 'dragging'); });
+host.addEventListener('pointercancel', e => { touches.delete(e.pointerId); pinch = null; gesture = null; host.classList.remove('stroking', 'dragging'); });
 host.addEventListener('pointerleave', () => host.classList.remove('over-cat'));
 
 $('.dock').addEventListener('click', e => {
@@ -997,12 +1099,6 @@ $('#sound').onclick = () => {
   if (pet.sound) { meow('mew'); twitchEar(0); twitchEar(1); }
   startTrickle();
 };
-$('#view').onclick = () => { view.target = view.target > .5 ? -.9 : view.target + .9; view.lastDrag = clockNow; };
-$('#zoom').onclick = () => {
-  view.zoomTarget = view.zoomTarget ? 0 : 1;
-  $('#zoom').setAttribute('aria-pressed', String(!!view.zoomTarget));
-  $('#zoom').setAttribute('aria-label', view.zoomTarget ? 'Show the whole room' : 'Close-up on face');
-};
 $('.tabs').onclick = e => {
   const b = e.target.closest('[data-tab]');
   if (!b) return;
@@ -1032,43 +1128,59 @@ renderJournal();
 // ---------------------------------------------------------------------------
 // Camera & frame loop
 // ---------------------------------------------------------------------------
-const CAM = {
-  wide: {offset: new THREE.Vector3(.45, .9, 5.1), lookY: 1.0, fov: 40},
-  close: {offset: new THREE.Vector3(.55, .45, 2.9), lookY: 1.0, fov: 30},
-  tallWide: {offset: new THREE.Vector3(.6, 1.0, 6.0), lookY: 1.0, fov: 44},
-  tallClose: {offset: new THREE.Vector3(.5, .5, 3.4), lookY: 1.0, fov: 34},
-};
-const camLook = new THREE.Vector3(0, .8, .2), parallax = new THREE.Vector2(), camOffset = new THREE.Vector3();
+const camOffset = new THREE.Vector3();
 function resize() {
   const w = host.clientWidth, h = host.clientHeight;
   camera.aspect = w / h;
+  camera.fov = w / h < .9 ? 46 : 40;
   camera.updateProjectionMatrix();
   renderer?.setSize(w, h);
 }
 new ResizeObserver(resize).observe(host);
 resize();
+CAMERA_VIEWS.room();
+view.focus.copy(view.goal.focus);
+Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
 
+// Room bounds for the camera itself: it may stand back past the open front,
+// but never behind the back or side walls.
+const CAM_BOX = {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]};
+// Tall furniture the camera must not end up inside: [x, z, radius, height].
+const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.25, .75, 4.4], [-2.35, -1.75, 1.0, .55]];
 function updateCamera(dt) {
-  view.zoom = damp(view.zoom, view.zoomTarget, 3, dt);
-  const tall = camera.aspect < .9;
-  const a = tall ? CAM.tallWide : CAM.wide, b = tall ? CAM.tallClose : CAM.close;
-  camOffset.lerpVectors(a.offset, b.offset, view.zoom).applyAxisAngle(THREE.Object3D.DEFAULT_UP, view.angle);
-  const fov = lerp(a.fov, b.fov, view.zoom);
-  if (Math.abs(camera.fov - fov) > .01) { camera.fov = fov; camera.updateProjectionMatrix(); }
-  // Frame the room, drifting toward the kitten (fully on it in close-up).
-  const follow = lerp(.6, 1, view.zoom);
-  const tx = lerp(RUG.x + .5, brain.pos.x, follow), tz = lerp(RUG.z, brain.pos.z, follow);
-  const ty = lerp(a.lookY, ready ? cat.headCenter(tmpV).y - .1 : b.lookY, view.zoom);
-  camLook.x = damp(camLook.x, tx, 2.5, dt); camLook.y = damp(camLook.y, ty, 2.5, dt); camLook.z = damp(camLook.z, tz, 2.5, dt);
-  parallax.x = damp(parallax.x, reduceMotion ? 0 : pointer.x, 2, dt);
-  parallax.y = damp(parallax.y, reduceMotion ? 0 : pointer.y, 2, dt);
-  camera.position.copy(camLook).add(camOffset);
-  // Stay inside the room when the view is turned.
-  camera.position.x = clamp(camera.position.x, -3.9, 3.5);
-  camera.position.z = Math.max(camera.position.z, -2.6);
-  camera.position.x += parallax.x * .2;
-  camera.position.y += parallax.y * .1;
-  camera.lookAt(camLook);
+  const g = view.goal;
+  if (view.mode === 'follow' && ready) {
+    g.focus.set(brain.pos.x, clamp(cat.headCenter(tmpV).y * .55, .3, 1), brain.pos.z);
+    clampGoal();
+  }
+  const r = view.mode === 'follow' ? 3 : 5;
+  view.focus.x = damp(view.focus.x, g.focus.x, r, dt);
+  view.focus.y = damp(view.focus.y, g.focus.y, r, dt);
+  view.focus.z = damp(view.focus.z, g.focus.z, r, dt);
+  view.yaw = damp(view.yaw, g.yaw, 8, dt);
+  view.pitch = damp(view.pitch, g.pitch, 8, dt);
+  view.dist = damp(view.dist, g.dist, 7, dt);
+  camOffset.set(Math.sin(view.yaw) * Math.cos(view.pitch), Math.sin(view.pitch), Math.cos(view.yaw) * Math.cos(view.pitch));
+  // Spring arm: if the camera would leave the room, shorten the arm instead.
+  let d = view.dist;
+  for (const [k, [lo, hi]] of Object.entries(CAM_BOX)) {
+    const o = camOffset[k], f = view.focus[k];
+    if (o > 1e-4 && f + o * d > hi) d = Math.min(d, (hi - f) / o);
+    if (o < -1e-4 && f + o * d < lo) d = Math.min(d, (lo - f) / o);
+  }
+  // Keep furniture from coming between the camera and what it looks at:
+  // stop the arm just in front of the first tall piece in the way.
+  const fx = view.focus.x, fz = view.focus.z, ox = camOffset.x, oz = camOffset.z, hz = Math.hypot(ox, oz);
+  if (hz > 1e-4) for (const [cx, cz, r, h] of CAM_SOLIDS) {
+    const px = fx - cx, pz = fz - cz;
+    if (px * px + pz * pz < r * r) continue; // looking at the piece itself
+    const a2 = ox * ox + oz * oz, b2 = 2 * (px * ox + pz * oz), c2 = px * px + pz * pz - r * r, disc = b2 * b2 - 4 * a2 * c2;
+    if (disc < 0) continue;
+    const tHit = (-b2 - Math.sqrt(disc)) / (2 * a2);
+    if (tHit > 0 && tHit < d && view.focus.y + camOffset.y * tHit < h) d = tHit - .15;
+  }
+  camera.position.copy(view.focus).addScaledVector(camOffset, Math.max(.6, d));
+  camera.lookAt(view.focus);
 }
 
 function updateRoom(dt, t) {
@@ -1104,8 +1216,6 @@ function frame(now) {
   clockNow = now / 1000;
   const t = clockNow;
   if (brain.mode === 'brush' && t > brain.modeUntil) finishMode();
-  if (t - view.lastDrag > 6 && !gesture) view.target = damp(view.target, 0, .8, dt);
-  view.angle = damp(view.angle, view.target, 6, dt);
   updatePlay(dt, t);
   if (ready) updateCat(dt, t);
   updateCamera(dt);
@@ -1113,7 +1223,7 @@ function frame(now) {
   if (ready) {
     idleLife(t);
     const sp = $('#speech');
-    const w = sp.offsetWidth, x = clamp(headScreen.x + 24, 12, host.clientWidth - w - 12), y = clamp(headScreen.y - 6, sp.offsetHeight + 74, host.clientHeight);
+    const w = sp.offsetWidth, x = clamp(headScreen.x + 24, 12, host.clientWidth - w - 70), y = clamp(headScreen.y - 6, sp.offsetHeight + 74, host.clientHeight);
     sp.style.setProperty('--x', x.toFixed(1) + 'px');
     sp.style.setProperty('--y', y.toFixed(1) + 'px');
   }
@@ -1121,6 +1231,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, renderer};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, renderer, orbit, pan, zoomBy};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });
