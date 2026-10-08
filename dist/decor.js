@@ -34,6 +34,7 @@ export function applyDecor(room, name) {
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
     M.plaidBed.map = O.bedMap; M.sherpa.map = O.sherpaMap; M.plaidThrow.map = O.throwMap; room.fringeMat.color.copy(O.fringe);
     M.pillow.map = O.pillowMap;
+    for (const m of [M.rug, M.plaidBed, M.plaidThrow]) m.normalMap = null;
     room.view = {...O.view};
     room.sillSprigs.visible = true;
   } else {
@@ -41,6 +42,9 @@ export function applyDecor(room, name) {
     M.rug.map = T.rug; M.rug.color.set('#cfc3ab'); room.rugEdge.color.set('#b9a27b');
     M.plaidBed.map = T.flax; M.sherpa.map = T.fluff; M.plaidThrow.map = T.knit; room.fringeMat.color.set('#e4d8c1');
     M.pillow.map = T.cushion;
+    M.rug.normalMap = T.rugWeave; M.rug.normalScale.set(1, 1);
+    M.plaidBed.normalMap = T.linenWeave; M.plaidBed.normalScale.set(1, 1);
+    M.plaidThrow.normalMap = T.knitRelief; M.plaidThrow.normalScale.set(1.4, 1.4);
     room.view = {day: T.viewDay, night: T.viewNight};
     room.sillSprigs.visible = false;
     room.decorProps ??= {};
@@ -69,17 +73,94 @@ function thanksgivingTextures() {
     viewDay: canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, false)),
     viewNight: canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, true)),
     oak: canvasTexture(128, 128, drawOakLeaf),
+    // Weave relief, as small tiling normal maps (light on phones): basket
+    // weave on the rug, linen on the bed, raised cables on the throw.
+    rugWeave: normalMap(128, drawBasketWeave, {repeat: [19.2, 19.2], strength: 2.2}),
+    linenWeave: normalMap(128, drawLinenHeight, {repeat: [12, 2.5], strength: 2.6}),
+    knitRelief: normalMap(256, drawCableHeight, {repeat: [1.6, 1.6], strength: 4}),
     gourd: canvasTexture(256, 256, (g, w, h) => drawNoise(g, w, h, {base: '#8e9b72', blobs: [['rgba(210,200,140,.35)', 260, 2, 7], ['rgba(70,90,60,.25)', 160, 3, 10]], seed: 27})),
   };
+}
+
+// A tiling normal map from a grey height drawing (brighter = higher).
+function normalMap(size, drawHeight, {repeat = [1, 1], strength = 2} = {}) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, size, size);
+  drawHeight(g, size, size);
+  const src = g.getImageData(0, 0, size, size).data, out = g.createImageData(size, size);
+  const H = (x, y) => src[(((y + size) % size) * size + ((x + size) % size)) * 4] / 255;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = (H(x + 1, y) - H(x - 1, y)) * strength, dy = (H(x, y + 1) - H(x, y - 1)) * strength;
+    const l = Math.hypot(dx, dy, 1), i = (y * size + x) * 4;
+    out.data[i] = (-dx / l * .5 + .5) * 255; out.data[i + 1] = (dy / l * .5 + .5) * 255; out.data[i + 2] = (1 / l * .5 + .5) * 255; out.data[i + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(...repeat);
+  return t;
+}
+
+// Basket weave: blocks of three strands, alternating across and along.
+function drawBasketWeave(g, w, h) {
+  const n = 8, cell = w / n, strand = cell / 3;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const across = (i + j) % 2 === 0;
+    for (let k = 0; k < 3; k++) {
+      const x = i * cell + (across ? 0 : k * strand), y = j * cell + (across ? k * strand : 0);
+      const sw = across ? cell : strand, sh = across ? strand : cell;
+      const grd = across ? g.createLinearGradient(0, y, 0, y + sh) : g.createLinearGradient(x, 0, x + sw, 0);
+      grd.addColorStop(0, '#202020'); grd.addColorStop(.5, '#d8d8d8'); grd.addColorStop(1, '#202020');
+      g.fillStyle = grd; g.fillRect(x, y, sw, sh);
+    }
+  }
+}
+
+// Linen: fine crossing threads of uneven thickness.
+function drawLinenHeight(g, w, h) {
+  const r = rng(47);
+  for (let y = 0; y < h; y += 4) { g.fillStyle = `rgba(255,255,255,${.35 + r() * .4})`; g.fillRect(0, y, w, 2); }
+  g.globalCompositeOperation = 'lighter';
+  for (let x = 0; x < w; x += 4) { g.fillStyle = `rgba(255,255,255,${.2 + r() * .3})`; g.fillRect(x, 0, 2, h); }
+  g.globalCompositeOperation = 'source-over';
+}
+
+// Cables: the same lobes as the knit's colour, raised in the middle.
+function drawCableHeight(g, w, h) {
+  const cols = 6, cw = w / cols;
+  for (let c = 0; c < cols; c++) {
+    const x = c * cw;
+    for (let y = -cw * .5; y < h; y += cw * .55) {
+      for (const s of [0, 1]) {
+        const cx = x + cw * (.36 + s * .3), cy = y + s * cw * .27;
+        g.save(); g.translate(cx, cy); g.rotate(s ? -.6 : .6); g.scale(1, cw * .3 / (cw * .19));
+        const grd = g.createRadialGradient(0, 0, 0, 0, 0, cw * .19);
+        grd.addColorStop(0, '#ffffff'); grd.addColorStop(.7, '#909090'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = grd; g.beginPath(); g.arc(0, 0, cw * .19, 0, Math.PI * 2); g.fill();
+        g.restore();
+      }
+    }
+  }
 }
 
 function drawOatmealRug(g, w, h) {
   // Oatmeal wool in a fine basket weave.
   g.fillStyle = '#d8cbb3'; g.fillRect(0, 0, w, h);
   const r = rng(41);
-  for (let y = 0; y < h; y += 6) for (let x = (y / 6) % 2 ? 0 : 3; x < w; x += 6) {
-    g.fillStyle = r() < .5 ? 'rgba(255,248,232,.22)' : 'rgba(120,100,70,.13)';
-    g.fillRect(x, y, 4, 3);
+  // Basket weave, 64 blocks across, lined up with the rug's relief map
+  // (rugWeave: 8 tiles of 8 blocks).
+  const cell = w / 64, strand = cell / 3;
+  for (let i = 0; i < 64; i++) for (let j = 0; j < 64; j++) {
+    const across = (i + j) % 2 === 0;
+    for (let k = 0; k < 3; k++) {
+      const x = i * cell + (across ? 0 : k * strand), y = j * cell + (across ? k * strand : 0);
+      g.fillStyle = `rgba(255,248,232,${.1 + r() * .08})`;
+      g.fillRect(x + (across ? 1 : .5), y + (across ? .5 : 1), across ? cell - 2 : strand - 1, across ? strand - 1 : cell - 2);
+      g.fillStyle = 'rgba(110,90,60,.12)';
+      if (across) g.fillRect(x, y + strand - 1, cell, 1); else g.fillRect(x + strand - 1, y, 1, cell);
+    }
   }
   // Faded sage stripes running the length of the rug, in two pairs.
   const stripe = (u, width, a) => { g.fillStyle = `rgba(150,163,128,${a})`; g.fillRect(u * w, 0, width * w, h); };
@@ -100,7 +181,7 @@ function drawCableKnit(g, w, h) {
       for (const s of [0, 1]) {
         const cx = x + cw * (.36 + s * .3), cy = y + s * cw * .27;
         const grd = g.createLinearGradient(cx - cw * .2, cy, cx + cw * .2, cy);
-        grd.addColorStop(0, 'rgba(150,130,100,.35)'); grd.addColorStop(.5, 'rgba(255,250,240,.35)'); grd.addColorStop(1, 'rgba(150,130,100,.3)');
+        grd.addColorStop(0, 'rgba(140,118,86,.5)'); grd.addColorStop(.5, 'rgba(255,251,242,.5)'); grd.addColorStop(1, 'rgba(140,118,86,.45)');
         g.fillStyle = grd;
         g.beginPath(); g.ellipse(cx, cy, cw * .19, cw * .3, s ? -.6 : .6, 0, Math.PI * 2); g.fill();
         g.strokeStyle = 'rgba(120,100,70,.25)'; g.lineWidth = 1.5; g.stroke();
