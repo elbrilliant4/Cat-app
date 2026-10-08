@@ -98,7 +98,9 @@ function thanksgivingTextures() {
 function normalMap(size, drawHeight, {repeat = [1, 1], strength = 2} = {}) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  const g = c.getContext('2d');
+  // Read back below, so keep this canvas in ordinary memory: reading a
+  // graphics-card canvas forces a long wait (19 s in testing).
+  const g = c.getContext('2d', {willReadFrequently: true});
   g.fillStyle = '#000'; g.fillRect(0, 0, size, size);
   drawHeight(g, size, size);
   const src = g.getImageData(0, 0, size, size).data, out = g.createImageData(size, size);
