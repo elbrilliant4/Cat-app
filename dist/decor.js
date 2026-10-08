@@ -30,7 +30,7 @@ export function applyDecor(room, name) {
   };
   const O = room.decorOriginal;
   for (const g of Object.values(room.decorProps || {})) g.forEach(o => o.visible = false);
-  room.candleLight = null; room.pumpkinGlow = null; room.altToy = null;
+  room.candleLight = null; room.pumpkinGlow = null; room.pumpkinHalos = null; room.altToy = null;
   if (name === 'classic') {
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
     M.plaidBed.map = O.bedMap; M.sherpa.map = O.sherpaMap; M.plaidThrow.map = O.throwMap; room.fringeMat.color.copy(O.fringe);
@@ -62,7 +62,7 @@ export function applyDecor(room, name) {
     // Show just this decor's pieces (newly built ones start out visible).
     for (const [part, objs] of Object.entries(room.decorProps)) objs.forEach(o => o.visible = part === 'shared' || part === name);
     room.candleLight = room.thanksgivingCandle;
-    if (halloween) { room.pumpkinGlow = room.halloweenGlow; room.altToy = room.feltBat; }
+    if (halloween) { room.pumpkinGlow = room.halloweenGlow; room.pumpkinHalos = room.halloweenHalos; room.altToy = room.feltBat; }
   }
   for (const m of [M.rug, M.plaidBed, M.sherpa, M.plaidThrow, M.pillow]) m.needsUpdate = true;
   room.glass.material.needsUpdate = true;
@@ -328,18 +328,26 @@ function drawPaperBat(g, w, h) {
 function drawJack(g, w, h, {base, sleepy, glow}) {
   g.fillStyle = glow ? '#000' : base; g.fillRect(0, 0, w, h);
   if (!glow) { const r = rng(sleepy ? 57 : 59); for (let i = 0; i < 900; i++) { g.fillStyle = r() < .5 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)'; g.fillRect(r() * w, r() * h, 2, 2); } }
-  const cx = w * .25, cy = h * .47, ink = glow ? '#ffffff' : '#4a2a12';
-  g.fillStyle = ink; g.strokeStyle = ink; g.lineCap = 'round';
-  if (sleepy) {
-    g.lineWidth = 3.5;
-    for (const dx of [-13, 13]) { g.beginPath(); g.arc(cx + dx, cy - 9, 7, .15 * Math.PI, .85 * Math.PI); g.stroke(); }
-    g.beginPath(); g.moveTo(cx, cy - 1); g.lineTo(cx - 3.5, cy + 5); g.lineTo(cx + 3.5, cy + 5); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(cx - 13, cy + 11); g.quadraticCurveTo(cx, cy + 22, cx + 13, cy + 11); g.quadraticCurveTo(cx, cy + 17, cx - 13, cy + 11); g.fill();
-  } else {
-    for (const dx of [-14, 14]) { g.beginPath(); g.ellipse(cx + dx, cy - 9, 6, 7, 0, 0, Math.PI * 2); g.fill(); }
-    g.beginPath(); g.moveTo(cx, cy - 3); g.lineTo(cx - 5, cy + 5); g.lineTo(cx + 5, cy + 5); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(cx - 22, cy + 9); g.quadraticCurveTo(cx, cy + 30, cx + 22, cy + 9); g.quadraticCurveTo(cx, cy + 20, cx - 22, cy + 9); g.fill();
-  }
+  const cx = w * .25, cy = h * .47, k = 1.35;
+  // The carved face; `edge` widens every outline (for the cut rim).
+  const face = (color, edge) => {
+    g.fillStyle = g.strokeStyle = color; g.lineCap = 'round'; g.lineJoin = 'round';
+    const shape = (draw, filled, width) => { g.beginPath(); draw(); if (filled) g.fill(); g.lineWidth = width + edge; g.stroke(); };
+    if (sleepy) {
+      for (const dx of [-13, 13]) shape(() => g.arc(cx + dx * k, cy - 9 * k, 7 * k, .15 * Math.PI, .85 * Math.PI), false, 5 * k);
+      shape(() => { g.moveTo(cx, cy - 1 * k); g.lineTo(cx - 4 * k, cy + 5 * k); g.lineTo(cx + 4 * k, cy + 5 * k); g.closePath(); }, true, 1);
+      shape(() => { g.moveTo(cx - 14 * k, cy + 11 * k); g.quadraticCurveTo(cx, cy + 24 * k, cx + 14 * k, cy + 11 * k); g.quadraticCurveTo(cx, cy + 17 * k, cx - 14 * k, cy + 11 * k); }, true, 1);
+    } else {
+      for (const dx of [-14, 14]) shape(() => g.ellipse(cx + dx * k, cy - 9 * k, 6.5 * k, 7.5 * k, 0, 0, Math.PI * 2), true, 1);
+      shape(() => { g.moveTo(cx, cy - 3 * k); g.lineTo(cx - 5.5 * k, cy + 5 * k); g.lineTo(cx + 5.5 * k, cy + 5 * k); g.closePath(); }, true, 1);
+      shape(() => { g.moveTo(cx - 23 * k, cy + 9 * k); g.quadraticCurveTo(cx, cy + 32 * k, cx + 23 * k, cy + 9 * k); g.quadraticCurveTo(cx, cy + 21 * k, cx - 23 * k, cy + 9 * k); }, true, 1);
+    }
+  };
+  if (glow) { face('#ffffff', 0); return; }
+  // By day: a pale cut edge round a deep, dark hollow, so the carving reads
+  // clearly; at night the hollow is what glows (emissive map).
+  face('#f4d29b', 5);
+  face('#1c0e05', 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +504,12 @@ function buildHalloween(room) {
   const made = [], w = room.windowGroup, top = room.sillTop;
   const mesh = (geo, mat, parent, opts) => { const m = room.mesh(geo, mat, parent, opts); made.push(m); return m; };
   const stemMat = new THREE.MeshStandardMaterial({color: '#5d4a28', roughness: .8});
-  room.halloweenGlow = [];
+  room.halloweenGlow = []; room.halloweenHalos = [];
+  const haloMat = new THREE.SpriteMaterial({map: canvasTexture(64, 64, (g, cw, ch) => {
+    const grd = g.createRadialGradient(cw / 2, ch / 2, 0, cw / 2, ch / 2, cw / 2);
+    grd.addColorStop(0, 'rgba(255,190,100,.9)'); grd.addColorStop(.4, 'rgba(255,160,70,.35)'); grd.addColorStop(1, 'rgba(255,140,50,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, cw, ch);
+  }), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0});
   const jack = (x, z, rad, height, base, sleepy, turn) => {
     const opts = {base, sleepy};
     const mat = new THREE.MeshStandardMaterial({
@@ -508,6 +521,12 @@ function buildHalloween(room) {
     body.position.set(x, top + height, z); body.rotation.y = turn;
     mesh(pumpkinStem(rad), stemMat, w).position.set(x + rad * .05, top + height * 2 + rad * .15, z);
     room.halloweenGlow.push(mat);
+    // Candlelight spilling from the face in the evening.
+    const halo = new THREE.Sprite(haloMat.clone());
+    halo.scale.setScalar(rad * 3.2);
+    halo.position.set(x + Math.sin(turn) * rad * .9, top + height * 1.05, z + Math.cos(turn) * rad * .9);
+    w.add(halo); made.push(halo);
+    room.halloweenHalos.push(halo.material);
   };
   jack(-1.17, .4, .25, .2, '#d98b45', false, -.15);
   jack(-.78, .64, .18, .14, '#efe5d2', true, .1);

@@ -916,7 +916,9 @@ export class Room {
     }
     if (this.pumpkinGlow) {
       const f = 1 + Math.sin(t * 9) * .05 + Math.sin(t * 5.3) * .04;
-      for (const m of this.pumpkinGlow) m.emissiveIntensity = damp(m.emissiveIntensity, night ? 2.4 : .55, 3, dt) * f;
+      // Dark carvings by day; bright faces and a warm halo in the evening.
+      for (const m of this.pumpkinGlow) m.emissiveIntensity = damp(m.emissiveIntensity, night ? 4 : .04, 3, dt) * f;
+      for (const m of this.pumpkinHalos || []) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
     }
     this.updateBird(t);
     this.updateBook(t);
