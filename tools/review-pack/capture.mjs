@@ -102,7 +102,11 @@ ${finished ? '' : '<p class="meta"><b>This pack is incomplete:</b> rendering ran
 <h2>Eyes</h2>
 <div class="grid">${img('eyes-open.png', 'Open')}${img('eyes-half.png', 'Half-closed')}${img('eyes-closed.png', 'Closed')}</div>
 <h2>Motion</h2>
-<div class="grid wide">${vid('idle.mp4', 'Idle, 6 s')}${vid('walk.mp4', 'Walking, 5 s')}</div>
+<div class="grid wide">${vid('idle.mp4', 'Idle, 5 s')}${vid('walk.mp4', 'Walking, 5 s')}</div>
+<h2>Halloween in the Hamptons (preview decor)</h2>
+<p class="meta">All from build ${version.build}. The evening is what the room looks like after Rest. The play clip is a time-lapse (one frame every 1.5 s of her playing on her own), because this test renderer is slow.</p>
+<div class="grid">${img('halloween-day.png', 'Halloween, day')}${img('halloween-evening.png', 'Halloween, evening')}${img('halloween-pumpkins-day.png', 'Jack-o’-lanterns, day')}${img('halloween-pumpkins-evening.png', 'Jack-o’-lanterns, evening')}</div>
+<div class="grid wide">${vid('halloween-bat-play.mp4', 'Playing with the felt bat (time-lapse)')}</div>
 <h2>Room</h2>
 <div class="grid">${img('room-day.png', 'Phone, day')}${img('room-night.png', 'Phone, evening')}${img('room-desktop.png', 'Wide screen, day')}</div>
 <h2>Sound</h2>
@@ -177,6 +181,58 @@ await roomShot({width: 390, height: 844}, 'room-day.png');
 await roomShot({width: 390, height: 844}, 'room-night.png', true);
 await roomShot({width: 1280, height: 800}, 'room-desktop.png');
 
+// Halloween decor, for review: the room by day and in the evening, both
+// jack-o'-lanterns close up (day and evening), and a time-lapse of her
+// playing with the felt bat. Built from this preview build.
+{
+  log('halloween');
+  const p = await page('index.html?debug', {width: 1280, height: 800});
+  await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
+  await p.evaluate(async () => {
+    const k = kitten, m = await import('./decor.js');
+    k.brain.nextIdle = 1e9; k.brain.nextShow = 1e9; k.brain.nextBird = 1e9;
+    m.applyDecor(k.room, 'halloween');
+    k.CAMERA_VIEWS.room();
+  });
+  const shot = async (file, wait) => { await p.waitForTimeout(wait); await p.evaluate(() => document.querySelector('#speech').classList.remove('show')); await p.screenshot({path: path.join(out, file)}); made.push(file); log(file); writePage(); };
+  // Close-ups of the pumpkins: hide the controls and aim at the sill's left.
+  const pumpkins = on => p.evaluate(on => {
+    const k = kitten, w = k.room.windowGroup, v = k.view;
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = on ? 'hidden' : '');
+    if (!on) { k.CAMERA_VIEWS.room(); return; }
+    Object.assign(v.goal, {yaw: .35, pitch: .12, dist: 2.1});
+    v.goal.focus.copy(w.localToWorld(w.position.clone().set(-.95, k.room.sillTop + .16, .5)));
+  }, on);
+  await shot('halloween-day.png', 9000);
+  await pumpkins(true); await shot('halloween-pumpkins-day.png', 7000);
+  await p.evaluate(() => { kitten.pet.sleeping = true; });
+  await shot('halloween-pumpkins-evening.png', 11000);
+  await pumpkins(false); await shot('halloween-evening.png', 8000);
+  // Felt bat play: awake again, near the bat, playing on her own.
+  await p.evaluate(() => {
+    const k = kitten;
+    k.pet.sleeping = false; k.pet.energy = 90;
+    k.brain.pos.set(-.9, 0, .5); k.setActivity('sit');
+    k.toyTarget.set(-.2, .13, .7);
+    const v = k.view; Object.assign(v.goal, {yaw: .25, pitch: .42, dist: 3.4}); v.goal.focus.set(-.5, .3, .55);
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+  });
+  await p.waitForTimeout(8000);
+  await p.evaluate(() => { kitten.startSolo(); kitten.brain.modeUntil = performance.now() / 1000 + 1e4; });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bat'));
+  for (let i = 0; i < 30; i++) {
+    await p.waitForTimeout(1500);
+    await p.screenshot({path: path.join(dir, String(i).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 88});
+  }
+  try {
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', '5', '-i', path.join(dir, '%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', '-movflags', '+faststart', path.join(out, 'halloween-bat-play.mp4')]);
+    made.push('halloween-bat-play.mp4');
+  } catch (e) { errors.push(`halloween-bat-play.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
+  fs.rmSync(dir, {recursive: true, force: true});
+  log('halloween-bat-play'); writePage();
+  await p.close();
+}
+
 // The clips take longest, so they come last.
 await stage.setViewportSize({width: 960, height: 540});
 await stage.waitForTimeout(500);
@@ -188,7 +244,7 @@ writePage();
 
 const idle = await page('idle.html?record', {width: 720, height: 720});
 await ready(idle);
-await clip(idle, 'idle', 'renderAt', 6);
+await clip(idle, 'idle', 'renderAt', 5, 12);
 log('idle');
 await idle.close();
 
