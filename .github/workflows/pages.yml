@@ -6,6 +6,11 @@
 #                     tools/review-pack/run.sh
 # Each build gets a version.json (build number = commits on its branch, plus
 # the commit), which the app shows as its build label.
+#
+# Two steps, so the site never waits on the review pack: "site" publishes the
+# app and the preview within a couple of minutes (with the last review pack,
+# kept in the Actions cache); "review" then renders a fresh pack (about 25
+# minutes) and publishes again with it.
 # Runs on every push to main, and on demand (a push to the review branch
 # triggers it through preview.yml).
 name: Deploy site
@@ -28,7 +33,7 @@ env:
   PREVIEW_BRANCH: claude/expressive-cat-modern-ui-65z6r5
 
 jobs:
-  deploy:
+  site:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -43,46 +48,76 @@ jobs:
           node-version: 20
       - run: npm run check
       - name: Fetch the review branch
-        id: preview
         continue-on-error: true
         uses: actions/checkout@v4
         with:
           ref: ${{ env.PREVIEW_BRANCH }}
           path: preview-src
           fetch-depth: 0
-      - name: Stamp build numbers
-        run: |
-          stamp() {
-            printf '{"build": %s, "commit": "%s", "channel": "%s", "date": "%s"}\n' \
-              "$(git -C "$1" rev-list --count HEAD)" "$(git -C "$1" rev-parse --short HEAD)" "$2" "$(date -u +%FT%TZ)" > "$1/dist/version.json"
-          }
-          stamp . live
-          if [ -d preview-src/dist ]; then stamp preview-src preview; fi
-      - name: Render the preview's review pack
-        if: steps.preview.outcome == 'success'
-        continue-on-error: true
-        timeout-minutes: 50
-        run: |
-          if [ -x preview-src/tools/review-pack/run.sh ]; then
-            preview-src/tools/review-pack/run.sh preview-src/dist
-          fi
+      - name: Last review pack
+        uses: actions/cache/restore@v4
+        with:
+          path: review-pack
+          key: review-pack-${{ github.run_id }}
+          restore-keys: review-pack-
       - name: Assemble site
-        run: |
-          mkdir -p _site
-          cp -r dist/. _site/
-          if [ -d preview-src/dist ]; then
-            mkdir -p _site/preview
-            cp -r preview-src/dist/. _site/preview/
-          fi
-          # Short links for reviewers: /review/ opens the latest preview's
-          # review pack.
-          mkdir -p _site/review
-          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>Mochi review pack</title>' \
-            '<meta http-equiv="refresh" content="0; url=../preview/review/">' \
-            '<p>Opening the latest review pack: <a href="../preview/review/">preview/review/</a></p>' > _site/review/index.html
+        run: tools/build-site.sh review-pack
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  review:
+    needs: site
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch the review branch
+        id: preview
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PREVIEW_BRANCH }}
+          path: preview-src
+          fetch-depth: 0
+      - name: Render the preview's review pack
+        continue-on-error: true
+        timeout-minutes: 45
+        run: |
+          # Build numbers first, so the pack is labelled with this build.
+          printf '{"build": %s, "commit": "%s", "channel": "preview", "date": "%s"}\n' \
+            "$(git -C preview-src rev-list --count HEAD)" "$(git -C preview-src rev-parse --short HEAD)" "$(date -u +%FT%TZ)" > preview-src/dist/version.json
+          if [ -x preview-src/tools/review-pack/run.sh ]; then
+            preview-src/tools/review-pack/run.sh preview-src/dist
+          fi
+          mkdir -p review-pack && cp -r preview-src/dist/review/. review-pack/ 2>/dev/null || true
+      - name: Keep the pack for the next site deploy
+        if: hashFiles('review-pack/index.html') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: review-pack
+          key: review-pack-${{ github.run_id }}
+      - name: Assemble site
+        run: |
+          rm -rf preview-src/dist/review
+          tools/build-site.sh review-pack
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+          name: github-pages-review
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-review
