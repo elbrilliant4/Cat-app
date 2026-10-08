@@ -124,12 +124,14 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .hud { position: absolute; z-index: 4; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .hud-top { top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.nameplate { border-radius: 20px; padding: 11px 16px 12px; min-width: 0; }
+.nameplate { border-radius: 16px; padding: 7px 12px 8px; min-width: 0; transition: opacity .6s, transform .6s; }
+/* Out of the way while a bird is at the window. */
+.scene.bird .nameplate { opacity: .12; transform: translateY(-4px); }
 .name-row { display: flex; align-items: center; gap: 4px; }
-.nameplate h1 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 800; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.nameplate h1 { margin: 0; font-size: 19px; line-height: 1.1; font-weight: 800; letter-spacing: -.6px; overflow-wrap: anywhere; }
 .ghost-btn { border: 0; background: transparent; color: var(--muted); width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; transition: background .2s, color .2s; }
 .ghost-btn:hover { background: var(--line); color: var(--ink); }
-.mood { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin-top: 3px; }
+.mood { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ink-2); margin-top: 1px; }
 .mood i { width: 8px; height: 8px; border-radius: 50%; background: var(--mood, #7cc68d); box-shadow: 0 0 0 0 var(--mood, #7cc68d); animation: pulse 2.4s infinite; }
 @keyframes pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 .hud-buttons { display: flex; gap: 8px; }
@@ -291,8 +293,9 @@ label.spaced { margin-top: 22px; }
   .stage { border-radius: 24px; }
   .scene { height: 68svh; min-height: 470px; max-height: 640px; }
   .hud-top { top: 12px; left: 12px; right: 12px; }
-  .nameplate { padding: 9px 13px 10px; border-radius: 17px; }
-  .nameplate h1 { font-size: 20px; }
+  .nameplate { padding: 6px 10px 7px; border-radius: 14px; }
+  .nameplate h1 { font-size: 16px; }
+  .mood { font-size: 10px; }
   .hud-buttons { flex-direction: column; }
   .hud-buttons .icon-btn { width: 40px; height: 40px; border-radius: 13px; }
   .cam-buttons .icon-btn { width: 46px; height: 44px; font-size: 16px; }

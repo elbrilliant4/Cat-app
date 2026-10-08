@@ -829,7 +829,7 @@ function knockBook() {
 // Birds at the window, in daytime. Up on the sill she gets them often; from
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
-  if (pet.sleeping || !ready) { brain.watching = false; return; }
+  if (pet.sleeping || !ready) { brain.watching = false; host.classList.remove('bird'); return; }
   const onSill = brain.perch === 'sill' && !brain.jump;
   if (!room.birdRun && t > brain.nextBird && brain.mode === 'idle') {
     if (onSill || (Math.random() < .25 && ['sit', 'loaf'].includes(brain.activity) && !brain.perch)) {
@@ -839,6 +839,7 @@ function watchBirds(t) {
     } else brain.nextBird = t + rand(20, 50);
   }
   const at = room.birdWorld(tmpV3);
+  host.classList.toggle('bird', !!at);
   brain.watching = !!at && brain.mode === 'idle' && ['sit', 'loaf', 'groom'].includes(brain.activity);
   if (!brain.watching) return;
   brain.glance = (brain.glance || new THREE.Vector3()).copy(at);
