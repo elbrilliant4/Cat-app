@@ -149,6 +149,25 @@
     <label for="name-input">Your kitten’s name</label>
     <input id="name-input" maxlength="24" required autocomplete="off">
     <button class="primary" type="submit">That’s my kitten</button>
+    <button type="button" class="link-btn" id="open-backup">Back up or move your kitten</button>
+  </form>
+</dialog>
+
+<dialog id="backup-dialog" aria-labelledby="backup-title">
+  <form id="backup-form">
+    <button type="button" class="close" id="close-backup" aria-label="Close">×</button>
+    <span class="eyebrow">Keep your kitten safe</span>
+    <h2 id="backup-title">Back up <span class="pet-name-slot">Mochi</span></h2>
+    <p class="dialog-note">Your kitten lives on this device, and updates never change that. To move to a new phone or browser, or in case the app is ever removed, keep this code somewhere safe, such as Notes or an email to yourself.</p>
+    <label for="backup-code">Backup code</label>
+    <textarea id="backup-code" rows="3" readonly></textarea>
+    <div class="button-row">
+      <button type="button" class="secondary" id="copy-backup">Copy code</button>
+      <button type="button" class="secondary" id="share-backup" hidden>Share…</button>
+    </div>
+    <label for="restore-code" class="spaced">Bring a kitten home from a code</label>
+    <textarea id="restore-code" rows="3" placeholder="Paste a backup code" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <button class="primary" type="submit">Restore from code</button>
   </form>
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

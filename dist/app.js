@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import {KEY, restore, fresh, advance, care, mood} from './pet-state.js';
+import {fresh, advance, care, mood} from './pet-state.js';
+import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
 import {Sounds} from './sound.js';
@@ -14,11 +15,15 @@ const motion = reduceMotion ? 0.35 : 1;
 // ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
-let pet;
-try { pet = restore(JSON.parse(localStorage.getItem(KEY))); } catch { pet = fresh(); }
+// save.js keeps every player's cat through updates (see there).
+let storage = null;
+try { storage = localStorage; } catch {}
+const loaded = storage ? loadSave(storage) : null;
+let pet = loaded ? loaded.pet : fresh();
+keepStorage();
 let saveWarned = false;
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(pet)); }
+  try { storeSave(storage, pet); }
   catch { if (!saveWarned) { toast('Browser storage is unavailable. Care will last for this visit.'); saveWarned = true; } }
 }
 
@@ -132,7 +137,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? 'Stroke Mochi to pet · drag to look around · pinch to zoom' : 'Stroke Mochi to pet · drag to look around · scroll to zoom · right-drag to move';
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} to pet · drag to look around · pinch to zoom` : `Stroke ${pet.name} to pet · drag to look around · scroll to zoom · right-drag to move`;
 }
 
 function showDeltas(before) {
@@ -1087,6 +1092,36 @@ $('.snacks').addEventListener('click', e => {
 });
 $('#rename').onclick = () => { $('#name-input').value = pet.name; $('#name-dialog').showModal(); $('#name-input').select(); };
 $('#close-name').onclick = () => $('#name-dialog').close();
+// Backup codes (save.js): copy one out, or bring a kitten in from one.
+$('#open-backup').onclick = () => {
+  $('#name-dialog').close();
+  $('#backup-code').value = toCode(pet);
+  $('#restore-code').value = '';
+  document.querySelectorAll('.pet-name-slot').forEach(el => el.textContent = pet.name);
+  $('#share-backup').hidden = !navigator.share;
+  $('#backup-dialog').showModal();
+};
+$('#close-backup').onclick = () => $('#backup-dialog').close();
+$('#copy-backup').onclick = async () => {
+  const code = $('#backup-code');
+  try { await navigator.clipboard.writeText(code.value); toast('Backup code copied. Keep it somewhere safe.'); }
+  catch { code.focus(); code.select(); toast('Select the code and copy it.'); }
+};
+$('#share-backup').onclick = () => navigator.share({title: `${pet.name}'s backup code`, text: $('#backup-code').value}).catch(() => {});
+$('#backup-form').onsubmit = e => {
+  e.preventDefault();
+  const incoming = fromCode($('#restore-code').value);
+  if (!incoming) { toast('That doesn’t look like a backup code. Paste the whole code, starting with MOCHI1.'); return; }
+  if (!confirm(`Bring ${incoming.name} home? This replaces ${pet.name} on this device.`)) return;
+  // In place: other parts of the app hold on to this object.
+  for (const key of Object.keys(pet)) delete pet[key];
+  Object.assign(pet, incoming);
+  save();
+  refresh(); renderJournal();
+  $('#backup-dialog').close();
+  toast(`Welcome home, ${pet.name}`);
+  if (ready && !pet.sleeping) { express('joy', 1.6); meow('mew'); }
+};
 $('#name-form').onsubmit = e => {
   e.preventDefault();
   const name = $('#name-input').value.trim();

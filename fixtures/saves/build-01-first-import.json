@@ -1,0 +1,29 @@
+{
+ "savedBy": "11099b9",
+ "key": "pocket-kitten-companion-v1",
+ "save": {
+  "name": "Biscuit Ñoño 🍡",
+  "food": 97,
+  "happiness": 100,
+  "energy": 68,
+  "cleanliness": 90,
+  "bond": 26,
+  "cuddles": 17,
+  "sleeping": false,
+  "born": 1790000000000,
+  "updated": 1790000000000,
+  "sound": false,
+  "journal": [
+   {
+    "text": "A name to love: Biscuit.",
+    "icon": "♡",
+    "time": 1790000001000
+   },
+   {
+    "text": "A little friendship begins.",
+    "icon": "♡",
+    "time": 1790000000000
+   }
+  ]
+ }
+}
