@@ -234,9 +234,10 @@ function drawHamptons(g, w, h, night) {
   }
   g.filter = 'none';
   if (dusk) {
-    const moon = g.createRadialGradient(w * .78, h * .1, 0, w * .78, h * .1, 22);
+    // Low over the sea, clear of the name card on a phone.
+    const moon = g.createRadialGradient(w * .6, h * .32, 0, w * .6, h * .32, 22);
     moon.addColorStop(0, 'rgba(255,248,226,1)'); moon.addColorStop(.3, 'rgba(255,244,215,.95)'); moon.addColorStop(.36, 'rgba(255,240,210,.25)'); moon.addColorStop(1, 'rgba(255,240,210,0)');
-    g.fillStyle = moon; g.fillRect(0, 0, w, h * .3);
+    g.fillStyle = moon; g.fillRect(0, 0, w, h * .44);
   }
   // Sea.
   const sea = g.createLinearGradient(0, h * .44, 0, h * .53);

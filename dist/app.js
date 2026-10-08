@@ -1232,7 +1232,9 @@ const CAMERA_VIEWS = {
   room() {
     // Pull back (and aim a little higher) on tall screens so the whole room
     // fits across; a phone in Watch mode is the tallest.
-    const tall = clamp(.85 / Math.max(.3, host.clientWidth / Math.max(1, host.clientHeight)), 1, 2.2);
+    // (On a phone the room needs a little extra width: both ends of the sill
+    // and the chair, clear of the camera buttons.)
+    const tall = clamp(Math.pow(.85 / Math.max(.3, host.clientWidth / Math.max(1, host.clientHeight)), 1.45), 1, 2.6);
     Object.assign(view.goal, {yaw: 0, pitch: .3, dist: 7.4 * tall});
     view.goal.focus.set(0, .75 + (tall - 1) * .45, -.1);
     setCamMode('room');
