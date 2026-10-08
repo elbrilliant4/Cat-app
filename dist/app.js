@@ -1087,6 +1087,9 @@ function updatePlay(dt, t) {
   if (brain.pounce || brain.activity === 'swat') return;
   const dx = toy.position.x - brain.pos.x, dz = toy.position.z - brain.pos.z, dist = Math.hypot(dx, dz);
   if (solo) {
+    // Mid-story with the felt bat (stalk, tap, pause): stay put, even if the
+    // tap sent it a little further; the pounce covers the distance.
+    if (['stalk', 'swat', 'pause'].includes(brain.activity)) return;
     // Up close to the ball, then mostly swats, sometimes a pounce.
     if (dist > .85) {
       if (brain.activity !== 'walk' || !brain.target || brain.target.distanceTo(toy.position) > .9) walkTo(new THREE.Vector3(toy.position.x - dx / dist * .6, 0, toy.position.z - dz / dist * .6), () => setActivity('play'), dist > 2.2);
