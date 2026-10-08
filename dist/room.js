@@ -11,7 +11,7 @@ import * as THREE from 'three';
 const {damp} = THREE.MathUtils;
 const V2 = (x, y) => new THREE.Vector2(x, y);
 
-function rng(seed) {
+export function rng(seed) {
   return () => {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0;
     let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
@@ -22,7 +22,7 @@ function rng(seed) {
 
 let maxAniso = 4;
 const _n = new THREE.Vector3(), _d = new THREE.Vector3();
-function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) {
+export function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
@@ -101,7 +101,7 @@ function drawPlaid(g, w, h, {base, stripes, seed = 3}) {
   }
 }
 
-function drawNoise(g, w, h, {base, blobs, seed = 5}) {
+export function drawNoise(g, w, h, {base, blobs, seed = 5}) {
   g.fillStyle = base; g.fillRect(0, 0, w, h);
   const r = rng(seed);
   for (const [color, count, min, max] of blobs) {
@@ -126,7 +126,7 @@ function drawLeather(g, w, h) {
   }
 }
 
-function drawLinen(g, w, h, {base, seed = 7, dark = .07}) {
+export function drawLinen(g, w, h, {base, seed = 7, dark = .07}) {
   g.fillStyle = base; g.fillRect(0, 0, w, h);
   const r = rng(seed);
   for (let y = 0; y < h; y += 2) { g.fillStyle = `rgba(0,0,0,${r() * dark})`; g.fillRect(0, y, w, 1); }
@@ -215,7 +215,7 @@ function drawJute(g, w, h) {
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
-function roundedBox(w, h, d, r, seg = 3, corner = .2) {
+export function roundedBox(w, h, d, r, seg = 3, corner = .2) {
   const s = new THREE.Shape(), x = -(w / 2 - r), y = -(h / 2 - r), W = w - 2 * r, H = h - 2 * r, c = Math.min(W, H) * corner;
   s.moveTo(x + c, y); s.lineTo(x + W - c, y); s.quadraticCurveTo(x + W, y, x + W, y + c);
   s.lineTo(x + W, y + H - c); s.quadraticCurveTo(x + W, y + H, x + W - c, y + H);
@@ -226,7 +226,7 @@ function roundedBox(w, h, d, r, seg = 3, corner = .2) {
   g.computeVertexNormals();
   return g;
 }
-const lathe = (pts, seg = 48) => new THREE.LatheGeometry(pts.map(([x, y]) => V2(x, y)), seg);
+export const lathe = (pts, seg = 48) => new THREE.LatheGeometry(pts.map(([x, y]) => V2(x, y)), seg);
 function turnedLeg(height, radius = .07) {
   const p = [[0, 0], [.75, 0], [1, .05], [.9, .12], [.55, .18], [.6, .3], [.8, .38], [.55, .48], [.5, .7], [.62, .8], [.62, 1], [0, 1]];
   return lathe(p.map(([x, y]) => [x * radius, y * height]), 20);
@@ -337,6 +337,7 @@ export class Room {
     const W = 2.3, bottom = 1.62, top = 4.5, cy = (bottom + top) / 2, h = top - bottom;
     this.skyDay = canvasTexture(256, 320, (c, w, hh) => drawSky(c, w, hh, false));
     this.skyNight = canvasTexture(256, 320, (c, w, hh) => drawSky(c, w, hh, true));
+    this.view = {day: this.skyDay, night: this.skyNight};
     this.glass = this.mesh(new THREE.PlaneGeometry(W, h), new THREE.MeshBasicMaterial({map: this.skyDay, toneMapped: false}), g, {cast: false, receive: false});
     this.glass.position.set(0, cy, .01);
     // Frame, sashes and muntins.
@@ -362,7 +363,8 @@ export class Room {
     pitcher.position.set(-.75, bottom + .02, .22);
     const handle = this.mesh(new THREE.TorusGeometry(.08, .018, 8, 20, Math.PI), M.white, g);
     handle.position.set(-.6, bottom + .25, .22); handle.rotation.z = -Math.PI / 2;
-    this.sprigs(g, new THREE.Vector3(-.75, bottom + .4, .22), 9, .55);
+    this.sillSprigs = new THREE.Group(); g.add(this.sillSprigs);
+    this.sprigs(this.sillSprigs, new THREE.Vector3(-.75, bottom + .4, .22), 9, .55);
     const bookColors = ['#3f4b33', '#6b2c22', '#283652', '#8b6b3e'];
     this.books = bookColors.map((c, i) => {
       const b = this.mesh(new THREE.BoxGeometry(.5 - i * .04, .07, .34), new THREE.MeshStandardMaterial({color: c, roughness: .8}), g);
@@ -510,7 +512,7 @@ export class Room {
     rug.position.set(RX, .018, RZ);
     const uv = rug.geometry.attributes.uv;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 2.4, uv.getY(i) / 2.4);
-    const edge = new THREE.MeshStandardMaterial({color: '#3a3f2a', roughness: 1});
+    const edge = this.rugEdge = new THREE.MeshStandardMaterial({color: '#3a3f2a', roughness: 1});
     for (const [w, d, x, z] of [[RW + .06, .06, RX, RZ - RD / 2], [RW + .06, .06, RX, RZ + RD / 2], [.06, RD + .06, RX - RW / 2, RZ], [.06, RD + .06, RX + RW / 2, RZ]]) {
       const b = this.mesh(new THREE.BoxGeometry(w, .04, d), edge, this.group, {cast: false});
       b.position.set(x, .02, z);
@@ -580,12 +582,13 @@ export class Room {
     }
     tg.computeVertexNormals();
     const throwBlanket = this.mesh(tg, M.plaidThrow, g);
-    const fringe = new THREE.InstancedMesh(new THREE.BoxGeometry(.008, .1, .008), new THREE.MeshStandardMaterial({color: '#3a4630', roughness: 1}), 40);
+    const fringe = new THREE.InstancedMesh(new THREE.BoxGeometry(.008, .1, .008), this.fringeMat = new THREE.MeshStandardMaterial({color: '#3a4630', roughness: 1}), 40);
     const [fx, fy] = path(1);
     for (let i = 0; i < 40; i++) { m4.makeTranslation(fx, fy - .05, .1 - tw / 2 + i * tw / 39); fringe.setMatrixAt(i, m4); }
     g.add(fringe);
     this.chair = g;
     this.chairSeatTop = legH + .62 + .15;
+    this.chairPillow = pillow;
   }
 
   buildSideTable() {
@@ -605,6 +608,7 @@ export class Room {
     }
     const shelf = this.mesh(new THREE.BoxGeometry(.9, .04, .9), M.darkWood, g);
     shelf.position.y = .32;
+    this.sideTable = g; this.sideTableTop = H + .035;
     // Brass lamp with a pleated shade.
     const lampBase = this.mesh(lathe([[0, 0], [.2, 0], [.21, .03], [.14, .07], [.17, .16], [.12, .3], [.05, .36], [.04, .4], [0, .4]], 28), M.brass, g);
     lampBase.position.set(-.1, H + .035, -.1);
@@ -641,6 +645,7 @@ export class Room {
     frame.position.z = .03;
     const art = this.mesh(new THREE.PlaneGeometry(.98, 1.25), M.print, g, {cast: false});
     art.position.z = .075;
+    this.printGroup = g;
   }
 
   buildBookcase() {
@@ -712,6 +717,7 @@ export class Room {
     this.bed = g;
     this.bedTop = .17;
     this.bedRadius = R - .3;
+    this.bedR = R; this.bedDip = dip;
   }
 
   // Ivory ceramic food bowl with an olive band, on an olive linen mat.
@@ -798,9 +804,9 @@ export class Room {
   }
 
   // Leafy sprigs in a vase.
-  sprigs(parent, at, count, height) {
-    const r = rng(61 + count), leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.09, .13), this.materials.leaf, count * 9);
-    const stems = new THREE.MeshStandardMaterial({color: '#5c6a3a', roughness: .8});
+  sprigs(parent, at, count, height, {leaf = this.materials.leaf, stem = '#5c6a3a', size = 1, seed = 61} = {}) {
+    const r = rng(seed + count), leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.09 * size, .13 * size), leaf, count * 9);
+    const stems = new THREE.MeshStandardMaterial({color: stem, roughness: .8});
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
     let n = 0;
     for (let i = 0; i < count; i++) {
@@ -885,7 +891,7 @@ export class Room {
     this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
     this.shadeMat.emissiveIntensity = damp(this.shadeMat.emissiveIntensity, night ? 2.2 : .45, 3, dt);
     this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .32, 3, dt);
-    const sky = night ? this.skyNight : this.skyDay;
+    const sky = night ? this.view.night : this.view.day;
     if (this.glass.material.map !== sky) { this.glass.material.map = sky; this.glass.material.needsUpdate = true; }
     if (this.scene.environment && this.envNight) {
       const env = night ? this.envNight : this.envDay;
@@ -903,6 +909,10 @@ export class Room {
     this.waterGeo.computeVertexNormals();
     const s = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04;
     this.bubble.scale.set(s, 1 / s, s);
+    if (this.candleLight) {
+      this.candleLight.intensity = damp(this.candleLight.intensity, night ? 2.2 : .35, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
+      this.thanksgivingFlame.scale.y = 1 + Math.sin(t * 11) * .12;
+    }
     this.updateBird(t);
     this.updateBook(t);
     return k;

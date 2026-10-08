@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {fresh, advance, care, mood} from './pet-state.js';
+import {DECORS, applyDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
@@ -286,6 +287,7 @@ function mesh(geo, material, parent = scene) {
 // The room: furniture, bowls, fountain and bed (room.js).
 const room = new Room(scene, renderer, {mobile: matchMedia('(pointer: coarse)').matches});
 const {bowl, kibbles, fountain, bed} = room;
+applyDecor(room, pet.decor);
 
 // Toy ball.
 const TOY_HOME = new THREE.Vector3(-1.15, .13, 1.35);
@@ -1287,6 +1289,25 @@ $('.snacks').addEventListener('click', e => {
 });
 $('#rename').onclick = () => { $('#name-input').value = pet.name; $('#name-dialog').showModal(); $('#name-input').select(); };
 $('#close-name').onclick = () => $('#name-dialog').close();
+// Room decor: the furniture stays put, only the look changes (decor.js).
+const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c']};
+function renderDecor() {
+  $('#decor-options').innerHTML = Object.entries(DECORS).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
+}
+$('#decor-btn').onclick = () => { renderDecor(); $('#decor-dialog').showModal(); };
+$('#decor-options').addEventListener('click', e => {
+  const b = e.target.closest('[data-decor]');
+  if (!b) return;
+  const id = b.dataset.decor;
+  $('#decor-dialog').close();
+  if (room.decor === id) return;
+  applyDecor(room, id);
+  pet.decor = id;
+  save();
+  toast(`${DECORS[id].name}`);
+  if (ready && !pet.sleeping) { express('curious', 1.6); glanceAt(new THREE.Vector3(rand(-2, 2), 1.4, -2.5), 2); }
+});
+
 // Backup codes (save.js): copy one out, or bring a kitten in from one.
 $('#open-backup').onclick = () => {
   $('#name-dialog').close();

@@ -47,6 +47,7 @@
     <div class="top-actions">
       <span class="chip build-chip" id="build-chip" hidden></span>
       <span class="chip day-chip"><svg><use href="#i-heart"/></svg><span id="age">Day 1</span></span>
+      <button class="icon-btn" id="decor-btn" aria-label="Room decor" title="Room decor"><svg><use href="#i-sparkle"/></svg></button>
       <div class="sound-wrap">
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
         <div class="sound-panel" id="sound-panel" hidden>
@@ -168,6 +169,14 @@
     <label for="restore-code" class="spaced">Bring a kitten home from a code</label>
     <textarea id="restore-code" rows="3" placeholder="Paste a backup code" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
     <button class="primary" type="submit">Restore from code</button>
+  </form>
+</dialog>
+<dialog id="decor-dialog" aria-labelledby="decor-title">
+  <form method="dialog">
+    <button class="close" aria-label="Close">×</button>
+    <span class="eyebrow">Room decor</span>
+    <h2 id="decor-title">Dress up the room</h2>
+    <div class="snacks decor-options" id="decor-options"></div>
   </form>
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
