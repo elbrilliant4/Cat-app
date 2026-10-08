@@ -374,6 +374,7 @@ export class Room {
     });
     this.bookFall = null;
     this.buildBird(g, W, bottom, h);
+    this.buildNightBat(g);
     // Linen curtains on a brass rod.
     const rod = this.mesh(new THREE.CylinderGeometry(.03, .03, W + 1.8, 12), M.brass, g);
     rod.rotation.z = Math.PI / 2; rod.position.set(0, top + .45, .22);
@@ -431,6 +432,54 @@ export class Room {
     this.bird = bird;
     this.birdRun = null;
     this.birdBox = {x0: -W / 2 - .3, x1: W / 2 + .3, low: bottom + .32, high: bottom + h * .7, mid: bottom + h / 2 + .06, z: .025};
+  }
+
+  // A bat that flits past the window on Halloween evenings: a dark
+  // silhouette with fast-flapping scalloped wings and a jinking flight.
+  buildNightBat(g) {
+    const dark = new THREE.MeshBasicMaterial({color: '#141018', side: THREE.DoubleSide});
+    const bat = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 8), dark);
+    body.scale.set(.8, 1, .4); bat.add(body);
+    for (const sx of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(.015, .04, 6), dark);
+      ear.position.set(sx * .02, .055, 0); bat.add(ear);
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0); shape.quadraticCurveTo(.08, .09, .2, .07);
+      for (let i = 0; i < 3; i++) { const x = .2 - i * .066; shape.quadraticCurveTo(x - .02, .015, x - .066, i === 2 ? -.03 : .02); }
+      shape.closePath();
+      const piv = new THREE.Group(); piv.position.x = sx * .025; bat.add(piv);
+      const wing = new THREE.Mesh(new THREE.ShapeGeometry(shape, 6), dark);
+      wing.scale.x = sx; piv.add(wing);
+      (this.batWings ||= []).push(piv);
+    }
+    bat.visible = false;
+    g.add(bat);
+    this.nightBat = bat;
+    this.batRun = null;
+  }
+  startBat(t) {
+    if (this.batRun || !this.nightBat) return 0;
+    const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
+    this.batRun = {dir, start: t, dur: 3.2, y0: B.low + .4 + Math.random() * (B.high - B.low - .6), seed: Math.random() * 10};
+    this.nightBat.visible = true;
+    return this.batRun.dur;
+  }
+  batWorld(v) { return this.batRun ? this.nightBat.getWorldPosition(v) : null; }
+  updateBat(t) {
+    const r = this.batRun;
+    if (!r) return;
+    const k = (t - r.start) / r.dur, B = this.birdBox, b = this.nightBat;
+    if (k >= 1) { this.batRun = null; b.visible = false; return; }
+    const from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0;
+    // Jinking: quick sideways and up-down zigzags along the way.
+    const x = from + (to - from) * k + Math.sin(k * 19 + r.seed) * .08;
+    const y = r.y0 + Math.sin(k * 13 + r.seed) * .14 + Math.sin(k * 31) * .04;
+    b.position.set(x, y, B.z + .01);
+    b.rotation.z = Math.sin(k * 19 + r.seed) * .35;
+    b.scale.setScalar(1.3);
+    const a = Math.sin(t * 46) * 1.0;
+    this.batWings[0].rotation.y = a; this.batWings[1].rotation.y = -a;
   }
 
   // Start a bird visit: 'flyby' crosses the window; 'perch' lands low in the
@@ -921,6 +970,7 @@ export class Room {
       for (const m of this.pumpkinHalos || []) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
     }
     this.updateBird(t);
+    this.updateBat(t);
     this.updateBook(t);
     return k;
   }

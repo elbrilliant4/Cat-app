@@ -834,7 +834,19 @@ function knockBook() {
 // Birds at the window, in daytime. Up on the sill she gets them often; from
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
-  if (pet.sleeping || !ready) { brain.watching = false; host.classList.remove('bird'); return; }
+  if (pet.sleeping || !ready) {
+    brain.watching = false;
+    // Halloween evenings: now and then a bat flits past the window; she
+    // stirs, an ear flicks, and sleeps on.
+    if (ready && room.decor === 'halloween' && pet.sleeping) {
+      if (!room.batRun && t > (brain.nextBat ??= t + rand(6, 12))) {
+        brain.nextBat = t + room.startBat(t) + rand(18, 40);
+        setTimeout(() => twitchEar(undefined, .8), 900);
+      }
+    } else brain.nextBat = undefined;
+    host.classList.toggle('bird', !!room.batRun);
+    return;
+  }
   const onSill = brain.perch === 'sill' && !brain.jump;
   if (!room.birdRun && t > brain.nextBird && brain.mode === 'idle') {
     if (onSill || (Math.random() < .25 && ['sit', 'loaf'].includes(brain.activity) && !brain.perch)) {

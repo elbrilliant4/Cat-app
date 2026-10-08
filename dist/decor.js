@@ -553,10 +553,12 @@ function buildHalloween(room) {
     for (let i = 0; i < 3; i++) { const x = .13 - i * .045; wing.quadraticCurveTo(x - .015, .015, x - .045, i === 2 ? -.02 : .02); }
     wing.lineTo(0, -.03); wing.closePath();
     const wm = room.mesh(new THREE.ShapeGeometry(wing, 6), felt, bat);
-    wm.position.set(sx * .055, .085, -.01); wm.scale.x = sx; wm.rotation.y = sx * .35;
+    // Big felt wings, so it reads as a bat from across the room.
+    wm.position.set(sx * .055, .09, -.012); wm.scale.set(sx * 1.7, 1.7, 1);
     const eye = room.mesh(new THREE.SphereGeometry(.009, 8, 6), new THREE.MeshStandardMaterial({color: '#0d0b0a', roughness: .2}), bat);
     eye.position.set(sx * .024, .088, .066);
   }
+  bat.scale.setScalar(1.15);
   bat.visible = false;
   room.feltBat = bat;
   return made;
