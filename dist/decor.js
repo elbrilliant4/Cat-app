@@ -16,6 +16,7 @@ import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe} from './roo
 export const DECORS = {
   classic: {name: 'Classic study', note: 'Plaid, leather and greenery'},
   thanksgiving: {name: 'Thanksgiving in the Hamptons', note: 'Oatmeal, sage and candlelight'},
+  halloween: {name: 'Halloween in the Hamptons', note: 'Jack-o’-lanterns, paper bats and a felt bat'},
 };
 
 export function applyDecor(room, name) {
@@ -29,7 +30,7 @@ export function applyDecor(room, name) {
   };
   const O = room.decorOriginal;
   for (const g of Object.values(room.decorProps || {})) g.forEach(o => o.visible = false);
-  room.candleLight = null;
+  room.candleLight = null; room.pumpkinGlow = null; room.altToy = null;
   if (name === 'classic') {
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
     M.plaidBed.map = O.bedMap; M.sherpa.map = O.sherpaMap; M.plaidThrow.map = O.throwMap; room.fringeMat.color.copy(O.fringe);
@@ -38,19 +39,30 @@ export function applyDecor(room, name) {
     room.view = {...O.view};
     room.sillSprigs.visible = true;
   } else {
+    // Thanksgiving and Halloween share the autumn room: oatmeal rug, flax
+    // bed, knit throw, the sill runner, oak branches and the brass lantern.
     const T = room.decorTextures ??= thanksgivingTextures();
+    const halloween = name === 'halloween';
     M.rug.map = T.rug; M.rug.color.set('#cfc3ab'); room.rugEdge.color.set('#b9a27b');
     M.plaidBed.map = T.flax; M.sherpa.map = T.fluff; M.plaidThrow.map = T.knit; room.fringeMat.color.set('#e4d8c1');
-    M.pillow.map = T.cushion;
     M.rug.normalMap = T.rugWeave; M.rug.normalScale.set(1, 1);
     M.plaidBed.normalMap = T.linenWeave; M.plaidBed.normalScale.set(1, 1);
     M.plaidThrow.normalMap = T.knitRelief; M.plaidThrow.normalScale.set(1.4, 1.4);
-    room.view = {day: T.viewDay, night: T.viewNight};
+    if (halloween) {
+      T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
+      T.ghost.offset.set(.5, .5);
+      T.viewDusk ??= canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, 'dusk'));
+    }
+    M.pillow.map = halloween ? T.ghost : T.cushion;
+    room.view = {day: T.viewDay, night: halloween ? T.viewDusk : T.viewNight};
     room.sillSprigs.visible = false;
     room.decorProps ??= {};
-    room.decorProps.thanksgiving ??= buildThanksgiving(room, T);
-    room.decorProps.thanksgiving.forEach(o => o.visible = true);
+    if (!room.decorProps.shared) Object.assign(room.decorProps, buildAutumn(room, T));
+    if (halloween) room.decorProps.halloween ??= buildHalloween(room);
+    // Show just this decor's pieces (newly built ones start out visible).
+    for (const [part, objs] of Object.entries(room.decorProps)) objs.forEach(o => o.visible = part === 'shared' || part === name);
     room.candleLight = room.thanksgivingCandle;
+    if (halloween) { room.pumpkinGlow = room.halloweenGlow; room.altToy = room.feltBat; }
   }
   for (const m of [M.rug, M.plaidBed, M.sherpa, M.plaidThrow, M.pillow]) m.needsUpdate = true;
   room.glass.material.needsUpdate = true;
@@ -206,9 +218,11 @@ function drawRunner(g, w, h) {
 // The view: grey-blue sky, the sea, and golden dune grass with a few
 // russet shrubs. At night, a deep blue dusk with a sliver of moonlight.
 function drawHamptons(g, w, h, night) {
-  const r = rng(night ? 51 : 53);
+  const r = rng(night ? 51 : 53), dusk = night === 'dusk';
   const sky = g.createLinearGradient(0, 0, 0, h * .45);
-  if (night) { sky.addColorStop(0, '#121a30'); sky.addColorStop(1, '#2b3654'); }
+  // Halloween's evening: blue dusk with a last pink glow and the moon up.
+  if (dusk) { sky.addColorStop(0, '#2c3c5e'); sky.addColorStop(.55, '#455d7a'); sky.addColorStop(.85, '#8e7491'); sky.addColorStop(1, '#d69c86'); }
+  else if (night) { sky.addColorStop(0, '#121a30'); sky.addColorStop(1, '#2b3654'); }
   else { sky.addColorStop(0, '#b9c2c7'); sky.addColorStop(1, '#e6e2d8'); }
   g.fillStyle = sky; g.fillRect(0, 0, w, h * .46);
   g.filter = 'blur(8px)';
@@ -217,6 +231,11 @@ function drawHamptons(g, w, h, night) {
     g.beginPath(); g.ellipse(r() * w, r() * h * .32, 30 + r() * 50, 8 + r() * 14, 0, 0, 7); g.fill();
   }
   g.filter = 'none';
+  if (dusk) {
+    const moon = g.createRadialGradient(w * .78, h * .1, 0, w * .78, h * .1, 22);
+    moon.addColorStop(0, 'rgba(255,248,226,1)'); moon.addColorStop(.3, 'rgba(255,244,215,.95)'); moon.addColorStop(.36, 'rgba(255,240,210,.25)'); moon.addColorStop(1, 'rgba(255,240,210,0)');
+    g.fillStyle = moon; g.fillRect(0, 0, w, h * .3);
+  }
   // Sea.
   const sea = g.createLinearGradient(0, h * .44, 0, h * .53);
   if (night) { sea.addColorStop(0, '#1b2840'); sea.addColorStop(1, '#141d2e'); }
@@ -268,14 +287,71 @@ function drawOakLeaf(g, w, h) {
   g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -h * .88); g.stroke();
 }
 
+// Ghost cushion: flax linen with a little ivory felt ghost appliqué.
+// (Drawn round the centre; the cushion's texture offset puts it mid-front.)
+function drawGhostCushion(g, w, h) {
+  drawLinen(g, w, h, {base: '#cbb998', dark: .1, seed: 33});
+  g.save(); g.translate(w / 2, h / 2 + 6);
+  g.beginPath();
+  g.moveTo(-34, 40); g.lineTo(-34, -6); g.bezierCurveTo(-34, -50, 34, -50, 34, -6); g.lineTo(34, 40);
+  for (let i = 0; i < 4; i++) { const x = 34 - i * 17; g.quadraticCurveTo(x - 8.5, 52, x - 17, 40); }
+  g.closePath();
+  g.fillStyle = '#efe5d2'; g.fill();
+  g.setLineDash([3, 3]); g.strokeStyle = 'rgba(150,130,100,.7)'; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#38332f';
+  for (const x of [-11, 11]) { g.beginPath(); g.ellipse(x, -8, 3.5, 5, 0, 0, Math.PI * 2); g.fill(); }
+  g.restore();
+}
+
+// A paper bat silhouette (charcoal), on a transparent background.
+function drawPaperBat(g, w, h) {
+  g.clearRect(0, 0, w, h);
+  g.translate(w / 2, h / 2);
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.moveTo(0, -h * .12);
+  g.quadraticCurveTo(w * .18, -h * .42, w * .48, -h * .3);
+  for (let i = 0; i < 3; i++) { const x = w * (.48 - i * .14); g.quadraticCurveTo(x - w * .05, h * (.02 + i * .02), x - w * .14, h * (.06 + (i === 2 ? .1 : 0))); }
+  g.quadraticCurveTo(w * .03, h * .3, 0, h * .32);
+  g.quadraticCurveTo(-w * .03, h * .3, -w * .06, h * .16);
+  for (let i = 0; i < 3; i++) { const x = -w * (.06 + i * .14); g.quadraticCurveTo(x - w * .09, h * (.02 + i * .02), x - w * .14, h * (i === 2 ? -.3 : .02)); }
+  g.quadraticCurveTo(-w * .18, -h * .42, 0, -h * .12);
+  g.fill();
+  // Ears.
+  g.beginPath(); g.moveTo(-w * .04, -h * .1); g.lineTo(-w * .02, -h * .3); g.lineTo(0, -h * .12); g.lineTo(w * .02, -h * .3); g.lineTo(w * .04, -h * .1); g.fill();
+}
+
+// A jack-o'-lantern's skin (colour) and its glowing carved face (emissive).
+// The face sits at u = .25, which on a sphere faces +z (into the room).
+function drawJack(g, w, h, {base, sleepy, glow}) {
+  g.fillStyle = glow ? '#000' : base; g.fillRect(0, 0, w, h);
+  if (!glow) { const r = rng(sleepy ? 57 : 59); for (let i = 0; i < 900; i++) { g.fillStyle = r() < .5 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)'; g.fillRect(r() * w, r() * h, 2, 2); } }
+  const cx = w * .25, cy = h * .47, ink = glow ? '#ffffff' : '#4a2a12';
+  g.fillStyle = ink; g.strokeStyle = ink; g.lineCap = 'round';
+  if (sleepy) {
+    g.lineWidth = 3.5;
+    for (const dx of [-13, 13]) { g.beginPath(); g.arc(cx + dx, cy - 9, 7, .15 * Math.PI, .85 * Math.PI); g.stroke(); }
+    g.beginPath(); g.moveTo(cx, cy - 1); g.lineTo(cx - 3.5, cy + 5); g.lineTo(cx + 3.5, cy + 5); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(cx - 13, cy + 11); g.quadraticCurveTo(cx, cy + 22, cx + 13, cy + 11); g.quadraticCurveTo(cx, cy + 17, cx - 13, cy + 11); g.fill();
+  } else {
+    for (const dx of [-14, 14]) { g.beginPath(); g.ellipse(cx + dx, cy - 9, 6, 7, 0, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.moveTo(cx, cy - 3); g.lineTo(cx - 5, cy + 5); g.lineTo(cx + 5, cy + 5); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(cx - 22, cy + 9); g.quadraticCurveTo(cx, cy + 30, cx + 22, cy + 9); g.quadraticCurveTo(cx, cy + 20, cx - 22, cy + 9); g.fill();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
-function buildThanksgiving(room, T) {
-  const M = room.materials, made = [];
+// Autumn pieces: "shared" by Thanksgiving and Halloween (sill runner, oak
+// branches in the pitcher, brass lantern, bed piping) and Thanksgiving's own.
+function buildAutumn(room, T) {
+  const M = room.materials, out = {shared: [], thanksgiving: []};
+  let made = out.shared;
   const add = (obj, parent) => { parent.add(obj); made.push(obj); return obj; };
   const mesh = (geo, mat, parent, opts) => { const m = room.mesh(geo, mat, parent, opts); made.push(m); return m; };
   const r = rng(71);
+  const stemMat = new THREE.MeshStandardMaterial({color: '#6b4a2a', roughness: .8});
   const oakMat = new THREE.MeshStandardMaterial({map: T.oak, alphaTest: .45, side: THREE.DoubleSide, roughness: .75});
   const stoneware = new THREE.MeshStandardMaterial({color: '#ece3d0', roughness: .75});
 
@@ -287,24 +363,16 @@ function buildThanksgiving(room, T) {
   runner.position.set(0, top + .004, D * .58);
   const drape = mesh(new THREE.PlaneGeometry(2.3, .3), runnerMat, w, {cast: false});
   drape.position.set(0, top - .14, D + .012);
+  room.sprigs(add(new THREE.Group(), w), new THREE.Vector3(-.75, top + .4, .22), 8, .95, {leaf: oakMat, stem: '#6a4a2c', size: 1.55, seed: 91});
+  made = out.thanksgiving;
   const pumpkin = (x, z, rad, height, color) => {
-    const geo = new THREE.SphereGeometry(rad, 40, 24), p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), a = Math.atan2(vz, vx);
-      const rib = 1 - .08 * Math.pow(Math.abs(Math.sin(a * 4)), .6) * (1 - Math.abs(vy / rad));
-      const squash = vy > 0 ? 1 - .25 * Math.pow(Math.max(0, 1 - Math.hypot(vx, vz) / rad), 2) : 1;
-      p.setXYZ(i, vx * rib, vy * (height / rad) * squash, vz * rib);
-    }
-    geo.computeVertexNormals();
-    const body = mesh(geo, new THREE.MeshStandardMaterial({color, roughness: .62}), w);
+    const body = mesh(pumpkinGeometry(rad, height), new THREE.MeshStandardMaterial({color, roughness: .62}), w);
     body.position.set(x, top + height, z);
-    const stem = mesh(new THREE.CylinderGeometry(rad * .07, rad * .1, rad * .5, 8), new THREE.MeshStandardMaterial({color: '#6b4a2a', roughness: .8}), w);
-    stem.position.set(x + rad * .05, top + height * 2 + rad * .15, z); stem.rotation.z = -.25;
+    mesh(pumpkinStem(rad), stemMat, w).position.set(x + rad * .05, top + height * 2 + rad * .15, z);
   };
   pumpkin(-1.13, .34, .17, .14, '#efe6d2');
   pumpkin(-.93, .64, .11, .085, '#e0995e');
   pumpkin(-.58, .62, .08, .065, '#efe6d2');
-  room.sprigs(add(new THREE.Group(), w), new THREE.Vector3(-.75, top + .4, .22), 8, .95, {leaf: oakMat, stem: '#6a4a2c', size: 1.55, seed: 91});
   const bowl = mesh(lathe([[0, 0], [.1, 0], [.15, .04], [.17, .1], [.165, .105], [.14, .055], [0, .045]], 32), stoneware, w);
   bowl.position.set(1.12, top + .005, .24);
   const pearMat = new THREE.MeshStandardMaterial({color: '#c0ae48', roughness: .55});
@@ -336,6 +404,7 @@ function buildThanksgiving(room, T) {
 
   // --- Brass lantern with a candle on the side table; a sage gourd on the
   // shelf below.
+  made = out.shared;
   const st = room.sideTable, H = room.sideTableTop;
   const lantern = add(new THREE.Group(), st);
   lantern.position.set(.3, H, .2);
@@ -361,6 +430,7 @@ function buildThanksgiving(room, T) {
   add(halo, lantern);
   room.thanksgivingCandle = halo;
   room.thanksgivingFlame = flame;
+  made = out.thanksgiving;
   const gourd = mesh(lathe([[0, 0], [.06, .005], [.11, .05], [.12, .1], [.09, .17], [.05, .22], [.045, .28], [.035, .32], [0, .33]], 28), new THREE.MeshStandardMaterial({map: T.gourd, roughness: .5}), st);
   gourd.position.set(.15, .34, .05); gourd.rotation.z = .08;
   mesh(new THREE.CylinderGeometry(.008, .012, .07, 6), new THREE.MeshStandardMaterial({color: '#5a3e22'}), st).position.set(.15, .7, .05);
@@ -383,6 +453,7 @@ function buildThanksgiving(room, T) {
 
   // --- Olive piping round the bed's rim (following its lower front) and
   // its base.
+  made = out.shared;
   const R = room.bedR, olive = new THREE.MeshStandardMaterial({color: '#6c7444', roughness: .8}), rim = [];
   for (let i = 0; i < 64; i++) {
     const a = i / 64 * Math.PI * 2, rr = R - .1, x = rr * Math.sin(a), z = rr * Math.cos(a);
@@ -394,9 +465,77 @@ function buildThanksgiving(room, T) {
   foot.rotation.x = Math.PI / 2; foot.position.y = .025;
 
   // --- One oak leaf blown onto the rug.
+  made = out.thanksgiving;
   const leaf = mesh(new THREE.PlaneGeometry(.2, .2), oakMat, room.group, {cast: false});
   leaf.rotation.set(-Math.PI / 2, 0, .9);
   leaf.position.set(.95, .041, 1.15);
   room.rugLeaf = leaf;
+  return out;
+}
+
+function pumpkinGeometry(rad, height) {
+  const geo = new THREE.SphereGeometry(rad, 40, 24), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), a = Math.atan2(vz, vx);
+    const rib = 1 - .08 * Math.pow(Math.abs(Math.sin(a * 4)), .6) * (1 - Math.abs(vy / rad));
+    const squash = vy > 0 ? 1 - .25 * Math.pow(Math.max(0, 1 - Math.hypot(vx, vz) / rad), 2) : 1;
+    p.setXYZ(i, vx * rib, vy * (height / rad) * squash, vz * rib);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+const pumpkinStem = rad => { const g = new THREE.CylinderGeometry(rad * .07, rad * .1, rad * .5, 8); g.rotateZ(-.25); return g; };
+
+// Halloween's own pieces: two glowing jack-o'-lanterns on the left of the
+// sill, three paper bats on the window and the felt bat toy (it stands in
+// for the ball; app.js moves it). The ghost cushion is the chair cushion's
+// texture.
+function buildHalloween(room) {
+  const made = [], w = room.windowGroup, top = room.sillTop;
+  const mesh = (geo, mat, parent, opts) => { const m = room.mesh(geo, mat, parent, opts); made.push(m); return m; };
+  const stemMat = new THREE.MeshStandardMaterial({color: '#5d4a28', roughness: .8});
+  room.halloweenGlow = [];
+  const jack = (x, z, rad, height, base, sleepy, turn) => {
+    const opts = {base, sleepy};
+    const mat = new THREE.MeshStandardMaterial({
+      map: canvasTexture(256, 128, (g, cw, ch) => drawJack(g, cw, ch, opts)),
+      emissiveMap: canvasTexture(256, 128, (g, cw, ch) => drawJack(g, cw, ch, {...opts, glow: true})),
+      emissive: '#ffad4a', emissiveIntensity: .6, roughness: .7,
+    });
+    const body = mesh(pumpkinGeometry(rad, height), mat, w);
+    body.position.set(x, top + height, z); body.rotation.y = turn;
+    mesh(pumpkinStem(rad), stemMat, w).position.set(x + rad * .05, top + height * 2 + rad * .15, z);
+    room.halloweenGlow.push(mat);
+  };
+  jack(-1.17, .4, .25, .2, '#d98b45', false, -.15);
+  jack(-.78, .64, .18, .14, '#efe5d2', true, .1);
+  // Paper bats taped to the glass, upper right.
+  const batMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 64, drawPaperBat), color: '#38332f', alphaTest: .5, side: THREE.DoubleSide, roughness: 1});
+  const glassBottom = top - .02, h = 2.88;
+  for (const [x, y, size, rot] of [[.36, .5, .45, .12], [.74, .44, .36, -.18], [.52, .35, .3, .05]]) {
+    const b = mesh(new THREE.PlaneGeometry(size, size / 2), batMat, w, {cast: false, receive: false});
+    b.position.set(x, glassBottom + h * y, .035); b.rotation.z = rot;
+  }
+  // The felt bat toy: a round charcoal felt body, little ears and scalloped
+  // wings, about 14 cm across.
+  const felt = new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (g, cw, ch) => drawNoise(g, cw, ch, {base: '#46403a', blobs: [['rgba(255,255,255,.06)', 900, 1, 2.5], ['rgba(0,0,0,.12)', 900, 1, 2.5]], seed: 61})), roughness: 1, side: THREE.DoubleSide});
+  const bat = new THREE.Group();
+  room.group.add(bat); made.push(bat);
+  const body = room.mesh(new THREE.SphereGeometry(.075, 20, 14), felt, bat);
+  body.position.y = .075; body.scale.set(1, .95, .9);
+  for (const sx of [-1, 1]) {
+    const ear = room.mesh(new THREE.ConeGeometry(.022, .05, 8), felt, bat);
+    ear.position.set(sx * .035, .145, 0); ear.rotation.z = -sx * .25;
+    const wing = new THREE.Shape();
+    wing.moveTo(0, 0); wing.quadraticCurveTo(.06, .07, .13, .06);
+    for (let i = 0; i < 3; i++) { const x = .13 - i * .045; wing.quadraticCurveTo(x - .015, .015, x - .045, i === 2 ? -.02 : .02); }
+    wing.lineTo(0, -.03); wing.closePath();
+    const wm = room.mesh(new THREE.ShapeGeometry(wing, 6), felt, bat);
+    wm.position.set(sx * .055, .085, -.01); wm.scale.x = sx; wm.rotation.y = sx * .35;
+    const eye = room.mesh(new THREE.SphereGeometry(.009, 8, 6), new THREE.MeshStandardMaterial({color: '#0d0b0a', roughness: .2}), bat);
+    eye.position.set(sx * .024, .088, .066);
+  }
+  bat.visible = false;
+  room.feltBat = bat;
   return made;
 }

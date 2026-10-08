@@ -552,6 +552,7 @@ function updateCat(dt, t) {
   if (a === 'eat') desiredHeading = angleTo(brain.pos, bowl.position);
   if (a === 'drink') desiredHeading = angleTo(brain.pos, fountain.position);
   if ((brain.mode === 'play' || brain.mode === 'solo') && !pc && !J && !['walk', 'prejump', 'land'].includes(a)) desiredHeading = angleTo(brain.pos, toy.position);
+  if (a === 'stalk' || a === 'pause') desiredHeading = angleTo(brain.pos, toy.position);
   if (a === 'swat' && brain.swatAt) desiredHeading = angleTo(brain.pos, brain.swatAt);
   // On a perch she keeps to the way it faces (it's narrow up there).
   if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
@@ -680,6 +681,8 @@ function updateCat(dt, t) {
   if (a === 'prejump') { pose = 'crouch'; poseRate = 9; const w = (t - brain.actStart) / Math.max(.3, brain.actUntil - brain.actStart); wiggle = w > .45 ? .5 : 0; tail = {amp: .5, speed: 4}; }
   if (a === 'jump') { const k = J ? (t - J.start) / J.dur : 1; pose = k < .7 ? 'leap' : 'crouch'; poseRate = 14; tail = {amp: .1, speed: 1}; }
   if (a === 'land') { pose = 'crouch'; poseRate = 10; }
+  if (a === 'stalk') { pose = 'crouch'; poseRate = 7; wiggle = (t - brain.actStart) > .8 ? .45 : 0; tail = {amp: .5, speed: 5}; }
+  if (a === 'pause') { pose = 'crouch'; tail = {amp: .3, speed: 3}; }
   let swat = 0;
   if (a === 'swat') { const q = (t - brain.actStart) / .45; swat = Math.max(0, Math.sin(Math.min(q, 1) * Math.PI)) * motion; tail = {amp: .5, speed: 4}; }
   // A bird at the window: quick tail flicks.
@@ -1049,6 +1052,17 @@ function updatePlay(dt, t) {
   toyLast.copy(toy.position);
   toy.rotation.x += toyVel.z * dt / .12;
   toy.rotation.z -= toyVel.x * dt / .12;
+  // A decor can swap the ball for its own toy (Halloween's felt bat): it
+  // slides and wobbles where the ball would roll.
+  const alt = room.altToy;
+  toy.visible = !alt;
+  if (alt) {
+    const speed = toyVel.length();
+    alt.position.set(toy.position.x, 0, toy.position.z);
+    if (speed > .15) alt.rotation.y = dampAngle(alt.rotation.y, Math.atan2(toyVel.x, toyVel.z) + Math.PI, 8, dt);
+    alt.rotation.z = Math.sin(t * 18) * Math.min(.35, speed * .25);
+    alt.rotation.x = -Math.min(.4, speed * .2);
+  }
   if (!playing && !solo) return;
   if (playing) {
     const remaining = brain.playEnd - t;
@@ -1065,7 +1079,8 @@ function updatePlay(dt, t) {
   // A swat lands: the ball rolls off away from her paw.
   if (brain.swatHit && t > brain.swatHit) {
     brain.swatHit = 0;
-    const a = brain.heading + rand(-.6, .6), d = rand(.7, 1.4);
+    const a = brain.heading + rand(-.6, .6), d = brain.swatSoft ? rand(.2, .35) : rand(.7, 1.4);
+    brain.swatSoft = false;
     toyTarget.copy(onRug(new THREE.Vector3(toy.position.x + Math.sin(a) * d, .13, toy.position.z + Math.cos(a) * d))).setY(.13);
     brain.stillSince = t + .8;
   }
@@ -1079,6 +1094,26 @@ function updatePlay(dt, t) {
     }
     if (brain.activity === 'walk') setActivity('play');
     if (brain.activity !== 'play' || t < brain.pounceReadyAt || t - brain.stillSince < .5) return;
+    if (room.altToy && !brain.stalked) {
+      // The felt bat: she stalks it (low, tail twitching, a little wiggle),
+      // taps it, pauses to watch, then pounces.
+      brain.stalked = true;
+      express('curious', 1.2);
+      setActivity('stalk', 1.4, () => {
+        brain.swatAt = toy.position.clone();
+        setActivity('swat', .45, () => setActivity('pause', .9, () => {
+          if (brain.mode !== 'solo') return;
+          const ddx = toy.position.x - brain.pos.x, ddz = toy.position.z - brain.pos.z, dd = Math.max(.01, Math.hypot(ddx, ddz));
+          brain.pounce = {start: clockNow, from: brain.pos.clone(), to: onRug(new THREE.Vector3(toy.position.x - ddx / dd * .5, 0, toy.position.z - ddz / dd * .5)), caught: false};
+          express('excited', 1.4);
+          setActivity('play');
+        }));
+        brain.swatHit = clockNow + .22; brain.swatSoft = true;
+      });
+      brain.pounceReadyAt = t + 6;
+      return;
+    }
+    brain.stalked = false;
     if (Math.random() < .7) {
       brain.swatAt = toy.position.clone();
       setActivity('swat', .45, () => setActivity('play'));
@@ -1321,7 +1356,7 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('watch')) setWatch(false); });
 
 // Room decor: the furniture stays put, only the look changes (decor.js).
-const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c']};
+const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2']};
 function renderDecor() {
   $('#decor-options').innerHTML = Object.entries(DECORS).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
 }
