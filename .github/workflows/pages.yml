@@ -72,7 +72,7 @@ jobs:
   review:
     needs: site
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -93,7 +93,7 @@ jobs:
           fetch-depth: 0
       - name: Render the preview's review pack
         continue-on-error: true
-        timeout-minutes: 45
+        timeout-minutes: 55
         run: |
           # Build numbers first, so the pack is labelled with this build.
           printf '{"build": %s, "commit": "%s", "channel": "preview", "date": "%s"}\n' \
