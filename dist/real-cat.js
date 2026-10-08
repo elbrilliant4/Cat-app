@@ -34,17 +34,19 @@ export const EXPRESSIONS = {
 
 // Joint angles (radians) on top of the straightened rest pose. x-rotation:
 // negative pitch lifts the front; negative leg angles swing a leg forward.
+// curl bends the spine sideways (a sleeping cat's C), shared out from hips
+// to neck.
 // The body is set on the ground automatically from its lowest contact point.
 export const POSES = {
-  stand:   {pitch: 0,     roll: 0,   spine: 0,    chest: 0,    neck: 0,    shF: 0,    elF: 0,    wrF: 0,    shB: 0,    knB: 0,    hkB: 0,    tailLift: -.55, tailCurl: .22, tailSide: 0,   hYaw: 0,   hPitch: 0,   hRoll: 0},
-  sit:     {pitch: -.58,  roll: 0,   spine: -.08, chest: -.04, neck: .32,  shF: .7,   elF: .05,  wrF: .05,  shB: -.95, knB: 2.15, hkB: -1.25, tailLift: -1.2, tailCurl: .05, tailSide: .9, hYaw: 0,   hPitch: 0,   hRoll: 0},
-  loaf:    {pitch: .04,   roll: 0,   spine: 0,    chest: .04,  neck: -.05, shF: .95,  elF: -2.25, wrF: 1.2, shB: -.85, knB: 2.3,  hkB: -1.5, tailLift: -1.1, tailCurl: .02, tailSide: .8,  hYaw: 0,   hPitch: 0,   hRoll: 0},
-  sleep:   {pitch: .06,   roll: 0,   spine: .08,  chest: .08,  neck: .25,  shF: .95,  elF: -2.25, wrF: 1.2, shB: -.85, knB: 2.3,  hkB: -1.5, tailLift: -1.2, tailCurl: .02, tailSide: 1.3, hYaw: .55, hPitch: -.35, hRoll: .35},
-  crouch:  {pitch: .1,    roll: 0,   spine: .05,  chest: .05,  neck: -.2,  shF: -.45, elF: 1.0,  wrF: -.55, shB: -.55, knB: 1.25, hkB: -.75, tailLift: -.75, tailCurl: .05, tailSide: 0,   hYaw: 0,   hPitch: 0,   hRoll: 0},
-  leap:    {pitch: -.18,  roll: 0,   spine: -.05, chest: 0,    neck: .1,   shF: -1.05, elF: .3,  wrF: -.2,  shB: .75,  knB: .1,   hkB: .2,   tailLift: -.2,  tailCurl: -.05, tailSide: 0,  hYaw: 0,   hPitch: 0,   hRoll: 0},
-  stretch: {pitch: .3,    roll: 0,   spine: .12,  chest: .12,  neck: -.55, shF: -1.35, elF: .15, wrF: .1,   shB: -.15, knB: .25,  hkB: -.1,  tailLift: .35,  tailCurl: .15, tailSide: 0,   hYaw: 0,   hPitch: 0,   hRoll: 0},
-  belly:   {pitch: 0,     roll: 1.55, spine: .05, chest: 0,    neck: -.15, shF: -.55, elF: 1.3,  wrF: -.4,  shB: -.5,  knB: 1.1,  hkB: -.5,  tailLift: -.5,  tailCurl: .1,  tailSide: .4,  hYaw: .2,  hPitch: .1,  hRoll: -1.0},
-  beg:     {pitch: -1.05, roll: 0,   spine: -.15, chest: -.1,  neck: .75,  shF: .2,   elF: 1.5,  wrF: .6,   shB: -.95, knB: 2.15, hkB: -1.25, tailLift: -1.2, tailCurl: .05, tailSide: .9, hYaw: 0,   hPitch: 0,   hRoll: 0},
+  stand:   {pitch: 0,     roll: 0,   spine: 0,    chest: 0,    neck: 0,    shF: 0,    elF: 0,    wrF: 0,    shB: 0,    knB: 0,    hkB: 0,    tailLift: -.55, tailCurl: .22, tailSide: 0,   hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  sit:     {pitch: -.58,  roll: 0,   spine: -.08, chest: -.04, neck: .32,  shF: .7,   elF: .05,  wrF: .05,  shB: -.95, knB: 2.15, hkB: -1.25, tailLift: -1.2, tailCurl: .05, tailSide: .9, hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  loaf:    {pitch: .04,   roll: 0,   spine: 0,    chest: .04,  neck: -.05, shF: .95,  elF: -2.25, wrF: 1.2, shB: -.85, knB: 2.3,  hkB: -1.5, tailLift: -1.1, tailCurl: .02, tailSide: .8,  hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  sleep:   {pitch: .06,   roll: 0,   spine: .08,  chest: .08,  neck: .25,  shF: .95,  elF: -2.25, wrF: 1.2, shB: -.85, knB: 2.3,  hkB: -1.5, tailLift: -.85, tailCurl: .12, tailSide: 4.8, hYaw: 1.0, hPitch: -.9, curl: .9, hRoll: .5},
+  crouch:  {pitch: .1,    roll: 0,   spine: .05,  chest: .05,  neck: -.2,  shF: -.45, elF: 1.0,  wrF: -.55, shB: -.55, knB: 1.25, hkB: -.75, tailLift: -.75, tailCurl: .05, tailSide: 0,   hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  leap:    {pitch: -.18,  roll: 0,   spine: -.05, chest: 0,    neck: .1,   shF: -1.05, elF: .3,  wrF: -.2,  shB: .75,  knB: .1,   hkB: .2,   tailLift: -.2,  tailCurl: -.05, tailSide: 0,  hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  stretch: {pitch: .3,    roll: 0,   spine: .12,  chest: .12,  neck: -.55, shF: -1.35, elF: .15, wrF: .1,   shB: -.15, knB: .25,  hkB: -.1,  tailLift: .35,  tailCurl: .15, tailSide: 0,   hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
+  belly:   {pitch: 0,     roll: 1.55, spine: .05, chest: 0,    neck: -.15, shF: -.55, elF: 1.3,  wrF: -.4,  shB: -.5,  knB: 1.1,  hkB: -.5,  tailLift: -.5,  tailCurl: .1,  tailSide: .4,  hYaw: .2,  hPitch: .1,  curl: 0, hRoll: -1.0},
+  beg:     {pitch: -1.05, roll: 0,   spine: -.15, chest: -.1,  neck: .75,  shF: .2,   elF: 1.5,  wrF: .6,   shB: -.95, knB: 2.15, hkB: -1.25, tailLift: -1.2, tailCurl: .05, tailSide: .9, hYaw: 0,   hPitch: 0,   curl: 0, hRoll: 0},
 };
 const POSE_KEYS = Object.keys(POSES.stand);
 
@@ -623,10 +625,10 @@ export class RealCat {
     // while it pushes back.
     const lift = side => Math.max(0, -Math.cos(ph + side)) * Math.min(1, walk);
 
-    rot('hips', P.pitch + (this.lean || 0) + Math.sin(ph * 2) * .02 * walk, (ctl.wiggle || 0) * Math.sin(t * 20) * .16, P.roll);
-    rot('spine', P.spine + breathe * .3, -(ctl.wiggle || 0) * Math.sin(t * 20) * .08);
-    rot('chest', P.chest - breathe * .3);
-    rot('neck', P.neck);
+    rot('hips', P.pitch + (this.lean || 0) + Math.sin(ph * 2) * .02 * walk, (ctl.wiggle || 0) * Math.sin(t * 20) * .16 + P.curl * .5, P.roll);
+    rot('spine', P.spine + breathe * .3, -(ctl.wiggle || 0) * Math.sin(t * 20) * .08 + P.curl);
+    rot('chest', P.chest - breathe * .3, P.curl);
+    rot('neck', P.neck, P.curl * .8);
     const h = ctl.head || {yaw: 0, pitch: 0, roll: 0};
     B.head.quaternion.multiply(_q.setFromEuler(_e.set(-(h.pitch + P.hPitch), h.yaw + P.hYaw, h.roll + P.hRoll, 'YXZ')));
     _e.order = 'XYZ';
