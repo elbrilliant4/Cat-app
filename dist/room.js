@@ -374,7 +374,7 @@ export class Room {
     });
     this.bookFall = null;
     this.buildBird(g, W, bottom, h);
-    this.buildNightBat(g);
+    this.buildNightBats(g);
     // Linen curtains on a brass rod.
     const rod = this.mesh(new THREE.CylinderGeometry(.03, .03, W + 1.8, 12), M.brass, g);
     rod.rotation.z = Math.PI / 2; rod.position.set(0, top + .45, .22);
@@ -434,54 +434,49 @@ export class Room {
     this.birdBox = {x0: -W / 2 - .3, x1: W / 2 + .3, low: bottom + .32, high: bottom + h * .7, mid: bottom + h / 2 + .06, z: .025};
   }
 
-  // A bat that flits past the window on Halloween evenings: a dark
-  // silhouette with fast-flapping scalloped wings and a jinking flight.
-  buildNightBat(g) {
+  // Bats outside the window on Halloween evenings: three dark silhouettes
+  // with fast-flapping scalloped wings, swooping in loops over the dunes.
+  // App sets `batsOn`.
+  buildNightBats(g) {
     const dark = new THREE.MeshBasicMaterial({color: '#141018', side: THREE.DoubleSide});
-    const bat = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 8), dark);
-    body.scale.set(.8, 1, .4); bat.add(body);
-    for (const sx of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(.015, .04, 6), dark);
-      ear.position.set(sx * .02, .055, 0); bat.add(ear);
-      const shape = new THREE.Shape();
-      shape.moveTo(0, 0); shape.quadraticCurveTo(.08, .09, .2, .07);
-      for (let i = 0; i < 3; i++) { const x = .2 - i * .066; shape.quadraticCurveTo(x - .02, .015, x - .066, i === 2 ? -.03 : .02); }
-      shape.closePath();
-      const piv = new THREE.Group(); piv.position.x = sx * .025; bat.add(piv);
-      const wing = new THREE.Mesh(new THREE.ShapeGeometry(shape, 6), dark);
-      wing.scale.x = sx; piv.add(wing);
-      (this.batWings ||= []).push(piv);
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0); shape.quadraticCurveTo(.08, .09, .2, .07);
+    for (let i = 0; i < 3; i++) { const x = .2 - i * .066; shape.quadraticCurveTo(x - .02, .015, x - .066, i === 2 ? -.03 : .02); }
+    shape.closePath();
+    const wingGeo = new THREE.ShapeGeometry(shape, 6), bodyGeo = new THREE.SphereGeometry(.05, 12, 8), earGeo = new THREE.ConeGeometry(.015, .04, 6);
+    this.nightBats = [0, 1, 2].map(i => {
+      const bat = new THREE.Group(), wings = [];
+      const body = new THREE.Mesh(bodyGeo, dark); body.scale.set(.8, 1, .4); bat.add(body);
+      for (const sx of [-1, 1]) {
+        const ear = new THREE.Mesh(earGeo, dark); ear.position.set(sx * .02, .055, 0); bat.add(ear);
+        const piv = new THREE.Group(); piv.position.x = sx * .025; bat.add(piv);
+        const wing = new THREE.Mesh(wingGeo, dark); wing.scale.x = sx; piv.add(wing);
+        wings.push(piv);
+      }
+      bat.visible = false;
+      g.add(bat);
+      return {bat, wings, speed: .32 + i * .07, phase: i * 2.1, size: 1.9 - i * .25, flap: 40 + i * 7};
+    });
+    this.batsOn = false;
+  }
+  updateBats(t) {
+    if (!this.nightBats) return;
+    // Loops stay within the glass (past it they'd show against the wall).
+    const B = this.birdBox, cx = (B.x0 + B.x1) / 2, span = (B.x1 - B.x0) / 2 - .6;
+    for (const b of this.nightBats) {
+      b.bat.visible = this.batsOn;
+      if (!this.batsOn) continue;
+      const a = t * b.speed + b.phase;
+      // A wide loop across the window, with quick jinks.
+      const x = cx + Math.sin(a) * span + Math.sin(a * 7.3) * .06;
+      const y = B.mid + .15 + Math.sin(a * 2) * .55 + Math.sin(a * 5.1 + b.phase) * .08;
+      b.bat.position.set(x, y, B.z + .01);
+      b.bat.scale.setScalar(b.size);
+      b.bat.rotation.z = Math.cos(a) * .25 + Math.sin(a * 7.3) * .2;
+      const f = Math.sin(t * b.flap) * 1.05;
+      b.wings[0].rotation.y = f; b.wings[1].rotation.y = -f;
     }
-    bat.visible = false;
-    g.add(bat);
-    this.nightBat = bat;
-    this.batRun = null;
   }
-  startBat(t) {
-    if (this.batRun || !this.nightBat) return 0;
-    const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
-    this.batRun = {dir, start: t, dur: 3.2, y0: B.low + .4 + Math.random() * (B.high - B.low - .6), seed: Math.random() * 10};
-    this.nightBat.visible = true;
-    return this.batRun.dur;
-  }
-  batWorld(v) { return this.batRun ? this.nightBat.getWorldPosition(v) : null; }
-  updateBat(t) {
-    const r = this.batRun;
-    if (!r) return;
-    const k = (t - r.start) / r.dur, B = this.birdBox, b = this.nightBat;
-    if (k >= 1) { this.batRun = null; b.visible = false; return; }
-    const from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0;
-    // Jinking: quick sideways and up-down zigzags along the way.
-    const x = from + (to - from) * k + Math.sin(k * 19 + r.seed) * .08;
-    const y = r.y0 + Math.sin(k * 13 + r.seed) * .14 + Math.sin(k * 31) * .04;
-    b.position.set(x, y, B.z + .01);
-    b.rotation.z = Math.sin(k * 19 + r.seed) * .35;
-    b.scale.setScalar(1.3);
-    const a = Math.sin(t * 46) * 1.0;
-    this.batWings[0].rotation.y = a; this.batWings[1].rotation.y = -a;
-  }
-
   // Start a bird visit: 'flyby' crosses the window; 'perch' lands low in the
   // window, hops and pecks, then flies off. Returns its length in seconds.
   startBird(t, kind = Math.random() < .5 ? 'flyby' : 'perch') {
@@ -970,7 +965,8 @@ export class Room {
       for (const m of this.pumpkinHalos || []) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
     }
     this.updateBird(t);
-    this.updateBat(t);
+    this.updateBats(t);
+    this.updatePaperBats?.(t);
     this.updateBook(t);
     return k;
   }

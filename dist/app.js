@@ -735,11 +735,12 @@ function placeSpeech() {
 
 // Little unprompted behaviours that make the kitten feel alive.
 function idleLife(t) {
+  // Birds by day, bats on Halloween evenings (so before the sleeping return).
+  watchBirds(t);
   if (pet.sleeping) {
     if (t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
     return;
   }
-  watchBirds(t);
   if (brain.mode !== 'idle' || !['sit', 'loaf'].includes(brain.activity) || t < brain.nextIdle || t - brain.pointerAt < 2.5) return;
   brain.nextIdle = t + rand(4, 8);
   if (brain.perch) { perchLife(t); return; }
@@ -834,17 +835,14 @@ function knockBook() {
 // Birds at the window, in daytime. Up on the sill she gets them often; from
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
+  room.batsOn = false;
   if (pet.sleeping || !ready) {
     brain.watching = false;
-    // Halloween evenings: now and then a bat flits past the window; she
-    // stirs, an ear flicks, and sleeps on.
-    if (ready && room.decor === 'halloween' && pet.sleeping) {
-      if (!room.batRun && t > (brain.nextBat ??= t + rand(6, 12))) {
-        brain.nextBat = t + room.startBat(t) + rand(18, 40);
-        setTimeout(() => twitchEar(undefined, .8), 900);
-      }
-    } else brain.nextBat = undefined;
-    host.classList.toggle('bird', !!room.batRun);
+    // Halloween evenings: bats swoop outside the window; now and then she
+    // stirs and an ear flicks.
+    room.batsOn = ready && room.decor === 'halloween' && pet.sleeping;
+    if (room.batsOn && t > (brain.nextBatTwitch ??= t + 8)) { brain.nextBatTwitch = t + rand(10, 25); twitchEar(undefined, .7); }
+    host.classList.remove('bird');
     return;
   }
   const onSill = brain.perch === 'sill' && !brain.jump;

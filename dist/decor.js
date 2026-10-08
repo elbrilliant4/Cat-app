@@ -534,10 +534,19 @@ function buildHalloween(room) {
   // Paper bats taped to the glass, upper right.
   const batMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 64, drawPaperBat), color: '#38332f', alphaTest: .5, side: THREE.DoubleSide, roughness: 1});
   const glassBottom = top - .02, h = 2.88;
-  for (const [x, y, size, rot] of [[.36, .5, .45, .12], [.74, .44, .36, -.18], [.52, .35, .3, .05]]) {
-    const b = mesh(new THREE.PlaneGeometry(size, size / 2), batMat, w, {cast: false, receive: false});
-    b.position.set(x, glassBottom + h * y, .035); b.rotation.z = rot;
+  // Bigger than the prop sheet's 8-12 cm so they read on a phone; each hangs
+  // from a thread at its top and sways a little (room.updatePaperBats).
+  const paper = [];
+  for (const [x, y, size, rot] of [[.36, .5, .62, .12], [.76, .43, .5, -.18], [.52, .33, .42, .05]]) {
+    const geo = new THREE.PlaneGeometry(size, size / 2); geo.translate(0, -size / 4, 0);
+    const b = mesh(geo, batMat, w, {cast: false, receive: false});
+    b.position.set(x, glassBottom + h * y + size / 4, .035); b.rotation.z = rot;
+    paper.push({b, rot, phase: paper.length * 1.7});
   }
+  room.updatePaperBats = t => {
+    if (!paper[0].b.visible) return;
+    for (const p of paper) { p.b.rotation.z = p.rot + Math.sin(t * 1.1 + p.phase) * .1; p.b.scale.x = 1 + Math.sin(t * 2.3 + p.phase) * .05; }
+  };
   // The felt bat toy: a round charcoal felt body, little ears and scalloped
   // wings, about 14 cm across.
   const felt = new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (g, cw, ch) => drawNoise(g, cw, ch, {base: '#46403a', blobs: [['rgba(255,255,255,.06)', 900, 1, 2.5], ['rgba(0,0,0,.12)', 900, 1, 2.5]], seed: 61})), roughness: 1, side: THREE.DoubleSide});
