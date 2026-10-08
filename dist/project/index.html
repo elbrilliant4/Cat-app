@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mochi Project Board</title>
+<style>
+:root { --bg: #f7f1ea; --ink: #2b211b; --muted: #7a6a5e; --card: #fffaf4; --line: #e6d9cb; --accent: #c4582f; --sage: #6f7d58; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1d1713; --ink: #f3e8dd; --muted: #b39f8f; --card: #2a211b; --line: #3d3128; --accent: #f0905f; --sage: #a9b98f; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 56px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.4px; }
+h2 { font-size: 20px; margin: 38px 0 10px; }
+h3 { font-size: 16px; margin: 18px 0 4px; }
+p { margin: 8px 0; }
+.meta { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+.links { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 18px 0; }
+.links a { display: block; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.links a b { display: block; color: var(--accent); }
+.links a span { font-size: 13px; color: var(--muted); }
+figure { margin: 14px 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+figure img { display: block; width: 100%; height: auto; }
+figcaption { padding: 8px 12px; font-size: 13px; color: var(--muted); }
+.table { overflow-x: auto; margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--card); border: 1px solid var(--line); }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-size: 13px; font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--sage) 18%, transparent); color: var(--sage); white-space: nowrap; }
+.tag.open { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+ul { padding-left: 20px; } li { margin: 4px 0; }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>Mochi project board</h1>
+<p class="meta">Where the cat app stands, for Merlin, Orion and the team · updated October 8, 2026 · live build 47</p>
+
+<div class="links">
+  <a href="../"><b>The app (live)</b><span>What everyone sees. Add it to your home screen.</span></a>
+  <a href="../preview/"><b>Preview</b><span>Work in progress, before it goes live.</span></a>
+  <a href="../review/"><b>Review pack</b><span>Close-ups, clips and sounds of the preview.</span></a>
+  <a href="../brief/"><b>Holiday design brief</b><span>What to draw for rooms and accessories.</span></a>
+</div>
+
+<h2>Where we are</h2>
+<p>Mochi is a 3D ragdoll cat in a cosy study. She now entertains herself, so the app is relaxing to just watch, and care is stress-free: she never gets sick or suffers if you forget her.</p>
+
+<h3>What she does on her own</h3>
+<ul>
+  <li>Hops from her bed onto the window sill and watches birds fly past or perch in the window; chirps at them.</li>
+  <li>Naps on the club chair after kneading the seat; dozes in the sunbeam; plays with her ball by herself.</li>
+  <li>Once a visit, pats the top book off the sill, looks at it, then at you.</li>
+  <li>Something worth watching about every half minute; she curls into a round ball when she sleeps.</li>
+</ul>
+
+<h3>Care and saving</h3>
+<ul>
+  <li>Saves by itself on the phone; updates never touch anyone's cat. Saves from every earlier version are tested before each release.</li>
+  <li>"Back up or move your kitten" (pencil next to her name) gives a code to restore her on any phone or browser. On iPhone, removing the home-screen app removes its storage, so keep a code.</li>
+  <li>Needs ease down slowly and never fall below 30% from time alone. Naps recharge quickly, for night owls.</li>
+</ul>
+
+<h3>Look and sound</h3>
+<ul>
+  <li>Her meow is the first version's soft tone (our own, no licence needed); her purr is a free (CC0) recording. No background noise; the fountain is silent.</li>
+  <li><b>Watch</b> button: the room fills the screen and the controls tuck away.</li>
+  <li><b>✦</b> button: room decor. Thanksgiving in the Hamptons is available to everyone for now.</li>
+</ul>
+
+<h2>Thanksgiving room (from Orion's designs)</h2>
+<figure><img src="thanksgiving.jpg" alt="Mochi's room with the Thanksgiving decor" width="796" height="608"><figcaption>Built from Orion's reference and prop sheet. The furniture stays put so Mochi's paths and jumps still work.</figcaption></figure>
+<ul>
+  <li>Oatmeal rug with faded sage stripes and a flax border; flax-linen bed with olive piping and an ivory lining; cream cable-knit throw; linen cushion with sage stripes.</li>
+  <li>Dunes and the sea out of the window (dusky at night).</li>
+  <li>All ten props: ivory and apricot pumpkins, sage gourd, pear bowl, oak branches, oak-leaf garland over the print, knit throw, linen cushion, brass lantern with a flickering candle, pinecone basket, plus a single oak leaf on the rug.</li>
+  <li>Differences from the drawing: the rug and bed keep the app's existing shapes, and the leaves are a garland over the print rather than a separate wreath.</li>
+</ul>
+
+<h2>Next for Orion</h2>
+<ul>
+  <li><b>Christmas room</b> sketches by November 15, same format as Thanksgiving (see the <a href="../brief/">brief</a>).</li>
+  <li><b>Accessories</b> for Christmas: bandana, Santa hat, collar with bell, bow. Neck or head pieces only, drawn front and side.</li>
+  <li>A written OK that the designs can be used in a commercial app.</li>
+</ul>
+
+<h2>Open questions</h2>
+<div class="table"><table>
+<thead><tr><th>Topic</th><th>Where it stands</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Rewards</td><td>Holiday rooms are free to pick for now. Later: unlock with care (days or bond), or simply in season.</td><td><span class="tag open">To decide</span></td></tr>
+<tr><td>In-app purchases</td><td>Care always free, no nagging. Paid extras as small one-time packs (about $0.99–$2.99): holiday decors, accessories, coat colours, toys with new play moments, a second cat, the desktop companion; later a bundle. Needs the app wrapped as an App Store app first (Apple keeps 15% for small developers).</td><td><span class="tag open">Brainstorm</span></td></tr>
+<tr><td>Name</td><td>"Pocket Kitten" is already used by an indie game, and "Pocket Cat" apps exist. Choose a more distinctive name and have a trademark search done before launch.</td><td><span class="tag open">To decide</span></td></tr>
+<tr><td>Better cat model</td><td>Biggest jump: a professionally rigged and animated ragdoll with a commercial licence ($50–$300). If Meshy: paid plan; closed mouth, all four paws down, tail straight, no whiskers baked in, highest texture detail. One full-body model, no separate head.</td><td><span class="tag open">To decide</span></td></tr>
+<tr><td>Desktop mini window</td><td>"Pop out Mochi" into a small always-on-top window (Chrome and Edge on computers); a Mac/Windows app later.</td><td><span class="tag">Later</span></td></tr>
+<tr><td>Voice cues</td><td>Her name, "come here", "sit" with a tap-to-talk button.</td><td><span class="tag">Later</span></td></tr>
+<tr><td>Music</td><td>Optional Spotify link; on hold until full playback on iPhone can be tested with a Premium account.</td><td><span class="tag">On hold</span></td></tr>
+</tbody></table></div>
+
+<h2>How we work</h2>
+<ul>
+  <li>Changes go to <a href="../preview/">preview</a> first, with a build number on screen and a <a href="../review/">review pack</a>; they go live only when Merlin says so.</li>
+  <li>Credits: 3D cat model made with Meshy (CC BY 4.0); purr recording by Kerzoven via OpenGameArt (CC0).</li>
+</ul>
+</main>
+</body>
+</html>
