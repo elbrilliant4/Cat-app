@@ -318,3 +318,11 @@ label.spaced { margin-top: 22px; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 @media (max-width: 720px) { .scene.playing .scene-hint { opacity: 0; } }
+
+/* Watch mode: the room fills the screen, the care controls tuck away. */
+body.watch { overflow: hidden; }
+body.watch .stage { position: fixed; inset: 0; z-index: 60; border-radius: 0; border: 0; }
+body.watch .scene { height: 100vh; height: 100dvh; min-height: 0; max-height: none; }
+body.watch .dock, body.watch .scene-hint, body.watch .play-meter { opacity: 0; pointer-events: none; }
+body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
+.dock, .scene-hint { transition: opacity .4s; }

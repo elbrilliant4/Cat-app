@@ -81,8 +81,8 @@ function greeting() {
   const h = new Date().getHours();
   const part = h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   if (pet.sleeping) return `${part}. ${pet.name} is fast asleep — shh.`;
-  if (pet.food < 25) return `${part}. ${pet.name} keeps glancing at the bowl…`;
-  if (pet.water < 25) return `${part}. ${pet.name} is eyeing the fountain.`;
+  if (pet.food < 40) return `${part}. ${pet.name} keeps glancing at the bowl…`;
+  if (pet.water < 40) return `${part}. ${pet.name} is eyeing the fountain.`;
   if (pet.happiness < 35) return `${part}. ${pet.name} missed you.`;
   return `${part}. ${pet.name} is so happy you’re here.`;
 }
@@ -92,14 +92,16 @@ function refresh() {
   $('#pet-name').textContent = pet.name;
   $('#mood-text').textContent = m;
   $('#mood').style.setProperty('--mood', MOOD_COLORS[m] || '#5cc489');
-  $('#age').textContent = 'Day ' + Math.max(1, Math.floor((Date.now() - pet.born) / 86400000) + 1);
+  // Calendar days: a kitten adopted last night is on day 2 this morning.
+  const midnight = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  $('#age').textContent = 'Day ' + Math.max(1, Math.round((midnight(Date.now()) - midnight(pet.born)) / 86400000) + 1);
   $('#greeting').textContent = greeting();
   for (const n of NEEDS) {
     const v = Math.round(pet[n.key]), el = $('#ring-' + n.key);
     el.querySelector('.bar').style.strokeDashoffset = String(CIRC * (1 - v / 100));
     el.querySelector('strong').textContent = v + '%';
     el.setAttribute('aria-valuenow', v);
-    el.classList.toggle('low', v < 25);
+    el.classList.toggle('low', v < 35);
   }
   const lv = levelInfo(pet.bond);
   $('#level').textContent = lv.level;
@@ -126,9 +128,9 @@ function refresh() {
     b.classList.toggle('active', brain.mode === b.dataset.action || (b.dataset.action === 'sleep' && pet.sleeping));
   }
   $('#care-tip').textContent = pet.sleeping ? 'Resting restores energy, even while you’re away.'
-    : pet.food < 25 ? 'A tasty snack would be lovely.'
-    : pet.water < 25 ? 'Tap the fountain to invite a drink.'
-    : pet.energy < 25 ? 'A nap will put the bounce back.'
+    : pet.food < 40 ? 'A tasty snack would be lovely.'
+    : pet.water < 40 ? 'Tap the fountain to invite a drink.'
+    : pet.energy < 35 ? 'A nap will put the bounce back.'
     : pet.cleanliness < 30 ? 'Time for a gentle brush.'
     : pet.happiness < 35 ? 'A cuddle or a game would help.'
     : 'All good. Just be here.';
@@ -454,10 +456,10 @@ function restingActivity() {
 
 function baseExpression() {
   if (pet.sleeping) return 'asleep';
-  if (pet.energy < 25) return 'sleepy';
-  if (pet.food < 25 || pet.water < 25) return 'hungry';
-  if (pet.cleanliness < 30) return 'grumpy';
-  if (pet.happiness < 35) return 'lonely';
+  if (pet.energy < 35) return 'sleepy';
+  if (pet.food < 40 || pet.water < 40) return 'hungry';
+  if (pet.cleanliness < 40) return 'grumpy';
+  if (pet.happiness < 45) return 'lonely';
   return 'content';
 }
 function currentExpression() {
@@ -483,7 +485,7 @@ function greet(first = false) {
   if (pet.sleeping) { say(pick(['Zzz… dreaming of tiny adventures.', 'Zzz… mrrp… fish…']), 3800); return; }
   express('surprised', .6);
   setTimeout(() => { express('joy', 1.8); hop(); meow('mew'); burst('heart', 4); }, 600);
-  const lines = pet.food < 25 ? ['You’re back! Is it… snack o’clock?'] : pet.happiness < 35 ? ['There you are! I missed you.'] : first ? ['Oh! Hi, you! Got a little time for me?', 'Mrrp! You came back!', 'Hello, my favourite human.'] : ['Welcome back!', 'Mrrp! There you are.'];
+  const lines = pet.food < 40 ? ['You’re back! Is it… snack o’clock?'] : pet.happiness < 45 ? ['There you are! I missed you.'] : first ? ['Oh! Hi, you! Got a little time for me?', 'Mrrp! You came back!', 'Hello, my favourite human.'] : ['Welcome back!', 'Mrrp! There you are.'];
   setTimeout(() => say(pick(lines), 3600, first), 450);
   brain.tailUpUntil = clockNow + 4;
 }
@@ -1190,8 +1192,11 @@ function lookAtSpot(pos, {dist = 2.6, pitch = .42, y = .25} = {}) {
 }
 const CAMERA_VIEWS = {
   room() {
-    Object.assign(view.goal, {yaw: 0, pitch: .3, dist: tallScreen() ? 10.5 : 7.4});
-    view.goal.focus.set(0, .75, -.1);
+    // Pull back (and aim a little higher) on tall screens so the whole room
+    // fits across; a phone in Watch mode is the tallest.
+    const tall = clamp(.85 / Math.max(.3, host.clientWidth / Math.max(1, host.clientHeight)), 1, 2.2);
+    Object.assign(view.goal, {yaw: 0, pitch: .3, dist: 7.4 * tall});
+    view.goal.focus.set(0, .75 + (tall - 1) * .45, -.1);
     setCamMode('room');
   },
   follow() {
@@ -1298,6 +1303,23 @@ $('.snacks').addEventListener('click', e => {
 });
 $('#rename').onclick = () => { $('#name-input').value = pet.name; $('#name-dialog').showModal(); $('#name-input').select(); };
 $('#close-name').onclick = () => $('#name-dialog').close();
+// Watch mode: the room fills the screen (real full screen where the browser
+// allows it; on an iPhone the home-screen app is already edge to edge).
+function setWatch(on) {
+  document.body.classList.toggle('watch', on);
+  $('#watch-btn').setAttribute('aria-pressed', String(on));
+  $('#watch-btn span').textContent = on ? 'Exit' : 'Watch';
+  try {
+    if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  } catch {}
+  // Once the layout has changed size.
+  setTimeout(() => CAMERA_VIEWS.room(), 80);
+}
+$('#watch-btn').onclick = () => setWatch(!document.body.classList.contains('watch'));
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('watch')) setWatch(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('watch')) setWatch(false); });
+
 // Room decor: the furniture stays put, only the look changes (decor.js).
 const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c']};
 function renderDecor() {
@@ -1310,10 +1332,14 @@ $('#decor-options').addEventListener('click', e => {
   const id = b.dataset.decor;
   $('#decor-dialog').close();
   if (room.decor === id) return;
-  applyDecor(room, id);
-  pet.decor = id;
-  save();
-  toast(`${DECORS[id].name}`);
+  // Let the menu close and the note show before the room is redressed.
+  toast('Decorating…');
+  setTimeout(() => {
+    applyDecor(room, id);
+    pet.decor = id;
+    save();
+    toast(`${DECORS[id].name}`);
+  }, 120);
   if (ready && !pet.sleeping) { express('curious', 1.6); glanceAt(new THREE.Vector3(rand(-2, 2), 1.4, -2.5), 2); }
 });
 
@@ -1530,6 +1556,8 @@ function frame(now) {
   clockNow = now / 1000;
   const t = clockNow;
   if (brain.mode === 'brush' && t > brain.modeUntil) finishMode();
+  // Her own catnaps restore a little energy (about 1 a minute).
+  if (ready && brain.activity === 'catnap') pet.energy = Math.min(100, pet.energy + dt / 60);
   updatePlay(dt, t);
   if (ready) updateCat(dt, t);
   updateCamera(dt);

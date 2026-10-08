@@ -267,10 +267,18 @@ function buildThanksgiving(room, T) {
   mesh(new THREE.CylinderGeometry(.035, .035, .1, 16), new THREE.MeshStandardMaterial({color: '#f3ead6', roughness: .6}), lantern).position.y = .08;
   const flame = mesh(new THREE.ConeGeometry(.012, .04, 8), new THREE.MeshBasicMaterial({color: '#ffcf70'}), lantern, {cast: false});
   flame.position.y = .155;
-  const candle = new THREE.PointLight('#ffb35c', .4, 2.4, 2);
-  candle.position.y = .2;
-  add(candle, lantern);
-  room.thanksgivingCandle = candle;
+  // The candle's glow is a soft additive halo, not a light: adding a light
+  // makes the phone rebuild the shading of everything in the room (a
+  // freeze of several seconds on an iPhone).
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({map: canvasTexture(64, 64, (g, w, h) => {
+    const grd = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grd.addColorStop(0, 'rgba(255,200,120,1)'); grd.addColorStop(.35, 'rgba(255,170,80,.45)'); grd.addColorStop(1, 'rgba(255,150,60,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+  }), color: '#ffffff', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .3}));
+  halo.scale.setScalar(.7);
+  halo.position.y = .17;
+  add(halo, lantern);
+  room.thanksgivingCandle = halo;
   room.thanksgivingFlame = flame;
   const gourd = mesh(lathe([[0, 0], [.06, .005], [.11, .05], [.12, .1], [.09, .17], [.05, .22], [.045, .28], [.035, .32], [0, .33]], 28), new THREE.MeshStandardMaterial({map: T.gourd, roughness: .5}), st);
   gourd.position.set(.15, .34, .05); gourd.rotation.z = .08;

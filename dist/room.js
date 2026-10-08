@@ -910,7 +910,8 @@ export class Room {
     const s = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04;
     this.bubble.scale.set(s, 1 / s, s);
     if (this.candleLight) {
-      this.candleLight.intensity = damp(this.candleLight.intensity, night ? 2.2 : .35, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
+      const glow = this.candleLight.material;
+      glow.opacity = damp(glow.opacity, night ? .95 : .3, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
       this.thanksgivingFlame.scale.y = 1 + Math.sin(t * 11) * .12;
     }
     this.updateBird(t);
