@@ -600,7 +600,7 @@ export class RealCat {
   twitchEar(i, strength = 1) { this.ears[i].vel += (Math.random() < .5 ? -10 : 8) * strength; }
 
   /**
-   * ctl: {pose, poseRate, walk, knead, wiggle, purr, groom, lift,
+   * ctl: {pose, poseRate, walk, knead, wiggle, purr, groom, swat, lift,
    *       head: {yaw, pitch, roll}, look: {x, y}, face, tail: {amp, speed}}
    */
   update(dt, t, ctl) {
@@ -639,6 +639,8 @@ export class RealCat {
       let el = P.elF + lift(side) * .9 + press * .7;
       let wr = P.wrF - lift(side) * .4 - press * .45;
       if (ctl.groom && s === 'L') { sh = -.9 + Math.sin(t * 5) * .1; el = 2.0; wr = -.6; }
+      // A swat (0..1): the right paw reaches up and forward.
+      if (ctl.swat && s === 'R') { const k = ctl.swat; sh += (-1.35 - sh) * k; el += (.3 - el) * k; wr += (-.1 - wr) * k; }
       rot('shoulder' + s, sh);
       rot('elbow' + s, el);
       rot('wrist' + s, wr);
@@ -727,7 +729,7 @@ export class RealCat {
   canPlant(leg, ctl, lift) {
     const allowed = {stand: 'all', sit: 'all', crouch: 'all', stretch: 'all', beg: 'hind'}[ctl.pose || 'stand'];
     if (!allowed || (allowed === 'hind' && leg.front) || (ctl.lift || 0) > .02) return false;
-    if (leg.front && (ctl.knead || (ctl.groom && leg.s === 'L'))) return false;
+    if (leg.front && (ctl.knead || (ctl.groom && leg.s === 'L') || (ctl.swat > .05 && leg.s === 'R'))) return false;
     return !((ctl.walk || 0) > .01 && lift(leg.phase) > .03);
   }
 

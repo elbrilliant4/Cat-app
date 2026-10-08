@@ -345,9 +345,18 @@ export class Room {
     bar(W, .07, 0, cy); bar(.06, h, 0, cy);
     for (const y of [bottom + h * .25, top - h * .25]) bar(W, .04, 0, y, .06);
     for (const x of [-W / 4, W / 4]) bar(.04, h, x, cy, .06);
-    // Deep sill on top of the wainscot.
-    const sill = this.mesh(roundedBox(W + .6, .1, .42, .03), M.trim, g);
-    sill.position.set(0, bottom - .03, .2);
+    // Deep sill on top of the wainscot, wide enough for Mochi to sit on,
+    // with two brackets under it.
+    const SD = .8;
+    const sill = this.mesh(roundedBox(W + .6, .1, SD, .03), M.trim, g);
+    sill.position.set(0, bottom - .03, SD / 2);
+    for (const x of [-W / 2 + .1, W / 2 - .1]) {
+      const br = this.mesh(new THREE.BoxGeometry(.08, .32, SD - .12), M.trim, g);
+      br.position.set(x, bottom - .24, (SD - .12) / 2);
+    }
+    this.windowGroup = g;
+    this.sillTop = bottom + .02;
+    this.sillDepth = SD;
     // On the sill: a white pitcher with greenery, and a few books.
     const pitcher = this.mesh(lathe([[0, 0], [.13, 0], [.15, .05], [.16, .2], [.13, .32], [.1, .38], [.12, .42], [0, .42]], 28), M.white, g);
     pitcher.position.set(-.75, bottom + .02, .22);
@@ -355,10 +364,14 @@ export class Room {
     handle.position.set(-.6, bottom + .25, .22); handle.rotation.z = -Math.PI / 2;
     this.sprigs(g, new THREE.Vector3(-.75, bottom + .4, .22), 9, .55);
     const bookColors = ['#3f4b33', '#6b2c22', '#283652', '#8b6b3e'];
-    bookColors.forEach((c, i) => {
+    this.books = bookColors.map((c, i) => {
       const b = this.mesh(new THREE.BoxGeometry(.5 - i * .04, .07, .34), new THREE.MeshStandardMaterial({color: c, roughness: .8}), g);
       b.position.set(.62, bottom + .05 + i * .07, .2); b.rotation.y = (i % 2 - .5) * .15;
+      b.userData.home = {p: b.position.clone(), r: b.rotation.clone()};
+      return b;
     });
+    this.bookFall = null;
+    this.buildBird(g, W, bottom, h);
     // Linen curtains on a brass rod.
     const rod = this.mesh(new THREE.CylinderGeometry(.03, .03, W + 1.8, 12), M.brass, g);
     rod.rotation.z = Math.PI / 2; rod.position.set(0, top + .45, .22);
@@ -386,6 +399,109 @@ export class Room {
     this.sunPatch.rotation.set(-Math.PI / 2, 0, .45);
     this.sunPatch.position.set(-1.05, .006, -1.25);
   }
+
+  // A small brown bird outside the window, now and then, in daylight. It
+  // lives in the window's own space just in front of the glass, behind the
+  // glazing bars.
+  buildBird(g, W, bottom, h) {
+    const brown = new THREE.MeshStandardMaterial({color: '#6b5240', roughness: .9});
+    const cream = new THREE.MeshStandardMaterial({color: '#cdb69a', roughness: .9});
+    const bird = new THREE.Group();
+    const body = this.mesh(new THREE.SphereGeometry(1, 14, 10), cream, bird, {cast: false});
+    body.scale.set(.085, .065, .02);
+    const back = this.mesh(new THREE.SphereGeometry(1, 14, 10), brown, bird, {cast: false});
+    back.scale.set(.08, .05, .021); back.position.set(-.01, .02, 0);
+    const head = this.mesh(new THREE.SphereGeometry(.045, 12, 10), brown, bird, {cast: false});
+    head.scale.z = .45; head.position.set(.07, .05, 0);
+    const beak = this.mesh(new THREE.ConeGeometry(.012, .035, 6), new THREE.MeshStandardMaterial({color: '#3a2a1c'}), bird, {cast: false});
+    beak.rotation.z = -Math.PI / 2; beak.position.set(.118, .045, 0);
+    const tail = this.mesh(new THREE.BoxGeometry(.08, .012, .015), brown, bird, {cast: false});
+    tail.position.set(-.1, .01, 0); tail.rotation.z = .35;
+    const wing = (side) => {
+      const piv = new THREE.Group(); piv.position.set(-.005, .045, side * .012); bird.add(piv);
+      const w = this.mesh(new THREE.BoxGeometry(.1, .008, .07), brown, piv, {cast: false});
+      w.position.set(-.02, 0, side * .035);
+      return piv;
+    };
+    this.birdWings = [wing(1), wing(-1)];
+    bird.visible = false;
+    g.add(bird);
+    this.bird = bird;
+    this.birdRun = null;
+    this.birdBox = {x0: -W / 2 - .3, x1: W / 2 + .3, low: bottom + .32, high: bottom + h * .7, mid: bottom + h / 2 + .06, z: .025};
+  }
+
+  // Start a bird visit: 'flyby' crosses the window; 'perch' lands low in the
+  // window, hops and pecks, then flies off. Returns its length in seconds.
+  startBird(t, kind = Math.random() < .5 ? 'flyby' : 'perch') {
+    if (this.birdRun) return 0;
+    const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
+    const dur = kind === 'flyby' ? 2.6 : 7;
+    this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25)};
+    this.bird.visible = true;
+    return dur;
+  }
+  // The bird's position in world space (for Mochi to watch), or null.
+  birdWorld(v) {
+    return this.birdRun && this.bird.visible ? this.bird.getWorldPosition(v) : null;
+  }
+  updateBird(t) {
+    const r = this.birdRun;
+    if (!r) return;
+    const k = (t - r.start) / r.dur, B = this.birdBox, b = this.bird;
+    if (k >= 1) { this.birdRun = null; b.visible = false; return; }
+    const from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0;
+    let x, y, flap = true;
+    if (r.kind === 'flyby') {
+      x = from + (to - from) * k;
+      y = r.y0 + Math.sin(k * Math.PI * 3) * .06 + Math.sin(k * Math.PI) * .12;
+    } else {
+      // In (0–.2), on the ledge hopping and pecking (.2–.8), away (.8–1).
+      // Perched on the middle glazing bar, as if on the ledge outside.
+      const sitY = B.mid;
+      if (k < .2) { const q = k / .2; x = from + (r.land - from) * q; y = r.y0 + (sitY - r.y0) * q * q; }
+      else if (k < .8) {
+        const q = (k - .2) / .6;
+        const hop = Math.floor(q * 3), hq = q * 3 - hop;
+        x = r.land + (hop + Math.min(1, hq / .25)) * .1 * r.dir;
+        y = sitY + (hq < .25 ? Math.sin(hq / .25 * Math.PI) * .05 : 0);
+        flap = false;
+        b.rotation.z = hq > .5 && hq < .75 ? -.5 : 0; // a peck
+      } else { const q = (k - .8) / .2, x0 = r.land + .3 * r.dir; x = x0 + (to - x0) * q; y = sitY + (r.y0 + .3 - sitY) * q; }
+    }
+    if (flap) b.rotation.z = .1;
+    b.position.set(x, y, B.z);
+    b.scale.set(1.8 * r.dir, 1.8, 1.8);
+    const a = flap ? Math.sin(t * 38) * .9 : .1;
+    this.birdWings[0].rotation.x = a; this.birdWings[1].rotation.x = -a;
+  }
+
+  // Mochi nudges the top book off the sill; it slides, tips and falls to the
+  // floor, then quietly returns to the stack a while later.
+  knockBook(t) {
+    if (this.bookFall) return false;
+    const b = this.books[this.books.length - 1];
+    this.bookFall = {b, start: t, x: b.position.x, y: b.position.y, z: b.position.z, floor: -this.windowGroup.position.y + .035};
+    return true;
+  }
+  updateBook(t) {
+    const f = this.bookFall;
+    if (!f) return;
+    const k = t - f.start, b = f.b, home = b.userData.home;
+    if (k < .5) { b.position.z = f.z + k * .9; b.position.x = f.x + k * .1; b.rotation.z = 0; }
+    else if (b.position.y > f.floor) {
+      // Clamped to the moment it reaches the floor, so a slow frame can't
+      // throw it further than it would fall.
+      const q = Math.min(k - .5, Math.sqrt((f.y - f.floor) / 4.9));
+      b.position.set(f.x + .05 + q * 1.3, Math.max(f.floor, f.y - 4.9 * q * q), f.z + .45 + q * .7);
+      b.rotation.set(q * 3.2, b.rotation.y, q * 1.2);
+      if (b.position.y <= f.floor) { b.position.y = f.floor; b.rotation.x = 0; b.rotation.z = 0; f.landed = t; }
+    } else if (f.landed && t - f.landed > 60) {
+      b.position.copy(home.p); b.rotation.copy(home.r); this.bookFall = null;
+    }
+  }
+  // Where the fallen book lies (world), or the stack's top while it's home.
+  bookWorld(v) { return this.books[this.books.length - 1].getWorldPosition(v); }
 
   buildRug() {
     const M = this.materials;
@@ -469,6 +585,7 @@ export class Room {
     for (let i = 0; i < 40; i++) { m4.makeTranslation(fx, fy - .05, .1 - tw / 2 + i * tw / 39); fringe.setMatrixAt(i, m4); }
     g.add(fringe);
     this.chair = g;
+    this.chairSeatTop = legH + .62 + .15;
   }
 
   buildSideTable() {
@@ -786,6 +903,8 @@ export class Room {
     this.waterGeo.computeVertexNormals();
     const s = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04;
     this.bubble.scale.set(s, 1 / s, s);
+    this.updateBird(t);
+    this.updateBook(t);
     return k;
   }
 }

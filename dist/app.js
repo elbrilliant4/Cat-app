@@ -333,6 +333,20 @@ const EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
 const CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
 const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
 const DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
+// Places she jumps up to: the window sill (from her bed, just below it) and
+// the club chair's seat. spot: where she sits; top: its height; base: where
+// she jumps from and back down to; face: the way she sits there.
+const PERCHES = (() => {
+  const w = room.windowGroup, c = room.chair;
+  w.updateMatrixWorld(true); c.updateMatrixWorld(true);
+  return {
+    sill: {spot: w.localToWorld(new THREE.Vector3(-.05, 0, room.sillDepth * .5)).setY(0), top: room.sillTop,
+      base: new THREE.Vector3(bed.position.x, 0, bed.position.z - .3), face: Math.PI},
+    chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
+      base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
+  };
+})();
+const SUN_SPOT = new THREE.Vector3(room.sunPatch.position.x + .2, 0, room.sunPatch.position.z + .3);
 function onRug(v) {
   const dx = (v.x - RUG.x) / RUG.rx, dz = (v.z - RUG.z) / RUG.rz, r = Math.hypot(dx, dz);
   if (r > 1) { v.x = RUG.x + dx / r * RUG.rx; v.z = RUG.z + dz / r * RUG.rz; }
@@ -377,6 +391,7 @@ const brain = {
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
   petTimes: [],
+  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextBird: 45, birdSeen: false, bookKnocked: false, swatHit: 0,
 };
 if (pet.sleeping) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
 
@@ -394,10 +409,41 @@ function setActivity(name, seconds = Infinity, after = null) {
   brain.after = after;
 }
 function walkTo(point, then = null, run = false, anywhere = false) {
+  // Mid-jump: go there once she lands. Up on a perch: hop down first.
+  if (brain.jump) { brain.jump.then = () => walkTo(point, then, run, anywhere); return; }
+  if (brain.perch) { jumpDown(() => walkTo(point, then, run, anywhere)); return; }
   brain.target = anywhere ? point.clone() : onRug(point.clone());
   brain.run = run;
   const dist = Math.hypot(brain.target.x - brain.pos.x, brain.target.z - brain.pos.z);
   setActivity('walk', 8 + dist / (run ? 1.2 : .45), then);
+}
+// Jumping: a crouch and a little wiggle while she sizes it up, then an arc to
+// the new spot and height, and a soft landing.
+const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < room.bedRadius ? room.bedTop : 0;
+function leap(to, toY, perch, then = null) {
+  brain.target = null;
+  brain.jumpFace = angleTo(brain.pos, to);
+  glanceAt(new THREE.Vector3(to.x, toY + .3, to.z), 1.2);
+  setActivity('prejump', reduceMotion ? .3 : .8, () => {
+    const up = toY - brain.elevation;
+    brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, then, start: clockNow, dur: .5 + Math.abs(up) * .06, arc: .18 + Math.max(0, up) * .22};
+    setActivity('jump');
+  });
+}
+function jumpTo(name, then = null, stay = 40) {
+  const P = PERCHES[name];
+  if (brain.perch === name) { then?.(); return; }
+  // Only jump from the take-off spot (a walk can end early if it ran out of
+  // time); otherwise keep walking there, or give up after a few tries.
+  const go = tries => walkTo(P.base, () => {
+    if (Math.hypot(brain.pos.x - P.base.x, brain.pos.z - P.base.z) > .3) { if (tries < 3) go(tries + 1); else setActivity('sit'); return; }
+    leap(P.spot, P.top, name, () => { brain.perchUntil = clockNow + stay; then ? then() : setActivity('sit'); });
+  }, false, true);
+  go(0);
+}
+function jumpDown(then = null) {
+  const P = PERCHES[brain.perch];
+  leap(P.base, groundAt(P.base), null, then);
 }
 function restingActivity() {
   if (pet.sleeping) return 'sleep';
@@ -415,8 +461,9 @@ function baseExpression() {
 function currentExpression() {
   const a = brain.activity, since = clockNow - brain.actStart;
   if (clockNow < brain.overrideUntil) return brain.override;
-  if (a === 'sleep') return 'asleep';
+  if (a === 'sleep' || a === 'catnap') return 'asleep';
   if (pet.sleeping) return 'sleepy';
+  if (a === 'prejump') return 'curious';
   if (a === 'eat') return since < .5 ? 'curious' : 'yum';
   if (a === 'drink') return since < .5 ? 'curious' : 'bliss';
   if (a === 'groom') return 'groom';
@@ -424,7 +471,7 @@ function currentExpression() {
   if (a === 'stretch') return 'sleepy';
   if (a === 'beg') return 'hungry';
   if (brain.mode === 'brush') return 'bliss';
-  if (brain.mode === 'play') return 'excited';
+  if (brain.mode === 'play' || brain.mode === 'solo') return 'excited';
   if (clockNow < brain.strokeUntil) return 'bliss';
   return baseExpression();
 }
@@ -453,7 +500,7 @@ function updateCat(dt, t) {
     brain.after = null;
     if (next) next(); else setActivity(restingActivity());
   }
-  if (pet.sleeping && !['sleep', 'walk'].includes(brain.activity)) setActivity('sleep');
+  if (pet.sleeping && !['sleep', 'walk', 'prejump', 'jump', 'land'].includes(brain.activity)) setActivity('sleep');
 
   // --- Moving around ---------------------------------------------------------
   const a = brain.activity;
@@ -475,19 +522,36 @@ function updateCat(dt, t) {
   } else if (!pc) {
     brain.speed = damp(brain.speed, 0, 8, dt);
   }
+  const J = brain.jump;
+  if (J) {
+    const k = Math.min(1, (t - J.start) / J.dur), e = k * k * (3 - 2 * k);
+    brain.pos.lerpVectors(J.from, J.to, e);
+    brain.elevation = J.fromY + (J.toY - J.fromY) * e + 4 * J.arc * k * (1 - k);
+    desiredHeading = angleTo(J.from, J.to);
+    if (k >= 1) {
+      brain.jump = null;
+      brain.perch = J.perch;
+      brain.elevation = J.toY;
+      setActivity('land', .4, J.then);
+    }
+  }
+  if (a === 'prejump') desiredHeading = brain.jumpFace;
   if (pc) {
     const p = (t - pc.start) / 1.3;
     if (p < .5) desiredHeading = angleTo(brain.pos, toy.position);
     else if (p < .82) { const k = (p - .5) / .32; brain.pos.lerpVectors(pc.from, pc.to, k * k * (3 - 2 * k)); if (!pc.caught && k > .7) catchToy(); }
     else if (p >= 1) brain.pounce = null;
-  } else {
+  } else if (!J) {
     brain.pos.x += Math.sin(brain.heading) * brain.speed * dt;
     brain.pos.z += Math.cos(brain.heading) * brain.speed * dt;
   }
   if (a === 'eat') desiredHeading = angleTo(brain.pos, bowl.position);
   if (a === 'drink') desiredHeading = angleTo(brain.pos, fountain.position);
-  if (brain.mode === 'play' && !pc && a !== 'walk') desiredHeading = angleTo(brain.pos, toy.position);
-  if (desiredHeading === null && (['belly', 'sleep'].includes(a) || brain.mode === 'brush')) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : -.5);
+  if ((brain.mode === 'play' || brain.mode === 'solo') && !pc && !J && !['walk', 'prejump', 'land'].includes(a)) desiredHeading = angleTo(brain.pos, toy.position);
+  if (a === 'swat' && brain.swatAt) desiredHeading = angleTo(brain.pos, brain.swatAt);
+  // On a perch she keeps to the way it faces (it's narrow up there).
+  if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
+  if (desiredHeading === null && (['belly', 'sleep', 'catnap'].includes(a) || brain.mode === 'brush')) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : -.5);
   else if (desiredHeading === null && ['sit', 'loaf', 'beg'].includes(a)) {
     // Settled: the body only turns once the head has been turned well round
     // for a moment, and then just until she faces what she's watching.
@@ -496,9 +560,8 @@ function updateCat(dt, t) {
     if (Math.abs(brain.head.yaw) < .1) brain.bodyTurning = false;
     if (brain.bodyTurning) desiredHeading = angleTo(brain.pos, brain.headGaze);
   }
-  if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc ? 7 : 1.6, dt);
-  const onCushion = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < room.bedRadius;
-  brain.elevation = damp(brain.elevation, onCushion ? room.bedTop : 0, 8, dt);
+  if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc || J ? 7 : a === 'prejump' ? 5 : 1.6, dt);
+  if (!J) brain.elevation = damp(brain.elevation, brain.perch ? PERCHES[brain.perch].top : groundAt(brain.pos), 8, dt);
   cat.root.position.set(brain.pos.x, brain.elevation, brain.pos.z);
   cat.root.rotation.y = brain.heading;
 
@@ -578,7 +641,7 @@ function updateCat(dt, t) {
   if (e === 'joy' || e === 'love') roll += Math.sin(t * 2.6) * .12;
   if (e === 'sleepy') { pitch -= .12; roll += .12; }
   if (e === 'lonely' || e === 'hungry') { pitch += .05; roll -= .1; }
-  if (a === 'sleep' || a === 'belly') { yaw = 0; pitch = 0; roll = 0; }
+  if (a === 'sleep' || a === 'catnap' || a === 'belly') { yaw = 0; pitch = 0; roll = 0; }
   if ((a === 'eat' || a === 'drink') && t - brain.actStart > .5) { yaw = 0; pitch = (a === 'drink' ? -.62 : -.75) + Math.sin(t * 7) * .05; }
   if (a === 'groom') { yaw = .35; pitch = -.3 + Math.sin(t * 5) * .1; roll = .2; }
   // Rubbing her cheek against your hand.
@@ -587,7 +650,7 @@ function updateCat(dt, t) {
   brain.head.yaw = damp(brain.head.yaw, yaw, brain.mode === 'play' ? 8 : 5, dt);
   brain.head.pitch = damp(brain.head.pitch, pitch, 5, dt);
   brain.head.roll = damp(brain.head.roll, roll, 4, dt);
-  const sleepy = a === 'sleep';
+  const sleepy = a === 'sleep' || a === 'catnap';
   brain.look.x = damp(brain.look.x, sleepy ? 0 : clamp((eyeYaw - brain.head.yaw) / .45, -1, 1), 22, dt);
   brain.look.y = damp(brain.look.y, sleepy ? 0 : clamp((eyePitch - brain.head.pitch) / .35, -1, 1), 22, dt);
 
@@ -608,7 +671,15 @@ function updateCat(dt, t) {
   if (a === 'stretch') { pose = 'stretch'; poseRate = 3.5; }
   if (a === 'beg') { pose = 'beg'; tail = {amp: .4, speed: 2}; }
   if (brain.mode === 'brush') { pose = 'loaf'; tail = {amp: .5, speed: 1}; }
-  if (brain.mode === 'play' && a === 'play') { pose = 'crouch'; tail = {amp: .6, speed: 4}; }
+  if ((brain.mode === 'play' || brain.mode === 'solo') && a === 'play') { pose = 'crouch'; tail = {amp: .6, speed: 4}; }
+  if (a === 'catnap') { pose = 'sleep'; tail = {amp: .05, speed: .5}; }
+  if (a === 'prejump') { pose = 'crouch'; poseRate = 9; const w = (t - brain.actStart) / Math.max(.3, brain.actUntil - brain.actStart); wiggle = w > .45 ? .5 : 0; tail = {amp: .5, speed: 4}; }
+  if (a === 'jump') { const k = J ? (t - J.start) / J.dur : 1; pose = k < .7 ? 'leap' : 'crouch'; poseRate = 14; tail = {amp: .1, speed: 1}; }
+  if (a === 'land') { pose = 'crouch'; poseRate = 10; }
+  let swat = 0;
+  if (a === 'swat') { const q = (t - brain.actStart) / .45; swat = Math.max(0, Math.sin(Math.min(q, 1) * Math.PI)) * motion; tail = {amp: .5, speed: 4}; }
+  // A bird at the window: quick tail flicks.
+  if (brain.watching) tail = {amp: .45, speed: 6};
   if (pc) {
     const p = (t - pc.start) / 1.3;
     poseRate = 14;
@@ -623,7 +694,7 @@ function updateCat(dt, t) {
 
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
-    groom: a === 'groom', head: brain.head, look: brain.look, face, tail,
+    groom: a === 'groom', swat, head: brain.head, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
   });
 
@@ -661,9 +732,12 @@ function idleLife(t) {
     if (t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
     return;
   }
+  watchBirds(t);
   if (brain.mode !== 'idle' || !['sit', 'loaf'].includes(brain.activity) || t < brain.nextIdle || t - brain.pointerAt < 2.5) return;
   brain.nextIdle = t + rand(4, 8);
-  const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom'];
+  if (brain.perch) { perchLife(t); return; }
+  const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', 'window', 'window', 'chair', 'sunbeam'];
+  if (pet.energy > 35) options.push('solo', 'solo');
   if (pet.happiness > 60) options.push('slowBlink', 'zoomies');
   if (pet.energy < 55) options.push('yawn', 'loaf', 'stretch');
   if (pet.energy > 50) options.push('stretch');
@@ -692,6 +766,82 @@ function idleLife(t) {
     walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); });
   }
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
+  if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 6); }, rand(30, 60));
+  if (choice === 'chair') jumpTo('chair', () => {
+    // Kneads the seat, turns, and settles in for a catnap.
+    brain.kneadUntil = clockNow + 3;
+    setActivity('loaf', 3.4, () => setActivity('catnap', rand(18, 35), () => { slowBlink(); setActivity('sit', 4); }));
+  }, rand(35, 60));
+  if (choice === 'sunbeam' && !pet.sleeping) walkTo(SUN_SPOT, () => {
+    express('bliss', 2);
+    setActivity('loaf', 2.5, () => setActivity('catnap', rand(15, 30), () => { yawn(); setActivity('sit', 3); }));
+  }, false, true);
+  if (choice === 'solo') startSolo();
+}
+
+// Up on a perch: mostly she stays a while, watching, washing, dozing,
+// glancing back at you; then she hops down.
+function perchLife(t) {
+  if (t > brain.perchUntil) { jumpDown(() => setActivity(restingActivity(), rand(2, 5))); return; }
+  const options = ['glance', 'twitch', 'slowBlink', 'groom', 'lookBack', 'loaf'];
+  if (brain.perch === 'sill' && !brain.bookKnocked && !room.bookFall && t - brain.actStart > 6) options.push('book');
+  const choice = pick(options);
+  if (choice === 'glance') glanceAt(brain.perch === 'sill' ? room.glass.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rand(-.9, .9), rand(-.6, .6), 0)) : new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.5, 3));
+  if (choice === 'twitch') twitchEar();
+  if (choice === 'slowBlink') { glanceAt(camera.position, 2.2); slowBlink(); }
+  if (choice === 'lookBack') { glanceAt(camera.position, rand(1.5, 2.5)); if (Math.random() < .3) meow('mew', 'idle'); }
+  if (choice === 'groom') setActivity('groom', rand(2.2, 3.5), () => setActivity('sit'));
+  if (choice === 'loaf') setActivity('loaf', rand(6, 12), () => setActivity('sit'));
+  if (choice === 'book') knockBook();
+}
+
+// The top book on the sill: she pats at it, twice, and the third pat sends it
+// over the edge. Then a look down at it, and an innocent look at you.
+function knockBook() {
+  brain.bookKnocked = true;
+  const book = room.bookWorld(new THREE.Vector3());
+  const pats = [0, .9, 1.8];
+  glanceAt(book, 3.5);
+  pats.forEach((d, i) => setTimeout(() => {
+    if (brain.perch !== 'sill' || brain.jump) return;
+    brain.swatAt = book;
+    setActivity('swat', .45, () => setActivity('sit'));
+    if (i === pats.length - 1) setTimeout(() => {
+      if (!room.knockBook(clockNow)) return;
+      setTimeout(() => {
+        glanceAt(room.bookWorld(new THREE.Vector3()), 1.8);
+        setTimeout(() => { glanceAt(camera.position, 2.5); express('curious', 2); if (Math.random() < .5) say(pick(['…it fell.', 'Oops.', 'It was like that when I got here.']), 2600); }, 1800);
+      }, 700);
+    }, 220);
+  }, d * 1000));
+}
+
+// Birds at the window, in daytime. Up on the sill she gets them often; from
+// the floor now and then one catches her eye and she may go up to watch.
+function watchBirds(t) {
+  if (pet.sleeping || !ready) { brain.watching = false; return; }
+  const onSill = brain.perch === 'sill' && !brain.jump;
+  if (!room.birdRun && t > brain.nextBird && brain.mode === 'idle') {
+    if (onSill || (Math.random() < .25 && ['sit', 'loaf'].includes(brain.activity) && !brain.perch)) {
+      const d = room.startBird(t);
+      brain.birdSeen = false;
+      brain.nextBird = t + d + (onSill ? rand(6, 16) : rand(60, 150));
+    } else brain.nextBird = t + rand(20, 50);
+  }
+  const at = room.birdWorld(tmpV3);
+  brain.watching = !!at && brain.mode === 'idle' && ['sit', 'loaf', 'groom'].includes(brain.activity);
+  if (!brain.watching) return;
+  brain.glance = (brain.glance || new THREE.Vector3()).copy(at);
+  brain.glanceUntil = t + .4;
+  if (!brain.birdSeen) {
+    brain.birdSeen = true;
+    twitchEar(0, 1.2); setTimeout(() => twitchEar(1, 1.2), 120);
+    express('curious', 1.5);
+    if (brain.activity !== 'sit') setActivity('sit');
+    if (onSill && Math.random() < .6) setTimeout(() => meow('chirp', 'idle'), 600);
+    // From the floor: sometimes she goes up for a better look.
+    if (!onSill && Math.random() < .5) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -830,6 +980,15 @@ function startPlay() {
   meow('chirp');
   say('Catch me if you can! Steer the toy around.', 3600, true);
 }
+// Solo play: when she's in the mood, she bats the ball around the rug by
+// herself, chasing it, swatting it and now and then pouncing.
+function startSolo() {
+  setMode('solo', rand(14, 24));
+  setActivity('play');
+  brain.stillSince = clockNow;
+  brain.pounceReadyAt = clockNow + 1.5;
+  express('excited', 1);
+}
 function endPlay(silent = false) {
   if (brain.mode !== 'play') return;
   brain.mode = 'idle';
@@ -853,10 +1012,12 @@ function catchToy() {
   const pc = brain.pounce;
   if (!pc || pc.caught) return;
   pc.caught = true;
-  brain.catches++;
-  $('#play-score').textContent = `${brain.catches} catch${brain.catches === 1 ? '' : 'es'}`;
-  burst('sparkle', 4, toyScreen());
-  meow('chirp');
+  if (brain.mode === 'play') {
+    brain.catches++;
+    $('#play-score').textContent = `${brain.catches} catch${brain.catches === 1 ? '' : 'es'}`;
+    burst('sparkle', 4, toyScreen());
+    meow('chirp');
+  } else if (Math.random() < .3) meow('chirp', 'idle');
   // The toy squirts away from the paws.
   const a = rand(0, Math.PI * 2);
   toyTarget.copy(onRug(new THREE.Vector3(toy.position.x + Math.sin(a) * 1.3, .13, toy.position.z + Math.cos(a) * 1.1))).setY(.13);
@@ -868,20 +1029,54 @@ function toyScreen() {
   return {x: (p.x * .5 + .5) * host.clientWidth, y: (-p.y * .5 + .5) * host.clientHeight};
 }
 function updatePlay(dt, t) {
-  const playing = brain.mode === 'play';
+  const playing = brain.mode === 'play', solo = brain.mode === 'solo';
   toy.position.x = damp(toy.position.x, toyTarget.x, playing ? 10 : 4, dt);
   toy.position.z = damp(toy.position.z, toyTarget.z, playing ? 10 : 4, dt);
   toyVel.subVectors(toy.position, toyLast).divideScalar(Math.max(dt, 1e-3));
   toyLast.copy(toy.position);
   toy.rotation.x += toyVel.z * dt / .12;
   toy.rotation.z -= toyVel.x * dt / .12;
-  if (!playing) return;
-  const remaining = brain.playEnd - t;
-  $('#play-fill').style.transform = `scaleX(${clamp(remaining / PLAY_SECONDS, 0, 1)})`;
-  if (remaining <= 0) { endPlay(); return; }
+  if (!playing && !solo) return;
+  if (playing) {
+    const remaining = brain.playEnd - t;
+    $('#play-fill').style.transform = `scaleX(${clamp(remaining / PLAY_SECONDS, 0, 1)})`;
+    if (remaining <= 0) { endPlay(); return; }
+  } else if (t > brain.modeUntil && !brain.pounce) {
+    brain.mode = 'idle';
+    setActivity('sit', rand(3, 6));
+    if (Math.random() < .5) setTimeout(() => { glanceAt(camera.position, 2); slowBlink(); }, 800);
+    return;
+  }
+  if (brain.jump) return;
   if (toyVel.length() > .35) brain.stillSince = t;
-  if (brain.pounce) return;
+  // A swat lands: the ball rolls off away from her paw.
+  if (brain.swatHit && t > brain.swatHit) {
+    brain.swatHit = 0;
+    const a = brain.heading + rand(-.6, .6), d = rand(.7, 1.4);
+    toyTarget.copy(onRug(new THREE.Vector3(toy.position.x + Math.sin(a) * d, .13, toy.position.z + Math.cos(a) * d))).setY(.13);
+    brain.stillSince = t + .8;
+  }
+  if (brain.pounce || brain.activity === 'swat') return;
   const dx = toy.position.x - brain.pos.x, dz = toy.position.z - brain.pos.z, dist = Math.hypot(dx, dz);
+  if (solo) {
+    // Up close to the ball, then mostly swats, sometimes a pounce.
+    if (dist > .85) {
+      if (brain.activity !== 'walk' || !brain.target || brain.target.distanceTo(toy.position) > .9) walkTo(new THREE.Vector3(toy.position.x - dx / dist * .6, 0, toy.position.z - dz / dist * .6), () => setActivity('play'), dist > 2.2);
+      return;
+    }
+    if (brain.activity === 'walk') setActivity('play');
+    if (brain.activity !== 'play' || t < brain.pounceReadyAt || t - brain.stillSince < .5) return;
+    if (Math.random() < .7) {
+      brain.swatAt = toy.position.clone();
+      setActivity('swat', .45, () => setActivity('play'));
+      brain.swatHit = t + .22;
+    } else {
+      brain.pounce = {start: t, from: brain.pos.clone(), to: onRug(new THREE.Vector3(toy.position.x - dx / dist * .5, 0, toy.position.z - dz / dist * .5)), caught: false};
+      express('excited', 1.4);
+    }
+    brain.pounceReadyAt = t + rand(1.4, 2.8);
+    return;
+  }
   if (dist > 1.35) {
     // Chase: run to a spot just short of the toy.
     if (brain.activity !== 'walk' || !brain.target || brain.target.distanceTo(toy.position) > 1.2) {
@@ -1317,6 +1512,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });
