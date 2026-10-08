@@ -37,7 +37,7 @@ a { color: var(--accent); }
 <body>
 <main>
 <h1>Mochi project board</h1>
-<p class="meta">Where the cat app stands, for Merlin, Orion and the team · updated October 8, 2026 · live build 47</p>
+<p class="meta">Where the cat app stands, for Merlin, Orion and the team · updated October 8, 2026 · <span id="builds">live build …</span></p>
 
 <div class="links">
   <a href="../"><b>The app (live)</b><span>What everyone sees. Add it to your home screen.</span></a>
@@ -80,12 +80,20 @@ a { color: var(--accent); }
   <li>Differences from the drawing: the rug and bed keep the app's existing shapes, and the leaves are a garland over the print rather than a separate wreath.</li>
 </ul>
 
-<h2>Next for Orion</h2>
+<h3>Orion's notes (October 8)</h3>
 <ul>
-  <li><b>Christmas room</b> sketches by November 15, same format as Thanksgiving (see the <a href="../brief/">brief</a>).</li>
-  <li><b>Accessories</b> for Christmas: bandana, Santa hat, collar with bell, bow. Neck or head pieces only, drawn front and side.</li>
-  <li>A written OK that the designs can be used in a commercial app.</li>
+  <li>The lighter rug, olive-trimmed bed and coastal window translate the design well.</li>
+  <li>Asked for subtle woven texture on the rug and bed and a more visible cable knit on the throw, kept light for phones: <b>done, in preview</b> (small relief textures; the weave and cables catch the light).</li>
+  <li>Confirmed that the Thanksgiving concepts and prop sheet were created for this project and may be used in the commercial app.</li>
 </ul>
+
+<h2>Next designs</h2>
+<div class="table"><table>
+<thead><tr><th>Room</th><th>Direction</th><th>Timing</th></tr></thead>
+<tbody>
+<tr><td>Halloween in the Hamptons</td><td>A small, Nancy Meyers–style surprise: warm glowing jack-o'-lanterns, a few paper bats, a discreet ghost cushion, and a felt bat toy for Mochi to bat around. Same room layout and paths. Orion is sending the visual reference.</td><td>Reference by about October 15 so it's ready before October 31</td></tr>
+<tr><td>Christmas</td><td>Traditional Scottish red tartan, evergreen, brass and warm white lights. Accessories: bandana, Santa hat, collar with bell, bow (neck or head pieces only, drawn front and side).</td><td>Sketches by November 15</td></tr>
+</tbody></table></div>
 
 <h2>Open questions</h2>
 <div class="table"><table>
@@ -103,8 +111,20 @@ a { color: var(--accent); }
 <h2>How we work</h2>
 <ul>
   <li>Changes go to <a href="../preview/">preview</a> first, with a build number on screen and a <a href="../review/">review pack</a>; they go live only when Merlin says so.</li>
-  <li>Credits: 3D cat model made with Meshy (CC BY 4.0); purr recording by Kerzoven via OpenGameArt (CC0).</li>
+  <li>A release is public within a few minutes; the review pack refreshes about 25 minutes later.</li>
+
+<h2>Credits</h2>
+<ul>
+  <li>Room decor designs (Thanksgiving and the coming holidays) by Orion, created for this project and cleared for the commercial app.</li>
+  <li>3D cat model made with <a href="https://www.meshy.ai/">Meshy</a> (CC BY 4.0; the credit is shown in the app).</li>
+  <li>Purr recording by Kerzoven via <a href="https://opengameart.org/content/cat-purr-meow">OpenGameArt</a> (CC0).</li>
+  <li>3D engine: three.js (MIT licence).</li>
 </ul>
 </main>
+<script>
+// Live and preview build numbers, read from the site itself.
+Promise.all(['../version.json', '../preview/version.json'].map(u => fetch(u, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null)))
+  .then(([live, prev]) => { document.getElementById('builds').textContent = [live && `live build ${live.build}`, prev && `preview build ${prev.build}`].filter(Boolean).join(' · ') || 'builds unavailable'; });
+</script>
 </body>
 </html>
