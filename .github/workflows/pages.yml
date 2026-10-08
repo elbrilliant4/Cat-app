@@ -9,7 +9,7 @@
 #
 # Two steps, so the site never waits on the review pack: "site" publishes the
 # app and the preview within a couple of minutes (with the last review pack,
-# kept in the Actions cache); "review" then renders a fresh pack (about 25
+# kept in the Actions cache); "review" then renders a fresh pack (about 35
 # minutes) and publishes again with it.
 # Runs on every push to main, and on demand (a push to the review branch
 # triggers it through preview.yml).
@@ -72,7 +72,7 @@ jobs:
   review:
     needs: site
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 80
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -93,13 +93,15 @@ jobs:
           fetch-depth: 0
       - name: Render the preview's review pack
         continue-on-error: true
-        timeout-minutes: 55
+        timeout-minutes: 65
         run: |
           # Build numbers first, so the pack is labelled with this build.
           printf '{"build": %s, "commit": "%s", "channel": "preview", "date": "%s"}\n' \
             "$(git -C preview-src rev-list --count HEAD)" "$(git -C preview-src rev-parse --short HEAD)" "$(date -u +%FT%TZ)" > preview-src/dist/version.json
+          # Keep whatever was rendered even when the render fails or runs out
+          # of time (a step stops at its first failing line).
           if [ -x preview-src/tools/review-pack/run.sh ]; then
-            preview-src/tools/review-pack/run.sh preview-src/dist
+            preview-src/tools/review-pack/run.sh preview-src/dist || echo "::warning::review pack incomplete (exit $?); publishing what was rendered"
           fi
           mkdir -p review-pack && cp -r preview-src/dist/review/. review-pack/ 2>/dev/null || true
       - name: Keep the pack for the next site deploy

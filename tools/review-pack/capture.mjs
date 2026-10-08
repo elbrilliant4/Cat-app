@@ -4,6 +4,7 @@
 //   face-front/left/right/three.png   close-ups
 //   eyes-open/half/closed.png         eyelids
 //   idle.mp4, walk.mp4                short clips (needs ffmpeg)
+//   halloween-*.png, halloween-bat-play.mp4   the Halloween decor
 //   room-day.png, room-night.png      the room on a phone, day and evening
 //   room-desktop.png                  the room on a wide screen
 //   meow-*.wav, purr-*.wav            isolated sounds (and each recorded clip)
@@ -64,8 +65,9 @@ async function clip(p, name, fn, seconds, fps = 15) {
 
 // The review page.
 const has = f => made.includes(f);
-const img = (f, cap) => has(f) ? `<figure><a href="${f}"><img src="${f}" alt="${cap}" loading="lazy"></a><figcaption>${cap}</figcaption></figure>` : '';
-const vid = (f, cap) => has(f) ? `<figure><video src="${f}" controls loop muted playsinline preload="metadata"></video><figcaption>${cap} · <a href="${f}">download</a></figcaption></figure>` : '';
+const missing = cap => `<figure class="missing"><div class="gap">${finished ? 'Not captured in this run' : 'Not captured: rendering ran out of time (or is still going)'}</div><figcaption>${cap}</figcaption></figure>`;
+const img = (f, cap) => has(f) ? `<figure><a href="${f}"><img src="${f}" alt="${cap}" loading="lazy"></a><figcaption>${cap}</figcaption></figure>` : missing(cap);
+const vid = (f, cap) => has(f) ? `<figure><video src="${f}" controls loop muted playsinline preload="metadata"></video><figcaption>${cap} · <a href="${f}">download</a></figcaption></figure>` : missing(cap);
 const aud = (f, cap) => has(f) ? `<figure class="audio"><figcaption>${cap}</figcaption><audio src="${f}" controls preload="none"></audio><a href="${f}">download</a></figure>` : `<figure class="audio"><figcaption>${cap}</figcaption><p class="none">Not available in this build.</p></figure>`;
 function writePage() {
   const when = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
@@ -87,6 +89,8 @@ figure img, figure video { display: block; width: 100%; height: auto; background
 figcaption { padding: 8px 12px; font-size: 13px; font-weight: 650; color: var(--muted); }
 figure.audio { padding: 4px 12px 12px; } figure.audio audio { width: 100%; } figure.audio a { font-size: 12px; color: var(--muted); }
 .none { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.gap { aspect-ratio: 16 / 10; display: grid; place-items: center; padding: 16px; text-align: center; font-size: 13px; font-weight: 650; color: var(--accent); background: repeating-linear-gradient(135deg, transparent 0 10px, color-mix(in srgb, var(--line) 60%, transparent) 10px 20px); }
+.notice { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
 a { color: var(--accent); }
 ul { padding-left: 18px; }
 table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; display: block; overflow-x: auto; }
@@ -94,9 +98,11 @@ th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--lin
 th { color: var(--muted); font-weight: 650; }
 </style></head><body><main>
 <h1>Mochi review pack</h1>
-<p class="meta"><b>Build ${version.build}</b> · commit ${version.commit} · ${version.channel} · rendered ${when}</p>
-${finished ? '' : '<p class="meta"><b>This pack is incomplete:</b> rendering ran out of time or is still going. Anything missing below will be there in the next build.</p>'}
-<p class="meta">This page always shows the newest preview build. The same build number appears in the app's top bar and on every image and clip below. <a href="../">Open this build of the app</a></p>
+<p class="meta"><b>Captures: build ${version.build}</b> · commit ${version.commit} · rendered ${when}</p>
+<p class="meta" id="app-build" hidden></p>
+<p class="notice" id="stale" hidden></p>
+${finished ? '' : '<p class="notice"><b>This pack is incomplete:</b> rendering ran out of time or is still going. Missing items are marked below.</p>'}
+<p class="meta">Every image and clip below was rendered from the capture build, which also shows in the app's top bar inside each picture. <a href="../">Open the preview app</a></p>
 <h2>Face</h2>
 <div class="grid">${img('face-front.png', 'Front')}${img('face-three.png', 'Three-quarter')}${img('face-left.png', 'Left side')}${img('face-right.png', 'Right side')}</div>
 <h2>Eyes</h2>
@@ -104,7 +110,7 @@ ${finished ? '' : '<p class="meta"><b>This pack is incomplete:</b> rendering ran
 <h2>Motion</h2>
 <div class="grid wide">${vid('idle.mp4', 'Idle, 5 s')}${vid('walk.mp4', 'Walking, 5 s')}</div>
 <h2>Halloween in the Hamptons (preview decor)</h2>
-<p class="meta">All from build ${version.build}. The evening is what the room looks like after Rest. The play clip is a time-lapse (one frame every 1.5 s of her playing on her own), because this test renderer is slow.</p>
+<p class="meta">All from capture build ${version.build}. The evening is what the room looks like after Rest. The play clip is a time-lapse (one frame every 1.5 s of her playing on her own), because this test renderer is slow.</p>
 <div class="grid">${img('halloween-day.png', 'Halloween, day')}${img('halloween-evening.png', 'Halloween, evening')}${img('halloween-pumpkins-day.png', 'Jack-o’-lanterns, day')}${img('halloween-pumpkins-evening.png', 'Jack-o’-lanterns, evening')}</div>
 <div class="grid wide">${vid('halloween-bat-play.mp4', 'Playing with the felt bat (time-lapse)')}</div>
 <h2>Room</h2>
@@ -121,7 +127,23 @@ ${clipRows.map(c => { const q = c.qa; return `<tr><td>${c.file}</td><td>${q.seco
 <p class="meta">Clicks: sudden spikes far above their surroundings. Loop seam: the jump from the last sample back to the first, compared with an ordinary sample-to-sample step (about 1–3× is seamless), and the loudness either side of it.</p>` : ''}
 ${credits.length ? `<h2>Sound credits</h2><ul>${credits.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}
 ${errors.length ? `<h2>Capture notes</h2><ul>${errors.map(e => `<li>${e.replace(/</g, '&lt;')}</li>`).join('')}</ul>` : ''}
-</main></body></html>
+</main>
+<script>
+// The preview app can be newer than these captures (a fresh pack renders for
+// about 35 minutes after each release); say so plainly when it is.
+fetch('../version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(app => {
+  if (!app) return;
+  const el = document.getElementById('app-build');
+  el.innerHTML = '<b>Preview app: build ' + app.build + '</b> · commit ' + app.commit;
+  el.hidden = false;
+  if (String(app.build) !== ${JSON.stringify(String(version.build))}) {
+    const n = document.getElementById('stale');
+    n.innerHTML = '<b>These captures are from build ${version.build}; the preview app is build ' + app.build + '.</b> A new pack for build ' + app.build + ' is usually published within about 40 minutes of a release.';
+    n.hidden = false;
+  }
+}).catch(() => {});
+</script>
+</body></html>
 `);
 }
 
@@ -181,9 +203,8 @@ await roomShot({width: 390, height: 844}, 'room-day.png');
 await roomShot({width: 390, height: 844}, 'room-night.png', true);
 await roomShot({width: 1280, height: 800}, 'room-desktop.png');
 
-// Halloween decor, for review: the room by day and in the evening, both
-// jack-o'-lanterns close up (day and evening), and a time-lapse of her
-// playing with the felt bat. Built from this preview build.
+// Halloween decor, for review: the room by day and in the evening, and both
+// jack-o'-lanterns close up (day and evening). The felt-bat clip comes last.
 {
   log('halloween');
   const p = await page('index.html?debug', {width: 1280, height: 800});
@@ -208,32 +229,10 @@ await roomShot({width: 1280, height: 800}, 'room-desktop.png');
   await p.evaluate(() => { kitten.pet.sleeping = true; });
   await shot('halloween-pumpkins-evening.png', 11000);
   await pumpkins(false); await shot('halloween-evening.png', 8000);
-  // Felt bat play: awake again, near the bat, playing on her own.
-  await p.evaluate(() => {
-    const k = kitten;
-    k.pet.sleeping = false; k.pet.energy = 90;
-    k.brain.pos.set(-.9, 0, .5); k.setActivity('sit');
-    k.toyTarget.set(-.2, .13, .7);
-    const v = k.view; Object.assign(v.goal, {yaw: .25, pitch: .42, dist: 3.4}); v.goal.focus.set(-.5, .3, .55);
-    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
-  });
-  await p.waitForTimeout(8000);
-  await p.evaluate(() => { kitten.startSolo(); kitten.brain.modeUntil = performance.now() / 1000 + 1e4; });
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bat'));
-  for (let i = 0; i < 30; i++) {
-    await p.waitForTimeout(1500);
-    await p.screenshot({path: path.join(dir, String(i).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 88});
-  }
-  try {
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', '5', '-i', path.join(dir, '%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', '-movflags', '+faststart', path.join(out, 'halloween-bat-play.mp4')]);
-    made.push('halloween-bat-play.mp4');
-  } catch (e) { errors.push(`halloween-bat-play.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
-  fs.rmSync(dir, {recursive: true, force: true});
-  log('halloween-bat-play'); writePage();
   await p.close();
 }
 
-// The clips take longest, so they come last.
+// The clips take longest, so they come after the stills.
 await stage.setViewportSize({width: 960, height: 540});
 await stage.waitForTimeout(500);
 await stage.evaluate(() => window.walkAt(0));
@@ -247,6 +246,39 @@ await ready(idle);
 await clip(idle, 'idle', 'renderAt', 5, 12);
 log('idle');
 await idle.close();
+writePage();
+
+// Felt bat play, last because it is the slowest: a time-lapse of her playing
+// on her own with the Halloween felt bat, on a smaller page so each frame
+// renders faster.
+{
+  const p = await page('index.html?debug', {width: 800, height: 500});
+  await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
+  await p.evaluate(async () => {
+    const k = kitten, m = await import('./decor.js');
+    k.brain.nextIdle = 1e9; k.brain.nextShow = 1e9; k.brain.nextBird = 1e9;
+    m.applyDecor(k.room, 'halloween');
+    k.pet.sleeping = false; k.pet.energy = 90;
+    k.brain.pos.set(-.9, 0, .5); k.setActivity('sit');
+    k.toyTarget.set(-.2, .13, .7);
+    const v = k.view; Object.assign(v.goal, {yaw: .25, pitch: .42, dist: 4.1}); v.goal.focus.set(-.5, .3, .55);
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+  });
+  await p.waitForTimeout(8000);
+  await p.evaluate(() => { kitten.startSolo(); kitten.brain.modeUntil = performance.now() / 1000 + 1e4; });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bat'));
+  for (let i = 0; i < 24; i++) {
+    await p.waitForTimeout(1500);
+    await p.screenshot({path: path.join(dir, String(i).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 88});
+  }
+  try {
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', '5', '-i', path.join(dir, '%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', '-movflags', '+faststart', path.join(out, 'halloween-bat-play.mp4')]);
+    made.push('halloween-bat-play.mp4');
+  } catch (e) { errors.push(`halloween-bat-play.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
+  fs.rmSync(dir, {recursive: true, force: true});
+  log('halloween-bat-play');
+  await p.close();
+}
 
 await browser.close();
 server.close();
