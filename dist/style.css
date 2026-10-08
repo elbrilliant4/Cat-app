@@ -83,7 +83,12 @@ svg { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
 .brand:hover .brand-mark { transform: rotate(-12deg) scale(1.06); }
 img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .chip { white-space: nowrap; }
-@media (max-width: 480px) { .topbar:has(#build-chip:not([hidden])) .brand > span { display: none; } .build-chip { padding: 8px 10px; } }
+@media (max-width: 480px) {
+  .topbar:has(#build-chip:not([hidden])) .brand > span { display: none; }
+  .build-chip { padding: 8px 10px; } .build-chip .long { display: none; }
+  .top-actions { gap: 6px; }
+  .topbar:has(#build-chip:not([hidden])) .day-chip span { display: none; }
+}
 .build-chip { font-size: 11px; font-weight: 800; letter-spacing: .2px; color: var(--ink-2); }
 #build-label { margin-left: 6px; opacity: .8; }
 .greeting { margin: 0; flex: 1; color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
