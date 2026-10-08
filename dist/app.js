@@ -389,7 +389,7 @@ const brain = {
   gaze: new THREE.Vector3(0, 1.2, 4), headGaze: new THREE.Vector3(0, 1.2, 4), headWait: null, headMoving: false,
   bodyWait: null, bodyTurning: false, glance: null, glanceUntil: 0,
   head: {yaw: 0, pitch: 0, roll: 0}, look: {x: 0, y: 0},
-  nextIdle: 6, nextZ: 0, nextTwitch: 3,
+  nextIdle: 6, nextShow: 10, nextZ: 0, nextTwitch: 3,
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
   petTimes: [],
@@ -747,7 +747,15 @@ function idleLife(t) {
   if (pet.water < 60) options.push('drink', 'drink', 'drink');
   if (pet.energy < 50) options.push('nap');
   if (pet.happiness > 50) options.push('meow');
-  const choice = pick(options);
+  let choice = pick(options);
+  // Something worth watching comes round often: soon after you open the
+  // app, then every half a minute or so. A tired kitten picks the calm ones.
+  if (t > brain.nextShow) {
+    brain.nextShow = t + rand(25, 40);
+    const shows = ['window', 'window', 'chair', 'sunbeam'];
+    if (pet.energy > 35) shows.push('solo', 'solo', 'zoomies');
+    choice = pick(shows);
+  }
   if (choice === 'glance') glanceAt(new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.2, 2.6));
   if (choice === 'twitch') { twitchEar(0); setTimeout(() => twitchEar(1), 140); }
   if (choice === 'tilt') express('curious', 1.8);
@@ -768,15 +776,15 @@ function idleLife(t) {
     walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); });
   }
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
-  if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 6); }, rand(30, 60));
+  if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 5); }, rand(20, 35));
   if (choice === 'chair') jumpTo('chair', () => {
     // Kneads the seat, turns, and settles in for a catnap.
     brain.kneadUntil = clockNow + 3;
-    setActivity('loaf', 3.4, () => setActivity('catnap', rand(18, 35), () => { slowBlink(); setActivity('sit', 4); }));
-  }, rand(35, 60));
+    setActivity('loaf', 3.4, () => setActivity('catnap', rand(12, 22), () => { slowBlink(); setActivity('sit', 4); }));
+  }, rand(25, 40));
   if (choice === 'sunbeam' && !pet.sleeping) walkTo(SUN_SPOT, () => {
     express('bliss', 2);
-    setActivity('loaf', 2.5, () => setActivity('catnap', rand(15, 30), () => { yawn(); setActivity('sit', 3); }));
+    setActivity('loaf', 2.5, () => setActivity('catnap', rand(10, 20), () => { yawn(); setActivity('sit', 3); }));
   }, false, true);
   if (choice === 'solo') startSolo();
 }
