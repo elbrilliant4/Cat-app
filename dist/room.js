@@ -1104,13 +1104,13 @@ export class Room {
       for (let k = 0; k < 3; k++) {
         const at = pts[1 + Math.floor(r() * (n - 1))];
         const side = new THREE.Vector3(r() - .5, 0, r() - .5).normalize();
-        grow(at, d.clone().addScaledVector(side, .8 + r() * .4).add(new THREE.Vector3(0, .1, 0)).normalize(), len * (.45 + r() * .25), rad * .55, depth - 1);
+        grow(at, d.clone().addScaledVector(side, .8 + r() * .4).add(new THREE.Vector3(0, .1, 0)).normalize(), len * (.5 + r() * .28), rad * .55, depth - 1);
       }
       sprays.push(pts.slice(2));
     };
     // Lopsided: more and longer branches reaching up and out towards the room.
     const top = trunk[3];
-    for (const [x, y, z, len] of [[-.7, .8, .1, 1.5], [-.35, 1, .5, 1.7], [-.2, 1, -.35, 1.35], [.25, .9, .45, 1.15], [-.6, .55, .7, 1.3], [.1, 1, .05, 1.1], [-.85, .45, -.3, 1.0], [-.45, .7, -.6, 1.15]]) {
+    for (const [x, y, z, len] of [[-.7, .8, .1, 1.72], [-.35, 1, .5, 1.95], [-.2, 1, -.35, 1.55], [.25, .9, .45, 1.32], [-.6, .55, .7, 1.5], [.1, 1, .05, 1.26], [-.85, .45, -.3, 1.15], [-.45, .7, -.6, 1.32]]) {
       grow(top.clone().add(new THREE.Vector3(0, -r() * .3, 0)), new THREE.Vector3(x, y, z).normalize(), len, .02, 1);
     }
     const wood = new THREE.InstancedMesh(new THREE.CylinderGeometry(.6, 1, 1, 5).translate(0, .5, 0), bark, segs.length);
