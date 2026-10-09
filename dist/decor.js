@@ -395,20 +395,21 @@ function buildAutumn(room, T) {
   };
   pear(1.08, top + .06, .21, 1.25, .15); pear(1.18, top + .06, .27, 1.15, -.2); pear(1.12, top + .07, .14, 1.1, .05);
 
-  // --- An oak-leaf garland draped over the botanical print.
-  const pg = room.printGroup, path = [];
-  for (let i = 0; i <= 40; i++) {
-    const k = i / 40;
-    if (k < .25) path.push([-.62, -.2 + k / .25 * .9]);          // up the left side
-    else if (k < .75) { const q = (k - .25) / .5; path.push([-.62 + q * 1.24, .74 - Math.sin(q * Math.PI) * .06]); } // across the top
-    else path.push([.62, .7 - (k - .75) / .25 * .8]);            // down the right
+  // --- An oak-leaf garland along the top of the painting, trailing a little
+  // way down each side.
+  const pg = room.printGroup, ps = room.printSize, hw = ps.w / 2 + .05, gTop = ps.h / 2 + .04, path = [];
+  for (let i = 0; i <= 60; i++) {
+    const k = i / 60;
+    if (k < .2) path.push([-hw, gTop - .95 + k / .2 * .95]);       // up the left side
+    else if (k < .8) { const q = (k - .2) / .6; path.push([-hw + q * hw * 2, gTop - Math.sin(q * Math.PI) * .1]); } // across the top
+    else path.push([hw, gTop - (k - .8) / .2 * .95]);              // down the right
   }
-  const garland = new THREE.InstancedMesh(new THREE.PlaneGeometry(.21, .21), oakMat, 220);
+  const garland = new THREE.InstancedMesh(new THREE.PlaneGeometry(.21, .21), oakMat, 320);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-  for (let i = 0; i < 220; i++) {
+  for (let i = 0; i < 320; i++) {
     const [x, y] = path[Math.floor(r() * path.length)];
     q.setFromEuler(e.set((r() - .5) * .8, (r() - .5) * .8, r() * Math.PI * 2));
-    m4.compose(new THREE.Vector3(x + (r() - .5) * .12, y + (r() - .5) * .12, .1 + r() * .04), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.75 + r() * .5));
+    m4.compose(new THREE.Vector3(x + (r() - .5) * .12, y + (r() - .5) * .12, ps.front + .02 + r() * .04), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.75 + r() * .5));
     garland.setMatrixAt(i, m4);
   }
   add(garland, pg);

@@ -1,9 +1,9 @@
 // Mochi's room: a cozy, classic study built in 3D from simple shapes and
-// textures drawn in code (no photos are used). Warm oak floor, panelled
+// textures drawn in code (no photos are used). Limed oak floor, panelled
 // wainscoting, a tall window with linen curtains, an olive-and-navy plaid
 // rug, a tufted leather club chair with a plaid throw, side table and brass
-// lamp, botanical print, bookcase, plaid cat bed with a plush lining, an
-// ivory food bowl and an olive ceramic water fountain.
+// lamp, a large abstract painting, bookcase, plaid cat bed with a plush
+// lining, an ivory food bowl and an olive ceramic water fountain.
 //
 // Scale: about 2.4 scene units per metre, matching Mochi.
 import * as THREE from 'three';
@@ -37,7 +37,9 @@ export function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) 
 // ---------------------------------------------------------------------------
 // Textures
 // ---------------------------------------------------------------------------
-function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46}) {
+// limed: lime paste left in the open grain (pale streaks), softer knots and
+// seams, and a faint white wash: lightly limed natural oak.
+function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46, limed = false}) {
   const r = rng(seed), ph = h / planks;
   for (let i = 0; i < planks; i++) {
     let x = -r() * 400;
@@ -56,7 +58,9 @@ function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46}) {
       g.fillStyle = drift; g.fillRect(x, i * ph, len, ph);
       for (let k = 0; k < grain; k++) {
         const y0 = i * ph + r() * ph, amp = 1 + r() * 4, f = .004 + r() * .01, ph0 = r() * 6;
-        g.strokeStyle = r() < .75 ? `rgba(55,25,8,${.05 + r() * .12})` : `rgba(255,215,160,${.04 + r() * .06})`;
+        g.strokeStyle = limed
+          ? (r() < .5 ? `rgba(246,240,228,${.08 + r() * .14})` : `rgba(88,60,34,${.08 + r() * .14})`)
+          : r() < .75 ? `rgba(55,25,8,${.05 + r() * .12})` : `rgba(255,215,160,${.04 + r() * .06})`;
         g.lineWidth = .6 + r() * 2.2;
         g.beginPath();
         for (let xx = x; xx <= x + len; xx += 12) g.lineTo(xx, y0 + Math.sin(xx * f + ph0) * amp);
@@ -65,18 +69,20 @@ function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46}) {
       if (r() < .45) {
         const kx = x + r() * len, ky = i * ph + ph * (.3 + r() * .4), kr = 6 + r() * 10;
         const kg = g.createRadialGradient(kx, ky, 1, kx, ky, kr * 2.2);
-        kg.addColorStop(0, 'rgba(40,18,5,.75)'); kg.addColorStop(.4, 'rgba(70,32,10,.35)'); kg.addColorStop(1, 'rgba(70,32,10,0)');
+        if (limed) { kg.addColorStop(0, 'rgba(92,66,40,.62)'); kg.addColorStop(.4, 'rgba(120,90,58,.3)'); kg.addColorStop(1, 'rgba(120,90,58,0)'); }
+        else { kg.addColorStop(0, 'rgba(40,18,5,.75)'); kg.addColorStop(.4, 'rgba(70,32,10,.35)'); kg.addColorStop(1, 'rgba(70,32,10,0)'); }
         g.fillStyle = kg;
         g.beginPath(); g.ellipse(kx, ky, kr * 2.2, kr, 0, 0, Math.PI * 2); g.fill();
       }
       g.restore();
-      g.fillStyle = 'rgba(30,14,4,.55)';
+      g.fillStyle = limed ? 'rgba(78,58,38,.42)' : 'rgba(30,14,4,.55)';
       g.fillRect(x, i * ph, 2, ph);
       x += len;
     }
-    g.fillStyle = 'rgba(30,14,4,.6)';
+    g.fillStyle = limed ? 'rgba(78,58,38,.45)' : 'rgba(30,14,4,.6)';
     g.fillRect(0, i * ph, w, 2);
   }
+  if (limed) { g.fillStyle = 'rgba(244,240,230,.07)'; g.fillRect(0, 0, w, h); }
 }
 
 function drawPlaid(g, w, h, {base, stripes, seed = 3}) {
@@ -138,30 +144,97 @@ function drawSherpa(g, w, h) {
   drawNoise(g, w, h, {base: '#d6c7aa', blobs: [['rgba(120,100,70,.35)', 5000, 2, 4.5], ['rgba(248,240,225,.6)', 6000, 1.5, 4]], seed: 13});
 }
 
-function drawBotanical(g, w, h) {
-  const r = rng(21);
-  g.fillStyle = '#efe5cf'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(150,110,60,${r() * .05})`; g.beginPath(); g.arc(r() * w, r() * h, 4 + r() * 30, 0, 7); g.fill(); }
-  g.strokeStyle = 'rgba(120,95,60,.5)'; g.lineWidth = 2; g.strokeRect(28, 28, w - 56, h - 56);
-  const cx = w / 2;
-  g.strokeStyle = '#5c6a39'; g.lineWidth = 5; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(cx, h - 90); g.bezierCurveTo(cx - 10, h * .6, cx + 12, h * .4, cx, h * .26); g.stroke();
-  const leaf = (x, y, a, s) => {
-    g.save(); g.translate(x, y); g.rotate(a);
-    g.fillStyle = '#6f7d44'; g.beginPath(); g.ellipse(s * .55, 0, s * .6, s * .24, 0, 0, 7); g.fill();
-    g.strokeStyle = 'rgba(40,50,20,.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, 0); g.lineTo(s * 1.1, 0); g.stroke();
-    for (let k = 1; k < 6; k++) { g.beginPath(); g.moveTo(s * k * .18, 0); g.lineTo(s * k * .18 + s * .12, -s * .16); g.moveTo(s * k * .18, 0); g.lineTo(s * k * .18 + s * .12, s * .16); g.stroke(); }
-    g.restore();
+// An original abstract in the spirit of mid-century European painting: a
+// slab of cobalt, a block of vermilion, black bars and chalky whites, laid
+// on with a dry brush and a palette knife and worn back in places. Signed,
+// small, in the bottom right corner.
+function drawAbstract(g, w, h) {
+  const r = rng(58);
+  const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
+  // A block built up from palette-knife dabs: slanted slabs of paint in
+  // slightly different mixes, thicker in the middle, broken at the edges so
+  // the layers underneath show through.
+  const rough = (x, y, ww, hh, color, {alpha = 1, jag = 10, layers = 5} = {}) => {
+    const n = Math.round(ww * hh / 2400 * layers * .5);
+    for (let i = 0; i < n; i++) {
+      const u = r(), v = r(), edge = Math.min(u, 1 - u, v, 1 - v);
+      const px = x + u * ww + (r() - .5) * jag, py = y + v * hh + (r() - .5) * jag;
+      const dw = 34 + r() * 110, dh = 14 + r() * 38, sk = (r() - .5) * dh * 1.2;
+      g.globalAlpha = alpha * (edge < .06 ? .3 + r() * .45 : .7 + r() * .3);
+      g.fillStyle = pick(color);
+      g.save(); g.translate(px, py); g.rotate((r() - .5) * .35);
+      g.beginPath(); g.moveTo(-dw / 2, -dh / 2); g.lineTo(dw / 2 + sk, -dh / 2 + (r() - .5) * 4); g.lineTo(dw / 2, dh / 2); g.lineTo(-dw / 2 - sk, dh / 2 + (r() - .5) * 4); g.closePath(); g.fill();
+      // A ridge of lighter paint where the knife lifted.
+      if (r() < .35) { g.globalAlpha *= .5; g.fillStyle = 'rgba(255,250,240,.6)'; g.fillRect(-dw / 2, -dh / 2, dw, 1.5); }
+      g.restore();
+    }
+    g.globalAlpha = 1;
   };
-  for (let i = 0; i < 6; i++) { const y = h - 140 - i * 52; leaf(cx, y, -.5 - r() * .4, 70 + r() * 30); leaf(cx, y - 20, Math.PI + .5 + r() * .4, 70 + r() * 30); }
-  for (let i = 0; i < 46; i++) {
-    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 62;
-    const x = cx + Math.cos(a) * d, y = h * .2 + Math.sin(a) * d * .7;
-    g.fillStyle = '#f3ecd8'; g.beginPath(); g.arc(x, y, 7 + r() * 4, 0, 7); g.fill();
-    g.strokeStyle = 'rgba(110,90,55,.6)'; g.lineWidth = 1.2; g.stroke();
-    g.fillStyle = '#9a7a45'; g.beginPath(); g.arc(x, y, 2, 0, 7); g.fill();
+  const scumble = (x, y, ww, hh, color, n, a) => {
+    // Dry brush: long, broken drags that catch only the high spots.
+    for (let i = 0; i < n; i++) {
+      g.globalAlpha = a * (.3 + r() * .7);
+      g.fillStyle = color;
+      let sx = x + r() * ww, sy = y + r() * hh;
+      const len = 30 + r() * ww * .5, hgt = 1 + r() * 5;
+      for (let k = 0; k < len; k += 6 + r() * 10) if (r() < .7) g.fillRect(sx + k, sy + (r() - .5) * 2, 5 + r() * 9, hgt);
+    }
+    g.globalAlpha = 1;
+  };
+  const W = k => k * w, H = k => k * h;
+  const chalk = ['#ece5d6', '#e4dccb', '#f2ece0', '#d9d0bd', '#cfc6b3'], cobalt = ['#1c3e9c', '#21469f', '#183585', '#2a52ad', '#13296b'];
+  const vermilion = ['#e2531f', '#d8481b', '#ec6528', '#cf4317', '#f07a35'], black = ['#17140f', '#221d17', '#0f0d0a', '#2b261f'];
+  // Underpainting: a warm grey ground, loosely scrubbed in with ochre and
+  // umber, which shows through wherever the top layers break.
+  g.fillStyle = '#d8cdb6'; g.fillRect(0, 0, w, h);
+  rough(0, 0, w, h, ['#c9b994', '#b8a27a', '#d6cbb4', '#a8987c', '#8c7d66'], {alpha: .7, jag: 30, layers: 2});
+  // The big blue, top left, with a deeper blue pressed into it.
+  rough(W(-.03), H(-.03), W(.63), H(.45), cobalt, {jag: 34, layers: 9});
+  rough(W(.05), H(.05), W(.32), H(.18), ['#122a6e', '#183588', '#0f2259'], {alpha: .8, jag: 24, layers: 5});
+  // Chalk whites across the middle and up the right, worn thin.
+  rough(W(.03), H(.41), W(.44), H(.27), chalk, {jag: 36, layers: 8});
+  rough(W(.6), H(.03), W(.39), H(.32), chalk, {jag: 32, layers: 8});
+  // Black: a bar down the middle, a slab at the lower left, shards.
+  rough(W(.555), H(.02), W(.075), H(.44), black, {jag: 12, layers: 8});
+  rough(W(.02), H(.7), W(.3), H(.17), black, {jag: 26, layers: 8});
+  rough(W(.32), H(.46), W(.11), H(.08), black, {alpha: .9, jag: 14, layers: 6});
+  rough(W(.77), H(.33), W(.19), H(.06), black, {alpha: .9, jag: 12, layers: 6});
+  // The vermilion block, lower right, glowing against the black.
+  rough(W(.46), H(.39), W(.55), H(.5), vermilion, {jag: 34, layers: 10});
+  rough(W(.55), H(.47), W(.3), H(.18), ['#f58a45', '#ef7834', '#f6a060'], {alpha: .6, jag: 26, layers: 5});
+  // A little blue carried down into the lower half, and chalk along the bottom.
+  rough(W(.36), H(.65), W(.16), H(.15), cobalt, {alpha: .9, jag: 18, layers: 7});
+  rough(W(.3), H(.86), W(.72), H(.16), chalk, {jag: 26, layers: 7});
+  rough(W(-.02), H(.86), W(.34), H(.16), ['#d9d0bd', '#cfc4ae', '#bfb39b'], {jag: 22, layers: 6});
+  // Knife work and wear: scrapes of each colour over the others.
+  scumble(W(0), H(0), W(.6), H(.42), '#e9e2d3', 70, .22);
+  scumble(W(.47), H(.4), W(.53), H(.48), '#efe7d7', 50, .18);
+  scumble(W(.04), H(.42), W(.42), H(.25), '#1d3f9a', 30, .2);
+  scumble(W(.6), H(.04), W(.38), H(.3), '#d8481b', 18, .2);
+  scumble(0, 0, w, h, '#17140f', 60, .2);
+  // Fine crackle and specks.
+  g.lineWidth = 1;
+  for (let i = 0; i < 140; i++) {
+    g.strokeStyle = `rgba(20,16,12,${.08 + r() * .2})`;
+    let x = r() * w, y = r() * h;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 4; k++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
+    g.stroke();
   }
-  g.fillStyle = 'rgba(80,60,35,.55)'; g.fillRect(cx - 70, h - 60, 140, 4); g.fillRect(cx - 40, h - 48, 80, 3);
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
+    g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
+  }
+  // The artists' signature, as painters do: small, in the corner.
+  g.save();
+  g.translate(W(.955), H(.965)); g.rotate(-.05);
+  g.font = `italic 600 ${Math.round(h * .017)}px Georgia, "Times New Roman", serif`;
+  g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+  g.fillStyle = 'rgba(26,22,17,.85)';
+  g.fillText('Orion & Chad', 0, 0);
+  g.font = `italic 500 ${Math.round(h * .012)}px Georgia, "Times New Roman", serif`;
+  g.fillText('2026', 0, h * .016);
+  g.restore();
 }
 
 function drawSky(g, w, h, night) {
@@ -253,7 +326,7 @@ export class Room {
 
   build() {
     const M = this.materials = {
-      floor: new THREE.MeshStandardMaterial({map: canvasTexture(1024, 1024, (g, w, h) => drawWood(g, w, h, {colors: ['#8e5a30', '#9a6436', '#85512b', '#a36b3b', '#7c4a26', '#94602f'], seed: 2}), {repeat: [5, 5]}), roughness: .48}),
+      floor: new THREE.MeshStandardMaterial({map: canvasTexture(1024, 1024, (g, w, h) => drawWood(g, w, h, {colors: ['#b8966c', '#ae8c63', '#c09f76', '#a98760', '#bb9a71', '#b39168'], seed: 2, limed: true, grain: 60}), {repeat: [5, 5]}), roughness: .72}),
       panel: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => { g.translate(w, 0); g.rotate(Math.PI / 2); drawWood(g, w, h, {planks: 4, colors: ['#6e4024', '#774628', '#68391f', '#7d4b2a'], seed: 4, grain: 34}); }, {repeat: [1, 1]}), roughness: .55}),
       darkWood: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawWood(g, w, h, {planks: 4, colors: ['#4f2c17', '#583219', '#4a2914'], seed: 6, grain: 30})), roughness: .5}),
       plaster: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawNoise(g, w, h, {base: '#ecdcbf', blobs: [['rgba(255,250,235,.05)', 260, 20, 90], ['rgba(150,110,60,.035)', 220, 20, 80]]}), {repeat: [3, 2]}), roughness: .95}),
@@ -276,7 +349,8 @@ export class Room {
       white: new THREE.MeshPhysicalMaterial({color: '#f1ece2', roughness: .35, clearcoat: .6}),
       leaf: new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, drawLeaf), alphaTest: .45, side: THREE.DoubleSide, roughness: .7}),
       frame: new THREE.MeshStandardMaterial({color: '#8a6a3a', metalness: .45, roughness: .45}),
-      print: new THREE.MeshStandardMaterial({map: canvasTexture(512, 640, drawBotanical), roughness: .9}),
+      print: new THREE.MeshStandardMaterial({map: canvasTexture(768, 1024, drawAbstract), roughness: .86}),
+      paleOak: new THREE.MeshStandardMaterial({color: '#cdb796', roughness: .7}),
     };
     M.leaf.map.repeat.set(1, 1);
 
@@ -680,16 +754,22 @@ export class Room {
     this.sprigs(g, new THREE.Vector3(.3, H + .28, -.2), 8, .4);
   }
 
+  // A large abstract canvas over the lamp and the chair, in a thin pale-oak
+  // float frame. (Still called the print: decor hangs things on it.)
   buildPrint() {
     const M = this.materials, z = this.walls.back;
+    const PW = 2.5, PH = 3.2;
     const g = new THREE.Group();
-    g.position.set(2.0, 3.25, z + .04);
+    g.position.set(1.55, 2.3 + PH / 2, z + .04);
     this.group.add(g);
-    const frame = this.mesh(roundedBox(1.15, 1.42, .07, .02), M.frame, g);
-    frame.position.z = .03;
-    const art = this.mesh(new THREE.PlaneGeometry(.98, 1.25), M.print, g, {cast: false});
-    art.position.z = .075;
+    const frame = this.mesh(roundedBox(PW + .1, PH + .1, .08, .015), M.paleOak, g);
+    frame.position.z = .04;
+    const shadow = this.mesh(new THREE.BoxGeometry(PW + .01, PH + .01, .02), new THREE.MeshStandardMaterial({color: '#4a4036', roughness: 1}), g, {cast: false});
+    shadow.position.z = .075;
+    const art = this.mesh(new THREE.BoxGeometry(PW - .02, PH - .02, .07), [M.paleOak, M.paleOak, M.paleOak, M.paleOak, M.print, M.paleOak], g, {cast: false});
+    art.position.z = .1;
     this.printGroup = g;
+    this.printSize = {w: PW, h: PH, front: .135};
   }
 
   buildBookcase() {
@@ -901,7 +981,7 @@ export class Room {
       const s = new THREE.Scene();
       const sphere = new THREE.SphereGeometry(10, 32, 16), c = [];
       const p = sphere.attributes.position;
-      const floorC = new THREE.Color(night ? '#2a1a10' : '#6b4527'), wallC = new THREE.Color(night ? '#4a3524' : '#e7d3b2'), ceilC = new THREE.Color(night ? '#2a2018' : '#f6ecdc');
+      const floorC = new THREE.Color(night ? '#33261b' : '#a48a6a'), wallC = new THREE.Color(night ? '#4a3524' : '#e7d3b2'), ceilC = new THREE.Color(night ? '#2a2018' : '#f6ecdc');
       for (let i = 0; i < p.count; i++) {
         const y = p.getY(i) / 10, col = y < -.1 ? floorC : y < .55 ? wallC : ceilC;
         c.push(col.r, col.g, col.b);

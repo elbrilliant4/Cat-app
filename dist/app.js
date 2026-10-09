@@ -1238,15 +1238,78 @@ function lookAtSpot(pos, {dist = 2.6, pitch = .42, y = .25} = {}) {
   setCamMode('spot');
   clampGoal();
 }
+// The Room view fits the furnishings into the part of the screen that the
+// camera buttons and the care bar leave clear: both ends of the sill, the bed,
+// the chair and fountain across; the front of the rug and the bowls just above
+// the care bar; the painting's top edge below the top. Whatever the screen
+// shape, the furniture fills the frame and spare height goes to the wall.
+const ROOM_FRAME = {
+  across: [[-3.75, 1.62, -2.95], [-3.67, .25, -1.75], [-3.45, .2, -.55], [3.72, .95, -.9], [3.15, .3, .45], [2.44, .14, 1.64]],
+  bottom: [[-2.25, 0, 1.8], [1.45, 0, 1.8], [2.3, 0, 1.64]],
+  top: [],
+};
+const fitCam = new THREE.PerspectiveCamera(), fitPt = new THREE.Vector3(), fitOff = new THREE.Vector3();
+function roomFrame() {
+  const W = Math.max(1, host.clientWidth), H = Math.max(1, host.clientHeight), box = host.getBoundingClientRect();
+  if (!ROOM_FRAME.top.length && room.printSize) {
+    const pg = room.printGroup, {w, h} = room.printSize;
+    pg.updateWorldMatrix(true, false);
+    for (const x of [-w / 2, w / 2]) ROOM_FRAME.top.push(pg.localToWorld(new THREE.Vector3(x, h / 2 + .05, 0)).toArray());
+  }
+  // The clear area, in screen units (-1 to 1): the camera buttons only cover
+  // the right edge down to their last button.
+  let right = W, camsBottom = -1, bottom = H;
+  if (!document.body.classList.contains('watch')) {
+    const cams = $('.cam-buttons')?.getBoundingClientRect(), dock = $('.dock')?.getBoundingClientRect();
+    if (cams?.width && cams.left - box.left > W / 2) { right = cams.left - box.left - 6; camsBottom = 1 - (cams.bottom - box.top + 6) / H * 2; }
+    if (dock?.height && dock.top - box.top > H / 2) bottom = dock.top - box.top - 10;
+  }
+  const L = -1 + 20 / W, Rcams = right / W * 2 - 1, Redge = 1 - 14 / W, B = 1 - bottom / H * 2, T = 1 - 16 / H;
+  fitCam.fov = camera.fov; fitCam.aspect = W / H; fitCam.updateProjectionMatrix();
+  const tanV = Math.tan(THREE.MathUtils.degToRad(fitCam.fov / 2)), tanH = tanV * fitCam.aspect;
+  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom);
+  // For a distance, slide the focus so the furniture sits centred in the
+  // clear area with the rug's front edge on its bottom; report whether it fits.
+  const place = (d, f, pitch) => {
+    fitOff.set(0, Math.sin(pitch), Math.cos(pitch));
+    let fits = false;
+    for (let it = 0; it < 6; it++) {
+      fitCam.position.copy(f).addScaledVector(fitOff, d); fitCam.lookAt(f); fitCam.updateMatrixWorld();
+      let lo = -1e9, hi = 1e9, y0 = 1e9, y1 = -1e9;
+      for (const p of across) {
+        fitPt.fromArray(p).project(fitCam);
+        lo = Math.max(lo, L - fitPt.x);
+        hi = Math.min(hi, (fitPt.y > camsBottom ? Rcams : Redge) - fitPt.x);
+      }
+      for (const p of ROOM_FRAME.bottom) { fitPt.fromArray(p).project(fitCam); y0 = Math.min(y0, fitPt.y); }
+      for (const p of ROOM_FRAME.top) { fitPt.fromArray(p).project(fitCam); y1 = Math.max(y1, fitPt.y); }
+      if (y1 < -1e8) y1 = y0;
+      fits = lo <= hi && y1 - y0 <= T - B;
+      // Shift the picture by the middle of the allowed range. (Moving the
+      // camera right moves the picture left, and up moves it down.)
+      f.x -= (lo + hi) / 2 * .9 * d * tanH;
+      f.y -= (B - y0) * .9 * d * tanV / Math.cos(pitch);
+    }
+    return fits;
+  };
+  const f = new THREE.Vector3();
+  let pitch = .28, dist = 18;
+  // Lower the angle a little if the camera would otherwise rise above the
+  // room's ceiling.
+  for (; pitch >= .1; pitch -= .03) {
+    let lo = 3, hi = 18;
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (place(mid, f.set(0, .9, -.6), pitch)) hi = mid; else lo = mid; }
+    place(hi, f.set(0, .9, -.6), pitch);
+    dist = hi;
+    if (f.y + Math.sin(pitch) * dist < 6.3) break; // CAM_BOX.y, less a little
+  }
+  return {yaw: 0, pitch, dist, focus: f};
+}
 const CAMERA_VIEWS = {
   room() {
-    // Pull back (and aim a little higher) on tall screens so the whole room
-    // fits across; a phone in Watch mode is the tallest.
-    // (On a phone the room needs a little extra width: both ends of the sill
-    // and the chair, clear of the camera buttons.)
-    const tall = clamp(Math.pow(.85 / Math.max(.3, host.clientWidth / Math.max(1, host.clientHeight)), 1.45), 1, 2.6);
-    Object.assign(view.goal, {yaw: 0, pitch: .3, dist: 7.4 * tall});
-    view.goal.focus.set(0, .75 + (tall - 1) * .45, -.1);
+    const fit = roomFrame();
+    Object.assign(view.goal, {yaw: fit.yaw, pitch: fit.pitch, dist: fit.dist});
+    view.goal.focus.copy(fit.focus);
     setCamMode('room');
   },
   follow() {
@@ -1515,6 +1578,7 @@ function resize() {
   camera.fov = w / h < .9 ? 46 : 40;
   camera.updateProjectionMatrix();
   renderer?.setSize(w, h);
+  if (view.mode === 'room') CAMERA_VIEWS.room();
 }
 new ResizeObserver(resize).observe(host);
 resize();
