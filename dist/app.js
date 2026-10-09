@@ -1613,7 +1613,7 @@ Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal
 // but never behind the back or side walls.
 const CAM_BOX = {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]};
 // Tall furniture the camera must not end up inside: [x, z, radius, height].
-const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]];
+const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 4.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]];
 function updateCamera(dt) {
   const g = view.goal, following = view.mode === 'follow' && ready;
   let distGoal = g.dist;
