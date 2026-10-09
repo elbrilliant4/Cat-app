@@ -910,6 +910,16 @@ function watchBirds(t) {
   }
 }
 
+// A paw print where you tapped a perch, so you can see the tap landed.
+function pawAt(x, y) {
+  const s = document.createElement('span');
+  s.className = 'tap-paw';
+  s.innerHTML = icon('i-paw');
+  s.style.left = x + 'px'; s.style.top = y + 'px';
+  $('#float-layer').append(s);
+  setTimeout(() => s.remove(), 1000);
+}
+
 // ---------------------------------------------------------------------------
 // Care actions
 // ---------------------------------------------------------------------------
@@ -1240,7 +1250,7 @@ function perchAt() {
 let lastInvite = {name: null, at: -99};
 function invite(name) {
   if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
-  if (!['idle', 'solo'].includes(brain.mode)) return;
+  if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
   const P = PERCHES[name];
   if (brain.perch === name && !brain.jump) { glanceAt(camera.position, 2); slowBlink(); meow('mew', 'idle'); return; }
   const again = lastInvite.name === name && clockNow - lastInvite.at < 12;
@@ -1487,7 +1497,7 @@ function endGesture(e) {
     if (pet.sleeping) toast('Shh… wake your kitten first.');
     else act('drink');
   }
-  if (gesture && !gesture.moved && gesture.onPerch) invite(gesture.onPerch);
+  if (gesture && !gesture.moved && gesture.onPerch) { pawAt(e.clientX - gesture.rect.left, e.clientY - gesture.rect.top); invite(gesture.onPerch); }
   if (gesture && !gesture.moved && gesture.onCat) act('pet', {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
   gesture = null;
   host.classList.remove('stroking', 'dragging');
