@@ -962,7 +962,39 @@ export class Room {
     // On the mantel: a big ivory vase, off to one side.
     const vase = this.mesh(lathe([[0, 0], [.13, 0], [.24, .2], [.25, .38], [.17, .55], [.1, .64], [.12, .7], [0, .7]], 28), M.white, g);
     vase.position.set(-.95, H + .26, .26);
+    vase.userData.home = {p: vase.position.clone(), r: vase.rotation.clone()};
+    this.mantelVase = vase; this.vaseFall = null;
+    this.mantelTop = H + .26;
   }
+
+  // Mochi pushes the vase off the mantel: it wobbles to the edge, tips and
+  // drops, landing on its side on the floor (unbroken), and is put back a
+  // minute later.
+  knockVase(t) {
+    if (this.vaseFall) return false;
+    const v = this.mantelVase;
+    this.vaseFall = {start: t, x: v.position.x, y: v.position.y, z: v.position.z};
+    return true;
+  }
+  updateVase(t) {
+    const f = this.vaseFall;
+    if (!f) return;
+    const v = this.mantelVase, k = t - f.start, lying = .24;
+    if (k < .45) { v.position.z = f.z + k / .45 * .32; v.rotation.x = Math.sin(k * 32) * .1 * k / .45; }
+    else if (!f.landed) {
+      const q = Math.min(k - .45, Math.sqrt((f.y - lying) / 4.9));
+      v.position.set(f.x + q * .2, Math.max(lying, f.y - 4.9 * q * q), f.z + .32 + q * 1.6);
+      v.rotation.set(Math.min(Math.PI / 2, q * 2.6), 0, q * .4);
+      if (v.position.y <= lying) { v.position.y = lying; v.rotation.x = Math.PI / 2; f.landed = t; f.lx = v.position.x; }
+    } else if (t - f.landed < 1.4) {
+      // A short roll on the floor.
+      const r = (t - f.landed) / 1.4;
+      v.position.x = f.lx + Math.sin(r * Math.PI / 2) * .25; v.rotation.y = r * .9;
+    } else if (t - f.landed > 60) {
+      v.position.copy(v.userData.home.p); v.rotation.copy(v.userData.home.r); this.vaseFall = null;
+    }
+  }
+  vaseWorld(v) { return this.mantelVase.getWorldPosition(v); }
 
   updateFire(dt, t, night) {
     if (!this.flames) return;
@@ -1279,6 +1311,7 @@ export class Room {
     this.updateBats(t);
     this.updatePaperBats?.(t);
     this.updateBook(t);
+    this.updateVase(t);
     return k;
   }
 }

@@ -341,13 +341,17 @@ const DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).se
 // the club chair's seat. spot: where she sits; top: its height; base: where
 // she jumps from and back down to; face: the way she sits there.
 const PERCHES = (() => {
-  const w = room.windowGroup, c = room.chair;
-  w.updateMatrixWorld(true); c.updateMatrixWorld(true);
+  const w = room.windowGroup, c = room.chair, f = room.fireplace;
+  w.updateMatrixWorld(true); c.updateMatrixWorld(true); f.updateMatrixWorld(true);
   return {
     sill: {spot: w.localToWorld(new THREE.Vector3(-.05, 0, room.sillDepth * .5)).setY(0), top: room.sillTop,
       base: new THREE.Vector3(bed.position.x, 0, bed.position.z - .3), face: Math.PI},
     chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
       base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
+    // The mantel shelf, beside the vase, facing the room; she takes off from
+    // the floor just in front of the hearth.
+    mantel: {spot: f.localToWorld(new THREE.Vector3(-.3, 0, .36)).setY(0), top: room.mantelTop,
+      base: f.localToWorld(new THREE.Vector3(-.3, 0, 1.5)).setY(0), face: -Math.PI / 2},
   };
 })();
 const SUN_SPOT = new THREE.Vector3(room.sunPatch.position.x + .2, 0, room.sunPatch.position.z + .3);
@@ -758,7 +762,7 @@ function idleLife(t) {
   // app, then every half a minute or so. A tired kitten picks the calm ones.
   if (t > brain.nextShow) {
     brain.nextShow = t + rand(25, 40);
-    const shows = ['window', 'window', 'chair', 'sunbeam'];
+    const shows = ['window', 'window', 'chair', 'sunbeam', 'mantel'];
     if (pet.energy > 35) shows.push('solo', 'solo', 'zoomies');
     choice = pick(shows);
   }
@@ -783,6 +787,7 @@ function idleLife(t) {
   }
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
   if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 5); }, rand(20, 35));
+  if (choice === 'mantel') jumpTo('mantel', () => setActivity('sit'), rand(18, 30));
   if (choice === 'chair') jumpTo('chair', () => {
     // Kneads the seat, turns, and settles in for a catnap.
     brain.kneadUntil = clockNow + 3;
@@ -801,6 +806,7 @@ function perchLife(t) {
   if (t > brain.perchUntil) { jumpDown(() => setActivity(restingActivity(), rand(2, 5))); return; }
   const options = ['glance', 'twitch', 'slowBlink', 'groom', 'lookBack', 'loaf'];
   if (brain.perch === 'sill' && t > brain.nextKnock && !room.bookFall && t - brain.actStart > 6) options.push('book');
+  if (brain.perch === 'mantel' && t > brain.nextKnock && !room.vaseFall && t - brain.actStart > 4) options.push('vase', 'vase');
   const choice = pick(options);
   if (choice === 'glance') glanceAt(brain.perch === 'sill' ? room.glass.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rand(-.9, .9), rand(-.6, .6), 0)) : new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.5, 3));
   if (choice === 'twitch') twitchEar();
@@ -809,6 +815,27 @@ function perchLife(t) {
   if (choice === 'groom') setActivity('groom', rand(2.2, 3.5), () => setActivity('sit'));
   if (choice === 'loaf') setActivity('loaf', rand(6, 12), () => setActivity('sit'));
   if (choice === 'book') knockBook();
+  if (choice === 'vase') knockVase();
+}
+
+// The vase on the mantel: the same slow, deliberate pats, and over it goes.
+// Then a long look down at it, and a look at you.
+function knockVase() {
+  brain.nextKnock = clockNow + rand(100, 160);
+  const vase = room.vaseWorld(new THREE.Vector3()).add(new THREE.Vector3(0, .3, 0));
+  glanceAt(vase, 3.5);
+  [0, 1, 2.1].forEach((d, i) => setTimeout(() => {
+    if (brain.perch !== 'mantel' || brain.jump) return;
+    brain.swatAt = vase;
+    setActivity('swat', .45, () => setActivity('sit'));
+    if (i === 2) setTimeout(() => {
+      if (!room.knockVase(clockNow)) return;
+      setTimeout(() => {
+        glanceAt(room.vaseWorld(new THREE.Vector3()), 2);
+        setTimeout(() => { glanceAt(camera.position, 2.5); express('curious', 2); if (Math.random() < .6) say(pick(['…it fell.', 'Gravity did it.', 'It wanted to be on the floor.']), 2600); }, 2000);
+      }, 900);
+    }, 220);
+  }, d * 1000));
 }
 
 // The top book on the sill: she pats at it, twice, and the third pat sends it
@@ -1257,8 +1284,12 @@ function lookAtSpot(pos, {dist = 2.6, pitch = .42, y = .25} = {}) {
 // the care bar; the painting's top edge below the top. Whatever the screen
 // shape, the furniture fills the frame and spare height goes to the wall.
 const ROOM_FRAME = {
-  across: [[-3.67, .25, -1.75], [-3.45, .2, -.55], [3.72, .95, -.9], [2.9, .3, .55], [2.55, .14, 1.95]],
+  across: [[3.72, .95, -.9], [2.9, .3, .55], [2.55, .14, 1.95]],
   bottom: [[-2.25, 0, 1.8], [1.45, 0, 1.8], [2.55, 0, 1.95]],
+  left: [[-3.67, .25, -1.75], [-3.45, .2, -.55]],
+  // On a phone the view centres on the cosy side (chair, olive tree and
+  // fireplace) and lets the bed and window run a little off the left.
+  leftNarrow: [[-2.85, .25, -1.45], [-2.6, .2, -.65]],
   // On a wide screen: the whole fireplace and the far end of the sill. On a
   // narrow one, the fire and the near side of the fireplace, and the ends
   // of the sill and mantel may run off the edges.
@@ -1288,7 +1319,9 @@ function roomFrame() {
   const L = -1 + 20 / W, Rcams = right / W * 2 - 1, Redge = 1 - 14 / W, B = 1 - bottom / H * 2, T = 1 - 16 / H;
   fitCam.fov = camera.fov; fitCam.aspect = W / H; fitCam.updateProjectionMatrix();
   const tanV = Math.tan(THREE.MathUtils.degToRad(fitCam.fov / 2)), tanH = tanV * fitCam.aspect;
-  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom, W / H > 1 ? ROOM_FRAME.fireWide : ROOM_FRAME.fireNarrow);
+  // (?roomview=full keeps the earlier phone view, for comparison.)
+  const wide = W / H > 1, full = new URLSearchParams(location.search).get('roomview') === 'full';
+  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom, wide ? ROOM_FRAME.left.concat(ROOM_FRAME.fireWide) : full ? ROOM_FRAME.left.concat(ROOM_FRAME.fireNarrow) : ROOM_FRAME.leftNarrow.concat(ROOM_FRAME.fireWide.slice(1)));
   // For a distance, slide the focus so the furniture sits centred in the
   // clear area with the rug's front edge on its bottom; report whether it fits.
   // Turned a little towards the fireplace on the right wall.
@@ -1707,6 +1740,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });
