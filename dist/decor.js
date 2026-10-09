@@ -8,8 +8,8 @@
 // bed with olive piping and a fluffy ivory lining; cream cable-knit throw;
 // linen cushion with sage stripes; dunes and the sea out of the window; and
 // the ten props: ivory and apricot pumpkins, a sage gourd, a pear bowl, oak
-// branches, an oak-leaf garland, the knit throw, the linen cushion, a brass
-// lantern with a candle and a pinecone basket.
+// branches, an oak-leaf garland on the curtain rod, the knit throw, the
+// linen cushion, a brass lantern with a candle and a pinecone basket.
 import * as THREE from 'three';
 import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons} from './room.js';
 
@@ -343,24 +343,23 @@ function buildAutumn(room, T) {
   };
   pear(1.08, top + .06, .21, 1.25, .15); pear(1.18, top + .06, .27, 1.15, -.2); pear(1.12, top + .07, .14, 1.1, .05);
 
-  // --- An oak-leaf garland along the top of the painting, trailing a little
-  // way down each side.
-  const pg = room.printGroup, ps = room.printSize, hw = ps.w / 2 + .05, gTop = ps.h / 2 + .04, path = [];
-  for (let i = 0; i <= 60; i++) {
-    const k = i / 60;
-    if (k < .2) path.push([-hw, gTop - .95 + k / .2 * .95]);       // up the left side
-    else if (k < .8) { const q = (k - .2) / .6; path.push([-hw + q * hw * 2, gTop - Math.sin(q * Math.PI) * .1]); } // across the top
-    else path.push([hw, gTop - (k - .8) / .2 * .95]);              // down the right
+  // --- An oak-leaf garland swagged along the curtain rod, with short tails
+  // at each end. (The painting stays bare.)
+  const rod = room.curtainRod, path = [];
+  for (let i = 0; i <= 80; i++) {
+    const k = i / 80, x = -rod.half + .12 + k * (rod.half - .12) * 2;
+    path.push([x, rod.y - .05 - Math.sin(Math.PI * ((k * 2) % 1)) * .26]);
   }
-  const garland = new THREE.InstancedMesh(new THREE.PlaneGeometry(.21, .21), oakMat, 320);
+  for (const sx of [-1, 1]) for (let i = 0; i <= 10; i++) path.push([sx * (rod.half - .12), rod.y - .05 - i * .05]);
+  const garland = new THREE.InstancedMesh(new THREE.PlaneGeometry(.21, .21), oakMat, 300);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-  for (let i = 0; i < 320; i++) {
+  for (let i = 0; i < 300; i++) {
     const [x, y] = path[Math.floor(r() * path.length)];
     q.setFromEuler(e.set((r() - .5) * .8, (r() - .5) * .8, r() * Math.PI * 2));
-    m4.compose(new THREE.Vector3(x + (r() - .5) * .12, y + (r() - .5) * .12, ps.front + .02 + r() * .04), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.75 + r() * .5));
+    m4.compose(new THREE.Vector3(x + (r() - .5) * .12, y + (r() - .5) * .1, rod.z + .14 + r() * .06), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.7 + r() * .45));
     garland.setMatrixAt(i, m4);
   }
-  add(garland, pg);
+  add(garland, room.windowGroup);
 
   // --- Brass lantern with a candle on the side table; a sage gourd on the
   // shelf below.

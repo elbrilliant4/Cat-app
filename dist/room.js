@@ -148,7 +148,7 @@ function drawSherpa(g, w, h) {
 // vermilion, saffron, teal and black over a chalky ground, with scraped
 // whites, drips and splatter. Signed small in the bottom right corner, in
 // paint.
-export function drawAbstract(g, w, h) {
+function drawGesture(g, w, h) {
   const r = rng(73);
   const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
   // One loaded brush dragged along a curve: a bundle of bristles, each with
@@ -239,6 +239,171 @@ export function drawAbstract(g, w, h) {
   // A quiet, pale corner to sign in.
   mass(W(.84), H(.95), W(.14), H(.035), chalk, 12, {angle: 0, spread: .15, len: [80, 160], width: [18, 34], alpha: .95, bend: .2});
   paintSignature(g, W(.955), H(.955), h * .03, r);
+}
+
+function drawKnife(g, w, h) {
+  const r = rng(58);
+  const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
+  // A block built up from palette-knife dabs: slanted slabs of paint in
+  // slightly different mixes, thicker in the middle, broken at the edges so
+  // the layers underneath show through.
+  const rough = (x, y, ww, hh, color, {alpha = 1, jag = 10, layers = 5} = {}) => {
+    const n = Math.round(ww * hh / 2400 / (w / 768) ** 2 * layers * .5);
+    for (let i = 0; i < n; i++) {
+      const u = r(), v = r(), edge = Math.min(u, 1 - u, v, 1 - v);
+      const px = x + u * ww + (r() - .5) * jag, py = y + v * hh + (r() - .5) * jag;
+      const dw = (34 + r() * 110) * w / 768, dh = (14 + r() * 38) * w / 768, sk = (r() - .5) * dh * 1.2;
+      g.globalAlpha = alpha * (edge < .06 ? .3 + r() * .45 : .7 + r() * .3);
+      g.fillStyle = pick(color);
+      g.save(); g.translate(px, py); g.rotate((r() - .5) * .35);
+      g.beginPath(); g.moveTo(-dw / 2, -dh / 2); g.lineTo(dw / 2 + sk, -dh / 2 + (r() - .5) * 4); g.lineTo(dw / 2, dh / 2); g.lineTo(-dw / 2 - sk, dh / 2 + (r() - .5) * 4); g.closePath(); g.fill();
+      // A ridge of lighter paint where the knife lifted.
+      if (r() < .35) { g.globalAlpha *= .5; g.fillStyle = 'rgba(255,250,240,.6)'; g.fillRect(-dw / 2, -dh / 2, dw, 1.5); }
+      g.restore();
+    }
+    g.globalAlpha = 1;
+  };
+  const scumble = (x, y, ww, hh, color, n, a) => {
+    // Dry brush: long, broken drags that catch only the high spots.
+    for (let i = 0; i < n; i++) {
+      g.globalAlpha = a * (.3 + r() * .7);
+      g.fillStyle = color;
+      let sx = x + r() * ww, sy = y + r() * hh;
+      const len = 30 + r() * ww * .5, hgt = 1 + r() * 5;
+      for (let k = 0; k < len; k += 6 + r() * 10) if (r() < .7) g.fillRect(sx + k, sy + (r() - .5) * 2, 5 + r() * 9, hgt);
+    }
+    g.globalAlpha = 1;
+  };
+  const W = k => k * w, H = k => k * h;
+  const chalk = ['#ece5d6', '#e4dccb', '#f2ece0', '#d9d0bd', '#cfc6b3'], cobalt = ['#1c3e9c', '#21469f', '#183585', '#2a52ad', '#13296b'];
+  const vermilion = ['#e2531f', '#d8481b', '#ec6528', '#cf4317', '#f07a35'], black = ['#17140f', '#221d17', '#0f0d0a', '#2b261f'];
+  // Underpainting: a warm grey ground, loosely scrubbed in with ochre and
+  // umber, which shows through wherever the top layers break.
+  g.fillStyle = '#d8cdb6'; g.fillRect(0, 0, w, h);
+  rough(0, 0, w, h, ['#c9b994', '#b8a27a', '#d6cbb4', '#a8987c', '#8c7d66'], {alpha: .7, jag: 30, layers: 2});
+  // The big blue, top left, with a deeper blue pressed into it.
+  rough(W(-.03), H(-.03), W(.63), H(.45), cobalt, {jag: 34, layers: 9});
+  rough(W(.05), H(.05), W(.32), H(.18), ['#122a6e', '#183588', '#0f2259'], {alpha: .8, jag: 24, layers: 5});
+  // Chalk whites across the middle and up the right, worn thin.
+  rough(W(.03), H(.41), W(.44), H(.27), chalk, {jag: 36, layers: 8});
+  rough(W(.6), H(.03), W(.39), H(.32), chalk, {jag: 32, layers: 8});
+  // Black: a bar down the middle, a slab at the lower left, shards.
+  rough(W(.555), H(.02), W(.075), H(.44), black, {jag: 12, layers: 8});
+  rough(W(.02), H(.7), W(.3), H(.17), black, {jag: 26, layers: 8});
+  rough(W(.32), H(.46), W(.11), H(.08), black, {alpha: .9, jag: 14, layers: 6});
+  rough(W(.77), H(.33), W(.19), H(.06), black, {alpha: .9, jag: 12, layers: 6});
+  // The vermilion block, lower right, glowing against the black.
+  rough(W(.46), H(.39), W(.55), H(.5), vermilion, {jag: 34, layers: 10});
+  rough(W(.55), H(.47), W(.3), H(.18), ['#f58a45', '#ef7834', '#f6a060'], {alpha: .6, jag: 26, layers: 5});
+  // A little blue carried down into the lower half, and chalk along the bottom.
+  rough(W(.36), H(.65), W(.16), H(.15), cobalt, {alpha: .9, jag: 18, layers: 7});
+  rough(W(.3), H(.86), W(.72), H(.16), chalk, {jag: 26, layers: 7});
+  rough(W(-.02), H(.86), W(.34), H(.16), ['#d9d0bd', '#cfc4ae', '#bfb39b'], {jag: 22, layers: 6});
+  // Knife work and wear: scrapes of each colour over the others.
+  scumble(W(0), H(0), W(.6), H(.42), '#e9e2d3', 70, .22);
+  scumble(W(.47), H(.4), W(.53), H(.48), '#efe7d7', 50, .18);
+  scumble(W(.04), H(.42), W(.42), H(.25), '#1d3f9a', 30, .2);
+  scumble(W(.6), H(.04), W(.38), H(.3), '#d8481b', 18, .2);
+  scumble(0, 0, w, h, '#17140f', 60, .2);
+  // Fine crackle and specks.
+  g.lineWidth = 1;
+  for (let i = 0; i < 140; i++) {
+    g.strokeStyle = `rgba(20,16,12,${.08 + r() * .2})`;
+    let x = r() * w, y = r() * h;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 4; k++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
+    g.stroke();
+  }
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
+    g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
+  }
+  paintSignature(g, W(.955), H(.955), h * .03, r);
+}
+
+// Build 67's palette-knife slabs, freed from the grid: loose, tilted masses
+// of knife-laid paint in bold colours, overlapping and broken at the edges.
+function drawBlend(g, w, h) {
+  const r = rng(91), k = w / 768;
+  const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
+  const dab = (px, py, ang, dw, dh, col, a) => {
+    const sk = (r() - .5) * dh * 1.2;
+    g.globalAlpha = a; g.fillStyle = col;
+    g.save(); g.translate(px, py); g.rotate(ang);
+    g.beginPath(); g.moveTo(-dw / 2, -dh / 2); g.lineTo(dw / 2 + sk, -dh / 2 + (r() - .5) * 4); g.lineTo(dw / 2, dh / 2); g.lineTo(-dw / 2 - sk, dh / 2 + (r() - .5) * 4); g.closePath(); g.fill();
+    if (r() < .35) { g.globalAlpha *= .5; g.fillStyle = 'rgba(255,250,240,.6)'; g.fillRect(-dw / 2, -dh / 2, dw, 1.5); }
+    g.restore();
+  };
+  // A mass of knife dabs inside a wobbly, tilted oval; the dabs mostly
+  // follow the mass's tilt, and thin out towards its ragged edge.
+  const slab = (cx, cy, rx, ry, rot, color, {layers = 6, alpha = 1, spread = .4, size = 1} = {}) => {
+    const n = Math.round(Math.PI * rx * ry / 2400 / (k * k) * layers * .5 / (size * size));
+    const p1 = r() * 7, p2 = r() * 7, c = Math.cos(rot), sn = Math.sin(rot);
+    for (let i = 0; i < n; i++) {
+      const t = r() * Math.PI * 2, d = Math.sqrt(r()), wob = 1 + .24 * Math.sin(3 * t + p1) + .12 * Math.sin(5 * t + p2);
+      const lx = Math.cos(t) * rx * d * wob, ly = Math.sin(t) * ry * d * wob;
+      dab(cx + lx * c - ly * sn, cy + lx * sn + ly * c, rot + (r() - .5) * spread * 2, (34 + r() * 110) * k * size, (14 + r() * 38) * k * size, pick(color), alpha * (d > .82 ? .3 + r() * .45 : .7 + r() * .3));
+    }
+    g.globalAlpha = 1;
+  };
+  const scumble = (x, y, ww, hh, color, n, a) => {
+    for (let i = 0; i < n; i++) {
+      g.globalAlpha = a * (.3 + r() * .7); g.fillStyle = color;
+      const sx = x + r() * ww, sy = y + r() * hh, len = 30 + r() * ww * .5, hgt = (1 + r() * 5) * k;
+      for (let q = 0; q < len; q += 6 + r() * 10) if (r() < .7) g.fillRect(sx + q, sy + (r() - .5) * 2, (5 + r() * 9) * k, hgt);
+    }
+    g.globalAlpha = 1;
+  };
+  const W = q => q * w, H = q => q * h;
+  const chalk = ['#ece5d6', '#e4dccb', '#f2ece0', '#d9d0bd', '#cfc6b3'], cobalt = ['#1c3e9c', '#2550b5', '#183585', '#3462c4', '#13296b'];
+  const vermilion = ['#e2531f', '#ef6a24', '#cf3f16', '#f2843a'], saffron = ['#f0b62e', '#e8a21c', '#f6c94c', '#f3a93a'];
+  const teal = ['#1f6f6a', '#2a8a7f', '#175754'], pink = ['#e8678f', '#f08aa8'], black = ['#17140f', '#221d17', '#0f0d0a', '#2b261f'];
+  g.fillStyle = '#d8cdb6'; g.fillRect(0, 0, w, h);
+  slab(W(.5), H(.5), W(.75), H(.7), 0, ['#c9b994', '#b8a27a', '#d6cbb4', '#a8987c', '#e2d8c4'], {layers: 2, alpha: .7, spread: 1.5});
+  // Cobalt sweeping down from the top left, with a deeper blue pressed in.
+  slab(W(.32), H(.28), W(.4), H(.2), .5, cobalt, {layers: 9});
+  slab(W(.24), H(.2), W(.16), H(.08), .45, ['#122a6e', '#183588', '#0f2259'], {layers: 6, alpha: .85});
+  // Saffron light at the upper right.
+  slab(W(.8), H(.16), W(.22), H(.11), -.45, saffron, {layers: 8});
+  // Chalk breaking through the middle.
+  slab(W(.6), H(.4), W(.24), H(.08), -.25, chalk, {layers: 7});
+  // Vermilion rising from the lower right, with a hotter core.
+  slab(W(.66), H(.67), W(.36), H(.19), -.55, vermilion, {layers: 10});
+  slab(W(.62), H(.62), W(.15), H(.07), -.5, ['#f58a45', '#f6a060', '#ef7834'], {layers: 6, alpha: .7});
+  // Teal low on the left, a flash of pink.
+  slab(W(.2), H(.74), W(.19), H(.11), .3, teal, {layers: 8});
+  slab(W(.44), H(.86), W(.09), H(.04), -.2, pink, {layers: 7, size: .7});
+  // Black shards.
+  slab(W(.5), H(.47), W(.13), H(.025), .85, black, {layers: 9, spread: .15, size: .6});
+  slab(W(.24), H(.52), W(.15), H(.03), -.3, black, {layers: 9, spread: .15, size: .6});
+  slab(W(.86), H(.42), W(.09), H(.025), .2, black, {layers: 9, spread: .15, size: .6});
+  slab(W(.12), H(.4), W(.03), H(.12), 0, black, {layers: 8, spread: .15, size: .6});
+  // A quiet, pale band along the bottom to sign in.
+  slab(W(.72), H(.95), W(.32), H(.05), 0, chalk, {layers: 7, spread: .2});
+  // Knife scrapes and wear.
+  scumble(0, 0, W(.6), H(.45), '#e9e2d3', 60, .2);
+  scumble(W(.4), H(.45), W(.6), H(.45), '#efe7d7', 50, .16);
+  scumble(0, 0, w, h, '#17140f', 50, .18);
+  g.lineWidth = 1;
+  for (let i = 0; i < 120; i++) {
+    g.strokeStyle = `rgba(20,16,12,${.06 + r() * .16})`;
+    let x = r() * w, y = r() * h;
+    g.beginPath(); g.moveTo(x, y);
+    for (let q = 0; q < 4; q++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
+    g.stroke();
+  }
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
+    g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
+  }
+  paintSignature(g, W(.955), H(.955), h * .03, r);
+}
+
+// Three candidates while Merlin chooses (preview: ?painting=knife|gesture|blend).
+export const PAINTINGS = {knife: drawKnife, gesture: drawGesture, blend: drawBlend};
+export function drawAbstract(g, w, h, kind) {
+  kind ??= new URLSearchParams(globalThis.location?.search || '').get('painting');
+  (PAINTINGS[kind] || drawBlend)(g, w, h);
 }
 
 // The artists' signature, in paint: each letter is a few brush strokes of
@@ -551,6 +716,7 @@ export class Room {
     // Linen curtains on a brass rod.
     const rod = this.mesh(new THREE.CylinderGeometry(.03, .03, W + 1.8, 12), M.brass, g);
     rod.rotation.z = Math.PI / 2; rod.position.set(0, top + .45, .22);
+    this.curtainRod = {y: top + .45, z: .22, half: (W + 1.8) / 2};
     for (const s of [-1, 1]) {
       const fin = this.mesh(new THREE.SphereGeometry(.06, 12, 10), M.brass, g);
       fin.position.set(s * (W / 2 + .9), top + .45, .22);
