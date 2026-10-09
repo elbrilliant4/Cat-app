@@ -376,7 +376,7 @@ function drawFlame(g, w, h) {
 function drawOliveLeaf(g, w, h) {
   g.clearRect(0, 0, w, h);
   // Long and narrow: dark grey-green on one half, silvery on the other.
-  for (const [col, side] of [['#5d6748', -1], ['#a7ad92', 1]]) {
+  for (const [col, side] of [['#5f7a45', -1], ['#a9b893', 1]]) {
     g.fillStyle = col;
     g.beginPath(); g.moveTo(w / 2, h * .02);
     g.quadraticCurveTo(w / 2 + side * w * .46, h * .5, w / 2, h * .98);
@@ -1083,35 +1083,70 @@ export class Room {
     this.oliveTree = g;
     const potMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (c, w, h) => drawNoise(c, w, h, {base: '#d6ccb8', blobs: [['rgba(120,105,85,.2)', 600, 1, 3], ['rgba(250,245,232,.3)', 400, 1, 3]], seed: 91})), roughness: .95});
     this.mesh(lathe([[0, 0], [.3, 0], [.42, .2], [.46, .55], [.43, .78], [.45, .8], [0, .8]], 32), potMat, g);
-    const r = rng(95), bark = new THREE.MeshStandardMaterial({color: '#6b6152', roughness: .95});
-    const tips = [];
-    // Two slender, twisting trunks that fork into branches.
-    for (const [ox, oz, lean] of [[-.06, .03, -.12], [.07, -.04, .14]]) {
-      const pts = [new THREE.Vector3(ox, .72, oz)];
-      let p = pts[0].clone();
-      for (let i = 1; i <= 5; i++) { p = p.clone().add(new THREE.Vector3(lean * .3 + (r() - .5) * .16, .36, (r() - .5) * .14)); pts.push(p); }
-      this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, .045, 6), bark, g);
-      for (let b = 2; b <= 5; b++) for (let twig = 0; twig < 2; twig++) {
-        const from = pts[b], dir = new THREE.Vector3((r() - .5) * 1.2 + lean * 2, .5 + r() * .5, (r() - .5) * 1.2).normalize();
-        const to = from.clone().addScaledVector(dir, .35 + r() * .45);
-        const mid = from.clone().lerp(to, .5).add(new THREE.Vector3(0, .06, 0));
-        this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, mid, to]), 8, .018, 5), bark, g);
-        tips.push(to);
+    // An olive standard: one slender, slightly wavy trunk, and up top a
+    // loose, lopsided crown of thin branches, the narrow leaves strung along
+    // each twig in long sprays.
+    const r = rng(101), bark = new THREE.MeshStandardMaterial({color: '#7a6e58', roughness: .9});
+    const trunk = [new THREE.Vector3(0, .74, 0), new THREE.Vector3(.03, 1.3, .01), new THREE.Vector3(-.02, 1.85, -.02), new THREE.Vector3(.02, 2.35, .01)];
+    this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trunk), 20, .04, 8), bark, g);
+    // Branches and twigs as one instanced set of short, tapering segments.
+    const segs = [], sprays = [];
+    const grow = (from, dir, len, rad, depth) => {
+      const n = 5, pts = [from.clone()];
+      let p = from.clone(), d = dir.clone();
+      for (let i = 0; i < n; i++) {
+        d.add(new THREE.Vector3((r() - .5) * .35, (r() - .5) * .15 - (depth === 0 ? .06 : 0), (r() - .5) * .35)).normalize();
+        p = p.clone().addScaledVector(d, len / n);
+        segs.push([pts[pts.length - 1], p, rad * (1 - i / n * .5)]);
+        pts.push(p);
       }
-      tips.push(pts[5]);
+      if (depth === 0) { sprays.push(pts); return; }
+      for (let k = 0; k < 3; k++) {
+        const at = pts[1 + Math.floor(r() * (n - 1))];
+        const side = new THREE.Vector3(r() - .5, 0, r() - .5).normalize();
+        grow(at, d.clone().addScaledVector(side, .8 + r() * .4).add(new THREE.Vector3(0, .1, 0)).normalize(), len * (.45 + r() * .25), rad * .55, depth - 1);
+      }
+      sprays.push(pts.slice(2));
+    };
+    // Lopsided: more and longer branches reaching up and out towards the room.
+    const top = trunk[3];
+    for (const [x, y, z, len] of [[-.7, .8, .1, 1.5], [-.35, 1, .5, 1.7], [-.2, 1, -.35, 1.35], [.25, .9, .45, 1.15], [-.6, .55, .7, 1.3], [.1, 1, .05, 1.1], [-.85, .45, -.3, 1.0], [-.45, .7, -.6, 1.15]]) {
+      grow(top.clone().add(new THREE.Vector3(0, -r() * .3, 0)), new THREE.Vector3(x, y, z).normalize(), len, .02, 1);
     }
-    // Clouds of small, narrow leaves round the branch tips.
+    const wood = new THREE.InstancedMesh(new THREE.CylinderGeometry(.6, 1, 1, 5).translate(0, .5, 0), bark, segs.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3();
+    segs.forEach(([a, b, rad], i) => {
+      v.subVectors(b, a);
+      q.setFromUnitVectors(up, v.clone().normalize());
+      m4.compose(a, q, new THREE.Vector3(rad, v.length() * 1.04, rad));
+      wood.setMatrixAt(i, m4);
+    });
+    wood.castShadow = true;
+    g.add(wood);
+    // Leaves along each spray, alternating sides, angled forward and
+    // drooping a little; a small tuft at each tip.
     const leafMat = new THREE.MeshStandardMaterial({map: canvasTexture(32, 128, drawOliveLeaf), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
-    // Lighter foliage: enough to read as an olive, with the branches showing.
-    const N = 1300, leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.042, .15), leafMat, N);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    for (let i = 0; i < N; i++) {
-      const c = tips[i % tips.length], rad = .3 + r() * .12;
-      const v = new THREE.Vector3(r() - .5, (r() - .5) * .8, r() - .5).normalize().multiplyScalar(rad * Math.cbrt(r()));
-      q.setFromEuler(e.set(r() * 6.3, r() * 6.3, r() * 6.3));
-      m4.compose(c.clone().add(v), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.8 + r() * .5));
-      leaves.setMatrixAt(i, m4);
+    const leafGeo = new THREE.PlaneGeometry(.055, .2).translate(0, .1, 0);
+    const spots = [];
+    for (const pts of sprays) {
+      const curve = new THREE.CatmullRomCurve3(pts), L = curve.getLength(), count = Math.max(3, Math.round(L / .045));
+      for (let i = 1; i <= count; i++) {
+        const t = i / count, at = curve.getPointAt(t), tan = curve.getTangentAt(t);
+        const side = new THREE.Vector3().crossVectors(tan, up).normalize().multiplyScalar(i % 2 ? 1 : -1);
+        if (r() < .18) continue;
+        const dir = tan.clone().multiplyScalar(.9).addScaledVector(side, .35 + r() * .7).add(new THREE.Vector3((r() - .5) * .5, (r() - .6) * .6, (r() - .5) * .5)).normalize();
+        spots.push([at.clone().addScaledVector(tan, (r() - .5) * .03), dir]);
+        if (i === count) for (let k = 0; k < 3; k++) spots.push([at, tan.clone().add(new THREE.Vector3((r() - .5) * .9, (r() - .3) * .5, (r() - .5) * .9)).normalize()]);
+      }
     }
+    const leaves = new THREE.InstancedMesh(leafGeo, leafMat, spots.length);
+    const twist = new THREE.Quaternion();
+    spots.forEach(([at, dir], i) => {
+      q.setFromUnitVectors(up, dir);
+      twist.setFromAxisAngle(up, r() * Math.PI);
+      m4.compose(at, q.multiply(twist), new THREE.Vector3(1, 1, 1).multiplyScalar(.8 + r() * .45));
+      leaves.setMatrixAt(i, m4);
+    });
     leaves.castShadow = true;
     g.add(leaves);
     // A tall leafy plant in the far corner by the window.
