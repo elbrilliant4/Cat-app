@@ -144,104 +144,11 @@ function drawSherpa(g, w, h) {
   drawNoise(g, w, h, {base: '#d6c7aa', blobs: [['rgba(120,100,70,.35)', 5000, 2, 4.5], ['rgba(248,240,225,.6)', 6000, 1.5, 4]], seed: 13});
 }
 
-// An original gestural abstract: sweeping, bristly strokes of cobalt,
-// vermilion, saffron, teal and black over a chalky ground, with scraped
-// whites, drips and splatter. Signed small in the bottom right corner, in
-// paint.
-function drawGesture(g, w, h) {
-  const r = rng(73);
-  const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
-  // One loaded brush dragged along a curve: a bundle of bristles, each with
-  // its own wobble and load, thinning out as the paint runs dry.
-  const stroke = (x, y, angle, len, width, color, {bend = .6, alpha = .9, dry = .5} = {}) => {
-    const n = Math.max(3, Math.round(width / 3)), steps = Math.max(6, Math.round(len / 9));
-    const turn = (r() - .5) * bend * 2 / steps;
-    // The body of paint: a ribbon along the curve, narrowing where the brush
-    // lifts off.
-    {
-      let a = angle, px = x, py = y;
-      const left = [], right = [];
-      for (let i = 0; i <= steps; i++) {
-        const k = i / steps, half = width / 2 * (.3 + .7 * Math.pow(Math.sin(Math.PI * k), .6));
-        left.push([px - Math.sin(a) * half, py + Math.cos(a) * half]); right.push([px + Math.sin(a) * half, py - Math.cos(a) * half]);
-        a += turn; px += Math.cos(a) * len / steps; py += Math.sin(a) * len / steps;
-      }
-      g.globalAlpha = alpha * (.45 + r() * .25); g.fillStyle = pick(color);
-      g.beginPath(); [...left, ...right.reverse()].forEach(([qx, qy], i) => i ? g.lineTo(qx + (r() - .5) * 6, qy + (r() - .5) * 6) : g.moveTo(qx, qy));
-      g.closePath(); g.fill();
-    }
-    for (let b = 0; b < n; b++) {
-      const off = (b / (n - 1) - .5) * width + (r() - .5) * 2, load = .45 + r() * .5, run = 1 - r() * dry * .6;
-      g.strokeStyle = pick(color); g.lineWidth = 2 + r() * 3.5; g.lineCap = 'round';
-      let a = angle, px = x - Math.sin(a) * off, py = y + Math.cos(a) * off;
-      g.beginPath(); g.moveTo(px, py);
-      for (let i = 1; i <= steps * run; i++) {
-        a += turn; px += Math.cos(a) * len / steps + (r() - .5) * .8; py += Math.sin(a) * len / steps + (r() - .5) * .8;
-        g.lineTo(px, py);
-      }
-      g.globalAlpha = alpha * load;
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-  };
-  // A loose mass of strokes, mostly going one way, in one family of colours.
-  const mass = (cx, cy, rx, ry, color, count, {angle = 0, spread = .5, len = [80, 220], width = [26, 60], alpha = .9, bend = 1.6} = {}) => {
-    for (let i = 0; i < count; i++) {
-      const t = r() * Math.PI * 2, d = Math.sqrt(r());
-      const x = cx + Math.cos(t) * rx * d, y = cy + Math.sin(t) * ry * d;
-      const L = len[0] + r() * (len[1] - len[0]), a = angle + (r() - .5) * spread * 2;
-      stroke(x - Math.cos(a) * L / 2, y - Math.sin(a) * L / 2, a, L, width[0] + r() * (width[1] - width[0]), color, {alpha: alpha * (.6 + r() * .4), bend});
-    }
-  };
-  const drip = (x, y, len, color) => {
-    g.strokeStyle = color; g.lineCap = 'round';
-    g.globalAlpha = .85; g.lineWidth = 2 + r() * 3;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - .5) * 3, y + len); g.stroke();
-    g.fillStyle = color; g.beginPath(); g.arc(x, y + len, g.lineWidth * .9, 0, 7); g.fill();
-    g.globalAlpha = 1;
-  };
-  const splatter = (cx, cy, rad, color, n) => {
-    for (let i = 0; i < n; i++) {
-      const t = r() * 7, d = rad * Math.pow(r(), .6);
-      g.globalAlpha = .5 + r() * .5; g.fillStyle = pick(color);
-      g.beginPath(); g.arc(cx + Math.cos(t) * d, cy + Math.sin(t) * d, .8 + r() * r() * 7, 0, 7); g.fill();
-    }
-    g.globalAlpha = 1;
-  };
-  const W = k => k * w, H = k => k * h;
-  const chalk = ['#efe8da', '#e6ddcb', '#f5efe3', '#d9cfbb'], cobalt = ['#1c3e9c', '#2550b5', '#14307a', '#3462c4'];
-  const vermilion = ['#e2531f', '#ef6a24', '#cf3f16', '#f2843a'], saffron = ['#f0b62e', '#e8a21c', '#f6c94c'];
-  const teal = ['#1f6f6a', '#2a8a7f', '#175754'], pink = ['#e8678f', '#f08aa8'], black = ['#15120e', '#221c16', '#0c0a08'];
-  // Ground: warm chalk, scrubbed with a little umber.
-  g.fillStyle = '#ebe3d3'; g.fillRect(0, 0, w, h);
-  mass(W(.5), H(.5), W(.7), H(.7), ['#d7ccb6', '#cbbd9f', '#e2d8c4'], 60, {spread: 3, alpha: .5, width: [30, 70]});
-  // The big blue sweep, from the top left down through the middle.
-  mass(W(.3), H(.28), W(.38), H(.26), cobalt, 95, {angle: .55, spread: .45, len: [140, 320], width: [34, 70]});
-  mass(W(.5), H(.5), W(.18), H(.14), cobalt, 22, {angle: .9, spread: .4, len: [120, 240]});
-  // Vermilion, curling up from the lower right.
-  mass(W(.68), H(.67), W(.32), H(.24), vermilion, 95, {angle: -.7, spread: .6, len: [120, 280], width: [30, 66], bend: 1.4});
-  // Saffron light breaking through at the upper right, and a little teal
-  // and pink low on the left.
-  mass(W(.78), H(.2), W(.2), H(.16), saffron, 42, {angle: -.3, spread: .7, len: [80, 200]});
-  mass(W(.18), H(.76), W(.18), H(.13), teal, 32, {angle: .2, spread: .6, len: [70, 180]});
-  mass(W(.42), H(.85), W(.12), H(.06), pink, 12, {angle: -.2, spread: .5, len: [60, 140], width: [18, 40]});
-  // Scraped whites cutting back through the colour.
-  mass(W(.55), H(.36), W(.4), H(.3), chalk, 18, {angle: -.15, spread: .8, len: [90, 240], width: [14, 34], alpha: .5, bend: 1.2});
-  mass(W(.3), H(.9), W(.3), H(.07), chalk, 18, {angle: 0, spread: .3, len: [120, 260], alpha: .85});
-  // Black: a few big calligraphic sweeps and some short, hard marks.
-  for (const [x, y, a, L, wd] of [[W(.08), H(.12), .9, H(.5), 26], [W(.62), H(.08), 1.9, H(.38), 18], [W(.18), H(.62), -.25, W(.75), 22], [W(.52), H(.44), .4, W(.38), 14]]) stroke(x, y, a, L, wd, black, {bend: 2.4, alpha: .9, dry: .8});
-  mass(W(.5), H(.55), W(.42), H(.38), black, 14, {spread: 3, len: [30, 80], width: [8, 18], alpha: .9, bend: .4});
-  // Drips from the heavier passages, and splatter.
-  for (let i = 0; i < 4; i++) drip(W(.08 + r() * .84), H(.25 + r() * .5), 20 + r() * 70, pick(r() < .4 ? black : r() < .5 ? cobalt : vermilion));
-  splatter(W(.62), H(.42), W(.3), black, 90);
-  splatter(W(.3), H(.6), W(.25), chalk, 70);
-  splatter(W(.75), H(.75), W(.2), saffron, 40);
-  // A quiet, pale corner to sign in.
-  mass(W(.84), H(.95), W(.14), H(.035), chalk, 12, {angle: 0, spread: .15, len: [80, 160], width: [18, 34], alpha: .95, bend: .2});
-  paintSignature(g, W(.955), H(.955), h * .03, r);
-}
-
-function drawKnife(g, w, h) {
+// An original abstract in the spirit of mid-century European painting: a
+// slab of cobalt, a block of vermilion, black bars and chalky whites, laid
+// on with a dry brush and a palette knife and worn back in places. Signed,
+// small and in paint, in the bottom right corner.
+export function drawAbstract(g, w, h) {
   const r = rng(58);
   const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
   // A block built up from palette-knife dabs: slanted slabs of paint in
@@ -318,98 +225,13 @@ function drawKnife(g, w, h) {
     g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
     g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
   }
-  paintSignature(g, W(.955), H(.955), h * .03, r);
-}
-
-// Build 67's palette-knife slabs, freed from the grid: loose, tilted masses
-// of knife-laid paint in bold colours, overlapping and broken at the edges.
-function drawBlend(g, w, h) {
-  const r = rng(91), k = w / 768;
-  const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
-  const dab = (px, py, ang, dw, dh, col, a) => {
-    const sk = (r() - .5) * dh * 1.2;
-    g.globalAlpha = a; g.fillStyle = col;
-    g.save(); g.translate(px, py); g.rotate(ang);
-    g.beginPath(); g.moveTo(-dw / 2, -dh / 2); g.lineTo(dw / 2 + sk, -dh / 2 + (r() - .5) * 4); g.lineTo(dw / 2, dh / 2); g.lineTo(-dw / 2 - sk, dh / 2 + (r() - .5) * 4); g.closePath(); g.fill();
-    if (r() < .35) { g.globalAlpha *= .5; g.fillStyle = 'rgba(255,250,240,.6)'; g.fillRect(-dw / 2, -dh / 2, dw, 1.5); }
-    g.restore();
-  };
-  // A mass of knife dabs inside a wobbly, tilted oval; the dabs mostly
-  // follow the mass's tilt, and thin out towards its ragged edge.
-  const slab = (cx, cy, rx, ry, rot, color, {layers = 6, alpha = 1, spread = .4, size = 1} = {}) => {
-    const n = Math.round(Math.PI * rx * ry / 2400 / (k * k) * layers * .5 / (size * size));
-    const p1 = r() * 7, p2 = r() * 7, c = Math.cos(rot), sn = Math.sin(rot);
-    for (let i = 0; i < n; i++) {
-      const t = r() * Math.PI * 2, d = Math.sqrt(r()), wob = 1 + .24 * Math.sin(3 * t + p1) + .12 * Math.sin(5 * t + p2);
-      const lx = Math.cos(t) * rx * d * wob, ly = Math.sin(t) * ry * d * wob;
-      dab(cx + lx * c - ly * sn, cy + lx * sn + ly * c, rot + (r() - .5) * spread * 2, (34 + r() * 110) * k * size, (14 + r() * 38) * k * size, pick(color), alpha * (d > .82 ? .3 + r() * .45 : .7 + r() * .3));
-    }
-    g.globalAlpha = 1;
-  };
-  const scumble = (x, y, ww, hh, color, n, a) => {
-    for (let i = 0; i < n; i++) {
-      g.globalAlpha = a * (.3 + r() * .7); g.fillStyle = color;
-      const sx = x + r() * ww, sy = y + r() * hh, len = 30 + r() * ww * .5, hgt = (1 + r() * 5) * k;
-      for (let q = 0; q < len; q += 6 + r() * 10) if (r() < .7) g.fillRect(sx + q, sy + (r() - .5) * 2, (5 + r() * 9) * k, hgt);
-    }
-    g.globalAlpha = 1;
-  };
-  const W = q => q * w, H = q => q * h;
-  const chalk = ['#ece5d6', '#e4dccb', '#f2ece0', '#d9d0bd', '#cfc6b3'], cobalt = ['#1c3e9c', '#2550b5', '#183585', '#3462c4', '#13296b'];
-  const vermilion = ['#e2531f', '#ef6a24', '#cf3f16', '#f2843a'], saffron = ['#f0b62e', '#e8a21c', '#f6c94c', '#f3a93a'];
-  const teal = ['#1f6f6a', '#2a8a7f', '#175754'], pink = ['#e8678f', '#f08aa8'], black = ['#17140f', '#221d17', '#0f0d0a', '#2b261f'];
-  g.fillStyle = '#d8cdb6'; g.fillRect(0, 0, w, h);
-  slab(W(.5), H(.5), W(.75), H(.7), 0, ['#c9b994', '#b8a27a', '#d6cbb4', '#a8987c', '#e2d8c4'], {layers: 2, alpha: .7, spread: 1.5});
-  // Cobalt sweeping down from the top left, with a deeper blue pressed in.
-  slab(W(.32), H(.28), W(.4), H(.2), .5, cobalt, {layers: 9});
-  slab(W(.24), H(.2), W(.16), H(.08), .45, ['#122a6e', '#183588', '#0f2259'], {layers: 6, alpha: .85});
-  // Saffron light at the upper right.
-  slab(W(.8), H(.16), W(.22), H(.11), -.45, saffron, {layers: 8});
-  // Chalk breaking through the middle.
-  slab(W(.6), H(.4), W(.24), H(.08), -.25, chalk, {layers: 7});
-  // Vermilion rising from the lower right, with a hotter core.
-  slab(W(.66), H(.67), W(.36), H(.19), -.55, vermilion, {layers: 10});
-  slab(W(.62), H(.62), W(.15), H(.07), -.5, ['#f58a45', '#f6a060', '#ef7834'], {layers: 6, alpha: .7});
-  // Teal low on the left, a flash of pink.
-  slab(W(.2), H(.74), W(.19), H(.11), .3, teal, {layers: 8});
-  slab(W(.44), H(.86), W(.09), H(.04), -.2, pink, {layers: 7, size: .7});
-  // Black shards.
-  slab(W(.5), H(.47), W(.13), H(.025), .85, black, {layers: 9, spread: .15, size: .6});
-  slab(W(.24), H(.52), W(.15), H(.03), -.3, black, {layers: 9, spread: .15, size: .6});
-  slab(W(.86), H(.42), W(.09), H(.025), .2, black, {layers: 9, spread: .15, size: .6});
-  slab(W(.12), H(.4), W(.03), H(.12), 0, black, {layers: 8, spread: .15, size: .6});
-  // A quiet, pale band along the bottom to sign in.
-  slab(W(.72), H(.95), W(.32), H(.05), 0, chalk, {layers: 7, spread: .2});
-  // Knife scrapes and wear.
-  scumble(0, 0, W(.6), H(.45), '#e9e2d3', 60, .2);
-  scumble(W(.4), H(.45), W(.6), H(.45), '#efe7d7', 50, .16);
-  scumble(0, 0, w, h, '#17140f', 50, .18);
-  g.lineWidth = 1;
-  for (let i = 0; i < 120; i++) {
-    g.strokeStyle = `rgba(20,16,12,${.06 + r() * .16})`;
-    let x = r() * w, y = r() * h;
-    g.beginPath(); g.moveTo(x, y);
-    for (let q = 0; q < 4; q++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
-    g.stroke();
-  }
-  for (let i = 0; i < 500; i++) {
-    g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
-    g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
-  }
-  paintSignature(g, W(.955), H(.955), h * .03, r);
-}
-
-// Three candidates while Merlin chooses (preview: ?painting=knife|gesture|blend).
-export const PAINTINGS = {knife: drawKnife, gesture: drawGesture, blend: drawBlend};
-export function drawAbstract(g, w, h, kind) {
-  kind ??= new URLSearchParams(globalThis.location?.search || '').get('painting');
-  (PAINTINGS[kind] || drawBlend)(g, w, h);
+  paintSignature(g, W(.955), H(.962), h * .021, r);
 }
 
 // The artists' signature, in paint: each letter is a few brush strokes of
 // our own (no font needed, so it looks the same on every device), with a
 // slant, a little wobble from letter to letter, strokes that swell and
-// taper, and a flick underneath.
+// taper.
 const SIGNATURE = (() => {
   const ell = (cx, cy, rx, ry, a0, a1, n = 18) => Array.from({length: n + 1}, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]; });
   const T = Math.PI;
@@ -468,8 +290,6 @@ function paintSignature(g, right, baseline, size, r) {
     }
     x += (L.w + .05) * size;
   }
-  // A flick underneath.
-  paint(smooth([[0, 0], [.4, -.05], [.9, -.02], [1.3, .08]].map(([a, b]) => [a * width / size / 1.3, b - .22]), right - width, baseline, size, -.04), wd * .7);
 }
 
 // The view: grey-blue sky, the sea, and golden dune grass with a few
