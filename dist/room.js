@@ -740,10 +740,10 @@ export class Room {
     else if (b.position.y > f.floor) {
       // Clamped to the moment it reaches the floor, so a slow frame can't
       // throw it further than it would fall.
-      const q = Math.min(k - .5, Math.sqrt((f.y - f.floor) / 4.9));
+      const fall = Math.sqrt((f.y - f.floor) / 4.9), q = Math.min(k - .5, fall);
       b.position.set(f.x + .05 + q * 1.3, Math.max(f.floor, f.y - 4.9 * q * q), f.z + .45 + q * .7);
       b.rotation.set(q * 3.2, b.rotation.y, q * 1.2);
-      if (b.position.y <= f.floor) { b.position.y = f.floor; b.rotation.x = 0; b.rotation.z = 0; f.landed = t; }
+      if (k - .5 >= fall) { b.position.y = f.floor; b.rotation.x = 0; b.rotation.z = 0; f.landed = t; }
     } else if (f.landed && t - f.landed > 60) {
       b.position.copy(home.p); b.rotation.copy(home.r); this.bookFall = null;
     }
@@ -982,10 +982,11 @@ export class Room {
     const v = this.mantelVase, k = t - f.start, lying = .24;
     if (k < .45) { v.position.z = f.z + k / .45 * .32; v.rotation.x = Math.sin(k * 32) * .1 * k / .45; }
     else if (!f.landed) {
-      const q = Math.min(k - .45, Math.sqrt((f.y - lying) / 4.9));
+      const fall = Math.sqrt((f.y - lying) / 4.9), q = Math.min(k - .45, fall);
       v.position.set(f.x + q * .2, Math.max(lying, f.y - 4.9 * q * q), f.z + .32 + q * 1.6);
       v.rotation.set(Math.min(Math.PI / 2, q * 2.6), 0, q * .4);
-      if (v.position.y <= lying) { v.position.y = lying; v.rotation.x = Math.PI / 2; f.landed = t; f.lx = v.position.x; }
+      // (Landed by the clock, not by height, which can stop a hair short.)
+      if (k - .45 >= fall) { v.position.y = lying; v.rotation.x = Math.PI / 2; f.landed = t; f.lx = v.position.x; }
     } else if (t - f.landed < 1.4) {
       // A short roll on the floor.
       const r = (t - f.landed) / 1.4;
