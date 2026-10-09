@@ -140,7 +140,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} to pet · drag to look around · pinch to zoom` : `Stroke ${pet.name} to pet · drag to look around · scroll to zoom · right-drag to move`;
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the sill, chair or mantel to invite her · pinch to zoom` : `Stroke ${pet.name} to pet · click the sill, chair or mantel to invite her up · drag to look around · scroll to zoom`;
 }
 
 function showDeltas(before) {
@@ -762,7 +762,7 @@ function idleLife(t) {
   // app, then every half a minute or so. A tired kitten picks the calm ones.
   if (t > brain.nextShow) {
     brain.nextShow = t + rand(25, 40);
-    const shows = ['window', 'window', 'chair', 'sunbeam', 'mantel'];
+    const shows = ['window', 'chair', 'sunbeam', 'mantel', 'mantel'];
     if (pet.energy > 35) shows.push('solo', 'solo', 'zoomies');
     choice = pick(shows);
   }
@@ -905,8 +905,8 @@ function watchBirds(t) {
     // She chatters at it: a chirp, and often a second one.
     setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 600);
     if (Math.random() < .6) setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 1700);
-    // From the floor: often she goes up for a better look.
-    if (!onSill && Math.random() < .6) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
+    // From the floor: sometimes she goes up for a better look.
+    if (!onSill && Math.random() < .4) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
   }
 }
 
@@ -1222,6 +1222,44 @@ function setPointer(e) {
 }
 function hitsCat() { return ready && ray.intersectObjects(cat.meshes, false).length > 0; }
 function hitsFountain() { return ready && ray.intersectObjects(room.clickables, false).length > 0; }
+// Which perch (if any) is under the pointer: the window and its sill, the
+// chair, or the fireplace and its mantel.
+function perchAt() {
+  if (!ready) return null;
+  let best = null;
+  for (const [name, obj] of [['sill', room.windowGroup], ['chair', room.chair], ['mantel', room.fireplace]]) {
+    if (!obj.visible) continue;
+    const hit = ray.intersectObject(obj, true).find(h => h.object.visible && h.object.material?.blending !== THREE.AdditiveBlending);
+    if (hit && (!best || hit.distance < best.d)) best = {name, d: hit.distance};
+  }
+  return best?.name || null;
+}
+// Tapping a perch invites her up. She's a cat: mostly she goes (with a
+// chirp), sometimes she just looks at it, then at you. Ask again and she's
+// more likely to give in.
+let lastInvite = {name: null, at: -99};
+function invite(name) {
+  if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
+  if (!['idle', 'solo'].includes(brain.mode)) return;
+  const P = PERCHES[name];
+  if (brain.perch === name && !brain.jump) { glanceAt(camera.position, 2); slowBlink(); meow('mew', 'idle'); return; }
+  const again = lastInvite.name === name && clockNow - lastInvite.at < 12;
+  lastInvite = {name, at: clockNow};
+  glanceAt(P.spot.clone().setY(P.top + .2), 1.6);
+  twitchEar(0, 1);
+  if (Math.random() < (again ? .9 : .72)) {
+    brain.mode = 'idle';
+    setTimeout(() => meow('chirp', 'idle'), 350);
+    jumpTo(name, () => {
+      setActivity('sit');
+      if (name === 'sill') brain.nextBird = clockNow + rand(3, 8);
+      if (name === 'chair') { brain.kneadUntil = clockNow + 3; setActivity('loaf', 3.4, () => setActivity('catnap', rand(10, 18), () => { slowBlink(); setActivity('sit', 4); })); }
+    }, rand(25, 40));
+  } else setTimeout(() => {
+    glanceAt(camera.position, 2.2); express('curious', 1.6);
+    say(pick(['Maybe later.', 'Hmm… no.', '*tail flick*', 'I heard you. I’m choosing not to.', 'Not right now, thank you.']), 2600);
+  }, 900);
+}
 function trackPointer(e) {
   const r = setPointer(e);
   brain.pointerAt = clockNow;
@@ -1402,7 +1440,8 @@ host.addEventListener('pointerdown', e => {
   const panning = e.button === 2 || e.shiftKey;
   const onCat = !panning && brain.mode !== 'play' && hitsCat();
   const onFountain = !panning && !onCat && brain.mode !== 'play' && hitsFountain();
-  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, panning, stroke: 0, rect: r};
+  const onPerch = !panning && !onCat && !onFountain && brain.mode !== 'play' ? perchAt() : null;
+  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, onPerch, panning, stroke: 0, rect: r};
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
@@ -1418,7 +1457,7 @@ host.addEventListener('pointermove', e => {
   }
   trackPointer(e);
   if (!gesture) {
-    if (e.pointerType === 'mouse') host.classList.toggle('over-cat', brain.mode !== 'play' && (hitsCat() || hitsFountain()));
+    if (e.pointerType === 'mouse') host.classList.toggle('over-cat', brain.mode !== 'play' && (hitsCat() || hitsFountain() || !!perchAt()));
     return;
   }
   const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
@@ -1448,6 +1487,7 @@ function endGesture(e) {
     if (pet.sleeping) toast('Shh… wake your kitten first.');
     else act('drink');
   }
+  if (gesture && !gesture.moved && gesture.onPerch) invite(gesture.onPerch);
   if (gesture && !gesture.moved && gesture.onCat) act('pet', {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
   gesture = null;
   host.classList.remove('stroking', 'dragging');
@@ -1740,6 +1780,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });
