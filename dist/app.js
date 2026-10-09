@@ -395,7 +395,7 @@ const brain = {
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
   petTimes: [],
-  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextBird: 20, birdSeen: false, bookKnocked: false, swatHit: 0,
+  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextBird: 12, birdSeen: false, nextKnock: 0, swatHit: 0,
 };
 if (pet.sleeping) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
 
@@ -800,7 +800,7 @@ function idleLife(t) {
 function perchLife(t) {
   if (t > brain.perchUntil) { jumpDown(() => setActivity(restingActivity(), rand(2, 5))); return; }
   const options = ['glance', 'twitch', 'slowBlink', 'groom', 'lookBack', 'loaf'];
-  if (brain.perch === 'sill' && !brain.bookKnocked && !room.bookFall && t - brain.actStart > 6) options.push('book');
+  if (brain.perch === 'sill' && t > brain.nextKnock && !room.bookFall && t - brain.actStart > 6) options.push('book');
   const choice = pick(options);
   if (choice === 'glance') glanceAt(brain.perch === 'sill' ? room.glass.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rand(-.9, .9), rand(-.6, .6), 0)) : new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.5, 3));
   if (choice === 'twitch') twitchEar();
@@ -814,7 +814,8 @@ function perchLife(t) {
 // The top book on the sill: she pats at it, twice, and the third pat sends it
 // over the edge. Then a look down at it, and an innocent look at you.
 function knockBook() {
-  brain.bookKnocked = true;
+  // Not every minute: the book needs time to be put back, and so do you.
+  brain.nextKnock = clockNow + rand(100, 160);
   const book = room.bookWorld(new THREE.Vector3());
   const pats = [0, .9, 1.8];
   glanceAt(book, 3.5);
@@ -853,23 +854,32 @@ function watchBirds(t) {
     if (brain.mode === 'idle' && (onSill || !brain.perch)) {
       const d = room.startBird(t);
       brain.birdSeen = false;
-      brain.nextBird = t + d + (onSill ? rand(6, 16) : rand(35, 70));
-    } else brain.nextBird = t + rand(8, 15);
+      brain.nextBird = t + d + (onSill ? rand(5, 12) : rand(22, 40));
+    } else brain.nextBird = t + rand(6, 12);
   }
   const at = room.birdWorld(tmpV3);
   host.classList.toggle('bird', !!at);
-  brain.watching = !!at && brain.mode === 'idle' && ['sit', 'loaf', 'groom'].includes(brain.activity);
+  // Once the bird has gone, a cat at the window with all that excitement and
+  // nowhere to put it may well take it out on the top book.
+  if (!at && brain.birdSeen && brain.birdLeft == null) {
+    brain.birdLeft = t;
+    if (onSill && t > brain.nextKnock && !room.bookFall && Math.random() < .6) setTimeout(() => { if (brain.perch === 'sill' && !brain.jump && brain.mode === 'idle' && !pet.sleeping) knockBook(); }, 1200);
+  }
+  const busy = ['walk', 'prejump', 'jump', 'land', 'swat', 'stalk', 'pounce', 'catnap', 'eat', 'drink'];
+  brain.watching = !!at && brain.mode === 'idle' && !brain.jump && !busy.includes(brain.activity);
   if (!brain.watching) return;
   brain.glance = (brain.glance || new THREE.Vector3()).copy(at);
   brain.glanceUntil = t + .4;
   if (!brain.birdSeen) {
-    brain.birdSeen = true;
+    brain.birdSeen = true; brain.birdLeft = null;
     twitchEar(0, 1.2); setTimeout(() => twitchEar(1, 1.2), 120);
     express('curious', 1.5);
     if (brain.activity !== 'sit') setActivity('sit');
-    if (onSill && Math.random() < .6) setTimeout(() => meow('chirp', 'idle'), 600);
-    // From the floor: sometimes she goes up for a better look.
-    if (!onSill && Math.random() < .5) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
+    // She chatters at it: a chirp, and often a second one.
+    setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 600);
+    if (Math.random() < .6) setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 1700);
+    // From the floor: often she goes up for a better look.
+    if (!onSill && Math.random() < .6) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
   }
 }
 

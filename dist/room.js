@@ -559,7 +559,9 @@ export class Room {
     });
     this.sunPatch = this.mesh(new THREE.PlaneGeometry(2.6, 3.4), new THREE.MeshBasicMaterial({map: beam, transparent: true, opacity: .32, blending: THREE.AdditiveBlending, depthWrite: false}), this.group, {cast: false, receive: false});
     this.sunPatch.rotation.set(-Math.PI / 2, 0, .45);
-    this.sunPatch.position.set(-1.05, .006, -1.25);
+    // Just above the rug's surface, so the light falls across the rug (and
+    // Mochi lying on it) as well as the boards.
+    this.sunPatch.position.set(-1.05, .045, -1.25);
   }
 
   // A small brown bird outside the window, now and then, in daylight. It
