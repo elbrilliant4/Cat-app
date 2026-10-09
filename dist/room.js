@@ -1083,51 +1083,35 @@ export class Room {
     this.oliveTree = g;
     const potMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (c, w, h) => drawNoise(c, w, h, {base: '#d6ccb8', blobs: [['rgba(120,105,85,.2)', 600, 1, 3], ['rgba(250,245,232,.3)', 400, 1, 3]], seed: 91})), roughness: .95});
     this.mesh(lathe([[0, 0], [.3, 0], [.42, .2], [.46, .55], [.43, .78], [.45, .8], [0, .8]], 32), potMat, g);
-    // Shaped like a bonsai: a twisting trunk that leans and turns back, and
-    // long, crooked branches reaching out at odd angles, the leaves gathered
-    // in a few airy pads at their tips so the branches show.
-    const r = rng(97), bark = new THREE.MeshStandardMaterial({color: '#6e6555', roughness: .95});
-    const pads = [];
-    const limb = (from, dir, len, rad, depth) => {
-      // A crooked limb: three bends, each turning a little off course.
-      const pts = [from.clone()];
-      let p = from.clone(), d = dir.clone();
-      for (let i = 0; i < 3; i++) {
-        d.add(new THREE.Vector3((r() - .5) * .9, (r() - .5) * .35, (r() - .5) * .9)).normalize();
-        p = p.clone().addScaledVector(d, len / 3); pts.push(p);
+    const r = rng(95), bark = new THREE.MeshStandardMaterial({color: '#6b6152', roughness: .95});
+    const tips = [];
+    // Two slender, twisting trunks that fork into branches.
+    for (const [ox, oz, lean] of [[-.06, .03, -.12], [.07, -.04, .14]]) {
+      const pts = [new THREE.Vector3(ox, .72, oz)];
+      let p = pts[0].clone();
+      for (let i = 1; i <= 5; i++) { p = p.clone().add(new THREE.Vector3(lean * .3 + (r() - .5) * .16, .36, (r() - .5) * .14)); pts.push(p); }
+      this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, .045, 6), bark, g);
+      for (let b = 2; b <= 5; b++) for (let twig = 0; twig < 2; twig++) {
+        const from = pts[b], dir = new THREE.Vector3((r() - .5) * 1.2 + lean * 2, .5 + r() * .5, (r() - .5) * 1.2).normalize();
+        const to = from.clone().addScaledVector(dir, .35 + r() * .45);
+        const mid = from.clone().lerp(to, .5).add(new THREE.Vector3(0, .06, 0));
+        this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, mid, to]), 8, .018, 5), bark, g);
+        tips.push(to);
       }
-      this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, rad, 6), bark, g);
-      if (depth === 0) { pads.push({at: p, size: .7 + r() * .5}); return; }
-      const n = depth === 2 ? 3 : 2;
-      for (let k = 0; k < n; k++) {
-        // (Never back into the wall behind it.)
-        const ang = r() * 6.3, out = new THREE.Vector3(-Math.abs(Math.cos(ang)) * .8, 0, Math.sin(ang));
-        // Mostly outwards and only gently up, as bonsai branches are trained.
-        const nd = d.clone().multiplyScalar(.4).addScaledVector(out, 1.2).add(new THREE.Vector3(0, .15 + r() * .3, 0)).normalize();
-        limb(pts[1 + Math.floor(r() * 3)], nd, len * (.55 + r() * .25), rad * .62, depth - 1);
-      }
-    };
-    // The trunk: up out of the pot, leaning one way, then back the other.
-    const trunk = [new THREE.Vector3(0, .74, 0), new THREE.Vector3(.12, 1.25, .05), new THREE.Vector3(-.1, 1.85, .02), new THREE.Vector3(.08, 2.4, -.06), new THREE.Vector3(-.05, 2.95, .02)];
-    this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trunk), 24, .07, 8), bark, g);
-    this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trunk.slice(0, 3)), 12, .085, 8), bark, g);
-    limb(trunk[1], new THREE.Vector3(-.9, .45, .25).normalize(), 1.1, .035, 2);
-    limb(trunk[2], new THREE.Vector3(.2, .5, .9).normalize(), 1.0, .032, 2);
-    limb(trunk[3], new THREE.Vector3(-.4, .7, -.5).normalize(), .9, .028, 1);
-    limb(trunk[4], new THREE.Vector3(.2, 1, .1).normalize(), .8, .026, 1);
-    // Leaf pads: flattened, open clouds of small, narrow leaves.
-    const leafMat = new THREE.MeshStandardMaterial({map: canvasTexture(32, 128, drawOliveLeaf), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
-    const per = 90, leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.042, .15), leafMat, pads.length * per);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    let n = 0;
-    for (const {at, size} of pads) for (let i = 0; i < per; i++) {
-      const a = r() * Math.PI * 2, d = Math.sqrt(r());
-      const v = new THREE.Vector3(Math.cos(a) * d * .42 * size, (r() - .3) * .16 * size, Math.sin(a) * d * .34 * size);
-      q.setFromEuler(e.set(r() * 6.3, r() * 6.3, r() * 6.3));
-      m4.compose(at.clone().add(v), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.8 + r() * .5));
-      leaves.setMatrixAt(n++, m4);
+      tips.push(pts[5]);
     }
-    leaves.count = n;
+    // Clouds of small, narrow leaves round the branch tips.
+    const leafMat = new THREE.MeshStandardMaterial({map: canvasTexture(32, 128, drawOliveLeaf), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
+    // Lighter foliage: enough to read as an olive, with the branches showing.
+    const N = 1300, leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.042, .15), leafMat, N);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < N; i++) {
+      const c = tips[i % tips.length], rad = .3 + r() * .12;
+      const v = new THREE.Vector3(r() - .5, (r() - .5) * .8, r() - .5).normalize().multiplyScalar(rad * Math.cbrt(r()));
+      q.setFromEuler(e.set(r() * 6.3, r() * 6.3, r() * 6.3));
+      m4.compose(c.clone().add(v), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.8 + r() * .5));
+      leaves.setMatrixAt(i, m4);
+    }
     leaves.castShadow = true;
     g.add(leaves);
     // A tall leafy plant in the far corner by the window.
