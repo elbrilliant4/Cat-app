@@ -144,119 +144,218 @@ function drawSherpa(g, w, h) {
   drawNoise(g, w, h, {base: '#d6c7aa', blobs: [['rgba(120,100,70,.35)', 5000, 2, 4.5], ['rgba(248,240,225,.6)', 6000, 1.5, 4]], seed: 13});
 }
 
-// An original abstract in the spirit of mid-century European painting: a
-// slab of cobalt, a block of vermilion, black bars and chalky whites, laid
-// on with a dry brush and a palette knife and worn back in places. Signed,
-// small, in the bottom right corner.
-function drawAbstract(g, w, h) {
-  const r = rng(58);
+// An original gestural abstract: sweeping, bristly strokes of cobalt,
+// vermilion, saffron, teal and black over a chalky ground, with scraped
+// whites, drips and splatter. Signed small in the bottom right corner, in
+// paint.
+export function drawAbstract(g, w, h) {
+  const r = rng(73);
   const pick = c => Array.isArray(c) ? c[Math.floor(r() * c.length)] : c;
-  // A block built up from palette-knife dabs: slanted slabs of paint in
-  // slightly different mixes, thicker in the middle, broken at the edges so
-  // the layers underneath show through.
-  const rough = (x, y, ww, hh, color, {alpha = 1, jag = 10, layers = 5} = {}) => {
-    const n = Math.round(ww * hh / 2400 * layers * .5);
-    for (let i = 0; i < n; i++) {
-      const u = r(), v = r(), edge = Math.min(u, 1 - u, v, 1 - v);
-      const px = x + u * ww + (r() - .5) * jag, py = y + v * hh + (r() - .5) * jag;
-      const dw = 34 + r() * 110, dh = 14 + r() * 38, sk = (r() - .5) * dh * 1.2;
-      g.globalAlpha = alpha * (edge < .06 ? .3 + r() * .45 : .7 + r() * .3);
-      g.fillStyle = pick(color);
-      g.save(); g.translate(px, py); g.rotate((r() - .5) * .35);
-      g.beginPath(); g.moveTo(-dw / 2, -dh / 2); g.lineTo(dw / 2 + sk, -dh / 2 + (r() - .5) * 4); g.lineTo(dw / 2, dh / 2); g.lineTo(-dw / 2 - sk, dh / 2 + (r() - .5) * 4); g.closePath(); g.fill();
-      // A ridge of lighter paint where the knife lifted.
-      if (r() < .35) { g.globalAlpha *= .5; g.fillStyle = 'rgba(255,250,240,.6)'; g.fillRect(-dw / 2, -dh / 2, dw, 1.5); }
-      g.restore();
+  // One loaded brush dragged along a curve: a bundle of bristles, each with
+  // its own wobble and load, thinning out as the paint runs dry.
+  const stroke = (x, y, angle, len, width, color, {bend = .6, alpha = .9, dry = .5} = {}) => {
+    const n = Math.max(3, Math.round(width / 3)), steps = Math.max(6, Math.round(len / 9));
+    const turn = (r() - .5) * bend * 2 / steps;
+    // The body of paint: a ribbon along the curve, narrowing where the brush
+    // lifts off.
+    {
+      let a = angle, px = x, py = y;
+      const left = [], right = [];
+      for (let i = 0; i <= steps; i++) {
+        const k = i / steps, half = width / 2 * (.3 + .7 * Math.pow(Math.sin(Math.PI * k), .6));
+        left.push([px - Math.sin(a) * half, py + Math.cos(a) * half]); right.push([px + Math.sin(a) * half, py - Math.cos(a) * half]);
+        a += turn; px += Math.cos(a) * len / steps; py += Math.sin(a) * len / steps;
+      }
+      g.globalAlpha = alpha * (.45 + r() * .25); g.fillStyle = pick(color);
+      g.beginPath(); [...left, ...right.reverse()].forEach(([qx, qy], i) => i ? g.lineTo(qx + (r() - .5) * 6, qy + (r() - .5) * 6) : g.moveTo(qx, qy));
+      g.closePath(); g.fill();
+    }
+    for (let b = 0; b < n; b++) {
+      const off = (b / (n - 1) - .5) * width + (r() - .5) * 2, load = .45 + r() * .5, run = 1 - r() * dry * .6;
+      g.strokeStyle = pick(color); g.lineWidth = 2 + r() * 3.5; g.lineCap = 'round';
+      let a = angle, px = x - Math.sin(a) * off, py = y + Math.cos(a) * off;
+      g.beginPath(); g.moveTo(px, py);
+      for (let i = 1; i <= steps * run; i++) {
+        a += turn; px += Math.cos(a) * len / steps + (r() - .5) * .8; py += Math.sin(a) * len / steps + (r() - .5) * .8;
+        g.lineTo(px, py);
+      }
+      g.globalAlpha = alpha * load;
+      g.stroke();
     }
     g.globalAlpha = 1;
   };
-  const scumble = (x, y, ww, hh, color, n, a) => {
-    // Dry brush: long, broken drags that catch only the high spots.
+  // A loose mass of strokes, mostly going one way, in one family of colours.
+  const mass = (cx, cy, rx, ry, color, count, {angle = 0, spread = .5, len = [80, 220], width = [26, 60], alpha = .9, bend = 1.6} = {}) => {
+    for (let i = 0; i < count; i++) {
+      const t = r() * Math.PI * 2, d = Math.sqrt(r());
+      const x = cx + Math.cos(t) * rx * d, y = cy + Math.sin(t) * ry * d;
+      const L = len[0] + r() * (len[1] - len[0]), a = angle + (r() - .5) * spread * 2;
+      stroke(x - Math.cos(a) * L / 2, y - Math.sin(a) * L / 2, a, L, width[0] + r() * (width[1] - width[0]), color, {alpha: alpha * (.6 + r() * .4), bend});
+    }
+  };
+  const drip = (x, y, len, color) => {
+    g.strokeStyle = color; g.lineCap = 'round';
+    g.globalAlpha = .85; g.lineWidth = 2 + r() * 3;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - .5) * 3, y + len); g.stroke();
+    g.fillStyle = color; g.beginPath(); g.arc(x, y + len, g.lineWidth * .9, 0, 7); g.fill();
+    g.globalAlpha = 1;
+  };
+  const splatter = (cx, cy, rad, color, n) => {
     for (let i = 0; i < n; i++) {
-      g.globalAlpha = a * (.3 + r() * .7);
-      g.fillStyle = color;
-      let sx = x + r() * ww, sy = y + r() * hh;
-      const len = 30 + r() * ww * .5, hgt = 1 + r() * 5;
-      for (let k = 0; k < len; k += 6 + r() * 10) if (r() < .7) g.fillRect(sx + k, sy + (r() - .5) * 2, 5 + r() * 9, hgt);
+      const t = r() * 7, d = rad * Math.pow(r(), .6);
+      g.globalAlpha = .5 + r() * .5; g.fillStyle = pick(color);
+      g.beginPath(); g.arc(cx + Math.cos(t) * d, cy + Math.sin(t) * d, .8 + r() * r() * 7, 0, 7); g.fill();
     }
     g.globalAlpha = 1;
   };
   const W = k => k * w, H = k => k * h;
-  const chalk = ['#ece5d6', '#e4dccb', '#f2ece0', '#d9d0bd', '#cfc6b3'], cobalt = ['#1c3e9c', '#21469f', '#183585', '#2a52ad', '#13296b'];
-  const vermilion = ['#e2531f', '#d8481b', '#ec6528', '#cf4317', '#f07a35'], black = ['#17140f', '#221d17', '#0f0d0a', '#2b261f'];
-  // Underpainting: a warm grey ground, loosely scrubbed in with ochre and
-  // umber, which shows through wherever the top layers break.
-  g.fillStyle = '#d8cdb6'; g.fillRect(0, 0, w, h);
-  rough(0, 0, w, h, ['#c9b994', '#b8a27a', '#d6cbb4', '#a8987c', '#8c7d66'], {alpha: .7, jag: 30, layers: 2});
-  // The big blue, top left, with a deeper blue pressed into it.
-  rough(W(-.03), H(-.03), W(.63), H(.45), cobalt, {jag: 34, layers: 9});
-  rough(W(.05), H(.05), W(.32), H(.18), ['#122a6e', '#183588', '#0f2259'], {alpha: .8, jag: 24, layers: 5});
-  // Chalk whites across the middle and up the right, worn thin.
-  rough(W(.03), H(.41), W(.44), H(.27), chalk, {jag: 36, layers: 8});
-  rough(W(.6), H(.03), W(.39), H(.32), chalk, {jag: 32, layers: 8});
-  // Black: a bar down the middle, a slab at the lower left, shards.
-  rough(W(.555), H(.02), W(.075), H(.44), black, {jag: 12, layers: 8});
-  rough(W(.02), H(.7), W(.3), H(.17), black, {jag: 26, layers: 8});
-  rough(W(.32), H(.46), W(.11), H(.08), black, {alpha: .9, jag: 14, layers: 6});
-  rough(W(.77), H(.33), W(.19), H(.06), black, {alpha: .9, jag: 12, layers: 6});
-  // The vermilion block, lower right, glowing against the black.
-  rough(W(.46), H(.39), W(.55), H(.5), vermilion, {jag: 34, layers: 10});
-  rough(W(.55), H(.47), W(.3), H(.18), ['#f58a45', '#ef7834', '#f6a060'], {alpha: .6, jag: 26, layers: 5});
-  // A little blue carried down into the lower half, and chalk along the bottom.
-  rough(W(.36), H(.65), W(.16), H(.15), cobalt, {alpha: .9, jag: 18, layers: 7});
-  rough(W(.3), H(.86), W(.72), H(.16), chalk, {jag: 26, layers: 7});
-  rough(W(-.02), H(.86), W(.34), H(.16), ['#d9d0bd', '#cfc4ae', '#bfb39b'], {jag: 22, layers: 6});
-  // Knife work and wear: scrapes of each colour over the others.
-  scumble(W(0), H(0), W(.6), H(.42), '#e9e2d3', 70, .22);
-  scumble(W(.47), H(.4), W(.53), H(.48), '#efe7d7', 50, .18);
-  scumble(W(.04), H(.42), W(.42), H(.25), '#1d3f9a', 30, .2);
-  scumble(W(.6), H(.04), W(.38), H(.3), '#d8481b', 18, .2);
-  scumble(0, 0, w, h, '#17140f', 60, .2);
-  // Fine crackle and specks.
-  g.lineWidth = 1;
-  for (let i = 0; i < 140; i++) {
-    g.strokeStyle = `rgba(20,16,12,${.08 + r() * .2})`;
-    let x = r() * w, y = r() * h;
-    g.beginPath(); g.moveTo(x, y);
-    for (let k = 0; k < 4; k++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
-    g.stroke();
-  }
-  for (let i = 0; i < 500; i++) {
-    g.fillStyle = [`rgba(20,16,12,${r() * .5})`, `rgba(240,234,222,${r() * .5})`][i % 2];
-    g.fillRect(r() * w, r() * h, 1 + r() * 2.5, 1 + r() * 2.5);
-  }
-  // The artists' signature, as painters do: small, in the corner.
-  g.save();
-  g.translate(W(.955), H(.965)); g.rotate(-.05);
-  g.font = `italic 600 ${Math.round(h * .017)}px Georgia, "Times New Roman", serif`;
-  g.textAlign = 'right'; g.textBaseline = 'alphabetic';
-  g.fillStyle = 'rgba(26,22,17,.85)';
-  g.fillText('Orion & Chad', 0, 0);
-  g.font = `italic 500 ${Math.round(h * .012)}px Georgia, "Times New Roman", serif`;
-  g.fillText('2026', 0, h * .016);
-  g.restore();
+  const chalk = ['#efe8da', '#e6ddcb', '#f5efe3', '#d9cfbb'], cobalt = ['#1c3e9c', '#2550b5', '#14307a', '#3462c4'];
+  const vermilion = ['#e2531f', '#ef6a24', '#cf3f16', '#f2843a'], saffron = ['#f0b62e', '#e8a21c', '#f6c94c'];
+  const teal = ['#1f6f6a', '#2a8a7f', '#175754'], pink = ['#e8678f', '#f08aa8'], black = ['#15120e', '#221c16', '#0c0a08'];
+  // Ground: warm chalk, scrubbed with a little umber.
+  g.fillStyle = '#ebe3d3'; g.fillRect(0, 0, w, h);
+  mass(W(.5), H(.5), W(.7), H(.7), ['#d7ccb6', '#cbbd9f', '#e2d8c4'], 60, {spread: 3, alpha: .5, width: [30, 70]});
+  // The big blue sweep, from the top left down through the middle.
+  mass(W(.3), H(.28), W(.38), H(.26), cobalt, 95, {angle: .55, spread: .45, len: [140, 320], width: [34, 70]});
+  mass(W(.5), H(.5), W(.18), H(.14), cobalt, 22, {angle: .9, spread: .4, len: [120, 240]});
+  // Vermilion, curling up from the lower right.
+  mass(W(.68), H(.67), W(.32), H(.24), vermilion, 95, {angle: -.7, spread: .6, len: [120, 280], width: [30, 66], bend: 1.4});
+  // Saffron light breaking through at the upper right, and a little teal
+  // and pink low on the left.
+  mass(W(.78), H(.2), W(.2), H(.16), saffron, 42, {angle: -.3, spread: .7, len: [80, 200]});
+  mass(W(.18), H(.76), W(.18), H(.13), teal, 32, {angle: .2, spread: .6, len: [70, 180]});
+  mass(W(.42), H(.85), W(.12), H(.06), pink, 12, {angle: -.2, spread: .5, len: [60, 140], width: [18, 40]});
+  // Scraped whites cutting back through the colour.
+  mass(W(.55), H(.36), W(.4), H(.3), chalk, 18, {angle: -.15, spread: .8, len: [90, 240], width: [14, 34], alpha: .5, bend: 1.2});
+  mass(W(.3), H(.9), W(.3), H(.07), chalk, 18, {angle: 0, spread: .3, len: [120, 260], alpha: .85});
+  // Black: a few big calligraphic sweeps and some short, hard marks.
+  for (const [x, y, a, L, wd] of [[W(.08), H(.12), .9, H(.5), 26], [W(.62), H(.08), 1.9, H(.38), 18], [W(.18), H(.62), -.25, W(.75), 22], [W(.52), H(.44), .4, W(.38), 14]]) stroke(x, y, a, L, wd, black, {bend: 2.4, alpha: .9, dry: .8});
+  mass(W(.5), H(.55), W(.42), H(.38), black, 14, {spread: 3, len: [30, 80], width: [8, 18], alpha: .9, bend: .4});
+  // Drips from the heavier passages, and splatter.
+  for (let i = 0; i < 4; i++) drip(W(.08 + r() * .84), H(.25 + r() * .5), 20 + r() * 70, pick(r() < .4 ? black : r() < .5 ? cobalt : vermilion));
+  splatter(W(.62), H(.42), W(.3), black, 90);
+  splatter(W(.3), H(.6), W(.25), chalk, 70);
+  splatter(W(.75), H(.75), W(.2), saffron, 40);
+  // A quiet, pale corner to sign in.
+  mass(W(.84), H(.95), W(.14), H(.035), chalk, 12, {angle: 0, spread: .15, len: [80, 160], width: [18, 34], alpha: .95, bend: .2});
+  paintSignature(g, W(.955), H(.955), h * .03, r);
 }
 
-function drawSky(g, w, h, night) {
-  const r = rng(night ? 31 : 29);
-  const sky = g.createLinearGradient(0, 0, 0, h);
-  if (night) { sky.addColorStop(0, '#0d1730'); sky.addColorStop(.6, '#1d2c52'); sky.addColorStop(1, '#2a3960'); }
-  else { sky.addColorStop(0, '#dfe9ee'); sky.addColorStop(.55, '#f6ecd2'); sky.addColorStop(1, '#f2dcae'); }
-  g.fillStyle = sky; g.fillRect(0, 0, w, h);
-  if (!night) {
-    const sun = g.createRadialGradient(w * .2, h * .25, 4, w * .2, h * .25, w * .9);
-    sun.addColorStop(0, 'rgba(255,248,220,.95)'); sun.addColorStop(1, 'rgba(255,240,200,0)');
-    g.fillStyle = sun; g.fillRect(0, 0, w, h);
+// The artists' signature, in paint: each letter is a few brush strokes of
+// our own (no font needed, so it looks the same on every device), with a
+// slant, a little wobble from letter to letter, strokes that swell and
+// taper, and a flick underneath.
+const SIGNATURE = (() => {
+  const ell = (cx, cy, rx, ry, a0, a1, n = 18) => Array.from({length: n + 1}, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]; });
+  const T = Math.PI;
+  return {
+    O: {w: .72, s: [ell(.34, .5, .32, .5, T * .45, T * 2.55, 26)]},
+    r: {w: .42, s: [[[.06, .48], [.05, .2], [.05, 0]], [[.05, .26], [.14, .44], [.27, .5], [.38, .44]]]},
+    i: {w: .24, s: [[[.08, .48], [.07, .2], [.09, 0], [.16, .04]], [[.1, .74], [.12, .76]]]},
+    o: {w: .5, s: [ell(.23, .25, .2, .25, T * .4, T * 2.5, 18)]},
+    n: {w: .54, s: [[[.05, .48], [.05, 0]], [[.05, .28], [.15, .46], [.28, .5], [.39, .42], [.42, .2], [.44, 0], [.5, .05]]]},
+    ' ': {w: .22, s: []},
+    '&': {w: .62, s: [[[.58, 0], [.42, .16], [.2, .42], [.12, .62], [.18, .82], [.3, .86], [.38, .76], [.34, .6], [.18, .44], [.04, .26], [.06, .08], [.2, 0], [.36, .06], [.52, .24], [.6, .36]]]},
+    C: {w: .66, s: [ell(.38, .5, .34, .5, -T * .28, -T * 1.72, 22)]},
+    h: {w: .54, s: [[[.08, 1], [.06, .5], [.05, 0]], [[.05, .28], [.15, .46], [.28, .5], [.39, .42], [.42, .2], [.44, 0], [.5, .05]]]},
+    a: {w: .52, s: [ell(.22, .25, .19, .25, -T * .1, -T * 2.05, 18), [[.42, .48], [.41, .2], [.43, 0], [.5, .05]]]},
+    d: {w: .54, s: [ell(.22, .25, .19, .25, -T * .1, -T * 2.05, 18), [[.44, 1.02], [.42, .5], [.43, 0], [.52, .06]]]},
+  };
+})();
+function paintSignature(g, right, baseline, size, r) {
+  const text = 'Orion & Chad', slant = .22;
+  const width = [...text].reduce((t, ch) => t + SIGNATURE[ch].w + .05, 0) * size;
+  // Smooth a stroke's points into a dense path (Catmull-Rom), in pixels.
+  const smooth = (pts, ox, oy, sc, rot) => {
+    const P = pts.map(([px, py]) => { const X = px * sc, Y = py * sc; return [ox + (X + Y * slant) * Math.cos(rot) + Y * Math.sin(rot), oy - Y * Math.cos(rot) + X * Math.sin(rot)]; });
+    if (P.length < 2) return P;
+    const out = [];
+    for (let i = 0; i < P.length - 1; i++) {
+      const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+      const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / .6));
+      for (let k = 0; k < n; k++) {
+        const t = k / n, t2 = t * t, t3 = t2 * t;
+        out.push([0, 1].map(j => .5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3)));
+      }
+    }
+    out.push(P[P.length - 1]);
+    return out;
+  };
+  // Lay a stroke down as dabs from a small round brush.
+  const paint = (path, wd) => {
+    const load = .8 + r() * .2;
+    path.forEach(([px, py], i) => {
+      const k = i / Math.max(1, path.length - 1), rad = wd * (.45 + .55 * Math.pow(Math.sin(Math.PI * Math.min(.98, .08 + k * .9)), .5)) * load;
+      g.globalAlpha = .5 + r() * .4;
+      g.fillStyle = r() < .88 ? '#1a140f' : '#40291b';
+      g.beginPath(); g.arc(px + (r() - .5) * .5, py + (r() - .5) * .5, rad, 0, 7); g.fill();
+    });
+    g.globalAlpha = 1;
+  };
+  let x = right - width;
+  const wd = size * .075;
+  for (const ch of text) {
+    const L = SIGNATURE[ch], lift = (r() - .5) * size * .06, sc = size * (.96 + r() * .08), rot = (r() - .5) * .08 - .04;
+    for (const st of L.s) {
+      const path = smooth(st, x, baseline + lift, sc, rot);
+      if (path.length < 6) { const [px, py] = path[0]; g.globalAlpha = .9; g.fillStyle = '#1a140f'; g.beginPath(); g.arc(px, py, wd * 1.1, 0, 7); g.fill(); g.globalAlpha = 1; }
+      else paint(path, wd);
+    }
+    x += (L.w + .05) * size;
   }
-  const greens = night ? ['#0a1220', '#0f1a2b', '#132036'] : ['#7d9658', '#a5b777', '#5f7b45', '#c3c98e'];
-  g.filter = 'blur(6px)';
-  for (let i = 0; i < 70; i++) {
-    g.fillStyle = greens[Math.floor(r() * greens.length)];
-    g.globalAlpha = night ? .9 : .55 + r() * .4;
-    g.beginPath(); g.arc(r() * w, h * (.35 + r() * .65), 14 + r() * 40, 0, 7); g.fill();
+  // A flick underneath.
+  paint(smooth([[0, 0], [.4, -.05], [.9, -.02], [1.3, .08]].map(([a, b]) => [a * width / size / 1.3, b - .22]), right - width, baseline, size, -.04), wd * .7);
+}
+
+// The view: grey-blue sky, the sea, and golden dune grass with a few
+// russet shrubs. At night, a deep blue dusk with a sliver of moonlight.
+export function drawHamptons(g, w, h, night) {
+  const r = rng(night ? 51 : 53), dusk = night === 'dusk';
+  const sky = g.createLinearGradient(0, 0, 0, h * .45);
+  // Halloween's evening: blue dusk with a last pink glow and the moon up.
+  if (dusk) { sky.addColorStop(0, '#2c3c5e'); sky.addColorStop(.55, '#455d7a'); sky.addColorStop(.85, '#8e7491'); sky.addColorStop(1, '#d69c86'); }
+  else if (night) { sky.addColorStop(0, '#121a30'); sky.addColorStop(1, '#2b3654'); }
+  else { sky.addColorStop(0, '#b9c2c7'); sky.addColorStop(1, '#e6e2d8'); }
+  g.fillStyle = sky; g.fillRect(0, 0, w, h * .46);
+  g.filter = 'blur(8px)';
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = night ? 'rgba(60,70,100,.35)' : (r() < .5 ? 'rgba(255,255,255,.5)' : 'rgba(150,160,168,.35)');
+    g.beginPath(); g.ellipse(r() * w, r() * h * .32, 30 + r() * 50, 8 + r() * 14, 0, 0, 7); g.fill();
   }
-  g.filter = 'none'; g.globalAlpha = 1;
-  if (night) for (let i = 0; i < 9; i++) { g.fillStyle = 'rgba(255,200,120,.8)'; g.beginPath(); g.arc(r() * w, h * (.6 + r() * .3), 1.5 + r() * 2, 0, 7); g.fill(); }
+  g.filter = 'none';
+  if (dusk) {
+    // Low over the sea, clear of the name card on a phone.
+    const moon = g.createRadialGradient(w * .6, h * .32, 0, w * .6, h * .32, 22);
+    moon.addColorStop(0, 'rgba(255,248,226,1)'); moon.addColorStop(.3, 'rgba(255,244,215,.95)'); moon.addColorStop(.36, 'rgba(255,240,210,.25)'); moon.addColorStop(1, 'rgba(255,240,210,0)');
+    g.fillStyle = moon; g.fillRect(0, 0, w, h * .44);
+  }
+  // Sea.
+  const sea = g.createLinearGradient(0, h * .44, 0, h * .53);
+  if (night) { sea.addColorStop(0, '#1b2840'); sea.addColorStop(1, '#141d2e'); }
+  else { sea.addColorStop(0, '#6f8593'); sea.addColorStop(1, '#5a6f7b'); }
+  g.fillStyle = sea; g.fillRect(0, h * .44, w, h * .1);
+  g.fillStyle = night ? 'rgba(200,210,235,.35)' : 'rgba(235,240,240,.45)';
+  for (let i = 0; i < 26; i++) g.fillRect(r() * w, h * (.45 + r() * .07), 6 + r() * 18, 1);
+  if (night) { g.fillStyle = 'rgba(230,235,255,.5)'; g.fillRect(w * .62, h * .455, 14, 2); g.fillRect(w * .6, h * .475, 22, 1.5); }
+  // Dunes.
+  const dune = g.createLinearGradient(0, h * .52, 0, h);
+  if (night) { dune.addColorStop(0, '#2c2c2a'); dune.addColorStop(1, '#1a1814'); }
+  else { dune.addColorStop(0, '#cdb27a'); dune.addColorStop(1, '#a8834a'); }
+  g.fillStyle = dune;
+  g.beginPath(); g.moveTo(0, h * .56);
+  for (let x = 0; x <= w; x += 16) g.lineTo(x, h * (.53 + Math.sin(x * .03) * .015 + r() * .01));
+  g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fill();
+  // Shrubs and grass.
+  for (let i = 0; i < 12; i++) {
+    g.fillStyle = night ? 'rgba(40,34,26,.9)' : ['#b8733a', '#c98f4a', '#8e6a3a'][i % 3];
+    g.beginPath(); g.ellipse(r() * w, h * (.6 + r() * .3), 14 + r() * 22, 8 + r() * 10, 0, 0, 7); g.fill();
+  }
+  for (let i = 0; i < 700; i++) {
+    const x = r() * w, y = h * (.55 + r() * .45), len = 8 + r() * 22;
+    g.strokeStyle = night ? 'rgba(70,64,50,.6)' : (r() < .5 ? 'rgba(232,206,140,.7)' : 'rgba(150,115,60,.6)');
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - .5) * 8, y - len); g.stroke();
+  }
 }
 
 function drawLeaf(g, w, h) {
@@ -349,7 +448,7 @@ export class Room {
       white: new THREE.MeshPhysicalMaterial({color: '#f1ece2', roughness: .35, clearcoat: .6}),
       leaf: new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, drawLeaf), alphaTest: .45, side: THREE.DoubleSide, roughness: .7}),
       frame: new THREE.MeshStandardMaterial({color: '#8a6a3a', metalness: .45, roughness: .45}),
-      print: new THREE.MeshStandardMaterial({map: canvasTexture(768, 1024, drawAbstract), roughness: .86}),
+      print: new THREE.MeshStandardMaterial({map: canvasTexture(900, 1152, drawAbstract), roughness: .86}),
       paleOak: new THREE.MeshStandardMaterial({color: '#cdb796', roughness: .7}),
     };
     M.leaf.map.repeat.set(1, 1);
@@ -408,11 +507,11 @@ export class Room {
     const g = new THREE.Group();
     g.position.set(-2.35, 0, z);
     this.group.add(g);
-    const W = 2.3, bottom = 1.62, top = 4.5, cy = (bottom + top) / 2, h = top - bottom;
-    this.skyDay = canvasTexture(256, 320, (c, w, hh) => drawSky(c, w, hh, false));
-    this.skyNight = canvasTexture(256, 320, (c, w, hh) => drawSky(c, w, hh, true));
-    this.view = {day: this.skyDay, night: this.skyNight};
-    this.glass = this.mesh(new THREE.PlaneGeometry(W, h), new THREE.MeshBasicMaterial({map: this.skyDay, toneMapped: false}), g, {cast: false, receive: false});
+    // Tall, beach-house proportions, looking out over the dunes to the sea.
+    const W = 2.3, bottom = 1.62, top = 5.3, cy = (bottom + top) / 2, h = top - bottom;
+    this.view = {day: canvasTexture(256, 400, (c, w, hh) => drawHamptons(c, w, hh, false)), night: canvasTexture(256, 400, (c, w, hh) => drawHamptons(c, w, hh, true))};
+    this.glassBottom = bottom; this.glassH = h;
+    this.glass = this.mesh(new THREE.PlaneGeometry(W, h), new THREE.MeshBasicMaterial({map: this.view.day, toneMapped: false}), g, {cast: false, receive: false});
     this.glass.position.set(0, cy, .01);
     // Frame, sashes and muntins.
     const bar = (w, hh, x, y, d = .1, mat = M.window) => { const b = this.mesh(new THREE.BoxGeometry(w, hh, d), mat, g); b.position.set(x, y, .06); return b; };

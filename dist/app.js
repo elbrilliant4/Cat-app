@@ -395,7 +395,7 @@ const brain = {
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
   petTimes: [],
-  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextBird: 45, birdSeen: false, bookKnocked: false, swatHit: 0,
+  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextBird: 20, birdSeen: false, bookKnocked: false, swatHit: 0,
 };
 if (pet.sleeping) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
 
@@ -846,12 +846,15 @@ function watchBirds(t) {
     return;
   }
   const onSill = brain.perch === 'sill' && !brain.jump;
-  if (!room.birdRun && t > brain.nextBird && brain.mode === 'idle') {
-    if (onSill || (Math.random() < .25 && ['sit', 'loaf'].includes(brain.activity) && !brain.perch)) {
+  // The bird is a regular: it comes by about once a minute while she's up
+  // and about (whatever the decor), and keeps coming back while she sits at
+  // the window. If she's busy on another perch it waits a little.
+  if (!room.birdRun && t > brain.nextBird) {
+    if (brain.mode === 'idle' && (onSill || !brain.perch)) {
       const d = room.startBird(t);
       brain.birdSeen = false;
-      brain.nextBird = t + d + (onSill ? rand(6, 16) : rand(60, 150));
-    } else brain.nextBird = t + rand(20, 50);
+      brain.nextBird = t + d + (onSill ? rand(6, 16) : rand(35, 70));
+    } else brain.nextBird = t + rand(8, 15);
   }
   const at = room.birdWorld(tmpV3);
   host.classList.toggle('bird', !!at);
@@ -1255,6 +1258,9 @@ function roomFrame() {
     const pg = room.printGroup, {w, h} = room.printSize;
     pg.updateWorldMatrix(true, false);
     for (const x of [-w / 2, w / 2]) ROOM_FRAME.top.push(pg.localToWorld(new THREE.Vector3(x, h / 2 + .05, 0)).toArray());
+    const wg = room.windowGroup;
+    wg.updateWorldMatrix(true, false);
+    ROOM_FRAME.top.push(wg.localToWorld(new THREE.Vector3(0, room.glassBottom + room.glassH + .18, 0)).toArray());
   }
   // The clear area, in screen units (-1 to 1): the camera buttons only cover
   // the right edge down to their last button.

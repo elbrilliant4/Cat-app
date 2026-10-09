@@ -11,7 +11,7 @@
 // branches, an oak-leaf garland, the knit throw, the linen cushion, a brass
 // lantern with a candle and a pinecone basket.
 import * as THREE from 'three';
-import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe} from './room.js';
+import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons} from './room.js';
 
 export const DECORS = {
   classic: {name: 'Classic study', note: 'Plaid, leather and greenery'},
@@ -51,10 +51,10 @@ export function applyDecor(room, name) {
     if (halloween) {
       T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
       T.ghost.offset.set(.5, .5);
-      T.viewDusk ??= canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, 'dusk'));
+      T.viewDusk ??= canvasTexture(256, 400, (g, w, h) => drawHamptons(g, w, h, 'dusk'));
     }
     M.pillow.map = halloween ? T.ghost : T.cushion;
-    room.view = {day: T.viewDay, night: halloween ? T.viewDusk : T.viewNight};
+    room.view = {day: O.view.day, night: halloween ? T.viewDusk : O.view.night};
     room.sillSprigs.visible = false;
     room.decorProps ??= {};
     if (!room.decorProps.shared) Object.assign(room.decorProps, buildAutumn(room, T));
@@ -82,8 +82,6 @@ function thanksgivingTextures() {
     knit: canvasTexture(512, 512, drawCableKnit, {repeat: [1.6, 1.6]}),
     cushion: canvasTexture(256, 256, drawStripedLinen),
     runner: canvasTexture(512, 128, drawRunner),
-    viewDay: canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, false)),
-    viewNight: canvasTexture(256, 320, (g, w, h) => drawHamptons(g, w, h, true)),
     oak: canvasTexture(128, 128, drawOakLeaf),
     // Weave relief, as small tiling normal maps (light on phones): basket
     // weave on the rug, linen on the bed, raised cables on the throw.
@@ -217,56 +215,6 @@ function drawRunner(g, w, h) {
   for (const u of [.05, .085, .9, .935]) g.fillRect(u * w, 0, w * .018, h);
 }
 
-// The view: grey-blue sky, the sea, and golden dune grass with a few
-// russet shrubs. At night, a deep blue dusk with a sliver of moonlight.
-function drawHamptons(g, w, h, night) {
-  const r = rng(night ? 51 : 53), dusk = night === 'dusk';
-  const sky = g.createLinearGradient(0, 0, 0, h * .45);
-  // Halloween's evening: blue dusk with a last pink glow and the moon up.
-  if (dusk) { sky.addColorStop(0, '#2c3c5e'); sky.addColorStop(.55, '#455d7a'); sky.addColorStop(.85, '#8e7491'); sky.addColorStop(1, '#d69c86'); }
-  else if (night) { sky.addColorStop(0, '#121a30'); sky.addColorStop(1, '#2b3654'); }
-  else { sky.addColorStop(0, '#b9c2c7'); sky.addColorStop(1, '#e6e2d8'); }
-  g.fillStyle = sky; g.fillRect(0, 0, w, h * .46);
-  g.filter = 'blur(8px)';
-  for (let i = 0; i < 18; i++) {
-    g.fillStyle = night ? 'rgba(60,70,100,.35)' : (r() < .5 ? 'rgba(255,255,255,.5)' : 'rgba(150,160,168,.35)');
-    g.beginPath(); g.ellipse(r() * w, r() * h * .32, 30 + r() * 50, 8 + r() * 14, 0, 0, 7); g.fill();
-  }
-  g.filter = 'none';
-  if (dusk) {
-    // Low over the sea, clear of the name card on a phone.
-    const moon = g.createRadialGradient(w * .6, h * .32, 0, w * .6, h * .32, 22);
-    moon.addColorStop(0, 'rgba(255,248,226,1)'); moon.addColorStop(.3, 'rgba(255,244,215,.95)'); moon.addColorStop(.36, 'rgba(255,240,210,.25)'); moon.addColorStop(1, 'rgba(255,240,210,0)');
-    g.fillStyle = moon; g.fillRect(0, 0, w, h * .44);
-  }
-  // Sea.
-  const sea = g.createLinearGradient(0, h * .44, 0, h * .53);
-  if (night) { sea.addColorStop(0, '#1b2840'); sea.addColorStop(1, '#141d2e'); }
-  else { sea.addColorStop(0, '#6f8593'); sea.addColorStop(1, '#5a6f7b'); }
-  g.fillStyle = sea; g.fillRect(0, h * .44, w, h * .1);
-  g.fillStyle = night ? 'rgba(200,210,235,.35)' : 'rgba(235,240,240,.45)';
-  for (let i = 0; i < 26; i++) g.fillRect(r() * w, h * (.45 + r() * .07), 6 + r() * 18, 1);
-  if (night) { g.fillStyle = 'rgba(230,235,255,.5)'; g.fillRect(w * .62, h * .455, 14, 2); g.fillRect(w * .6, h * .475, 22, 1.5); }
-  // Dunes.
-  const dune = g.createLinearGradient(0, h * .52, 0, h);
-  if (night) { dune.addColorStop(0, '#2c2c2a'); dune.addColorStop(1, '#1a1814'); }
-  else { dune.addColorStop(0, '#cdb27a'); dune.addColorStop(1, '#a8834a'); }
-  g.fillStyle = dune;
-  g.beginPath(); g.moveTo(0, h * .56);
-  for (let x = 0; x <= w; x += 16) g.lineTo(x, h * (.53 + Math.sin(x * .03) * .015 + r() * .01));
-  g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fill();
-  // Shrubs and grass.
-  for (let i = 0; i < 12; i++) {
-    g.fillStyle = night ? 'rgba(40,34,26,.9)' : ['#b8733a', '#c98f4a', '#8e6a3a'][i % 3];
-    g.beginPath(); g.ellipse(r() * w, h * (.6 + r() * .3), 14 + r() * 22, 8 + r() * 10, 0, 0, 7); g.fill();
-  }
-  for (let i = 0; i < 700; i++) {
-    const x = r() * w, y = h * (.55 + r() * .45), len = 8 + r() * 22;
-    g.strokeStyle = night ? 'rgba(70,64,50,.6)' : (r() < .5 ? 'rgba(232,206,140,.7)' : 'rgba(150,115,60,.6)');
-    g.lineWidth = 1;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - .5) * 8, y - len); g.stroke();
-  }
-}
 
 // An oak leaf: lobed outline, ochre to russet with a little olive.
 function drawOakLeaf(g, w, h) {
@@ -534,7 +482,7 @@ function buildHalloween(room) {
   jack(-.78, .64, .18, .14, '#efe5d2', true, .1);
   // Paper bats taped to the glass, upper right.
   const batMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 64, drawPaperBat), color: '#38332f', alphaTest: .5, side: THREE.DoubleSide, roughness: 1});
-  const glassBottom = top - .02, h = 2.88;
+  const glassBottom = room.glassBottom, h = room.glassH;
   // Bigger than the prop sheet's 8-12 cm so they read on a phone; each hangs
   // from a thread at its top and sways a little (room.updatePaperBats).
   const paper = [];
