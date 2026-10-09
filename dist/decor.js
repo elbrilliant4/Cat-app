@@ -394,9 +394,9 @@ function buildAutumn(room, T) {
   gourd.position.set(.15, .34, .05); gourd.rotation.z = .08;
   mesh(new THREE.CylinderGeometry(.008, .012, .07, 6), new THREE.MeshStandardMaterial({color: '#5a3e22'}), st).position.set(.15, .7, .05);
 
-  // --- Pinecone basket on the floor beside the fountain.
+  // --- Pinecone basket on the hearth, in front of the fireplace's right side.
   const bg = add(new THREE.Group(), room.group);
-  bg.position.set(3.4, 0, .45);
+  bg.position.set(3.85, room.hearthTop, 2.3); bg.scale.setScalar(.85);
   mesh(lathe([[0, 0], [.27, 0], [.31, .05], [.33, .28], [.31, .3], [0, .3]], 32), M.jute, bg);
   for (const s of [-1, 1]) { const h = mesh(new THREE.TorusGeometry(.07, .018, 6, 14, Math.PI), M.jute, bg); h.position.set(s * .3, .3, 0); h.rotation.y = Math.PI / 2; }
   const coneMat = new THREE.MeshStandardMaterial({color: '#6d4a2c', roughness: .9});

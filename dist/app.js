@@ -1257,8 +1257,13 @@ function lookAtSpot(pos, {dist = 2.6, pitch = .42, y = .25} = {}) {
 // the care bar; the painting's top edge below the top. Whatever the screen
 // shape, the furniture fills the frame and spare height goes to the wall.
 const ROOM_FRAME = {
-  across: [[-3.75, 1.62, -2.95], [-3.67, .25, -1.75], [-3.45, .2, -.55], [3.72, .95, -.9], [3.15, .3, .45], [2.44, .14, 1.64]],
-  bottom: [[-2.25, 0, 1.8], [1.45, 0, 1.8], [2.3, 0, 1.64]],
+  across: [[-3.67, .25, -1.75], [-3.45, .2, -.55], [3.72, .95, -.9], [2.9, .3, .55], [2.55, .14, 1.95]],
+  bottom: [[-2.25, 0, 1.8], [1.45, 0, 1.8], [2.55, 0, 1.95]],
+  // On a wide screen: the whole fireplace and the far end of the sill. On a
+  // narrow one, the fire and the near side of the fireplace, and the ends
+  // of the sill and mantel may run off the edges.
+  fireWide: [[-3.75, 1.62, -2.95], [3.6, .5, 1.1], [4.15, 2.75, .2], [4.15, 2.75, 2.0], [3.55, 0, 2.6]],
+  fireNarrow: [[3.6, .4, .4], [4.1, .5, 1.1]],
   top: [],
 };
 const fitCam = new THREE.PerspectiveCamera(), fitPt = new THREE.Vector3(), fitOff = new THREE.Vector3();
@@ -1270,7 +1275,7 @@ function roomFrame() {
     for (const x of [-w / 2, w / 2]) ROOM_FRAME.top.push(pg.localToWorld(new THREE.Vector3(x, h / 2 + .05, 0)).toArray());
     const wg = room.windowGroup;
     wg.updateWorldMatrix(true, false);
-    ROOM_FRAME.top.push(wg.localToWorld(new THREE.Vector3(0, room.glassBottom + room.glassH + .18, 0)).toArray());
+    ROOM_FRAME.top.push(wg.localToWorld(new THREE.Vector3(0, room.curtainRod.y + .15, 0)).toArray());
   }
   // The clear area, in screen units (-1 to 1): the camera buttons only cover
   // the right edge down to their last button.
@@ -1283,11 +1288,13 @@ function roomFrame() {
   const L = -1 + 20 / W, Rcams = right / W * 2 - 1, Redge = 1 - 14 / W, B = 1 - bottom / H * 2, T = 1 - 16 / H;
   fitCam.fov = camera.fov; fitCam.aspect = W / H; fitCam.updateProjectionMatrix();
   const tanV = Math.tan(THREE.MathUtils.degToRad(fitCam.fov / 2)), tanH = tanV * fitCam.aspect;
-  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom);
+  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom, W / H > 1 ? ROOM_FRAME.fireWide : ROOM_FRAME.fireNarrow);
   // For a distance, slide the focus so the furniture sits centred in the
   // clear area with the rug's front edge on its bottom; report whether it fits.
+  // Turned a little towards the fireplace on the right wall.
+  const yaw = -.3, camRight = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   const place = (d, f, pitch) => {
-    fitOff.set(0, Math.sin(pitch), Math.cos(pitch));
+    fitOff.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
     let fits = false;
     for (let it = 0; it < 6; it++) {
       fitCam.position.copy(f).addScaledVector(fitOff, d); fitCam.lookAt(f); fitCam.updateMatrixWorld();
@@ -1303,7 +1310,7 @@ function roomFrame() {
       fits = lo <= hi && y1 - y0 <= T - B;
       // Shift the picture by the middle of the allowed range. (Moving the
       // camera right moves the picture left, and up moves it down.)
-      f.x -= (lo + hi) / 2 * .9 * d * tanH;
+      f.addScaledVector(camRight, -(lo + hi) / 2 * .9 * d * tanH);
       f.y -= (B - y0) * .9 * d * tanV / Math.cos(pitch);
     }
     return fits;
@@ -1319,7 +1326,7 @@ function roomFrame() {
     dist = hi;
     if (f.y + Math.sin(pitch) * dist < 6.3) break; // CAM_BOX.y, less a little
   }
-  return {yaw: 0, pitch, dist, focus: f};
+  return {yaw, pitch, dist, focus: f};
 }
 const CAMERA_VIEWS = {
   room() {
@@ -1606,7 +1613,7 @@ Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal
 // but never behind the back or side walls.
 const CAM_BOX = {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]};
 // Tall furniture the camera must not end up inside: [x, z, radius, height].
-const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.25, .75, 4.4], [-2.35, -1.75, 1.0, .55]];
+const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]];
 function updateCamera(dt) {
   const g = view.goal, following = view.mode === 'follow' && ready;
   let distGoal = g.dist;

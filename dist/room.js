@@ -2,8 +2,9 @@
 // textures drawn in code (no photos are used). Limed oak floor, panelled
 // wainscoting, a tall window with linen curtains, an olive-and-navy plaid
 // rug, a tufted leather club chair with a plaid throw, side table and brass
-// lamp, a large abstract painting, bookcase, plaid cat bed with a plush
-// lining, an ivory food bowl and an olive ceramic water fountain.
+// lamp, a large abstract painting, a limestone fireplace, an olive tree,
+// plaid cat bed with a plush lining, an ivory food bowl and an olive ceramic
+// water fountain.
 //
 // Scale: about 2.4 scene units per metre, matching Mochi.
 import * as THREE from 'three';
@@ -343,6 +344,46 @@ export function drawHamptons(g, w, h, night) {
   }
 }
 
+function drawSootyBrick(g, w, h) {
+  const r = rng(83);
+  g.fillStyle = '#2a1d16'; g.fillRect(0, 0, w, h);
+  const bh = h / 8, bw = w / 3;
+  for (let row = 0; row < 8; row++) for (let i = -1; i < 4; i++) {
+    const x = i * bw + (row % 2) * bw / 2;
+    g.fillStyle = ['#6a3b28', '#5a3222', '#7a4630', '#4d2a1d'][Math.floor(r() * 4)];
+    g.fillRect(x + 2, row * bh + 2, bw - 4, bh - 4);
+  }
+  // Soot, heaviest at the top and the middle.
+  const s = g.createRadialGradient(w / 2, 0, 10, w / 2, h * .2, w * .8);
+  s.addColorStop(0, 'rgba(10,8,6,.92)'); s.addColorStop(1, 'rgba(10,8,6,.45)');
+  g.fillStyle = s; g.fillRect(0, 0, w, h);
+}
+
+function drawFlame(g, w, h) {
+  g.clearRect(0, 0, w, h);
+  g.filter = 'blur(3px)';
+  const grad = g.createLinearGradient(0, h, 0, 0);
+  grad.addColorStop(0, 'rgba(255,240,200,1)'); grad.addColorStop(.25, 'rgba(255,200,90,.95)'); grad.addColorStop(.6, 'rgba(255,120,30,.7)'); grad.addColorStop(1, 'rgba(200,60,10,0)');
+  g.fillStyle = grad;
+  g.beginPath(); g.moveTo(w * .5, h * .04);
+  g.bezierCurveTo(w * .62, h * .35, w * .95, h * .55, w * .82, h * .85);
+  g.bezierCurveTo(w * .72, h * .99, w * .28, h * .99, w * .18, h * .85);
+  g.bezierCurveTo(w * .05, h * .55, w * .4, h * .4, w * .5, h * .04);
+  g.fill();
+  g.filter = 'none';
+}
+
+function drawOliveLeaf(g, w, h) {
+  g.clearRect(0, 0, w, h);
+  // Long and narrow: dark grey-green on one half, silvery on the other.
+  for (const [col, side] of [['#5d6748', -1], ['#a7ad92', 1]]) {
+    g.fillStyle = col;
+    g.beginPath(); g.moveTo(w / 2, h * .02);
+    g.quadraticCurveTo(w / 2 + side * w * .46, h * .5, w / 2, h * .98);
+    g.closePath(); g.fill();
+  }
+}
+
 function drawLeaf(g, w, h) {
   g.clearRect(0, 0, w, h);
   g.translate(w / 2, h * .92);
@@ -413,7 +454,7 @@ export class Room {
       floor: new THREE.MeshStandardMaterial({map: canvasTexture(1024, 1024, (g, w, h) => drawWood(g, w, h, {colors: ['#b8966c', '#ae8c63', '#c09f76', '#a98760', '#bb9a71', '#b39168'], seed: 2, limed: true, grain: 60}), {repeat: [5, 5]}), roughness: .72}),
       panel: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => { g.translate(w, 0); g.rotate(Math.PI / 2); drawWood(g, w, h, {planks: 4, colors: ['#6e4024', '#774628', '#68391f', '#7d4b2a'], seed: 4, grain: 34}); }, {repeat: [1, 1]}), roughness: .55}),
       darkWood: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawWood(g, w, h, {planks: 4, colors: ['#4f2c17', '#583219', '#4a2914'], seed: 6, grain: 30})), roughness: .5}),
-      plaster: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawNoise(g, w, h, {base: '#ecdcbf', blobs: [['rgba(255,250,235,.05)', 260, 20, 90], ['rgba(150,110,60,.035)', 220, 20, 80]]}), {repeat: [3, 2]}), roughness: .95}),
+      plaster: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawNoise(g, w, h, {base: '#ecdcbf', blobs: [['rgba(255,250,235,.05)', 260, 20, 90], ['rgba(150,110,60,.035)', 220, 20, 80]]}), {repeat: [3, 3]}), roughness: .95}),
       trim: new THREE.MeshStandardMaterial({color: '#6a3e22', roughness: .5}),
       window: new THREE.MeshStandardMaterial({color: '#f3ead8', roughness: .6}),
       rug: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawPlaid(g, w, h, {base: '#3f472b', stripes: [['#1e2536', 110], ['#3f472b', 34], ['#a8987a', 3], ['#3f472b', 36], ['#28324a', 70], ['#3f472b', 60], ['#a8987a', 3], ['#3f472b', 27], ['#1e2536', 40], ['#4d5436', 40], ['#9c8c6c', 2], ['#4d5436', 87]]}), {repeat: [1, 1]}), roughness: 1, color: '#d8d0c0'}),
@@ -444,7 +485,7 @@ export class Room {
     this.buildChair();
     this.buildSideTable();
     this.buildPrint();
-    this.buildBookcase();
+    this.buildFireplace();
     this.buildBed();
     this.buildBowl();
     this.buildFountain();
@@ -459,7 +500,7 @@ export class Room {
     floor.position.y = -.002;
     floor.material.map.repeat.set(10, 10);
 
-    const W = {back: -3.4, left: -4.6, right: 4.6}, H = 8, WAIN = 1.55;
+    const W = {back: -3.4, left: -4.6, right: 4.6}, H = 12, WAIN = 1.55;
     this.walls = W;
     const wall = (len, x, z, ry) => {
       const g = new THREE.Group();
@@ -859,48 +900,83 @@ export class Room {
     this.printSize = {w: PW, h: PH, front: .135};
   }
 
-  buildBookcase() {
+  // A limestone fireplace on the right wall: a carved surround and mantel
+  // shelf (with room along the front for Christmas stockings), a sooty brick
+  // firebox with a small log fire, and a stone hearth. The fire is drawn
+  // (flames, embers and a warm glow on the floor), not a light, so it costs
+  // phones almost nothing; it burns low by day and brighter in the evening.
+  buildFireplace() {
     const M = this.materials, g = new THREE.Group();
-    g.position.set(this.walls.right - .32, 0, -1.25); g.rotation.y = -Math.PI / 2;
-    this.bookcase = g;
+    // Local x runs along the wall (towards the front), local z into the room.
+    g.position.set(this.walls.right, 0, 1.1); g.rotation.y = -Math.PI / 2;
     this.group.add(g);
-    const W = 1.9, H = 4.2, D = .6;
-    const box = (w, h, d, x, y, z) => { const b = this.mesh(new THREE.BoxGeometry(w, h, d), M.darkWood, g); b.position.set(x, y, z); return b; };
-    box(.08, H, D, -W / 2, H / 2, 0); box(.08, H, D, W / 2, H / 2, 0); box(W + .16, .1, D + .06, 0, H, 0); box(W, .2, D, 0, .1, 0);
-    box(W, H, .03, 0, H / 2, -D / 2 + .015);
-    const shelves = [.2, 1.25, 2.2, 3.15];
-    shelves.forEach(y => box(W, .05, D - .04, 0, y + .02, 0));
-    // Lower cabinet doors.
-    for (const s of [-1, 1]) {
-      const d = this.mesh(roundedBox(W / 2 - .08, 1.0, .04, .015), M.darkWood, g);
-      d.position.set(s * W / 4, .73, D / 2 - .02);
-      const k = this.mesh(new THREE.SphereGeometry(.03, 10, 8), M.brass, g);
-      k.position.set(s * .1, .8, D / 2 + .02);
+    this.fireplace = g;
+    const stone = new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (c, w, h) => drawNoise(c, w, h, {base: '#e2d6c0', blobs: [['rgba(160,140,110,.18)', 900, 1, 3], ['rgba(255,252,242,.35)', 700, 1, 4], ['rgba(190,170,140,.12)', 40, 20, 60]], seed: 77}), {repeat: [2, 2]}), roughness: .85});
+    const brick = new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, drawSootyBrick), roughness: 1});
+    const soot = new THREE.MeshStandardMaterial({color: '#1a1512', roughness: 1});
+    const box = (w, h, d, x, y, z, mat = stone) => { const b = this.mesh(new THREE.BoxGeometry(w, h, d), mat, g); b.position.set(x, y, z); return b; };
+    const W = 3.0, OW = 1.5, OH = 1.3, D = .45, H = 2.5;
+    // Surround: two pilasters and a lintel, with a raised edge round the opening.
+    for (const sx of [-1, 1]) box((W - OW) / 2, H, D, sx * (OW / 2 + (W - OW) / 4), H / 2, D / 2);
+    box(OW, H - OH, D, 0, OH + (H - OH) / 2, D / 2);
+    for (const sx of [-1, 1]) box(.08, OH + .08, .06, sx * (OW / 2 + .04), (OH + .08) / 2, D + .03);
+    box(OW + .16, .08, .06, 0, OH + .04, D + .03);
+    // Mantel: a moulding and a deep shelf.
+    box(W + .12, .12, D + .1, 0, H + .06, (D + .1) / 2);
+    box(W + .4, .14, D + .26, 0, H + .19, (D + .26) / 2);
+    // Firebox: brick back and sides, sooty roof and floor.
+    const back = this.mesh(new THREE.PlaneGeometry(OW, OH), brick, g, {cast: false}); back.position.set(0, OH / 2, .05);
+    for (const sx of [-1, 1]) { const side = this.mesh(new THREE.PlaneGeometry(D - .05, OH), brick, g, {cast: false}); side.position.set(sx * OW / 2, OH / 2, D / 2 + .02); side.rotation.y = -sx * Math.PI / 2; }
+    box(OW, .02, D, 0, OH, D / 2, soot); box(OW, .03, D - .05, 0, .085, D / 2 + .02, soot);
+    // Hearth: a stone slab on the floor, in front and to either side.
+    box(W + .5, .07, 1.05, 0, .035, 1.05 / 2);
+    this.hearthTop = .07;
+    // Logs on a little iron grate.
+    const iron = new THREE.MeshStandardMaterial({color: '#211c18', roughness: .6, metalness: .4});
+    for (const sx of [-1, 1]) box(.03, .12, .3, sx * .38, .16, .28, iron);
+    box(.86, .03, .03, 0, .19, .18, iron); box(.86, .03, .03, 0, .19, .38, iron);
+    const bark = new THREE.MeshStandardMaterial({color: '#4a3424', roughness: .95});
+    const ends = new THREE.MeshStandardMaterial({color: '#c19a6b', roughness: .9});
+    for (const [x, y, z, len, rot, tilt] of [[-.05, .27, .3, .95, .12, 0], [.08, .27, .2, .85, -.15, 0], [0, .38, .25, .8, .05, .25]]) {
+      const log = this.mesh(new THREE.CylinderGeometry(.075, .085, len, 10), [bark, ends, ends], g);
+      log.rotation.z = Math.PI / 2 + tilt; log.rotation.y = rot; log.position.set(x, y, z);
     }
-    // Books, one instanced draw.
-    const r = rng(51), colors = ['#2f4a35', '#6b2a20', '#253450', '#8a6a3c', '#3c3a2a', '#5a4a30', '#1f2a3a'].map(c => new THREE.Color(c));
-    const books = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({roughness: .75}), 90);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    let n = 0;
-    for (const y of shelves.slice(1)) {
-      let x = -W / 2 + .1;
-      while (x < W / 2 - .2 && n < 90) {
-        const t = .05 + r() * .06, h = .5 + r() * .3, lean = r() < .08 ? .25 : 0;
-        if (r() < .1 && x > -W / 2 + .4) { x += .25; continue; }
-        q.setFromEuler(e.set(0, 0, lean));
-        m4.compose(new THREE.Vector3(x + t / 2, y + .05 + h / 2, -.02), q, new THREE.Vector3(t, h, .42 + r() * .08));
-        books.setMatrixAt(n, m4); books.setColorAt(n, colors[Math.floor(r() * colors.length)]);
-        x += t + .005; n++;
-      }
+    // The fire: a few flame cards, the embers under the logs, a soft glow in
+    // the opening, and warm light spilling onto the hearth and floor.
+    const flameTex = canvasTexture(64, 128, drawFlame);
+    this.flames = [[-.22, .14, .9], [.02, .17, 1.15], [.24, .13, .85], [-.05, .1, .7], [.12, .11, .75]].map(([x, z, s], i) => {
+      const f = this.mesh(new THREE.PlaneGeometry(.3, .6), new THREE.MeshBasicMaterial({map: flameTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, color: new THREE.Color(1, .75, .45)}), g, {cast: false, receive: false});
+      f.geometry.translate(0, .3, 0);
+      f.position.set(x, .3, .3 + z * .4); f.rotation.y = (i - 2) * .12;
+      return {f, s, phase: i * 1.9, x};
+    });
+    const glowTex = canvasTexture(128, 128, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(.4, 'rgba(255,140,60,.45)'); gr.addColorStop(1, 'rgba(255,120,40,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
+    this.embers = this.mesh(new THREE.PlaneGeometry(.95, .4), new THREE.MeshBasicMaterial({map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, color: '#ff8a3a'}), g, {cast: false, receive: false});
+    this.embers.rotation.x = -Math.PI / 2; this.embers.position.set(0, .2, .28);
+    this.fireGlow = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, color: '#ffb070', opacity: .5}));
+    this.fireGlow.scale.set(1.9, 1.5, 1); this.fireGlow.position.set(0, .6, .55);
+    g.add(this.fireGlow);
+    this.hearthGlow = this.mesh(new THREE.PlaneGeometry(3.4, 2.8), new THREE.MeshBasicMaterial({map: glowTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, color: '#ff9a4a'}), g, {cast: false, receive: false});
+    this.hearthGlow.rotation.x = -Math.PI / 2; this.hearthGlow.position.set(0, .075, 1.25);
+    this.fireLevel = .5;
+    // On the mantel: a big ivory vase, off to one side.
+    const vase = this.mesh(lathe([[0, 0], [.13, 0], [.24, .2], [.25, .38], [.17, .55], [.1, .64], [.12, .7], [0, .7]], 28), M.white, g);
+    vase.position.set(-.95, H + .26, .26);
+  }
+
+  updateFire(dt, t, night) {
+    if (!this.flames) return;
+    this.fireLevel = damp(this.fireLevel, night ? 1 : .5, 1.5, dt);
+    const L = this.fireLevel, flick = .85 + .15 * Math.sin(t * 9.7) * Math.sin(t * 6.3 + 1);
+    for (const {f, s, phase, x} of this.flames) {
+      const k = s * (.55 + .45 * L) * (.82 + .18 * Math.sin(t * (5 + s * 3) + phase) + .08 * Math.sin(t * 17 + phase * 2));
+      f.scale.set(.85 + .15 * Math.sin(t * 4 + phase), k, 1);
+      f.position.x = x + Math.sin(t * 2.3 + phase) * .02;
+      f.material.opacity = (.55 + .45 * L) * flick;
     }
-    books.count = n;
-    books.castShadow = true;
-    g.add(books);
-    const vase = this.mesh(lathe([[0, 0], [.1, 0], [.15, .12], [.13, .26], [.08, .32], [.09, .36], [0, .36]], 24), M.white, g);
-    vase.position.set(.55, H + .05, .05);
-    const pot = this.mesh(lathe([[0, 0], [.15, 0], [.18, .22], [0, .22]], 24), M.clay, g);
-    pot.position.set(-.5, H + .05, .05);
-    this.ivy(g, new THREE.Vector3(-.5, H + .26, .05), 7, 1.6);
+    this.embers.material.opacity = (.6 + .4 * L) * (.85 + .15 * Math.sin(t * 3.1));
+    this.fireGlow.material.opacity = .25 + .45 * L * flick;
+    this.hearthGlow.material.opacity = Math.max(0, L - .5) * 2 * .5 * flick;
   }
 
   // Plaid cat bed with a plush lining and a lower front to step in.
@@ -934,7 +1010,7 @@ export class Room {
   // Ivory ceramic food bowl with an olive band, on an olive linen mat.
   buildBowl() {
     const M = this.materials, g = new THREE.Group();
-    g.position.set(1.9, 0, 1.1);
+    g.position.set(2.05, 0, 1.45);
     this.group.add(g);
     const mat = this.mesh(new THREE.BoxGeometry(.95, .012, .95), M.oliveLinen, g, {cast: false});
     mat.position.y = .006; mat.rotation.y = .15;
@@ -963,7 +1039,7 @@ export class Room {
   // Olive ceramic fountain: domed spout, bubbling top and rippling water.
   buildFountain() {
     const M = this.materials, g = new THREE.Group();
-    g.position.set(2.45, 0, -.15);
+    g.position.set(2.2, 0, -.05);
     this.group.add(g);
     const jute = this.mesh(new THREE.CircleGeometry(.68, 48), M.jute, g, {cast: false});
     jute.rotation.x = -Math.PI / 2; jute.position.y = .006;
@@ -1000,12 +1076,43 @@ export class Room {
 
   buildPlants() {
     const M = this.materials;
-    // Woven basket with trailing ivy beside the fountain.
+    // An olive tree in a big stone pot, beside the chair.
     const g = new THREE.Group();
-    g.position.set(3.55, 0, -.75);
+    g.position.set(4.0, 0, -1.45);
     this.group.add(g);
-    const basket = this.mesh(lathe([[0, 0], [.26, 0], [.32, .5], [.3, .52], [0, .52]], 32), M.jute, g);
-    this.ivy(g, new THREE.Vector3(0, .5, 0), 9, 1.0, true);
+    this.oliveTree = g;
+    const potMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (c, w, h) => drawNoise(c, w, h, {base: '#d6ccb8', blobs: [['rgba(120,105,85,.2)', 600, 1, 3], ['rgba(250,245,232,.3)', 400, 1, 3]], seed: 91})), roughness: .95});
+    this.mesh(lathe([[0, 0], [.3, 0], [.42, .2], [.46, .55], [.43, .78], [.45, .8], [0, .8]], 32), potMat, g);
+    const r = rng(95), bark = new THREE.MeshStandardMaterial({color: '#6b6152', roughness: .95});
+    const tips = [];
+    // Two slender, twisting trunks that fork into branches.
+    for (const [ox, oz, lean] of [[-.06, .03, -.12], [.07, -.04, .14]]) {
+      const pts = [new THREE.Vector3(ox, .72, oz)];
+      let p = pts[0].clone();
+      for (let i = 1; i <= 5; i++) { p = p.clone().add(new THREE.Vector3(lean * .3 + (r() - .5) * .16, .36, (r() - .5) * .14)); pts.push(p); }
+      this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, .045, 6), bark, g);
+      for (let b = 2; b <= 5; b++) for (let twig = 0; twig < 2; twig++) {
+        const from = pts[b], dir = new THREE.Vector3((r() - .5) * 1.2 + lean * 2, .5 + r() * .5, (r() - .5) * 1.2).normalize();
+        const to = from.clone().addScaledVector(dir, .35 + r() * .45);
+        const mid = from.clone().lerp(to, .5).add(new THREE.Vector3(0, .06, 0));
+        this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, mid, to]), 8, .018, 5), bark, g);
+        tips.push(to);
+      }
+      tips.push(pts[5]);
+    }
+    // Clouds of small, narrow leaves round the branch tips.
+    const leafMat = new THREE.MeshStandardMaterial({map: canvasTexture(32, 128, drawOliveLeaf), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
+    const N = 2600, leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.042, .15), leafMat, N);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < N; i++) {
+      const c = tips[i % tips.length], rad = .3 + r() * .12;
+      const v = new THREE.Vector3(r() - .5, (r() - .5) * .8, r() - .5).normalize().multiplyScalar(rad * Math.cbrt(r()));
+      q.setFromEuler(e.set(r() * 6.3, r() * 6.3, r() * 6.3));
+      m4.compose(c.clone().add(v), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.8 + r() * .5));
+      leaves.setMatrixAt(i, m4);
+    }
+    leaves.castShadow = true;
+    g.add(leaves);
     // A tall leafy plant in the far corner by the window.
     const g2 = new THREE.Group();
     g2.position.set(-4.0, 0, -2.85);
@@ -1096,12 +1203,13 @@ export class Room {
         w.visible = _d.subVectors(camera.position, w.position).dot(_n) > .05;
       }
       // Furniture standing against a hidden wall goes with it.
-      if (this.bookcase) this.bookcase.visible = this.wallGroups[2].visible;
+      this.fireplace.visible = this.wallGroups[2].visible;
     }
     const k = night ? 1 : 0;
     this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
     this.shadeMat.emissiveIntensity = damp(this.shadeMat.emissiveIntensity, night ? 2.2 : .45, 3, dt);
     this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .32, 3, dt);
+    this.updateFire(dt, t, night);
     const sky = night ? this.view.night : this.view.day;
     if (this.glass.material.map !== sky) { this.glass.material.map = sky; this.glass.material.needsUpdate = true; }
     if (this.scene.environment && this.envNight) {
