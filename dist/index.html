@@ -53,7 +53,7 @@
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
         <div class="sound-panel" id="sound-panel" hidden>
           <label class="sp-row sp-switch"><span>Sound</span><input type="checkbox" id="sound-on" role="switch"></label>
-          <label class="sp-row"><span>Mochi</span><input type="range" id="vol-cat" min="0" max="1" step="0.05" aria-label="Mochi's volume"></label>
+          <label class="sp-row"><span class="pet-name-slot">Mochi</span><input type="range" id="vol-cat" min="0" max="1" step="0.05" aria-label="Your kitten's volume"></label>
         </div>
       </div>
     </div>
@@ -78,7 +78,7 @@
           </div>
           <div class="hud-buttons cam-buttons" role="toolbar" aria-label="Camera">
             <button class="icon-btn glass" data-cam="room" aria-label="Whole room" aria-pressed="true" title="Whole room"><svg><use href="#i-room"/></svg><span>Room</span></button>
-            <button class="icon-btn glass" data-cam="follow" aria-label="Follow Mochi" aria-pressed="false" title="Follow Mochi"><svg><use href="#i-paw"/></svg><span>Mochi</span></button>
+            <button class="icon-btn glass" data-cam="follow" aria-label="Follow your kitten" aria-pressed="false" title="Follow your kitten"><svg><use href="#i-paw"/></svg><span class="pet-name-slot">Mochi</span></button>
             <button class="icon-btn glass" data-cam="food" aria-label="Show the food bowl" aria-pressed="false" title="Food bowl"><svg><use href="#i-bowl"/></svg><span>Food</span></button>
             <button class="icon-btn glass" data-cam="water" aria-label="Show the water fountain" aria-pressed="false" title="Water fountain"><svg><use href="#i-drop"/></svg><span>Water</span></button>
             <button class="icon-btn glass" data-cam="bed" aria-label="Show the bed" aria-pressed="false" title="Bed"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
@@ -122,7 +122,7 @@
         <ol class="journal" id="journal" aria-label="Pet journal"></ol>
         <div class="guide" id="guide" hidden>
           <article><span style="--tint:var(--food)"><svg><use href="#i-bowl"/></svg></span><div><h3>A happy tummy</h3><p>Food slowly drops over time. A full kitten will politely decline another serving.</p></div></article>
-          <article><span style="--tint:var(--water)"><svg><use href="#i-drop"/></svg></span><div><h3>Fresh water</h3><p>Mochi wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
+          <article><span style="--tint:var(--water)"><svg><use href="#i-drop"/></svg></span><div><h3>Fresh water</h3><p><span class="pet-name-slot">Mochi</span> wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
           <article><span style="--tint:var(--happy)"><svg><use href="#i-yarn"/></svg></span><div><h3>Play &amp; pounce</h3><p>Steer the toy, then hold it still near your kitten — watch for the wiggle.</p></div></article>
           <article><span style="--tint:var(--love)"><svg><use href="#i-heart"/></svg></span><div><h3>Strokes &amp; slow blinks</h3><p>Stroke your kitten in the room. Close friends answer with a slow blink — cat for “I love you”.</p></div></article>
           <article><span style="--tint:var(--energy)"><svg><use href="#i-moon"/></svg></span><div><h3>Sweet dreams</h3><p>Rest restores energy, even while you’re away. Care is saved in this browser.</p></div></article>

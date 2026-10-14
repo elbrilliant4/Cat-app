@@ -38,6 +38,9 @@ export class Sounds {
     if (!this.ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return null;
+      // On iPhone, play like media (so the ringer's silent switch doesn't
+      // mute her), where Safari supports saying so.
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
@@ -46,7 +49,13 @@ export class Sounds {
       this.master.gain.value = this.enabled ? 1 : 0;
       this.loading = this.load();
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    // 'suspended' before the first tap; 'interrupted' on iPhone after a call
+    // or time in the background.
+    if (this.ctx.state !== 'running') {
+      this.ctx.resume?.();
+      // A moment of silence, played from inside the tap, unlocks older iPhones.
+      try { const b = this.ctx.createBufferSource(); b.buffer = this.ctx.createBuffer(1, 1, 22050); b.connect(this.ctx.destination); b.start(0); } catch {}
+    }
     return this.ctx;
   }
 

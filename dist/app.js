@@ -134,6 +134,10 @@ function refresh() {
     : pet.cleanliness < 30 ? 'Time for a gentle brush.'
     : pet.happiness < 35 ? 'A cuddle or a game would help.'
     : 'All good. Just be here.';
+  // Her own name everywhere (buttons, the sound panel, the care guide).
+  document.querySelectorAll('.pet-name-slot').forEach(el => { if (el.textContent !== pet.name) el.textContent = pet.name; });
+  $('[data-cam="follow"]').title = $('[data-cam="follow"]').ariaLabel = `Follow ${pet.name}`;
+  $('#vol-cat').ariaLabel = `${pet.name}'s volume`;
   $('#sound').innerHTML = icon(pet.sound ? 'i-sound' : 'i-mute');
   $('#sound-on').checked = pet.sound;
   $('#vol-cat').value = pet.catVolume;
@@ -233,7 +237,9 @@ function meow(kind = 'meow', priority = 'reply') {
 }
 const purr = seconds => sounds.purr(seconds);
 // Browsers only allow audio after a tap; start it on the first one anywhere.
-document.addEventListener('pointerdown', () => { if (pet.sound) sounds.setEnabled(true); }, {capture: true});
+// (iPhones only count the end of a touch, or a click, as permission; and
+// after the app has been in the background its audio needs waking again.)
+for (const ev of ['pointerdown', 'touchend', 'click']) document.addEventListener(ev, () => { if (pet.sound) sounds.setEnabled(true); }, {capture: true, passive: true});
 
 // ---------------------------------------------------------------------------
 // 3D room
@@ -1790,6 +1796,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });

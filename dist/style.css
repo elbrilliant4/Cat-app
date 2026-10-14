@@ -139,6 +139,8 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .cam-buttons { flex-direction: column; gap: 6px; }
 .cam-buttons .icon-btn { width: 52px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 17px; border-radius: 14px; }
 .cam-buttons .icon-btn span { font-size: 9.5px; font-weight: 800; letter-spacing: .2px; line-height: 1; }
+/* Her name on the follow button: a long one is trimmed with an ellipsis. */
+.cam-buttons .icon-btn .pet-name-slot { display: block; max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Speech bubble, anchored above the kitten's head from JS */
 .speech { position: absolute; left: 0; top: 0; z-index: 3; width: max-content; max-width: min(300px, 72%); padding: 11px 16px; border-radius: 18px 18px 18px 6px; background: var(--card-solid); color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; box-shadow: var(--shadow); pointer-events: none; opacity: 0; scale: .8; transform: translate(var(--x, 0px), var(--y, 0px)) translate(0, -100%); transform-origin: 0 100%; transition: opacity .35s var(--ease), scale .5s var(--spring); will-change: transform; }
