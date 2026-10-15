@@ -103,6 +103,7 @@ export class Kitchen {
     this.buildMobile();
     this.buildStools();
     this.buildTent();
+    this.buildPainting();
     this.buildVacuum();
     this.buildSunPatch();
   }
@@ -510,6 +511,26 @@ export class Kitchen {
   }
 
   // Window light falling across the limestone.
+  // On the right wall over her tent: Jan Davidsz de Heem, Vase of Flowers,
+  // c. 1660 (National Gallery of Art, Washington; open access), in a dark
+  // frame with a gilt liner, a little larger than life as in Orion's design.
+  buildPainting() {
+    const M = this.materials, W = 1.75, H = W * 69.6 / 56.5, F = .2, Ln = .06;
+    const g = new THREE.Group(); g.position.set(K.right, 3.95, .35); g.rotation.y = -Math.PI / 2; this.group.add(g);
+    const ebony = new THREE.MeshStandardMaterial({color: '#21150e', roughness: .45, metalness: .1});
+    const gilt = new THREE.MeshStandardMaterial({color: '#b08a4a', roughness: .35, metalness: .8});
+    const ow = W + 2 * (F + Ln), oh = H + 2 * (F + Ln);
+    for (const [w, h, x, y] of [[ow, F, 0, (oh - F) / 2], [ow, F, 0, -(oh - F) / 2], [F, oh - 2 * F, (ow - F) / 2, 0], [F, oh - 2 * F, -(ow - F) / 2, 0]]) this.box(w, h, .14, x, y, .07, ebony, g);
+    const iw = W + 2 * Ln, ih = H + 2 * Ln;
+    for (const [w, h, x, y] of [[iw, Ln, 0, (ih - Ln) / 2], [iw, Ln, 0, -(ih - Ln) / 2], [Ln, ih - 2 * Ln, (iw - Ln) / 2, 0], [Ln, ih - 2 * Ln, -(iw - Ln) / 2, 0]]) this.box(w, h, .09, x, y, .045, gilt, g, {cast: false});
+    const canvas = new THREE.MeshStandardMaterial({color: '#2a1d14', roughness: .55});
+    new THREE.TextureLoader().load('./art/de-heem-vase-of-flowers.jpg', t => {
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      canvas.map = t; canvas.color.set('#ffffff'); canvas.needsUpdate = true;
+    });
+    this.mesh(new THREE.PlaneGeometry(W, H), canvas, g, {cast: false}).position.z = .03;
+  }
+
   buildSunPatch() {
     const beam = canvasTexture(256, 256, (c, w, h) => { c.filter = 'blur(10px)'; c.fillStyle = 'rgba(255,214,150,1)'; for (let i = 0; i < 2; i++) for (let j = 0; j < 5; j++) c.fillRect(24 + i * 110, 14 + j * 46, 96, 38); });
     this.sunPatch = this.mesh(new THREE.PlaneGeometry(3.2, 6.4), new THREE.MeshBasicMaterial({map: beam, transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false}), this.group, {cast: false, receive: false});
@@ -551,9 +572,10 @@ export class Kitchen {
   frame(wide) {
     const I = K.island;
     return {
-      yaw: 0,
+      // Wide screens look a little toward the right wall and its painting.
+      yaw: wide ? -.2 : 0,
       across: [[I.x0, 1.2, I.z1], [I.x1, 1.2, I.z1], [-3.3, .8, I.z1 + .8], [K.tent.x + .7, .9, K.tent.z], [3.0, .3, 1.55], [4.55, .1, 2.6], [-5.2, 4.2, -3.9], [3.4, 4.2, -3.9]]
-        .concat(wide ? [[K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back]] : [[-5.55, 1.2, -3.9]]),
+        .concat(wide ? [[K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back], [K.right, 5.3, -.75], [K.right, 2.6, 1.45]] : [[-5.55, 1.2, -3.9]]),
       bottom: [[I.x0, 0, I.z1 + .8], [I.x1, 0, I.z1 + .3], [4.55, 0, 3.0], [-1, 0, 3.4]],
       top: [[-5.2, 5.8, -3.9], [3.4, 5.8, -3.9], [-3.5, 7.4, .5], [.9, 7.6, 1.1]].concat(wide ? [[-1.2, 8.7, .7]] : []),
     };
