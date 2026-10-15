@@ -5,9 +5,11 @@
 //   eyes-open/half/closed.png         eyelids
 //   idle.mp4, walk.mp4                short clips (needs ffmpeg)
 //   halloween-*.png, halloween-bat-play.mp4   the Halloween decor
-//   kitchen-*.png, kitchen-climb.mp4  the kitchen (in preview), and Mochi
-//                                     climbing to the top shelf and down
-// REVIEW_ONLY=kitchen (or study) renders just that part, for a quick look.
+//   kitchen-*.png, kitchen-*.mp4      the kitchen (in preview): stills, her climb
+//                                     to the top shelf and down, the lowest
+//                                     steps from the side, and a cup she pats off
+// REVIEW_ONLY=kitchen (or study, or kitchen-clips) renders just that part;
+// CLIP_ONLY=climb,steps,cup picks among the kitchen clips.
 //   room-day.png, room-night.png      the room on a phone, day and evening
 //   room-desktop.png                  the room on a wide screen
 //   meow-*.wav, purr-*.wav            isolated sounds (and each recorded clip)
@@ -109,10 +111,10 @@ th { color: var(--muted); font-weight: 650; }
 ${finished ? '' : '<p class="notice"><b>This pack is incomplete:</b> rendering ran out of time or is still going. Missing items are marked below.</p>'}
 <p class="meta">Every image and clip below was rendered from the capture build, which also shows in the app's top bar inside each picture. <a href="../">Open the preview app</a></p>
 <h2>Kitchen (in preview, for review)</h2>
-<p class="meta">All from capture build ${version.build}. The whole room by day and in the evening on a wide screen, the default phone view, and closer views. The climbing clip plays at true speed (recorded frame by frame): floor, wall step, counter, lower shelf, upper shelf, a pause, and back down.</p>
+<p class="meta">All from capture build ${version.build}. The whole room by day and in the evening on a wide screen, the default phone view, and closer views. The clips play at true speed (recorded frame by frame): the whole climb to the top shelf and back; the lowest steps from the side, where the floor, first step and counter show together; and a cup she pats off the lower shelf.</p>
 <div class="grid wide">${img('kitchen-day.png', 'Kitchen, day (wide screen)')}${img('kitchen-evening.png', 'Kitchen, evening (wide screen)')}</div>
 <div class="grid">${img('kitchen-phone.png', 'Kitchen, default phone view')}${img('kitchen-shelves.png', 'Shelves and climbing steps')}${img('kitchen-island.png', 'Island, mobile light, sink and range')}${img('kitchen-corner.png', 'Tent corner and the doorway to her study')}</div>
-<div class="grid wide">${vid('kitchen-climb.mp4', 'Mochi climbs to the top shelf and back down (true speed)')}</div>
+<div class="grid wide">${vid('kitchen-climb.mp4', 'Mochi climbs to the top shelf and back down (true speed)')}${vid('kitchen-steps-side.mp4', 'From the side: floor, lowest step and counter, up and down (true speed)')}${vid('kitchen-cup.mp4', 'A cup on the lower shelf: approach, feet planted, pats, and over it goes (true speed)')}</div>
 <h2>Face</h2>
 <div class="grid">${img('face-front.png', 'Front')}${img('face-three.png', 'Three-quarter')}${img('face-left.png', 'Left side')}${img('face-right.png', 'Right side')}</div>
 <h2>Eyes</h2>
@@ -274,15 +276,44 @@ if (study) {
   await p.close();
 }
 
-// Mochi's climb in the kitchen, at true speed: the app is stepped one frame
-// at a time (?frames), so the clip plays at real pace however slowly this
-// renderer draws. Floor, wall step, counter, lower shelf, upper shelf; a
-// pause; and back down the same way. It comes straight after the stills:
-// it's what the kitchen review needs, and the slowest thing in the pack.
-if (want('kitchen')) {
-  log('kitchen-climb');
+// Kitchen clips at true speed: the app is stepped one frame at a time
+// (?frames), so they play at real pace however slowly this renderer draws.
+// They come straight after the stills: they're what the kitchen review
+// needs, and the slowest things in the pack. CLIP_ONLY=climb,steps,cup picks.
+const clipOnly = (process.env.CLIP_ONLY || '').split(',').filter(Boolean), wantClip = c => !clipOnly.length || clipOnly.includes(c);
+async function steppedClip(file, setup, next, maxSeconds) {
+  log(file);
   const FPS = 20, p = await kitchenPage({width: 720, height: 480}, '&frames');
-  await p.evaluate(() => {
+  await p.evaluate(setup);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'clip'));
+  const state = {hold: 0, FPS};
+  let n = 0;
+  for (; n < FPS * maxSeconds; n++) {
+    // Read the frame straight off the canvas, in the same task that drew it
+    // (a third quicker than a page screenshot on this renderer).
+    const {phase, jpg} = await p.evaluate(dt => { kitten.step(dt); return {phase: window.clipPhase ? window.clipPhase() : window.phase, jpg: document.querySelector('#scene canvas').toDataURL('image/jpeg', .88)}; }, 1 / FPS);
+    fs.writeFileSync(path.join(dir, String(n).padStart(4, '0') + '.jpg'), Buffer.from(jpg.slice(jpg.indexOf(',') + 1), 'base64'));
+    if (await next(p, phase, state)) break;
+  }
+  try {
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, '%04d.jpg'), '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', path.join(out, file)]);
+    made.push(file);
+  } catch (e) { errors.push(`${file}: ffmpeg failed (${e.message.split('\n')[0]})`); }
+  fs.rmSync(dir, {recursive: true, force: true});
+  log(file, n, 'frames');
+  await p.close();
+  writePage();
+}
+// Down the way she came, one perch at a time, once she's held a moment.
+const descend = () => kitten.jumpDown(function down() { if (!kitten.brain.perch) { window.phase = 'down'; return; } kitten.jumpDown(down); });
+const upThenDown = holdTop => async (p, phase, st) => {
+  if (phase === 'top' && ++st.hold > st.FPS * holdTop) { st.hold = 0; await p.evaluate(() => { window.phase = 'descending'; }); await p.evaluate(`(${descend})()`); }
+  return phase === 'down' && ++st.hold > st.FPS * 1.2;
+};
+if (want('kitchen') || want('kitchen-clips')) {
+  // The whole climb: floor, wall step, counter, steps and both shelves, a
+  // pause on top, and back down.
+  if (wantClip('climb')) await steppedClip('kitchen-climb.mp4', () => {
     const k = kitten;
     document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
     k.brain.pos.set(-4.9, 0, -1.7); k.brain.heading = Math.PI * .85; k.setActivity('sit');
@@ -291,28 +322,32 @@ if (want('kitchen')) {
     k.step(1 / 20, 20);
     window.phase = 'up';
     k.jumpTo('shelfHigh', () => { k.setActivity('sit'); k.brain.perchUntil = 1e9; window.phase = 'top'; });
-  });
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'climb'));
-  let n = 0, hold = 0;
-  for (; n < FPS * 45; n++) {
-    // Read the frame straight off the canvas, in the same task that drew it
-    // (a third quicker than a page screenshot on this renderer).
-    const {phase, jpg} = await p.evaluate(dt => { kitten.step(dt); return {phase: window.phase, jpg: document.querySelector('#scene canvas').toDataURL('image/jpeg', .88)}; }, 1 / FPS);
-    fs.writeFileSync(path.join(dir, String(n).padStart(4, '0') + '.jpg'), Buffer.from(jpg.slice(jpg.indexOf(',') + 1), 'base64'));
-    if (phase === 'top' && ++hold > FPS * 1.5) {
-      hold = 0;
-      await p.evaluate(() => { const k = kitten; window.phase = 'descending'; const down = () => { if (!k.brain.perch) { window.phase = 'down'; return; } k.jumpDown(down); }; down(); });
-    }
-    if (phase === 'down' && ++hold > FPS * 1.2) break;
-  }
-  try {
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, '%04d.jpg'), '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', path.join(out, 'kitchen-climb.mp4')]);
-    made.push('kitchen-climb.mp4');
-  } catch (e) { errors.push(`kitchen-climb.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
-  fs.rmSync(dir, {recursive: true, force: true});
-  log('kitchen-climb', n, 'frames');
-  await p.close();
-  writePage();
+  }, upThenDown(1.5), 45);
+  // From the side, low: the floor, the lowest step and the counter together,
+  // so each take-off and landing shows (the island hides them from the front).
+  if (wantClip('steps')) await steppedClip('kitchen-steps-side.mp4', () => {
+    const k = kitten;
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+    k.brain.pos.set(-3.9, 0, -1.55); k.brain.heading = -2.2; k.setActivity('sit');
+    const g = k.view.goal; Object.assign(g, {yaw: 1.2, pitch: .2, dist: 5.4}); g.focus.set(-5.0, 1.3, -3.0); k.view.mode = 'free';
+    k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
+    k.step(1 / 20, 20);
+    window.phase = 'up';
+    k.jumpTo('counter', () => { k.setActivity('sit'); k.brain.perchUntil = 1e9; window.phase = 'top'; });
+  }, upThenDown(1.2), 30);
+  // A cup: along the shelf to it, feet planted, a few pats, and over it goes
+  // onto the counter; a look down, and a look at you.
+  if (wantClip('cup')) await steppedClip('kitchen-cup.mp4', () => {
+    const k = kitten, P = k.PERCHES.shelf;
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+    k.brain.pos.set(P.spot.x, 0, P.spot.z); k.brain.perch = 'shelf'; k.brain.elevation = P.top; k.brain.heading = 0; k.setActivity('sit');
+    const g = k.view.goal; Object.assign(g, {yaw: .4, pitch: .12, dist: 5.6}); g.focus.set(-3.9, 3.3, -3.5); k.view.mode = 'free';
+    k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
+    k.step(1 / 20, 30);
+    const cup = k.kitchen.nextCup();
+    k.tapCups(4);
+    window.clipPhase = () => cup.userData.fall?.landed ? 'landed' : 'tapping';
+  }, async (p, phase, st) => phase === 'landed' && ++st.hold > st.FPS * 4.5, 24);
 }
 
 // The clips take longest, so they come after the stills.

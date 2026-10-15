@@ -337,11 +337,12 @@ export class Kitchen {
       new THREE.TextureLoader().load(`./art/${file}`, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; art.map = t; art.color.set('#ffffff'); art.needsUpdate = true; });
       this.mesh(new THREE.PlaneGeometry(pw, pw * 4 / 3), art, f, {cast: false}).position.set(0, h / 2, .024);
     };
-    // Lower shelf: landing room at the left; then plates, bowls, two cups,
-    // a gap, amber glasses, a board, a little painting (the blue pitcher), a bowl.
-    for (let i = 0; i < 5; i++) plate(-3.25, S1 + i * .045, z);
-    bowl(-2.6, S1, z); bowl(-2.6, S1 + .1, z, .19);
-    cup(-2.05, S1, z); cup(-1.75, S1, z + .05);
+    // Lower shelf: landing room at the left; two cups right beside it (hers
+    // to pat at); then plates, bowls, a gap, amber glasses, a board, a little
+    // painting (the blue pitcher), a bowl.
+    this.shelfCups = [cup(-3.85, S1, z - .02), cup(-3.45, S1, z + .03)];
+    for (let i = 0; i < 5; i++) plate(-2.75, S1 + i * .045, z);
+    bowl(-2.1, S1, z); bowl(-2.1, S1 + .1, z, .19);
     for (const x of [.25, .48, .71]) glass(x, S1, z);
     const board = this.mesh(roundedBox(.5, .75, .05, .02), M.walnut, this.group); board.position.set(1.45, S1 + .37, K.back + .1); board.rotation.x = -.12;
     frame(2.3, S1, z + .1, .5, 'shelf-blue-pitcher.jpg');
@@ -360,6 +361,53 @@ export class Kitchen {
     const p2 = this.mesh(lathe([[0, 0], [.15, 0], [.18, .26], [0, .26]], 18), M.clay, this.group); p2.position.set(2.75, S2, z);
     this.room.ivy(this.group, new THREE.Vector3(2.75, S2 + .24, z), 11, 1.1, false, M.leaf);
   }
+
+  // Her cups on the lower shelf. A pat slides one toward the front edge with
+  // a wobble; a pat too many and it tips off onto the counter below, rolls a
+  // little, and lies there (unbroken) until it's put back a minute later.
+  nextCup() { return this.shelfCups.find(c => !c.userData.fall) || null; }
+  nudgeCup(cup, t) {
+    const u = cup.userData;
+    if (u.fall) return null;
+    const edge = K.back + K.shelfD - .05, to = cup.position.z + .07 + Math.random() * .05;
+    u.wobble = t;
+    if (to > edge) { u.fall = {start: t, x: cup.position.x, y: cup.position.y, z: cup.position.z}; return 'fell'; }
+    u.slide = {start: t, from: cup.position.z, to};
+    return 'nudged';
+  }
+  updateCups(t) {
+    for (const cup of this.shelfCups) {
+      const u = cup.userData, f = u.fall;
+      if (f) {
+        const k = t - f.start, lying = K.counter + .1;
+        if (k < .3) { const q = k / .3; cup.position.z = f.z + q * .1; cup.rotation.x = q * .7; }
+        else if (!f.landed) {
+          const fall = Math.sqrt((f.y - lying) / 4.9), q = Math.min(k - .3, fall);
+          cup.position.set(f.x + q * .1, Math.max(lying, f.y - 4.9 * q * q), f.z + .1 + q * .45);
+          cup.rotation.set(.7 + Math.min(1, q / fall) * (Math.PI / 2 - .7), 0, q * .5);
+          if (k - .3 >= fall) { cup.position.y = lying; cup.rotation.x = Math.PI / 2; f.landed = t; f.lx = cup.position.x; f.lz = cup.position.z; }
+        } else if (t - f.landed < 1.1) {
+          // A little roll on its side.
+          const r = (t - f.landed) / 1.1, e = Math.sin(r * Math.PI / 2);
+          cup.position.x = f.lx + e * .18; cup.rotation.y = e * .6;
+        } else if (t - f.landed > 60) {
+          cup.position.copy(u.home.p); cup.rotation.copy(u.home.r); u.fall = null; u.slide = null; u.wobble = null;
+        }
+        continue;
+      }
+      if (u.slide) {
+        const q = Math.min(1, (t - u.slide.start) / .25);
+        cup.position.z = u.slide.from + (u.slide.to - u.slide.from) * (1 - (1 - q) * (1 - q));
+        if (q >= 1) u.slide = null;
+      }
+      if (u.wobble != null) {
+        const w = t - u.wobble, d = Math.exp(-w * 5);
+        cup.rotation.x = Math.sin(w * 26) * .14 * d; cup.rotation.z = Math.sin(w * 19 + 1) * .05 * d;
+        if (w > 1.5) { cup.rotation.x = cup.rotation.z = 0; u.wobble = null; }
+      }
+    }
+  }
+  cupWorld(cup, v) { return cup.getWorldPosition(v); }
 
   // The island: a big, rounded block of veined stone with a walnut base
   // under the overhang where the stools tuck in. No sink on top.
@@ -662,6 +710,7 @@ export class Kitchen {
     }
     Room.prototype.updateBird.call(this, t);
     Room.prototype.updateFire.call(this.studyHost, dt, t, night);
+    this.updateCups(t);
     // The orchid's stems sway, just a little.
     this.orchidStems.forEach((s, i) => { s.rotation.z = Math.sin(t * .8 + i * 2) * .025; });
   }

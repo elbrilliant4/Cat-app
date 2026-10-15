@@ -464,7 +464,7 @@ function setActivity(name, seconds = Infinity, after = null) {
 function walkTo(point, then = null, run = false, anywhere = false) {
   // Mid-jump: go there once she lands. Up on a perch: hop down first.
   if (brain.jump) { brain.jump.then = () => walkTo(point, then, run, anywhere); return; }
-  if (brain.perch) { jumpDown(() => walkTo(point, then, run, anywhere)); return; }
+  if (brain.perch) { brain.climbGoal = 'floor'; jumpDown(() => walkTo(point, then, run, anywhere)); return; }
   const target = anywhere ? point.clone() : onRug(point.clone());
   // In the kitchen she goes round the island, not through it.
   if (place.route) {
@@ -481,23 +481,25 @@ function walkTo(point, then = null, run = false, anywhere = false) {
 const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < place.bedRadius ? place.bedTop : 0;
 function leap(to, toY, perch, then = null) {
   brain.target = null;
+  brain.chainUntil = clockNow + 6;
   brain.jumpFace = angleTo(brain.pos, to);
   glanceAt(new THREE.Vector3(to.x, toY + .3, to.z), 1.2);
-  setActivity('prejump', reduceMotion ? .3 : .8, () => {
+  setActivity('prejump', reduceMotion ? .3 : chainNext() ? rand(.5, .9) : .8, () => {
     const up = toY - brain.elevation;
     brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, then, start: clockNow, dur: .5 + Math.abs(up) * .06, arc: .18 + Math.max(0, up) * .22};
     setActivity('jump');
   });
 }
-function jumpTo(name, then = null, stay = 40) {
+function jumpTo(name, then = null, stay = 40, inner = false) {
   const P = PERCHES[name];
   if (!P || brain.perch === name) { then?.(); return; }
+  if (!inner) brain.climbGoal = name;
   // A perch reached by way of another (the kitchen's step, counter and
   // shelves): up from the one below; from higher up, come down to it first.
   if (P.via) {
-    if (brain.perch === P.via && !brain.jump) { leap(P.spot, P.top, name, () => { brain.perchUntil = clockNow + stay; then ? then() : setActivity('sit'); }); return; }
-    if (brain.perch && PERCHES[brain.perch]?.top > P.top) { jumpDown(() => jumpTo(name, then, stay)); return; }
-    jumpTo(P.via, () => jumpTo(name, then, stay), 5);
+    if (brain.perch === P.via && !brain.jump) { if (backToSpot(() => jumpTo(name, then, stay, true))) return; leap(P.spot, P.top, name, () => { brain.perchUntil = clockNow + stay; then ? then() : setActivity('sit'); }); return; }
+    if (brain.perch && PERCHES[brain.perch]?.top > P.top) { jumpDown(() => jumpTo(name, then, stay, true)); return; }
+    jumpTo(P.via, () => jumpTo(name, then, stay, true), 5, true);
     return;
   }
   // Only jump from the take-off spot (a walk can end early if it ran out of
@@ -510,9 +512,41 @@ function jumpTo(name, then = null, stay = 40) {
 }
 function jumpDown(then = null) {
   const P = PERCHES[brain.perch];
+  brain.climbGoal ??= 'floor';
+  if (backToSpot(() => jumpDown(then))) return;
   // Down the way she went up, one perch at a time.
   if (P.via) { const U = PERCHES[P.via]; leap(U.spot, U.top, P.via, then); return; }
   leap(P.base, groundAt(P.base), null, then);
+}
+// Partway up (or down) a run of perches: where she's headed next, so her
+// eyes and body stay on it rather than turning back to you at each landing.
+function chainNext() {
+  const g = brain.climbGoal;
+  if (g == null || brain.jump || !brain.perch || g === brain.perch || clockNow > brain.chainUntil) return null;
+  const cur = PERCHES[brain.perch];
+  if (!cur) return null;
+  if (g !== 'floor' && PERCHES[g]) {
+    let n = g;
+    while (n && PERCHES[n].via !== brain.perch) n = PERCHES[n].via;
+    if (n) return chainPt.set(PERCHES[n].spot.x, PERCHES[n].top + .25, PERCHES[n].spot.z);
+  }
+  return cur.via ? chainPt.set(PERCHES[cur.via].spot.x, PERCHES[cur.via].top + .25, PERCHES[cur.via].spot.z) : chainPt.set(cur.base.x, .25, cur.base.z);
+}
+const chainPt = new THREE.Vector3();
+// Along a shelf (after a cup, say), she walks back to where she landed
+// before jumping on or down.
+function backToSpot(then) {
+  const P = PERCHES[brain.perch];
+  if (!P || brain.jump || Math.hypot(brain.pos.x - P.spot.x, brain.pos.z - P.spot.z) < .3) return false;
+  brain.target = P.spot.clone();
+  setActivity('walk', 6, then);
+  return true;
+}
+// Timers on the game clock (so a recorded clip keeps true time).
+const timers = [];
+function later(seconds, fn) { timers.push({at: clockNow + seconds, fn}); }
+function runTimers(t) {
+  for (let i = timers.length - 1; i >= 0; i--) if (t >= timers[i].at) { const {fn} = timers[i]; timers.splice(i, 1); fn(); }
 }
 function restingActivity() {
   if (pet.sleeping) return 'sleep';
@@ -569,7 +603,7 @@ function updateCat(dt, t) {
     brain.after = null;
     if (next) next(); else setActivity(restingActivity());
   }
-  if (pet.sleeping && !['sleep', 'walk', 'prejump', 'jump', 'land'].includes(brain.activity)) setActivity('sleep');
+  if (pet.sleeping && !['sleep', 'walk', 'prejump', 'jump', 'land', 'poise'].includes(brain.activity)) setActivity('sleep');
 
   // --- Moving around ---------------------------------------------------------
   const a = brain.activity;
@@ -601,7 +635,13 @@ function updateCat(dt, t) {
       brain.jump = null;
       brain.perch = J.perch;
       brain.elevation = J.toY;
-      setActivity('land', .4, J.then);
+      if (brain.climbGoal != null && (J.perch === brain.climbGoal || (brain.climbGoal === 'floor' && !J.perch))) brain.climbGoal = null;
+      // Partway along a climb: sometimes straight on, sometimes a moment
+      // balancing on her feet, sometimes a brief sit, eyes on the next perch.
+      if (J.then && chainNext()) {
+        const then = J.then, r = Math.random();
+        setActivity('land', rand(.22, .38), () => r < .3 ? then() : r < .7 ? setActivity('poise', rand(.4, .9), then) : setActivity('sit', rand(.7, 1.4), then));
+      } else setActivity('land', .4, J.then);
     }
   }
   if (a === 'prejump') desiredHeading = brain.jumpFace;
@@ -616,11 +656,13 @@ function updateCat(dt, t) {
   }
   if (a === 'eat') desiredHeading = angleTo(brain.pos, bowl.position);
   if (a === 'drink') desiredHeading = angleTo(brain.pos, fountain.position);
-  if ((brain.mode === 'play' || brain.mode === 'solo') && !pc && !J && !['walk', 'prejump', 'land'].includes(a)) desiredHeading = angleTo(brain.pos, toy.position);
-  if (a === 'stalk' || a === 'pause') desiredHeading = angleTo(brain.pos, toy.position);
+  if ((brain.mode === 'play' || brain.mode === 'solo') && !pc && !J && !['walk', 'prejump', 'land', 'poise'].includes(a)) desiredHeading = angleTo(brain.pos, toy.position);
+  if (a === 'stalk' || a === 'pause') desiredHeading = angleTo(brain.pos, brain.mode === 'idle' && brain.swatAt ? brain.swatAt : toy.position);
   if (a === 'swat' && brain.swatAt) desiredHeading = angleTo(brain.pos, brain.swatAt);
   // On a perch she keeps to the way it faces (it's narrow up there).
-  if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
+  const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
+  if (onward) desiredHeading = angleTo(brain.pos, onward);
+  else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
   // In the kitchen's tent she lies along it, facing out of the front.
   const SH = place.layoutCache.sleepHeading;
   if (desiredHeading === null && SH != null && (a === 'sleep' || a === 'catnap') && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius) desiredHeading = SH;
@@ -678,7 +720,8 @@ function updateCat(dt, t) {
   else if (a === 'eat') gazeTarget = tmpV2.copy(bowl.position).setY(0);
   else if (a === 'drink') gazeTarget = tmpV2.copy(fountain.position).setY(.2);
   else if (t - brain.pointerAt < 2.2) gazeTarget = brain.pointerWorld;
-  else if (a === 'walk' && brain.target) gazeTarget = tmpV2.copy(brain.target).setY(.5);
+  else if (a === 'walk' && brain.target) gazeTarget = tmpV2.copy(brain.target).setY(brain.elevation + .5);
+  else if (['land', 'poise', 'sit', 'prejump'].includes(a) && chainNext()) gazeTarget = tmpV2.copy(chainPt);
   else if (brain.glance && t < brain.glanceUntil) gazeTarget = brain.glance;
   else gazeTarget = camera.position;
   // Eyes first: they jump to whatever caught her attention. The head
@@ -749,6 +792,7 @@ function updateCat(dt, t) {
   if (a === 'prejump') { pose = 'crouch'; poseRate = 9; const w = (t - brain.actStart) / Math.max(.3, brain.actUntil - brain.actStart); wiggle = w > .45 ? .5 : 0; tail = {amp: .5, speed: 4}; }
   if (a === 'jump') { const k = J ? (t - J.start) / J.dur : 1; pose = k < .7 ? 'leap' : 'crouch'; poseRate = 14; tail = {amp: .1, speed: 1}; }
   if (a === 'land') { pose = 'crouch'; poseRate = 10; }
+  if (a === 'poise') { pose = 'stand'; poseRate = 8; tail = {amp: .7, speed: 1.8}; }
   if (a === 'stalk') { pose = 'crouch'; poseRate = 7; wiggle = (t - brain.actStart) > .8 ? .45 : 0; tail = {amp: .5, speed: 5}; }
   if (a === 'pause') { pose = 'crouch'; tail = {amp: .3, speed: 3}; }
   let swat = 0;
@@ -873,6 +917,7 @@ function perchLife(t) {
   const options = ['glance', 'twitch', 'slowBlink', 'groom', 'lookBack', 'loaf'];
   if (brain.perch === 'sill' && t > brain.nextKnock && !room.bookFall && t - brain.actStart > 6) options.push('book');
   if (brain.perch === 'mantel' && t > brain.nextKnock && !room.vaseFall && t - brain.actStart > 4) options.push('vase', 'vase');
+  if (brain.perch === 'shelf' && place === kitchen && t > brain.nextKnock && kitchen.nextCup() && t - brain.actStart > 3) options.push('cups', 'cups');
   const choice = pick(options);
   if (choice === 'glance') glanceAt(brain.perch === 'sill' ? room.glass.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rand(-.9, .9), rand(-.6, .6), 0)) : new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.5, 3));
   if (choice === 'twitch') twitchEar();
@@ -882,6 +927,7 @@ function perchLife(t) {
   if (choice === 'loaf') setActivity('loaf', rand(6, 12), () => setActivity('sit'));
   if (choice === 'book') knockBook();
   if (choice === 'vase') knockVase();
+  if (choice === 'cups') tapCups();
 }
 
 // The vase on the mantel: the same slow, deliberate pats, and over it goes.
@@ -926,6 +972,65 @@ function knockBook() {
   }, d * 1000));
 }
 
+// Her cups on the kitchen's lower shelf: she walks along to the first one
+// still standing, plants her feet (a low crouch, eyes on it, tail going),
+// and pats it toward the edge, once or a few times. A pat too many and over
+// it goes onto the counter: a long look down at it, then an innocent look
+// at you.
+function tapCups(pats = 1 + Math.floor(Math.random() * 3)) {
+  const cup = kitchen?.nextCup();
+  if (!cup || brain.perch !== 'shelf' || brain.jump) return false;
+  brain.nextKnock = clockNow + rand(70, 140);
+  brain.perchUntil = Math.max(brain.perchUntil, clockNow + 25);
+  const at = () => kitchen.cupWorld(cup, new THREE.Vector3()).add(new THREE.Vector3(0, .1, 0));
+  const still = () => brain.perch === 'shelf' && !brain.jump && place === kitchen;
+  glanceAt(at(), 2.5);
+  const c = at();
+  brain.target = new THREE.Vector3(c.x - .44, 0, PERCHES.shelf.spot.z);
+  setActivity('walk', 6, () => {
+    if (!still()) return;
+    brain.swatAt = at(); glanceAt(brain.swatAt, 4);
+    setActivity('pause', rand(.6, 1.1), () => pat(0));
+  });
+  const pat = i => {
+    if (!still()) return;
+    brain.swatAt = at();
+    setActivity('swat', .45);
+    later(.22, () => {
+      if (!still()) return;
+      if (kitchen.nudgeCup(cup, clockNow) === 'fell') {
+        later(.9, () => glanceAt(at(), 2));
+        later(2.8, () => { glanceAt(camera.position, 2.5); express('curious', 2); if (Math.random() < .6) say(pick(['…it fell.', 'Gravity did it.', 'It was like that when I got here.', 'Oops.']), 2600); });
+        later(.5, () => { if (still()) setActivity('sit', rand(4, 7)); });
+        return;
+      }
+      later(.3, () => {
+        if (!still()) return;
+        glanceAt(at(), 2);
+        setActivity('pause', rand(.7, 1.3), () => {
+          if (i + 1 < pats) pat(i + 1);
+          else { if (Math.random() < .5) later(.4, () => glanceAt(camera.position, 2)); setActivity('sit', rand(3, 6)); }
+        });
+      });
+    });
+  };
+  return true;
+}
+// Tapping a cup asks her to: up she goes if she isn't on the shelf already.
+function inviteCup() {
+  if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
+  if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
+  const cup = kitchen?.nextCup();
+  if (!cup) { glanceAt(camera.position, 2); say(pick(['Already done.', 'Nothing left up there.']), 2200); return; }
+  glanceAt(kitchen.cupWorld(cup, new THREE.Vector3()), 1.6);
+  twitchEar(0, 1);
+  if (Math.random() > .8) { later(.9, () => { glanceAt(camera.position, 2.2); say(pick(['Not now.', 'Maybe later.', '*tail flick*']), 2400); }); return; }
+  brain.mode = 'idle';
+  later(.35, () => meow('chirp', 'idle'));
+  if (brain.perch === 'shelf' && !brain.jump) tapCups();
+  else jumpTo('shelf', () => { if (!tapCups()) setActivity('sit'); }, rand(25, 40));
+}
+
 // Birds at the window, in daytime. Up on the sill she gets them often; from
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
@@ -962,7 +1067,7 @@ function watchBirds(t) {
     brain.birdLeft = t;
     if (onSill && t > brain.nextKnock && !room.bookFall && Math.random() < .6) setTimeout(() => { if (brain.perch === 'sill' && !brain.jump && brain.mode === 'idle' && !pet.sleeping) knockBook(); }, 1200);
   }
-  const busy = ['walk', 'prejump', 'jump', 'land', 'swat', 'stalk', 'pounce', 'catnap', 'eat', 'drink'];
+  const busy = ['walk', 'prejump', 'jump', 'land', 'poise', 'swat', 'stalk', 'pounce', 'catnap', 'eat', 'drink'];
   brain.watching = !!at && brain.mode === 'idle' && !brain.jump && !busy.includes(brain.activity);
   if (!brain.watching) return;
   brain.glance = (brain.glance || new THREE.Vector3()).copy(at);
@@ -1312,6 +1417,10 @@ function hitsFountain() { return ready && ray.intersectObjects(room.clickables, 
 function perchAt() {
   if (!ready) return null;
   let best = null;
+  if (place === kitchen) for (const cup of kitchen.shelfCups) {
+    const hit = ray.intersectObject(cup, true)[0];
+    if (hit && (!best || hit.distance < best.d)) best = {name: 'cup', d: hit.distance};
+  }
   for (const [name, obj] of place.layoutCache.perchTargets) {
     if (!obj.visible) continue;
     const hit = ray.intersectObject(obj, true).find(h => h.object.visible && h.object.material?.blending !== THREE.AdditiveBlending);
@@ -1324,6 +1433,7 @@ function perchAt() {
 // more likely to give in.
 let lastInvite = {name: null, at: -99};
 function invite(name) {
+  if (name === 'cup') { inviteCup(); return; }
   if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
   if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
   const P = PERCHES[name];
@@ -1625,11 +1735,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.b
 // Room decor: the furniture stays put, only the look changes (decor.js).
 const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2']};
 // What to tap to invite her up, in the room she's in.
-function perchHint() { return place === room ? 'the sill, chair or mantel' : 'the counter or a shelf'; }
+function perchHint() { return place === room ? 'the sill, chair or mantel' : 'the counter, a shelf or a cup'; }
 // Rooms she can be in. The kitchen is built the first time she goes there.
 const PLACES = {
   study: {name: 'The study', note: 'Fireplace, window seat and the bird', swatch: ['#9a5a34', '#5a6b38', '#e7d3b2', '#1d3f9a']},
-  kitchen: {name: 'The kitchen', note: 'Shelves to climb, a tent bed, a robot vacuum', swatch: ['#4b2e1c', '#efe3d0', '#cfd0cc', '#d8c3a5']},
+  kitchen: {name: 'The kitchen', note: 'Shelves to climb, cups to pat, a tent bed', swatch: ['#4b2e1c', '#efe3d0', '#cfd0cc', '#d8c3a5']},
 };
 function renderPlaces() {
   $('#place-options').innerHTML = Object.entries(PLACES).map(([id, d]) => `<button type="button" data-place="${id}" aria-pressed="${place.id === id}" style="--tint:var(--accent)"><span class="decor-swatch">${d.swatch.map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
@@ -1899,6 +2009,7 @@ function frame(now) {
   last = now;
   clockNow = now / 1000;
   const t = clockNow;
+  runTimers(t);
   if (brain.mode === 'brush' && t > brain.modeUntil) finishMode();
   // Her own catnaps restore a little energy (about 1 a minute).
   if (ready && brain.activity === 'catnap') pet.energy = Math.min(100, pet.energy + dt / 60);
@@ -1919,7 +2030,7 @@ function frame(now) {
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; frame(virtualNow); } }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
