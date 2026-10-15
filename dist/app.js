@@ -1484,7 +1484,7 @@ function roomFrame() {
   // Lower the angle a little if the camera would otherwise rise above the
   // room's ceiling.
   for (; pitch >= .1; pitch -= .03) {
-    let lo = 3, hi = place === room ? 18 : 24;
+    let lo = 3, hi = place === room ? 18 : 28;
     for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (placeAt(mid, f.set(0, .9, -.6), pitch)) hi = mid; else lo = mid; }
     placeAt(hi, f.set(0, .9, -.6), pitch);
     dist = hi;

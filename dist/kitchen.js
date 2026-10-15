@@ -74,9 +74,11 @@ export class Kitchen {
       plaster: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => drawNoise(g, w, h, {base: '#efe3d0', blobs: [['rgba(255,250,240,.06)', 260, 20, 90], ['rgba(160,125,85,.035)', 220, 20, 80]], seed: 31}), {repeat: [3, 3]}), roughness: .95}),
       walnut: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, (g, w, h) => { g.translate(w, 0); g.rotate(Math.PI / 2); drawWood(g, w, h, {planks: 5, colors: ['#4b2e1c', '#563522', '#45291a', '#5c3b25'], seed: 41, grain: 40}); }), roughness: .5}),
       walnutDark: new THREE.MeshStandardMaterial({color: '#2b1a10', roughness: .7}),
-      stone: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, drawBreccia), roughness: .3}),
+      stone: new THREE.MeshStandardMaterial({map: canvasTexture(768, 768, drawBreccia), roughness: .3}),
       counter: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, drawCreamStone, {repeat: [.3, .3]}), roughness: .35}),
-      steel: new THREE.MeshStandardMaterial({color: '#cfd0cc', metalness: .85, roughness: .32}),
+      // Brushed stainless: cool grey, streaked lengthwise, so it reads as steel
+      // rather than mirroring the warm room as a cream.
+      steel: new THREE.MeshStandardMaterial({map: canvasTexture(256, 64, drawBrushed), color: '#e4e8ea', metalness: .9, roughness: .36}),
       steelDark: new THREE.MeshStandardMaterial({color: '#8e8f8c', metalness: .8, roughness: .4}),
       iron: new THREE.MeshStandardMaterial({color: '#211e1b', metalness: .55, roughness: .45}),
       frame: new THREE.MeshStandardMaterial({color: '#1d1c1a', metalness: .3, roughness: .5}),
@@ -474,20 +476,33 @@ export class Kitchen {
       p.position.copy(a).addScaledVector(v, .5); p.quaternion.setFromUnitVectors(V(0, 1, 0), v.normalize());
     }
     const ridge = this.mesh(new THREE.CylinderGeometry(.03, .03, 2 * D + .2, 8), M.walnut, g); ridge.rotation.x = Math.PI / 2; ridge.position.y = H;
-    for (const s of [-1, 1]) {
+    // Canvas: ivory outside, a shaded taupe inside, so the interior reads as
+    // a little den she can disappear into.
+    const outside = M.canvas.clone(); outside.side = THREE.FrontSide;
+    const inside = M.canvas.clone(); inside.side = THREE.BackSide; inside.color.set('#8f8270');
+    const piece = (verts, uvs, out) => {
       const geo = new THREE.BufferGeometry();
-      const verts = [s * W, 0, -D, s * W, 0, D, 0, H, D, 0, H, -D];
       geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-      geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-      geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
-      this.mesh(geo, M.canvas, g);
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      const n = verts.length / 3, idx = [];
+      for (let i = 1; i < n - 1; i++) idx.push(0, i, i + 1);
+      // Wind each piece so its front faces outward.
+      const A = V(verts[0], verts[1], verts[2]), B = V(verts[3], verts[4], verts[5]), C = V(verts[6], verts[7], verts[8]);
+      if (new THREE.Vector3().subVectors(B, A).cross(new THREE.Vector3().subVectors(C, A)).dot(out) < 0) for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+      geo.setIndex(idx); geo.computeVertexNormals();
+      this.mesh(geo, outside, g); this.mesh(geo, inside, g, {cast: false});
+    };
+    for (const s of [-1, 1]) piece([s * W, 0, -D, s * W, 0, D, 0, H, D, 0, H, -D], [0, 0, 1, 0, 1, 1, 0, 1], V(s, 1, 0));
+    // Closed at the back.
+    piece([-W, 0, -D, W, 0, -D, 0, H, -D], [0, 0, 1, 0, .5, 1], V(0, 0, -1));
+    // At the front, two flaps tied back round an arched doorway.
+    for (const s of [-1, 1]) {
+      const pts = [[W + .02, 0], [.52, 0]];
+      for (let i = 1; i <= 8; i++) { const t = i / 8, u = 1 - t; pts.push([u * u * .52 + 2 * u * t * .3 + t * t * .34, 2 * u * t * .5 + t * t * 1.13]); }
+      const verts = [], uvs = [];
+      for (const [x, y] of pts) { verts.push(s * x, y, D + .01); uvs.push(x / W, y / H); }
+      piece(verts, uvs, V(0, 0, 1));
     }
-    // Closed at the back, open at the front.
-    const back = new THREE.BufferGeometry();
-    back.setAttribute('position', new THREE.Float32BufferAttribute([-W, 0, -D, W, 0, -D, 0, H, -D], 3));
-    back.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, .5, 1], 2));
-    back.computeVertexNormals();
-    this.mesh(back, M.canvas, g);
     this.mesh(roundedBox(1.85, .16, 1.85, .07), M.olive, g).position.y = .08;
     this.bedTop = .16;
     this.bedRadius = .75;
@@ -562,7 +577,7 @@ export class Kitchen {
       // In the tent she lies along it, facing out of the open front.
       sleepHeading: 3.25, // curled up inside, her face toward the room (chosen from renders)
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},
-      camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 18]},
+      camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 26]}, // open to the front: the living area will be there
       camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.1, 1.8]],
       // Tops the camera mustn't sink into (it would see through them): over
       // the island or the back counter it stays a little above the surface.
@@ -574,11 +589,16 @@ export class Kitchen {
   frame(wide) {
     const I = K.island;
     return {
-      // Wide screens look a little toward the right wall and its painting.
-      yaw: wide ? -.2 : 0,
-      across: [[I.x0, 1.2, I.z1], [I.x1, 1.2, I.z1], [-3.3, .8, I.z1 + .8], [K.tent.x + .7, .9, K.tent.z], [3.0, .3, 1.55], [4.55, .1, 2.6], [-5.2, 4.2, -3.9], [3.4, 4.2, -3.9]]
-        .concat(wide ? [[K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back], [K.right, 5.95, -1.2], [K.right, 2.45, 1.9]] : [[-5.55, 1.2, -3.9]]),
-      bottom: [[I.x0, 0, I.z1 + .8], [I.x1, 0, I.z1 + .3], [4.55, 0, 3.0], [-1, 0, 3.4]],
+      // Wide screens look a little toward the right wall and its painting;
+      // phones toward the window corner, where her steps climb the wall.
+      yaw: wide ? -.2 : .35,
+      // Wide screens: the whole room. Phones: her route (floor, wall steps,
+      // counter, both shelves) and the island; the tent corner is a drag away.
+      across: wide
+        ? [[I.x0, 1.2, I.z1], [I.x1, 1.2, I.z1], [-3.3, .8, I.z1 + .8], [K.tent.x + .7, .9, K.tent.z], [3.0, .3, 1.55], [4.55, .1, 2.6], [-5.2, 4.2, -3.9], [3.4, 4.2, -3.9],
+          [K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back], [K.right, 5.95, -1.2], [K.right, 2.45, 1.9]]
+        : [[I.x0, 1.2, I.z1], [I.x1, 1.2, I.z1], [-3.3, .8, I.z1 + .8], [3.0, .3, 1.55], [-5.2, 4.2, -3.9], [3.4, 4.2, -3.9], [-5.95, .9, -3.55], [-5.95, 5.0, -3.55]],
+      bottom: [[I.x0, 0, I.z1 + .8], [I.x1, 0, I.z1 + .3], wide ? [4.55, 0, 3.0] : [2.6, 0, 3.0], [-1, 0, 3.4]],
       top: [[-5.2, 5.8, -3.9], [3.4, 5.8, -3.9], [-3.5, 7.4, .5], [.9, 7.6, 1.1]].concat(wide ? [[-1.2, 8.7, .7]] : []),
     };
   }
@@ -700,37 +720,92 @@ function drawLimestone(g, w, h) {
 // each fragment's edge, and the odd darker fragment. (Cells around scattered
 // points, wobbled so the joins wander; it tiles.)
 export function drawBreccia(g, w, h) {
-  const r = rng(211), N = 46, seeds = [];
-  for (let i = 0; i < N; i++) seeds.push({x: r() * w, y: r() * h, v: .5 + r() * 1.6, c: r() < .05 ? [190, 178, 168] : [[240, 232, 218], [236, 226, 210], [244, 238, 226], [230, 219, 202]][Math.floor(r() * 4)]});
-  const img = g.createImageData(w, h), d = img.data;
+  // Breccia: rounded stone fragments of many sizes and tones (mostly cream,
+  // some beige and taupe, a few grey and darker mineral patches) set in a
+  // softer sandy matrix, with fine golden veins along only some of the joins.
+  // Fragments sit on a jittered grid (fast to search), weighted so their
+  // sizes vary, in a warped space so their shapes are irregular. Tiles.
+  const r = rng(211), G = 9, cw = w / G, seeds = [];
+  const tones = [[[242, 235, 222], .26], [[236, 227, 211], .2], [[245, 240, 230], .14], [[226, 212, 190], .13], [[214, 200, 182], .09], [[205, 203, 198], .08], [[188, 178, 166], .06], [[172, 164, 156], .04]];
+  const pick = () => { let t = r(); for (const [c, p] of tones) { if ((t -= p) <= 0) return c; } return tones[0][0]; };
+  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) seeds.push({x: (i + .15 + r() * .7) * cw, y: (j + .15 + r() * .7) * cw, wt: Math.pow(r(), 2) * cw * cw * .55, c: pick(), m: r()});
+  const img = g.createImageData(w, h), d = img.data, T = Math.PI * 2;
+  const F = 26, fw = w / F, fine = [];
+  // Small clasts cluster where a slow wave is high.
+  for (let j = 0; j < F; j++) for (let i = 0; i < F; i++) {
+    const x = (i + .2 + r() * .6) * fw, y = (j + .2 + r() * .6) * fw;
+    const dense = Math.sin(T * x / w * 2 + 1) * Math.sin(T * y / h * 2 + .5) + Math.sin(T * (x + y) / w * 3) * .5;
+    const a = r() * Math.PI, e = 1 + r() * 1.4;
+    fine.push({x, y, ca: Math.cos(a), sa: Math.sin(a), e, on: dense > .35 && r() < .7, r: fw * (.22 + r() * .4), c: [[200, 196, 190], [186, 176, 164], [214, 204, 190], [172, 163, 152]][Math.floor(r() * 4)]});
+  }
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const wx = x + Math.sin(y * .045) * 9 + Math.sin(y * .011 + 1) * 14, wy = y + Math.sin(x * .05) * 8 + Math.sin(x * .013 + 2) * 12;
-    let d1 = 1e9, d2 = 1e9, k1 = 0, k2 = 0;
-    for (let i = 0; i < N; i++) {
-      let dx = Math.abs(wx - seeds[i].x), dy = Math.abs(wy - seeds[i].y);
-      if (dx > w / 2) dx = w - dx; if (dy > h / 2) dy = h - dy;
-      const dd = dx * dx + dy * dy;
-      if (dd < d1) { d2 = d1; k2 = k1; d1 = dd; k1 = i; } else if (dd < d2) { d2 = dd; k2 = i; }
+    const wx = x + Math.sin(T * y / h * 3) * 7 + Math.sin(T * (x + y) / w * 5 + 1) * 5 + Math.sin(T * y / h * 11) * 2;
+    const wy = y + Math.sin(T * x / w * 3 + 2) * 7 + Math.sin(T * (x - y) / h * 4) * 5 + Math.sin(T * x / w * 13) * 2;
+    const gi = Math.floor(wx / cw), gj = Math.floor(wy / cw);
+    let d1 = 1e12, d2 = 1e12, k1 = 0, k2 = 0;
+    for (let oj = -2; oj <= 2; oj++) for (let oi = -2; oi <= 2; oi++) {
+      const ii = ((gi + oi) % G + G) % G, jj = ((gj + oj) % G + G) % G, sd = seeds[jj * G + ii];
+      let dx = wx - sd.x, dy = wy - sd.y;
+      dx -= Math.round(dx / w) * w; dy -= Math.round(dy / h) * h;
+      const dd = dx * dx + dy * dy - sd.wt;
+      if (dd < d1) { d2 = d1; k2 = k1; d1 = dd; k1 = jj * G + ii; } else if (dd < d2 && jj * G + ii !== k1) { d2 = dd; k2 = jj * G + ii; }
     }
-    const edge = Math.sqrt(d2) - Math.sqrt(d1), c = seeds[k1].c, o = (y * w + x) * 4;
-    let R = c[0], G = c[1], B = c[2];
-    const shade = Math.min(1, edge / 22);
-    R *= .9 + .1 * shade; G *= .89 + .11 * shade; B *= .86 + .14 * shade;
-    // Each join has its own vein width.
-    const vw = (seeds[k1].v + seeds[k2].v) * .45;
-    if (edge < vw) { const t = edge / vw; R = 128 + 40 * t; G = 98 + 32 * t; B = 70 + 22 * t; }
-    else if (edge < vw * 3) { const t = (edge - vw) / (vw * 2); R = R * t + 196 * (1 - t); G = G * t + 162 * (1 - t); B = B * t + 118 * (1 - t); }
-    d[o] = R; d[o + 1] = G; d[o + 2] = B; d[o + 3] = 255;
+    // Distance to the join, approximately, in pixels.
+    const edge = (d2 - d1) / (2 * cw), s1 = seeds[k1], o = (y * w + x) * 4;
+    let [R, Gc, B] = s1.c;
+    // Clouded within each fragment.
+    const cl = Math.sin(T * x / w * 7 + s1.m * 9) * Math.sin(T * y / h * 6 + s1.m * 5) * 6;
+    R += cl; Gc += cl; B += cl * .8;
+    // Most joins melt away; some show a sandy matrix, some a fine golden vein.
+    const s2 = seeds[k2], jh = (s1.m * 7.3 + s2.m * 3.1) % 1, contrast = Math.abs(s1.c[0] - s2.c[0]) / 90;
+    if (jh < .3 || contrast > .5) {
+      const mw = 1.5 + (s1.m + s2.m) * 2.2;
+      if (edge < mw) { const t = edge / mw, k = (1 - t * t) * .5; R = R * (1 - k) + 210 * k; Gc = Gc * (1 - k) + 190 * k; B = B * (1 - k) + 158 * k; }
+    } else if (jh > .55) {
+      const vw = .6 + s1.m * .7;
+      if (edge < vw) { const t = edge / vw; R = R * t + 176 * (1 - t); Gc = Gc * t + 134 * (1 - t); B = B * t + 82 * (1 - t); }
+      else if (edge < vw * 2.5) { const k = (1 - (edge - vw) / (vw * 1.5)) * .35; R = R * (1 - k) + 200 * k; Gc = Gc * (1 - k) + 168 * k; B = B * (1 - k) + 120 * k; }
+    } else if (edge < 6) { const k = (1 - edge / 6) * .5; R = R * (1 - k) + s2.c[0] * k; Gc = Gc * (1 - k) + s2.c[1] * k; B = B * (1 - k) + s2.c[2] * k; }
+    // Clusters of small clasts, here and there.
+    const fi = Math.floor(wx / fw), fj = Math.floor(wy / fw);
+    let f1 = 1e12, f2 = 1e12, fk = 0;
+    for (let oj = -1; oj <= 1; oj++) for (let oi = -1; oi <= 1; oi++) {
+      const ii = ((fi + oi) % F + F) % F, jj = ((fj + oj) % F + F) % F, sd = fine[jj * F + ii];
+      let dx = wx - sd.x, dy = wy - sd.y;
+      dx -= Math.round(dx / w) * w; dy -= Math.round(dy / h) * h;
+      // Each clast is an ellipse at its own angle, edged with a little wobble.
+      const u = dx * sd.ca + dy * sd.sa, v = (dy * sd.ca - dx * sd.sa) * sd.e, wob = 1 + .18 * Math.sin(Math.atan2(v, u) * 3 + sd.x);
+      const dd = (u * u + v * v) * wob;
+      if (dd < f1) { f2 = f1; f1 = dd; fk = jj * F + ii; } else if (dd < f2) f2 = dd;
+    }
+    const fs = fine[fk];
+    if (fs.on && s1.c[0] > 224 && f1 < fs.r * fs.r) {
+      const fe = (Math.sqrt(f2) - Math.sqrt(f1)) / 2, rim = fs.r - Math.sqrt(f1);
+      if (fe > .8 && rim > .8) { R = fs.c[0] + cl * .5; Gc = fs.c[1] + cl * .5; B = fs.c[2] + cl * .4; }
+      else { R = R * .45 + 182 * .55; Gc = Gc * .45 + 142 * .55; B = B * .45 + 92 * .55; }
+    }
+    d[o] = R; d[o + 1] = Gc; d[o + 2] = B; d[o + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  // Fine grain and a few hairline veins across the fragments.
-  for (let i = 0; i < 18; i++) {
-    g.strokeStyle = `rgba(140,110,80,${.12 + r() * .18})`; g.lineWidth = .6 + r();
+  // Hairline veins and fine grain across the fragments.
+  for (let i = 0; i < 14; i++) {
+    g.strokeStyle = `rgba(160,120,75,${.1 + r() * .14})`; g.lineWidth = .4 + r() * .5;
     g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y);
-    for (let k = 0; k < 6; k++) { x += (r() - .5) * 40; y += (r() - .5) * 40; g.lineTo(x, y); }
+    for (let k = 0; k < 7; k++) { x += (r() - .5) * 46; y += (r() - .5) * 46; g.lineTo(x, y); }
     g.stroke();
   }
-  for (let i = 0; i < 700; i++) { g.fillStyle = `rgba(${r() < .5 ? '120,95,70' : '255,250,242'},${r() * .18})`; g.fillRect(r() * w, r() * h, 1 + r() * 1.5, 1 + r() * 1.5); }
+  for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${r() < .5 ? '120,100,80' : '255,252,246'},${r() * .16})`; g.fillRect(r() * w, r() * h, .8 + r(), .8 + r()); }
+}
+
+// Brushed stainless: fine lengthwise streaks in cool greys.
+function drawBrushed(g, w, h) {
+  const r = rng(97);
+  g.fillStyle = '#b4b7b8'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) {
+    const y = r() * h, l = w * (.2 + r() * .8), x = r() * w, v = 150 + Math.floor(r() * 80);
+    g.strokeStyle = `rgba(${v},${v + 2},${v + 4},${.15 + r() * .25})`; g.lineWidth = .5 + r() * .8;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + (r() - .5) * .6); g.stroke();
+  }
 }
 
 // The back counter: a quieter cream stone with soft veining.

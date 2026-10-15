@@ -111,7 +111,7 @@ ${finished ? '' : '<p class="notice"><b>This pack is incomplete:</b> rendering r
 <h2>Kitchen (in preview, for review)</h2>
 <p class="meta">All from capture build ${version.build}. The whole room by day and in the evening on a wide screen, the default phone view, and closer views. The climbing clip plays at true speed (recorded frame by frame): floor, wall step, counter, lower shelf, upper shelf, a pause, and back down.</p>
 <div class="grid wide">${img('kitchen-day.png', 'Kitchen, day (wide screen)')}${img('kitchen-evening.png', 'Kitchen, evening (wide screen)')}</div>
-<div class="grid">${img('kitchen-phone.png', 'Kitchen, default phone view')}${img('kitchen-shelves.png', 'Shelves and climbing steps')}${img('kitchen-island.png', 'Island, mobile light, sink and range')}${img('kitchen-corner.png', 'Tent corner and the living room opening')}</div>
+<div class="grid">${img('kitchen-phone.png', 'Kitchen, default phone view')}${img('kitchen-shelves.png', 'Shelves and climbing steps')}${img('kitchen-island.png', 'Island, mobile light, sink and range')}${img('kitchen-corner.png', 'Tent corner and the doorway to her study')}</div>
 <div class="grid wide">${vid('kitchen-climb.mp4', 'Mochi climbs to the top shelf and back down (true speed)')}</div>
 <h2>Face</h2>
 <div class="grid">${img('face-front.png', 'Front')}${img('face-three.png', 'Three-quarter')}${img('face-left.png', 'Left side')}${img('face-right.png', 'Right side')}</div>

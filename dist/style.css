@@ -181,7 +181,8 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .dock button[aria-disabled="true"] { opacity: .45; }
 .dock button[aria-disabled="true"] .dock-icon { transform: none; box-shadow: none; background: color-mix(in srgb, var(--tint) 12%, transparent); color: var(--tint); }
 
-.scene-hint { position: absolute; z-index: 2; left: 0; right: 0; bottom: 116px; margin: 0; text-align: center; font-size: 12px; font-weight: 650; color: var(--muted); pointer-events: none; transition: opacity .5s; }
+/* Under the scene, never over it (it used to cross Mochi near the floor). */
+.scene-hint { margin: 0; padding: 9px 16px 11px; text-align: center; font-size: 12px; font-weight: 650; color: var(--muted); pointer-events: none; transition: opacity .5s; }
 .night .scene-hint { color: #c9b29a; }
 
 .play-meter { position: absolute; z-index: 4; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 99px; background: var(--card-solid); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 750; white-space: nowrap; animation: pop .5s var(--spring); }
@@ -312,7 +313,7 @@ label.spaced { margin-top: 22px; }
   .dock { left: 10px; right: 10px; bottom: 10px; transform: none; justify-content: space-between; gap: 0; padding: 6px; border-radius: 22px; }
   .dock button { min-width: 0; flex: 1; padding: 6px 2px; font-size: 11px; }
   .dock-icon { width: 40px; height: 40px; border-radius: 14px; font-size: 20px; }
-  .scene-hint { bottom: 96px; font-size: 11px; }
+  .scene-hint { padding: 7px 12px 9px; font-size: 11px; }
   .play-meter { top: auto; bottom: 104px; }
   .panel { grid-template-columns: 1fr; }
   .panel .log { grid-column: auto; }
@@ -326,12 +327,12 @@ label.spaced { margin-top: 22px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
-@media (max-width: 720px) { .scene.playing .scene-hint { opacity: 0; } }
 
 /* Watch mode: the room fills the screen, the care controls tuck away. */
 body.watch { overflow: hidden; }
 body.watch .stage { position: fixed; inset: 0; z-index: 60; border-radius: 0; border: 0; }
 body.watch .scene { height: 100vh; height: 100dvh; min-height: 0; max-height: none; }
 body.watch .dock, body.watch .scene-hint, body.watch .play-meter { opacity: 0; pointer-events: none; }
+body.watch .scene-hint { display: none; }
 body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
 .dock, .scene-hint { transition: opacity .4s; }
