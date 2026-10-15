@@ -515,10 +515,10 @@ export class Kitchen {
   // c. 1660 (National Gallery of Art, Washington; open access), in a dark
   // frame with a gilt liner, a little larger than life as in Orion's design.
   buildPainting() {
-    const M = this.materials, W = 1.75, H = W * 69.6 / 56.5, F = .2, Ln = .06;
+    const M = this.materials, W = 1.75, H = W * 69.6 / 56.5, F = .2, Ln = .04;
     const g = new THREE.Group(); g.position.set(K.right, 3.95, .35); g.rotation.y = -Math.PI / 2; this.group.add(g);
     const ebony = new THREE.MeshStandardMaterial({color: '#21150e', roughness: .45, metalness: .1});
-    const gilt = new THREE.MeshStandardMaterial({color: '#b08a4a', roughness: .35, metalness: .8});
+    const gilt = new THREE.MeshStandardMaterial({color: '#9c7b45', roughness: .45, metalness: .7}); // antique gold
     const ow = W + 2 * (F + Ln), oh = H + 2 * (F + Ln);
     for (const [w, h, x, y] of [[ow, F, 0, (oh - F) / 2], [ow, F, 0, -(oh - F) / 2], [F, oh - 2 * F, (ow - F) / 2, 0], [F, oh - 2 * F, -(ow - F) / 2, 0]]) this.box(w, h, .14, x, y, .07, ebony, g);
     const iw = W + 2 * Ln, ih = H + 2 * Ln;
