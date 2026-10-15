@@ -1900,6 +1900,14 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+// With ?debug&frames the app doesn't run by itself: kitten.step(dt, n)
+// advances it n frames of dt seconds each, so the review pack can record
+// clips that play at true speed however slowly its renderer draws.
+const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
+let virtualNow = performance.now();
+if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+  step(dt = 1 / 24, n = 1) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; frame(virtualNow); } }};
 
-renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });
+renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
+// In manual mode, draw one frame so the page isn't blank before stepping.
+if (manual) frame(virtualNow);

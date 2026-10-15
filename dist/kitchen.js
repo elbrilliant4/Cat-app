@@ -649,9 +649,9 @@ export function drawBreccia(g, w, h) {
     const shade = Math.min(1, edge / 22);
     R *= .9 + .1 * shade; G *= .89 + .11 * shade; B *= .86 + .14 * shade;
     // Each join has its own vein width.
-    const vw = (seeds[k1].v + seeds[k2].v) * .9;
-    if (edge < vw) { R = 112; G = 84; B = 60; }
-    else if (edge < vw * 2.2) { const t = (edge - vw) / (vw * 1.2); R = R * t + 186 * (1 - t); G = G * t + 146 * (1 - t); B = B * t + 96 * (1 - t); }
+    const vw = (seeds[k1].v + seeds[k2].v) * .45;
+    if (edge < vw) { const t = edge / vw; R = 128 + 40 * t; G = 98 + 32 * t; B = 70 + 22 * t; }
+    else if (edge < vw * 3) { const t = (edge - vw) / (vw * 2); R = R * t + 196 * (1 - t); G = G * t + 162 * (1 - t); B = B * t + 118 * (1 - t); }
     d[o] = R; d[o + 1] = G; d[o + 2] = B; d[o + 3] = 255;
   }
   g.putImageData(img, 0, 0);

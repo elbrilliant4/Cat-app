@@ -5,6 +5,9 @@
 //   eyes-open/half/closed.png         eyelids
 //   idle.mp4, walk.mp4                short clips (needs ffmpeg)
 //   halloween-*.png, halloween-bat-play.mp4   the Halloween decor
+//   kitchen-*.png, kitchen-climb.mp4  the kitchen (in preview), and Mochi
+//                                     climbing to the top shelf and down
+// REVIEW_ONLY=kitchen (or study) renders just that part, for a quick look.
 //   room-day.png, room-night.png      the room on a phone, day and evening
 //   room-desktop.png                  the room on a wide screen
 //   meow-*.wav, purr-*.wav            isolated sounds (and each recorded clip)
@@ -23,6 +26,8 @@ const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 fs.mkdirSync(out, {recursive: true});
 const version = (() => { try { return JSON.parse(fs.readFileSync(path.join(site, 'version.json'), 'utf8')); } catch { return {build: 'local', commit: 'uncommitted', channel: 'local'}; } })();
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const only = (process.env.REVIEW_ONLY || '').split(',').filter(Boolean), want = part => !only.length || only.includes(part);
+const study = want('study');
 
 // Static server for the site.
 const TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.glb': 'model/gltf-binary', '.webmanifest': 'application/manifest+json', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4'};
@@ -103,6 +108,11 @@ th { color: var(--muted); font-weight: 650; }
 <p class="notice" id="stale" hidden></p>
 ${finished ? '' : '<p class="notice"><b>This pack is incomplete:</b> rendering ran out of time or is still going. Missing items are marked below.</p>'}
 <p class="meta">Every image and clip below was rendered from the capture build, which also shows in the app's top bar inside each picture. <a href="../">Open the preview app</a></p>
+<h2>Kitchen (in preview, for review)</h2>
+<p class="meta">All from capture build ${version.build}. The whole room by day and in the evening on a wide screen, the default phone view, and closer views. The climbing clip plays at true speed (recorded frame by frame): floor, wall step, counter, lower shelf, upper shelf, a pause, and back down.</p>
+<div class="grid wide">${img('kitchen-day.png', 'Kitchen, day (wide screen)')}${img('kitchen-evening.png', 'Kitchen, evening (wide screen)')}</div>
+<div class="grid">${img('kitchen-phone.png', 'Kitchen, default phone view')}${img('kitchen-shelves.png', 'Shelves and climbing steps')}${img('kitchen-island.png', 'Island, mobile light, sink and range')}${img('kitchen-corner.png', 'Tent corner and the living room opening')}</div>
+<div class="grid wide">${vid('kitchen-climb.mp4', 'Mochi climbs to the top shelf and back down (true speed)')}</div>
 <h2>Face</h2>
 <div class="grid">${img('face-front.png', 'Front')}${img('face-three.png', 'Three-quarter')}${img('face-left.png', 'Left side')}${img('face-right.png', 'Right side')}</div>
 <h2>Eyes</h2>
@@ -167,15 +177,15 @@ writePage();
 
 // Close-ups, eyes, sounds and walk from the review stage (one page load).
 log('stage');
-const stage = await page('review-stage.html', {width: 720, height: 720});
-await ready(stage);
-for (const [file, expr, view] of [['face-front', 'content', 'front'], ['face-three', 'content', 'three'], ['face-left', 'content', 'left'], ['face-right', 'content', 'right'], ['eyes-open', 'open', 'front'], ['eyes-half', 'half', 'front'], ['eyes-closed', 'closed', 'front']]) {
+const stage = study ? await page('review-stage.html', {width: 720, height: 720}) : null;
+if (stage) await ready(stage);
+if (stage) for (const [file, expr, view] of [['face-front', 'content', 'front'], ['face-three', 'content', 'three'], ['face-left', 'content', 'left'], ['face-right', 'content', 'right'], ['eyes-open', 'open', 'front'], ['eyes-half', 'half', 'front'], ['eyes-closed', 'closed', 'front']]) {
   await stage.evaluate(([e, v]) => window.shot(e, v), [expr, view]);
   await stage.screenshot({path: path.join(out, file + '.png')});
   made.push(file + '.png');
   log(file);
 }
-for (const [kind, seconds] of [['meow-v1', 6], ['together', 7], ['meow-v2', 8], ['purr', 6], ['purr-synth', 6]]) {
+if (stage) for (const [kind, seconds] of [['meow-v1', 6], ['together', 7], ['meow-v2', 8], ['purr', 6], ['purr-synth', 6]]) {
   const b64 = await stage.evaluate(([k, s]) => window.renderAudio(k, s), [kind, seconds]);
   if (b64) { fs.writeFileSync(path.join(out, kind + '.wav'), Buffer.from(b64, 'base64')); made.push(kind + '.wav'); }
   log(kind, b64 ? 'ok' : 'none');
@@ -199,13 +209,45 @@ async function roomShot(viewport, file, night = false) {
   await p.close();
   writePage();
 }
-await roomShot({width: 390, height: 844}, 'room-day.png');
-await roomShot({width: 390, height: 844}, 'room-night.png', true);
-await roomShot({width: 1280, height: 800}, 'room-desktop.png');
+if (study) {
+  await roomShot({width: 390, height: 844}, 'room-day.png');
+  await roomShot({width: 390, height: 844}, 'room-night.png', true);
+  await roomShot({width: 1280, height: 800}, 'room-desktop.png');
+}
+
+// The kitchen (in preview, for review): the whole room by day and in the
+// evening, the default phone view, and closer views of the shelves and
+// climbing steps, the island under the mobile light (with the sink and range
+// behind), and Mochi's corner with the living room through the opening.
+async function kitchenPage(viewport, query = '') {
+  const p = await page('index.html?debug' + query, viewport);
+  await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
+  await p.evaluate(() => { const k = kitten; k.brain.nextIdle = 1e9; k.brain.nextShow = 1e9; k.goTo('kitchen'); });
+  return p;
+}
+if (want('kitchen')) {
+  log('kitchen');
+  const snap = async (p, file, wait) => { await p.waitForTimeout(wait); await p.evaluate(() => document.querySelector('#speech')?.classList.remove('show')); await p.screenshot({path: path.join(out, file)}); made.push(file); log(file); writePage(); };
+  const p = await kitchenPage({width: 1280, height: 800});
+  await snap(p, 'kitchen-day.png', 8000);
+  const look = v => p.evaluate(v => {
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+    const g = kitten.view.goal; Object.assign(g, {yaw: v.yaw, pitch: v.pitch, dist: v.dist}); g.focus.set(...v.focus); kitten.view.mode = 'free';
+  }, v);
+  await look({focus: [-4.2, 3.0, -3.5], yaw: .55, pitch: .25, dist: 7.5}); await snap(p, 'kitchen-shelves.png', 6000);
+  await look({focus: [-1.0, 3.0, .6], yaw: -.2, pitch: .32, dist: 9}); await snap(p, 'kitchen-island.png', 6000);
+  await look({focus: [4.0, 1.7, -1.2], yaw: -.38, pitch: .18, dist: 10}); await snap(p, 'kitchen-corner.png', 6000);
+  await p.evaluate(() => { document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = ''); kitten.pet.sleeping = true; kitten.CAMERA_VIEWS.room(); });
+  await snap(p, 'kitchen-evening.png', 10000);
+  await p.close();
+  const ph = await kitchenPage({width: 390, height: 844});
+  await snap(ph, 'kitchen-phone.png', 8000);
+  await ph.close();
+}
 
 // Halloween decor, for review: the room by day and in the evening, and both
 // jack-o'-lanterns close up (day and evening). The felt-bat clip comes last.
-{
+if (study) {
   log('halloween');
   const p = await page('index.html?debug', {width: 1280, height: 800});
   await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
@@ -233,25 +275,68 @@ await roomShot({width: 1280, height: 800}, 'room-desktop.png');
 }
 
 // The clips take longest, so they come after the stills.
-await stage.setViewportSize({width: 960, height: 540});
-await stage.waitForTimeout(500);
-await stage.evaluate(() => window.walkAt(0));
-await clip(stage, 'walk', 'walkAt', 5);
-log('walk');
-await stage.close();
-writePage();
+if (stage) {
+  await stage.setViewportSize({width: 960, height: 540});
+  await stage.waitForTimeout(500);
+  await stage.evaluate(() => window.walkAt(0));
+  await clip(stage, 'walk', 'walkAt', 5);
+  log('walk');
+  await stage.close();
+  writePage();
+}
 
-const idle = await page('idle.html?record', {width: 720, height: 720});
-await ready(idle);
-await clip(idle, 'idle', 'renderAt', 5, 12);
-log('idle');
-await idle.close();
-writePage();
+// Mochi's climb in the kitchen, at true speed: the app is stepped one frame
+// at a time (?frames), so the clip plays at real pace however slowly this
+// renderer draws. Floor, wall step, counter, lower shelf, upper shelf; a
+// pause; and back down the same way.
+if (want('kitchen')) {
+  log('kitchen-climb');
+  const FPS = 20, p = await kitchenPage({width: 720, height: 480}, '&frames');
+  await p.evaluate(() => {
+    const k = kitten;
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+    k.brain.pos.set(-4.9, 0, -1.7); k.brain.heading = Math.PI * .85; k.setActivity('sit');
+    const g = k.view.goal; Object.assign(g, {yaw: .5, pitch: .2, dist: 9.5}); g.focus.set(-4.4, 3.2, -3.2); k.view.mode = 'free';
+    k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
+    k.step(1 / 20, 20);
+    window.phase = 'up';
+    k.jumpTo('shelfHigh', () => { k.setActivity('sit'); k.brain.perchUntil = 1e9; window.phase = 'top'; });
+  });
+  const box = await p.locator('#scene').boundingBox();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'climb'));
+  let n = 0, hold = 0;
+  for (; n < FPS * 45; n++) {
+    const phase = await p.evaluate(dt => { kitten.step(dt); return window.phase; }, 1 / FPS);
+    await p.screenshot({path: path.join(dir, String(n).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 88, clip: box});
+    if (phase === 'top' && ++hold > FPS * 1.5) {
+      hold = 0;
+      await p.evaluate(() => { const k = kitten; window.phase = 'descending'; const down = () => { if (!k.brain.perch) { window.phase = 'down'; return; } k.jumpDown(down); }; down(); });
+    }
+    if (phase === 'down' && ++hold > FPS * 1.2) break;
+  }
+  try {
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, '%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', path.join(out, 'kitchen-climb.mp4')]);
+    made.push('kitchen-climb.mp4');
+  } catch (e) { errors.push(`kitchen-climb.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
+  fs.rmSync(dir, {recursive: true, force: true});
+  log('kitchen-climb', n, 'frames');
+  await p.close();
+  writePage();
+}
+
+if (study) {
+  const idle = await page('idle.html?record', {width: 720, height: 720});
+  await ready(idle);
+  await clip(idle, 'idle', 'renderAt', 5, 12);
+  log('idle');
+  await idle.close();
+  writePage();
+}
 
 // Felt bat play, last because it is the slowest: a time-lapse of her playing
 // on her own with the Halloween felt bat, on a smaller page so each frame
 // renders faster.
-{
+if (study) {
   const p = await page('index.html?debug', {width: 800, height: 500});
   await p.waitForFunction(() => document.querySelector('.scene.ready'), null, {timeout: 600000});
   await p.evaluate(async () => {

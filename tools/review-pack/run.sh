@@ -29,7 +29,7 @@ if ! command -v ffmpeg >/dev/null; then
 fi
 cd "$here"
 log 'rendering'
-PLAYWRIGHT_MODULE="$work/node_modules/playwright/index.mjs" timeout 3000 node "$here/capture.mjs" "$site" "$site/review"
+PLAYWRIGHT_MODULE="$work/node_modules/playwright/index.mjs" timeout 3600 node "$here/capture.mjs" "$site" "$site/review"
 status=$?
-[ $status -eq 124 ] && log 'rendering hit its 50-minute budget; the pack has what was finished'
+[ $status -eq 124 ] && log 'rendering hit its 60-minute budget; the pack has what was finished'
 exit $status
