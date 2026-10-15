@@ -323,13 +323,15 @@ if (want('kitchen') || want('kitchen-clips')) {
     window.phase = 'up';
     k.jumpTo('shelfHigh', () => { k.setActivity('sit'); k.brain.perchUntil = 1e9; window.phase = 'top'; });
   }, upThenDown(1.5), 45);
-  // From the side, low: the floor, the lowest step and the counter together,
-  // so each take-off and landing shows (the island hides them from the front).
+  // From the front, in line with the window wall and clear of the island:
+  // the floor, the lowest step (in the corner past the counter's end, hidden
+  // from the right by the cabinets) and the counter together, so each
+  // take-off and landing shows.
   if (wantClip('steps')) await steppedClip('kitchen-steps-side.mp4', () => {
     const k = kitten;
     document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
     k.brain.pos.set(-3.9, 0, -1.55); k.brain.heading = -2.2; k.setActivity('sit');
-    const g = k.view.goal; Object.assign(g, {yaw: 1.2, pitch: .2, dist: 5.4}); g.focus.set(-5.0, 1.3, -3.0); k.view.mode = 'free';
+    const g = k.view.goal; Object.assign(g, {yaw: -.04, pitch: .25, dist: 7}); g.focus.set(-5.2, 1.1, -3.0); k.view.mode = 'free';
     k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
     k.step(1 / 20, 20);
     window.phase = 'up';
@@ -341,7 +343,7 @@ if (want('kitchen') || want('kitchen-clips')) {
     const k = kitten, P = k.PERCHES.shelf;
     document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
     k.brain.pos.set(P.spot.x, 0, P.spot.z); k.brain.perch = 'shelf'; k.brain.elevation = P.top; k.brain.heading = 0; k.setActivity('sit');
-    const g = k.view.goal; Object.assign(g, {yaw: .4, pitch: .12, dist: 5.6}); g.focus.set(-3.9, 3.3, -3.5); k.view.mode = 'free';
+    const g = k.view.goal; Object.assign(g, {yaw: .6, pitch: .08, dist: 5.5}); g.focus.set(-3.9, 3.55, -3.5); k.view.mode = 'free';
     k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
     k.step(1 / 20, 30);
     const cup = k.kitchen.nextCup();
