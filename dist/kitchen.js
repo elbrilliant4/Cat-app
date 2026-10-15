@@ -561,7 +561,7 @@ export class Kitchen {
       },
       perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]]],
       // In the tent she lies along it, facing out of the open front.
-      sleepHeading: K.tent.ry - Math.PI / 2, // her sleep pose lies across her heading; this puts her head at the door
+      sleepHeading: 3.25, // curled up inside, her face toward the room (chosen from renders)
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},
       camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 18]},
       camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.1, 1.8]],
