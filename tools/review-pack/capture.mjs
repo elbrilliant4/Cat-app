@@ -358,7 +358,8 @@ if (want('kitchen') || want('kitchen-clips')) {
     document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
     Object.assign(k.brain, {nextVacuum: 1e9, vacReactAt: 1e9});
     k.brain.pos.set(1.2, 0, 3.4); k.setActivity('sit');
-    const g = k.view.goal; Object.assign(g, {yaw: 0, pitch: .5, dist: 9.5}); g.focus.set(2.2, .3, .6); k.view.mode = 'free';
+    // The camera follows her (she and the vacuum get about).
+    const g = k.view.goal; Object.assign(g, {yaw: -.15, pitch: .5, dist: 7.5}); g.focus.set(1.6, .3, 2.0); k.view.mode = 'follow';
     k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
     k.step(1 / 20, 4);
     k.kitchen.startVacuum(k.brain.actStart);
@@ -368,7 +369,7 @@ if (want('kitchen') || want('kitchen-clips')) {
     if (st.n === 30) await p.evaluate(() => { kitten.vacuumRide(); window.phase = 'ride'; });
     if (phase === 'ride') {
       const b = await p.evaluate(() => ({perch: kitten.brain.perch, jump: !!kitten.brain.jump, out: kitten.kitchen.vac.state !== 'docked'}));
-      if (b.perch === 'vacuum') { st.rode ??= st.n; if (st.n - st.rode === st.FPS * 11) await p.evaluate(() => { kitten.brain.perchUntil = 0; }); }
+      if (b.perch === 'vacuum') { st.rode ??= st.n; if (st.n - st.rode === st.FPS * 11) await p.evaluate(() => { kitten.jumpDown(() => kitten.setActivity('sit')); }); }
       // Off again (and it's still out): now she goes for it.
       else if (st.rode && !b.jump && b.out) await p.evaluate(() => { kitten.setActivity('sit'); kitten.vacuumAttack(); window.phase = 'attack'; });
     }
