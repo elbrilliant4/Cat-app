@@ -29,7 +29,13 @@ const K = {
 };
 // Where she may walk: the open floor, keeping clear of the island.
 const FLOOR = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
-const KEEP_OUT = {x0: K.island.x0 - .5, x1: K.island.x1 + .5, z0: K.island.z0 - .5, z1: K.island.z1 + .5};
+// The island and its stools, kept clear (the stools stand in front of it).
+const KEEP_OUT = {x0: K.island.x0 - .45, x1: K.island.x1 + .45, z0: K.island.z0 - .45, z1: K.island.z1 + 1.05};
+// Round things on the floor she walks round: the fountain, her bowl, the
+// tent (in and out by its doorway only) and the robot vacuum.
+const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .6}, {x: 4.55, z: 2.6, r: .5}, TENT, {x: 3.15, z: -2.0, r: .6}];
+const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.cos(K.tent.ry) * 1.95);
 
 export class Kitchen {
   constructor(scene, room) {
@@ -350,7 +356,7 @@ export class Kitchen {
     // Upper shelf: landing room at the left; a trailing plant, the pears, the
     // cobalt vessel, plates, cups, books and another plant.
     const p1 = this.mesh(lathe([[0, 0], [.13, 0], [.16, .22], [0, .22]], 18), M.cream, this.group); p1.position.set(-3.25, S2, z);
-    this.room.ivy(this.group, new THREE.Vector3(-3.25, S2 + .2, z), 10, .9, false, M.leaf);
+    this.drapeIvy(V(-3.25, S2 + .2, z), 10, 1.0, z + K.shelfD / 2);
     frame(-2.45, S2, z + .1, .55, 'shelf-pears.jpg');
     const vessel = this.mesh(lathe([[0, 0], [.14, 0], [.28, .18], [.3, .34], [.2, .5], [.12, .56], [.13, .6], [0, .6]], 28), M.cobalt, this.group);
     vessel.position.set(-1.6, S2, z);
@@ -359,7 +365,36 @@ export class Kitchen {
     const bookColors = ['#6b4a2e', '#cdbb98', '#3c4a3a', '#8a6a46', '#e3d8c3'];
     bookColors.forEach((c, i) => this.box(.08, .45 + (i % 3) * .05, .38, 1.4 + i * .09, S2 + .23 + (i % 3) * .025, z, new THREE.MeshStandardMaterial({color: c, roughness: .8})));
     const p2 = this.mesh(lathe([[0, 0], [.15, 0], [.18, .26], [0, .26]], 18), M.clay, this.group); p2.position.set(2.75, S2, z);
-    this.room.ivy(this.group, new THREE.Vector3(2.75, S2 + .24, z), 11, 1.1, false, M.leaf);
+    this.drapeIvy(V(2.75, S2 + .24, z), 11, 1.2, z + K.shelfD / 2);
+  }
+
+  // Trailing ivy from a pot on a shelf: the vines spill forward out of the
+  // pot, over the shelf's front edge, and hang down in front of it.
+  drapeIvy(at, vines, length, edgeZ) {
+    const r = rng(83 + vines), per = 18, leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.16, .16), this.materials.leaf, vines * per);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3();
+    let n = 0;
+    for (let v = 0; v < vines; v++) {
+      const side = (v / (vines - 1) - .5) * .7 + (r() - .5) * .12, len = length * (.55 + r() * .55), over = edgeZ + .05 + r() * .06;
+      for (let k = 0; k < per; k++) {
+        const t = k / (per - 1);
+        if (t < .28) {
+          // Out of the pot and across to the edge, arching a little.
+          const u = t / .28;
+          p.set(at.x + side * u * .8, at.y + Math.sin(u * Math.PI) * .06 - u * .1, at.z + (over - at.z) * u);
+        } else {
+          // Down over the edge, swaying a touch.
+          const u = (t - .28) / .72;
+          p.set(at.x + side * .8 + Math.sin(u * 5 + v) * .05, at.y - .1 - u * len, over + Math.sin(u * 4 + v * 2) * .04 + u * .03);
+        }
+        q.setFromEuler(e.set(r() * 1.4 - .7, r() * 6.3, r() * 6.3));
+        m4.compose(p, q, new THREE.Vector3(1, 1, 1).multiplyScalar(.65 + r() * .5 - t * .25));
+        leaves.setMatrixAt(n++, m4);
+      }
+    }
+    leaves.count = n;
+    leaves.castShadow = true;
+    this.group.add(leaves);
   }
 
   // Her cups on the lower shelf. A pat slides one toward the front edge with
@@ -517,7 +552,7 @@ export class Kitchen {
     const M = this.materials, T = K.tent, g = new THREE.Group();
     g.position.set(T.x, 0, T.z); g.rotation.y = T.ry; this.group.add(g);
     this.bed = g;
-    const W = 1.0, D = .95, H = 1.75;
+    const W = 1.3, D = 1.0, H = 1.95;
     for (const z of [-D, D]) for (const s of [-1, 1]) {
       const a = V(s * (W + .05), 0, z), b = V(-s * .1, H + .1, z), v = new THREE.Vector3().subVectors(b, a);
       const p = this.mesh(new THREE.CylinderGeometry(.03, .03, v.length(), 8), M.walnut, g);
@@ -545,15 +580,18 @@ export class Kitchen {
     piece([-W, 0, -D, W, 0, -D, 0, H, -D], [0, 0, 1, 0, .5, 1], V(0, 0, -1));
     // At the front, two flaps tied back round an arched doorway.
     for (const s of [-1, 1]) {
-      const pts = [[W + .02, 0], [.52, 0]];
-      for (let i = 1; i <= 8; i++) { const t = i / 8, u = 1 - t; pts.push([u * u * .52 + 2 * u * t * .3 + t * t * .34, 2 * u * t * .5 + t * t * 1.13]); }
+      // Each flap runs up its front pole to where it's tied back, so its
+      // outer edge follows the pole; the inner edge curves round the doorway.
+      const poleX = y => (W + .05) - (W + .15) * y / (H + .1), tieY = 1.3, tieX = poleX(tieY) - .02;
+      const pts = [[poleX(0) - .03, 0], [.55, 0]];
+      for (let i = 1; i <= 8; i++) { const t = i / 8, u = 1 - t; pts.push([u * u * .55 + 2 * u * t * .3 + t * t * tieX, 2 * u * t * .55 + t * t * tieY]); }
       const verts = [], uvs = [];
       for (const [x, y] of pts) { verts.push(s * x, y, D + .01); uvs.push(x / W, y / H); }
       piece(verts, uvs, V(0, 0, 1));
     }
-    this.mesh(roundedBox(1.85, .16, 1.85, .07), M.olive, g).position.y = .08;
+    this.mesh(roundedBox(2.3, .16, 1.95, .07), M.olive, g).position.y = .08;
     this.bedTop = .16;
-    this.bedRadius = .75;
+    this.bedRadius = .9;
   }
 
   // A round robot vacuum, parked on its discreet dock by the counter.
@@ -623,10 +661,12 @@ export class Kitchen {
       },
       perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]]],
       // In the tent she lies along it, facing out of the open front.
-      sleepHeading: 3.25, // curled up inside, her face toward the room (chosen from renders)
+      sleepHeading: 3.65, // curled up inside, her face at the doorway (chosen from renders)
+      // Awake in the tent she faces out of the doorway (where it's tallest).
+      bedFace: K.tent.ry,
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},
       camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 26]}, // open to the front: the living area will be there
-      camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.1, 1.8]],
+      camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.4, 2.0]],
       // Tops the camera mustn't sink into (it would see through them): over
       // the island or the back counter it stays a little above the surface.
       camBlocks: [[K.island.x0 - .3, K.island.x1 + .3, K.island.z0 - .3, K.island.z1 + .3, K.island.top + .35], [K.left, K.right, K.back, K.counterFront + .3, K.counter + .35]],
@@ -661,6 +701,10 @@ export class Kitchen {
       v.x += opts[0][0] * 1.02; v.z += opts[0][1] * 1.02;
       if (v.z < FLOOR.z0) v.z = R.z1 + .05;
     }
+    for (const c of OBSTACLES) {
+      const dx = v.x - c.x, dz = v.z - c.z, d = Math.hypot(dx, dz);
+      if (d < c.r) { const k = (c.r + .05) / Math.max(d, 1e-3); v.x = c.x + (d < 1e-3 ? c.r + .05 : dx * k); v.z = c.z + (d < 1e-3 ? 0 : dz * k); }
+    }
     return v;
   }
   randomFloorPoint() {
@@ -668,25 +712,46 @@ export class Kitchen {
     for (let i = 0; i < 30; i++) {
       const v = V(-4.8 + Math.random() * 10.4, 0, -2.1 + Math.random() * 6.2);
       if (v.x > KEEP_OUT.x0 && v.x < KEEP_OUT.x1 && v.z > KEEP_OUT.z0 && v.z < KEEP_OUT.z1) continue;
-      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || Math.hypot(v.x - 3.0, v.z - 1.55) < .95 || Math.hypot(v.x - 4.55, v.z - 2.6) < .8) continue;
+      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || OBSTACLES.some(c => Math.hypot(v.x - c.x, v.z - c.z) < c.r + .3)) continue;
       return v;
     }
     return V(-1, 0, 3.1);
   }
+  // A walk round everything in the way: the shortest path through a few
+  // points just clear of the island's corners and round each obstacle.
+  // Into the tent only through its doorway; out the same way. A spot right
+  // beside something (her bowl, the fountain) is fine to walk up to.
   route(from, to) {
-    const R = KEEP_OUT;
-    if (!segmentHitsRect(from, to, R)) return [to];
-    const m = .2, c = [V(R.x0 - m, 0, R.z0 - m), V(R.x1 + m, 0, R.z0 - m), V(R.x1 + m, 0, R.z1 + m), V(R.x0 - m, 0, R.z1 + m)].map(p => this.clampFloor(p));
-    const len = pts => pts.reduce((s, p, i) => s + (i ? p.distanceTo(pts[i - 1]) : p.distanceTo(from)), 0);
-    let best = null;
-    for (let i = 0; i < 4; i++) {
-      if (!segmentHitsRect(from, c[i], R) && !segmentHitsRect(c[i], to, R)) { const p = [c[i], to]; if (!best || len(p) < len(best)) best = p; }
-      for (const j of [(i + 1) % 4, (i + 3) % 4]) {
-        if (!segmentHitsRect(from, c[i], R) && !segmentHitsRect(c[j], to, R)) { const p = [c[i], c[j], to]; if (!best || len(p) < len(best)) best = p; }
+    const inside = (p, c) => Math.hypot(p.x - c.x, p.z - c.z) < c.r;
+    let A = from, B = to;
+    const pre = [], post = [];
+    if (inside(to, TENT)) { B = TENT_DOOR; post.push(to); }
+    if (inside(from, TENT)) { A = TENT_DOOR; pre.push(TENT_DOOR); }
+    const circles = OBSTACLES.filter(c => !inside(A, c) && !inside(B, c));
+    const R = KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
+    const clear = (p, q) => (!rectOn || !segmentHitsRect(p, q, R)) && circles.every(c => segmentDistance(c, p, q) >= c.r - 1e-3);
+    let path = [B];
+    if (!clear(A, B)) {
+      const m = .2, nodes = [A, B];
+      if (rectOn) nodes.push(V(R.x0 - m, 0, R.z0 - m), V(R.x1 + m, 0, R.z0 - m), V(R.x1 + m, 0, R.z1 + m), V(R.x0 - m, 0, R.z1 + m));
+      for (const c of circles) for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; nodes.push(V(c.x + Math.cos(a) * (c.r + m), 0, c.z + Math.sin(a) * (c.r + m))); }
+      const ok = nodes.filter((p, i) => i < 2 || (p.x > FLOOR.x0 - .4 && p.x < FLOOR.x1 + .4 && p.z > FLOOR.z0 - .4 && p.z < FLOOR.z1 + .6 && !circles.some(c => inside(p, c)) && !(rectOn && p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1)));
+      // Dijkstra over the points that can see each other.
+      const dist = ok.map((_, i) => i ? Infinity : 0), prev = ok.map(() => -1), done = ok.map(() => false);
+      for (;;) {
+        let u = -1;
+        for (let i = 0; i < ok.length; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+        if (u < 0 || u === 1) break;
+        done[u] = true;
+        for (let v = 0; v < ok.length; v++) if (!done[v]) { const d = dist[u] + ok[u].distanceTo(ok[v]); if (d < dist[v] && clear(ok[u], ok[v])) { dist[v] = d; prev[v] = u; } }
       }
+      if (dist[1] < Infinity) { path = []; for (let i = 1; i > 0; i = prev[i]) path.unshift(ok[i]); }
     }
-    return best || [to];
+    // (Skip any point she's already standing on.)
+    const pts = [...pre, ...path, ...post].filter((p, i, all) => !(i && p.distanceTo(all[i - 1]) < .05));
+    return pts.filter((p, i) => i === pts.length - 1 || p.distanceTo(from) > .15).map(p => p.clone());
   }
+
 
   // Where the room's lamp light hangs (the study's lamp light moves here).
   activate(lamp) { lamp.position.copy(this.lampSpot); }
@@ -717,6 +782,12 @@ export class Kitchen {
 }
 
 // Does the segment a-b (on the floor) cross the rectangle R?
+// Distance in plan from a circle's centre to a segment.
+function segmentDistance(c, a, b) {
+  const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz;
+  const t = l2 ? Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.z - a.z) * dz) / l2)) : 0;
+  return Math.hypot(a.x + dx * t - c.x, a.z + dz * t - c.z);
+}
 function segmentHitsRect(a, b, R) {
   let t0 = 0, t1 = 1;
   const dx = b.x - a.x, dz = b.z - a.z;

@@ -665,7 +665,9 @@ function updateCat(dt, t) {
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
   // In the kitchen's tent she lies along it, facing out of the front.
   const SH = place.layoutCache.sleepHeading;
-  if (desiredHeading === null && SH != null && (a === 'sleep' || a === 'catnap') && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius) desiredHeading = SH;
+  const inBed = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius;
+  if (desiredHeading === null && SH != null && (a === 'sleep' || a === 'catnap') && inBed) desiredHeading = SH;
+  if (desiredHeading === null && place.layoutCache.bedFace != null && ['sit', 'loaf', 'groom', 'beg'].includes(a) && inBed && !brain.perch) desiredHeading = place.layoutCache.bedFace;
   if (desiredHeading === null && (['belly', 'sleep', 'catnap'].includes(a) || brain.mode === 'brush')) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : -.5);
   else if (desiredHeading === null && ['sit', 'loaf', 'beg'].includes(a)) {
     // Settled: the body only turns once the head has been turned well round
