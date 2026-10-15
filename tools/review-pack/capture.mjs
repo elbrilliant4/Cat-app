@@ -274,21 +274,11 @@ if (study) {
   await p.close();
 }
 
-// The clips take longest, so they come after the stills.
-if (stage) {
-  await stage.setViewportSize({width: 960, height: 540});
-  await stage.waitForTimeout(500);
-  await stage.evaluate(() => window.walkAt(0));
-  await clip(stage, 'walk', 'walkAt', 5);
-  log('walk');
-  await stage.close();
-  writePage();
-}
-
 // Mochi's climb in the kitchen, at true speed: the app is stepped one frame
 // at a time (?frames), so the clip plays at real pace however slowly this
 // renderer draws. Floor, wall step, counter, lower shelf, upper shelf; a
-// pause; and back down the same way.
+// pause; and back down the same way. It comes straight after the stills:
+// it's what the kitchen review needs, and the slowest thing in the pack.
 if (want('kitchen')) {
   log('kitchen-climb');
   const FPS = 20, p = await kitchenPage({width: 720, height: 480}, '&frames');
@@ -302,12 +292,13 @@ if (want('kitchen')) {
     window.phase = 'up';
     k.jumpTo('shelfHigh', () => { k.setActivity('sit'); k.brain.perchUntil = 1e9; window.phase = 'top'; });
   });
-  const box = await p.locator('#scene').boundingBox();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'climb'));
   let n = 0, hold = 0;
   for (; n < FPS * 45; n++) {
-    const phase = await p.evaluate(dt => { kitten.step(dt); return window.phase; }, 1 / FPS);
-    await p.screenshot({path: path.join(dir, String(n).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 88, clip: box});
+    // Read the frame straight off the canvas, in the same task that drew it
+    // (a third quicker than a page screenshot on this renderer).
+    const {phase, jpg} = await p.evaluate(dt => { kitten.step(dt); return {phase: window.phase, jpg: document.querySelector('#scene canvas').toDataURL('image/jpeg', .88)}; }, 1 / FPS);
+    fs.writeFileSync(path.join(dir, String(n).padStart(4, '0') + '.jpg'), Buffer.from(jpg.slice(jpg.indexOf(',') + 1), 'base64'));
     if (phase === 'top' && ++hold > FPS * 1.5) {
       hold = 0;
       await p.evaluate(() => { const k = kitten; window.phase = 'descending'; const down = () => { if (!k.brain.perch) { window.phase = 'down'; return; } k.jumpDown(down); }; down(); });
@@ -315,12 +306,23 @@ if (want('kitchen')) {
     if (phase === 'down' && ++hold > FPS * 1.2) break;
   }
   try {
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, '%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', path.join(out, 'kitchen-climb.mp4')]);
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-framerate', String(FPS), '-i', path.join(dir, '%04d.jpg'), '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', path.join(out, 'kitchen-climb.mp4')]);
     made.push('kitchen-climb.mp4');
   } catch (e) { errors.push(`kitchen-climb.mp4: ffmpeg failed (${e.message.split('\n')[0]})`); }
   fs.rmSync(dir, {recursive: true, force: true});
   log('kitchen-climb', n, 'frames');
   await p.close();
+  writePage();
+}
+
+// The clips take longest, so they come after the stills.
+if (stage) {
+  await stage.setViewportSize({width: 960, height: 540});
+  await stage.waitForTimeout(500);
+  await stage.evaluate(() => window.walkAt(0));
+  await clip(stage, 'walk', 'walkAt', 5);
+  log('walk');
+  await stage.close();
   writePage();
 }
 
