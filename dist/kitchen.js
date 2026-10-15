@@ -34,7 +34,10 @@ const KEEP_OUT = {x0: K.island.x0 - .45, x1: K.island.x1 + .45, z0: K.island.z0 
 // Round things on the floor she walks round: the fountain, her bowl, the
 // tent (in and out by its doorway only) and the robot vacuum.
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .6}, {x: 4.55, z: 2.6, r: .5}, TENT, {x: 3.15, z: -2.0, r: .6}];
+// (The vacuum's moves with it.)
+const VAC = {x: 3.15, z: -2.0, r: .6};
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .6}, {x: 4.55, z: 2.6, r: .5}, TENT, VAC];
+const VAC_HOME = V(3.15, 0, -2.0);
 const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.cos(K.tent.ry) * 1.95);
 
 export class Kitchen {
@@ -368,6 +371,77 @@ export class Kitchen {
     this.drapeIvy(V(2.75, S2 + .24, z), 11, 1.2, z + K.shelfD / 2);
   }
 
+  // The robot vacuum. Now and then (or when tapped) it sets off from its
+  // dock on a little tour of the floor, round the furniture, and goes home.
+  // If it runs into her it stops, backs off a touch and turns away; a swat
+  // sends it spinning; with her aboard it goes a little slower.
+  startVacuum(t) {
+    const v = this.vac;
+    if (v.state !== 'docked') return false;
+    Object.assign(v, {state: 'out', stops: 3 + Math.floor(Math.random() * 3), goal: null, path: null, wait: t + 1.2, spin: null, back: 0});
+    this.vacuumButton.material.emissive.set('#6fb2ff');
+    return true;
+  }
+  hitVacuum(t, from) {
+    const v = this.vac;
+    if (v.state === 'docked') return;
+    v.spin = {start: t, dir: Math.random() < .5 ? -1 : 1, from: v.heading};
+    // A little shove away from her paw.
+    const p = this.vacuum.position, dx = p.x - from.x, dz = p.z - from.z, d = Math.max(.01, Math.hypot(dx, dz));
+    v.shove = {x: dx / d * .35, z: dz / d * .35, start: t};
+    v.path = null;
+  }
+  updateVacuum(dt, t, night, cat) {
+    const v = this.vac, g = this.vacuum, p = g.position;
+    VAC.x = p.x; VAC.z = p.z;
+    if (v.state === 'docked') return;
+    if (night && v.state === 'out') { v.state = 'home'; v.path = null; }
+    // Spinning off after a swat (and pushed a little way).
+    if (v.spin) {
+      const k = (t - v.spin.start) / 1.1;
+      v.heading = v.spin.from + v.spin.dir * Math.PI * 2.5 * Math.sin(Math.min(1, k) * Math.PI / 2);
+      if (v.shove && t - v.shove.start < .4) { p.x += v.shove.x * dt / .4; p.z += v.shove.z * dt / .4; this.clampFloor(p); }
+      g.rotation.y = v.heading;
+      if (k >= 1) { v.spin = null; v.wait = t + .6; }
+      return;
+    }
+    // Bumped into her (not with her aboard): stop, back off, turn away.
+    if (cat && !v.rider && cat.elevation < .1 && t - v.bumped > 2.5 && Math.hypot(cat.pos.x - p.x, cat.pos.z - p.z) < .8) {
+      v.bumped = t; v.back = t + .5; v.wait = t + 1.4; v.path = null;
+      v.turnTo = v.heading + (Math.random() < .5 ? -1 : 1) * (1.8 + Math.random());
+    }
+    if (t < v.back) { p.x -= Math.sin(v.heading) * .22 * dt; p.z -= Math.cos(v.heading) * .22 * dt; this.clampFloor(p); return; }
+    if (v.turnTo != null) {
+      const d = Math.atan2(Math.sin(v.turnTo - v.heading), Math.cos(v.turnTo - v.heading));
+      v.heading += Math.sign(d) * Math.min(Math.abs(d), 2.4 * dt); g.rotation.y = v.heading;
+      if (Math.abs(d) < .05) v.turnTo = null;
+      return;
+    }
+    if (t < v.wait) return;
+    // Where to next: a few spots round the floor, then home.
+    if (!v.goal) {
+      if (v.state === 'out' && v.stops-- > 0) v.goal = this.randomFloorPoint();
+      else { v.state = 'home'; v.goal = VAC_HOME.clone(); }
+      v.path = null;
+    }
+    if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal); VAC.r = r; }
+    const next = v.path[0], dx = next.x - p.x, dz = next.z - p.z, dist = Math.hypot(dx, dz);
+    if (dist < .08) {
+      v.path.shift();
+      if (!v.path.length) {
+        v.path = null;
+        if (v.state === 'home') { v.state = 'docked'; v.goal = null; v.heading = Math.PI; g.rotation.y = v.heading; this.vacuumButton.material.emissive.set('#5fd38a'); return; }
+        v.goal = null; v.wait = t + .6 + Math.random();
+      }
+      return;
+    }
+    const want = Math.atan2(dx, dz), d = Math.atan2(Math.sin(want - v.heading), Math.cos(want - v.heading));
+    v.heading += Math.sign(d) * Math.min(Math.abs(d), 2.2 * dt);
+    g.rotation.y = v.heading;
+    if (Math.abs(d) < .35) { const sp = Math.min(dist, (v.rider ? .38 : .55) * dt); p.x += Math.sin(v.heading) * sp; p.z += Math.cos(v.heading) * sp; }
+  }
+  get vacuumNearHome() { return this.vacuum.position.distanceTo(VAC_HOME) < 1.3; }
+
   // Trailing ivy from a pot on a shelf: the vines spill forward out of the
   // pot, over the shelf's front edge, and hang down in front of it.
   drapeIvy(at, vines, length, edgeZ) {
@@ -596,7 +670,7 @@ export class Kitchen {
 
   // A round robot vacuum, parked on its discreet dock by the counter.
   buildVacuum() {
-    const g = new THREE.Group(); g.position.set(3.15, 0, -2.0); this.group.add(g);
+    const g = new THREE.Group(); g.position.set(3.15, 0, -2.0); g.rotation.y = Math.PI; this.group.add(g);
     const white = new THREE.MeshStandardMaterial({color: '#ecebe6', roughness: .35});
     const dark = new THREE.MeshStandardMaterial({color: '#2a2a2a', roughness: .4});
     this.mesh(new THREE.CylinderGeometry(.42, .42, .1, 32), white, g).position.y = .07;
@@ -605,6 +679,7 @@ export class Kitchen {
     this.vacuumButton = this.mesh(new THREE.CylinderGeometry(.05, .05, .03, 16), new THREE.MeshStandardMaterial({color: '#3b3b3b', emissive: '#5fd38a', emissiveIntensity: .4}), g);
     this.vacuumButton.position.set(0, .13, .15);
     this.vacuum = this.prop(g);
+    this.vac = {state: 'docked', heading: Math.PI, goal: null, path: null, wait: 0, stops: 0, rider: false, spin: null, back: 0, bumped: -99};
     const dock = new THREE.Group(); dock.position.set(3.15, 0, -2.62); this.group.add(dock);
     this.mesh(roundedBox(.62, .34, .2, .05), dark, dock).position.y = .17;
     this.mesh(new THREE.BoxGeometry(.08, .03, .01), new THREE.MeshBasicMaterial({color: '#7be0a0'}), dock).position.set(0, .28, .105);
@@ -640,7 +715,7 @@ export class Kitchen {
 
   // Everything the app needs to know about the room's layout.
   layout() {
-    const t = this.bed;
+    const t = this.bed, kitchen = this;
     t.updateMatrixWorld(true);
     const at = (x, z) => V(x, 0, z);
     return {
@@ -658,8 +733,10 @@ export class Kitchen {
         shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'stepMid', face: 0},
         stepTop: {spot: at(-5.6, -3.87), top: this.stepTops[2], via: 'shelf', face: 0},
         shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0},
+        // Riding the robot vacuum: wherever it is; off to one side of it.
+        vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() { return kitchen.clampFloor(kitchen.vacuum.position.clone().add(V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8))); }},
       },
-      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]]],
+      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum]],
       // In the tent she lies along it, facing out of the open front.
       sleepHeading: 3.65, // curled up inside, her face at the doorway (chosen from renders)
       // Awake in the tent she faces out of the doorway (where it's tallest).
@@ -756,7 +833,8 @@ export class Kitchen {
   // Where the room's lamp light hangs (the study's lamp light moves here).
   activate(lamp) { lamp.position.copy(this.lampSpot); }
 
-  update(dt, t, night, {camera = null, lamp = null} = {}) {
+  update(dt, t, night, {camera = null, lamp = null, cat = null} = {}) {
+    this.updateVacuum(dt, t, night, cat);
     if (camera) for (const w of this.walls) {
       const n = V(0, 0, 1).applyQuaternion(w.quaternion);
       w.visible = V(0, 0, 0).subVectors(camera.position, w.position).dot(n) > -.05;

@@ -9,7 +9,7 @@
 //                                     to the top shelf and down, the lowest
 //                                     steps from the side, and a cup she pats off
 // REVIEW_ONLY=kitchen (or study, or kitchen-clips) renders just that part;
-// CLIP_ONLY=climb,steps,cup picks among the kitchen clips.
+// CLIP_ONLY=climb,steps,cup picks among the kitchen clips (vacuum: on request).
 //   room-day.png, room-night.png      the room on a phone, day and evening
 //   room-desktop.png                  the room on a wide screen
 //   meow-*.wav, purr-*.wav            isolated sounds (and each recorded clip)
@@ -350,6 +350,26 @@ if (want('kitchen') || want('kitchen-clips')) {
     k.tapCups(4);
     window.clipPhase = () => cup.userData.fall?.landed ? 'landed' : 'tapping';
   }, async (p, phase, st) => phase === 'landed' && ++st.hold > st.FPS * 4.5, 24);
+  // The robot vacuum on a run: she rides it a while, then (once she's off)
+  // stalks and pounces on it. Only when asked for (CLIP_ONLY=vacuum): the
+  // pack's time budget is already full.
+  if (clipOnly.includes('vacuum')) await steppedClip('kitchen-vacuum.mp4', () => {
+    const k = kitten;
+    document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
+    Object.assign(k.brain, {nextVacuum: 1e9, vacReactAt: 1e9});
+    k.brain.pos.set(1.2, 0, 3.4); k.setActivity('sit');
+    const g = k.view.goal; Object.assign(g, {yaw: 0, pitch: .55, dist: 11}); g.focus.set(2.4, .3, .6); k.view.mode = 'free';
+    k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
+    k.step(1 / 20, 4);
+    k.kitchen.startVacuum(k.brain.actStart);
+    window.phase = 'start';
+  }, async (p, phase, st) => {
+    st.n = (st.n || 0) + 1;
+    if (st.n === 40) await p.evaluate(() => { kitten.vacuumRide(); window.phase = 'ride'; });
+    if (phase === 'ride' && st.n > 60) { const off = await p.evaluate(() => !kitten.brain.perch && !kitten.brain.jump && kitten.kitchen.vac.state !== 'docked'); if (off) await p.evaluate(() => { kitten.vacuumAttack(); window.phase = 'attack'; }); }
+    if (phase === 'ride' && st.n === 460) await p.evaluate(() => { kitten.brain.perchUntil = 0; });
+    return phase === 'attack' && ++st.hold > st.FPS * 7;
+  }, 45);
 }
 
 // The clips take longest, so they come after the stills.
