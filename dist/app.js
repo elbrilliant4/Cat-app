@@ -621,6 +621,9 @@ function updateCat(dt, t) {
   if (a === 'swat' && brain.swatAt) desiredHeading = angleTo(brain.pos, brain.swatAt);
   // On a perch she keeps to the way it faces (it's narrow up there).
   if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
+  // In the kitchen's tent she lies along it, facing out of the front.
+  const SH = place.layoutCache.sleepHeading;
+  if (desiredHeading === null && SH != null && (a === 'sleep' || a === 'catnap') && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius) desiredHeading = SH;
   if (desiredHeading === null && (['belly', 'sleep', 'catnap'].includes(a) || brain.mode === 'brush')) desiredHeading = angleTo(brain.pos, camera.position) + (a === 'belly' ? -1.2 : brain.mode === 'brush' ? -1.1 : -.5);
   else if (desiredHeading === null && ['sit', 'loaf', 'beg'].includes(a)) {
     // Settled: the body only turns once the head has been turned well round
@@ -927,13 +930,14 @@ function knockBook() {
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
   room.batsOn = false;
-  // (Birds and bats visit the study's window only, for now.)
-  if (place !== room) { brain.watching = false; host.classList.remove('bird'); return; }
+  // The bird visits the window of whichever room she's in (the study's or
+  // the kitchen's garden doors); Halloween's bats are the study's.
+  const win = place;
   if (pet.sleeping || !ready) {
     brain.watching = false;
     // Halloween evenings: bats swoop outside the window; now and then she
     // stirs and an ear flicks.
-    room.batsOn = ready && room.decor === 'halloween' && pet.sleeping;
+    room.batsOn = ready && place === room && room.decor === 'halloween' && pet.sleeping;
     if (room.batsOn && t > (brain.nextBatTwitch ??= t + 8)) { brain.nextBatTwitch = t + rand(10, 25); twitchEar(undefined, .7); }
     host.classList.remove('bird');
     return;
@@ -942,14 +946,15 @@ function watchBirds(t) {
   // The bird is a regular: it comes by about once a minute while she's up
   // and about (whatever the decor), and keeps coming back while she sits at
   // the window. If she's busy on another perch it waits a little.
-  if (!room.birdRun && t > brain.nextBird) {
-    if (brain.mode === 'idle' && (onSill || !brain.perch)) {
-      const d = room.startBird(t);
+  if (!win.birdRun && t > brain.nextBird) {
+    // (In the kitchen she can see the doors from her perches too.)
+    if (brain.mode === 'idle' && (onSill || !brain.perch || place !== room)) {
+      const d = win.startBird(t);
       brain.birdSeen = false;
       brain.nextBird = t + d + (onSill ? rand(5, 12) : rand(22, 40));
     } else brain.nextBird = t + rand(6, 12);
   }
-  const at = room.birdWorld(tmpV3);
+  const at = win.birdWorld(tmpV3);
   host.classList.toggle('bird', !!at);
   // Once the bird has gone, a cat at the window with all that excitement and
   // nowhere to put it may well take it out on the top book.
@@ -971,7 +976,13 @@ function watchBirds(t) {
     setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 600);
     if (Math.random() < .6) setTimeout(() => { if (brain.watching) meow('chirp', 'idle'); }, 1700);
     // From the floor: sometimes she goes up for a better look.
-    if (!onSill && Math.random() < .4) setTimeout(() => { if (brain.mode === 'idle' && !brain.perch && !pet.sleeping) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50)); }, 1500);
+    // (In the kitchen, she trots over to the garden doors.)
+    const spot = place.layoutCache.windowSpot;
+    if (!onSill && Math.random() < .4) setTimeout(() => {
+      if (brain.mode !== 'idle' || brain.perch || pet.sleeping) return;
+      if (PERCHES.sill) jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, rand(30, 50));
+      else if (spot) walkTo(spot, () => { setActivity('sit'); brain.nextBird = clockNow + rand(3, 8); }, false, true);
+    }, 1500);
   }
 }
 
@@ -1633,7 +1644,7 @@ function goTo(id) {
   usePlace(target);
   brain.pos.copy(pet.sleeping ? CUSHION_SPOT : HOME);
   brain.elevation = pet.sleeping ? place.bedTop : 0;
-  brain.heading = pet.sleeping ? .6 : 0;
+  brain.heading = pet.sleeping ? place.layoutCache.sleepHeading ?? .6 : 0;
   setActivity(pet.sleeping ? 'sleep' : 'sit');
   toy.position.copy(TOY_HOME); toyTarget.copy(TOY_HOME);
   CAMERA_VIEWS.room();

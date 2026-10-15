@@ -13,7 +13,7 @@
 // as separate objects with their home positions, apart from the room itself.
 // Same scale as the study: about 2.4 scene units per metre.
 import * as THREE from 'three';
-import {rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
+import {Room, rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
 
 const {damp} = THREE.MathUtils;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -44,6 +44,10 @@ export class Kitchen {
     this.props = {cups: [], plates: [], glasses: []};
     this.build();
   }
+
+  // The bird: the same visitor as in the study's window.
+  startBird(t, kind) { return Room.prototype.startBird.call(this, t, kind); }
+  birdWorld(v) { return Room.prototype.birdWorld.call(this, v); }
 
   mesh(geo, material, parent = this.group, {cast = true, receive = true} = {}) {
     const m = new THREE.Mesh(geo, material);
@@ -121,16 +125,16 @@ export class Kitchen {
     wall(K.right - d1, H, (d1 + K.right) / 2, H / 2, K.back, 0);
     wall(14, H, K.right, H / 2, 2.8, -Math.PI / 2);
     // The window wall: plaster round the tall window.
-    const wz0 = -3.3, wz1 = 2.7, wy0 = .2, wy1 = 7.4;
+    const wz0 = -3.7, wz1 = 3.9, wy0 = 0, wy1 = 8.0;
     wall(wz0 - K.back, H, K.left, H / 2, (K.back + wz0) / 2, Math.PI / 2);
     wall(11.5 - wz1, H, K.left, H / 2, (wz1 + 11.5) / 2, Math.PI / 2);
     wall(wz1 - wz0, H - wy1, K.left, (H + wy1) / 2, (wz0 + wz1) / 2, Math.PI / 2);
-    wall(wz1 - wz0, wy0, K.left, wy0 / 2, (wz0 + wz1) / 2, Math.PI / 2);
     this.windowRect = {z0: wz0, z1: wz1, y0: wy0, y1: wy1};
     // Deep plaster reveals round the opening.
     const T = .45;
-    for (const x of [d0, d1]) { const r = this.mesh(new THREE.PlaneGeometry(T, K.doorTop), M.plaster, this.group, {cast: false}); r.position.set(x, K.doorTop / 2, K.back - T / 2); r.rotation.y = x === d0 ? Math.PI / 2 : -Math.PI / 2; }
-    const soffit = this.mesh(new THREE.PlaneGeometry(d1 - d0, T), M.plaster, this.group, {cast: false});
+    const reveal = M.plaster.clone(); reveal.color.set('#d9cab2');
+    for (const x of [d0, d1]) { const r = this.mesh(new THREE.PlaneGeometry(T, K.doorTop), reveal, this.group, {cast: false}); r.position.set(x, K.doorTop / 2, K.back - T / 2); r.rotation.y = x === d0 ? Math.PI / 2 : -Math.PI / 2; }
+    const soffit = this.mesh(new THREE.PlaneGeometry(d1 - d0, T), reveal, this.group, {cast: false});
     soffit.position.set((d0 + d1) / 2, K.doorTop, K.back - T / 2); soffit.rotation.x = Math.PI / 2;
     // A slim limestone skirting.
     const skirt = new THREE.MeshStandardMaterial({color: '#d8ccb6', roughness: .6});
@@ -138,25 +142,40 @@ export class Kitchen {
     this.box(.04, .14, 14, K.right - .02, .07, 2.8, skirt, this.group, {cast: false});
   }
 
-  // Tall black steel windows onto an olive garden.
+  // Floor-to-ceiling black steel glazing with a pair of garden doors in the
+  // middle, onto a terrace with olive trees in pots and, beyond the dunes,
+  // the sea. The bird visits here too.
   buildWindows() {
     const M = this.materials, {z0, z1, y0, y1} = this.windowRect, x = K.left + .02;
-    this.view = {day: canvasTexture(512, 600, (g, w, h) => drawGarden(g, w, h, false)), night: canvasTexture(512, 600, (g, w, h) => drawGarden(g, w, h, true))};
+    this.view = {day: canvasTexture(600, 640, (g, w, h) => drawTerrace(g, w, h, false)), night: canvasTexture(600, 640, (g, w, h) => drawTerrace(g, w, h, true))};
     this.glass = this.mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), new THREE.MeshBasicMaterial({map: this.view.day, toneMapped: false}), this.group, {cast: false, receive: false});
     this.glass.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2); this.glass.rotation.y = Math.PI / 2;
-    const bar = (w, h, y, z, d = .12) => this.box(.12, h, w, x + .04, y, z, M.frame, this.group, {cast: false});
-    const zc = (z0 + z1) / 2, cy = (y0 + y1) / 2, H = y1 - y0;
-    // Outer frame, a central mullion, and slim glazing bars (three panes
-    // across each half, five up).
-    bar(.14, H + .14, cy, z0); bar(.14, H + .14, cy, z1); bar(.16, H + .14, cy, zc);
-    this.box(.14, .14, z1 - z0, x + .04, y1, zc, M.frame, this.group, {cast: false});
-    this.box(.14, .14, z1 - z0, x + .04, y0, zc, M.frame, this.group, {cast: false});
-    for (const [a, b] of [[z0, zc], [zc, z1]]) {
-      for (let i = 1; i < 3; i++) bar(.05, H, cy, a + (b - a) * i / 3);
-      for (let j = 1; j < 5; j++) this.box(.05, .05, b - a, x + .04, y0 + H * j / 5, (a + b) / 2, M.frame, this.group, {cast: false});
+    const zc = (z0 + z1) / 2, H = y1 - y0, T = 6.5;
+    const v = (w, y0b, y1b, z) => this.box(.12, y1b - y0b, w, x + .04, (y0b + y1b) / 2, z, M.frame, this.group, {cast: false});
+    const hz = (w, y, za, zb) => this.box(.12, w, zb - za, x + .04, y, (za + zb) / 2, M.frame, this.group, {cast: false});
+    // Four bays: fixed glass either side, two door leaves in the middle,
+    // under a transom.
+    const bay = (z1 - z0) / 4, a = z0 + bay, c = z1 - bay, b = zc;
+    for (const z of [z0, z1]) v(.16, y0, y1, z);
+    for (const z of [a, c]) v(.14, y0, y1, z);
+    v(.1, y0, T, b);
+    hz(.16, y1, z0, z1); hz(.12, y0 + .06, z0, z1); hz(.14, T, z0, z1);
+    // Glazing bars: two columns in the side bays, one in each door leaf;
+    // four rows below the transom, and four panes above it.
+    for (const [za, zb, cols] of [[z0, a, 2], [a, b, 1], [b, c, 1], [c, z1, 2]]) {
+      for (let i = 1; i < cols; i++) v(.05, y0, T, za + (zb - za) * i / cols);
+      for (let j = 1; j < 4; j++) hz(.05, y0 + (T - y0) * j / 4, za, zb);
+      v(.05, T, y1, (za + zb) / 2);
     }
-    // A deep plaster sill inside.
-    this.box(.5, .08, z1 - z0 + .2, K.left + .25, y0 - .04, zc, M.plaster, this.group, {cast: false});
+    // Door handles: slim black levers at the meeting stiles.
+    for (const s of [-1, 1]) { const h = this.box(.06, .05, .28, x + .14, 3.0, b + s * .2, M.frame, this.group, {cast: false}); h.rotation.x = .1; }
+    // The bird's window: a frame of reference along the glass (x along it,
+    // y up, z into the room), as in the study.
+    const wg = new THREE.Group(); wg.position.set(x + .02, 0, zc); wg.rotation.y = Math.PI / 2; this.group.add(wg);
+    this.windowGroup = wg;
+    Room.prototype.buildBird.call(this, wg, z1 - z0 - 1.2, 2.0, 4.4);
+    // Perched on a glazing bar at about Mochi's eye level from the counter.
+    this.birdBox.mid = y0 + (T - y0) * 2 / 4 + .06;
   }
 
   // Through the opening: a glimpse of the living room (explorable later).
@@ -165,7 +184,12 @@ export class Kitchen {
     this.livingRoom = g;
     this.group.add(g);
     const L = {x0: K.door[0], x1: 12.5, z0: -11, z1: K.back - .45};
-    const wall = (w, h, x, y, z, ry) => { const m = this.mesh(new THREE.PlaneGeometry(w, h), M.plaster, g, {cast: false}); m.position.set(x, y, z); m.rotation.y = ry; return m; };
+    // A touch dimmer and warmer than the kitchen, so the opening reads as a
+    // room beyond, out of the window light.
+    const plaster = M.plaster.clone(); plaster.color.set('#cdbda4');
+    const wall = (w, h, x, y, z, ry) => { const m = this.mesh(new THREE.PlaneGeometry(w, h), plaster, g, {cast: false}); m.position.set(x, y, z); m.rotation.y = ry; return m; };
+    const dim = this.mesh(new THREE.PlaneGeometry(L.x1 - L.x0, L.z1 - L.z0 + .45), new THREE.MeshBasicMaterial({color: '#2a1d12', transparent: true, opacity: .2, depthWrite: false}), g, {cast: false, receive: false});
+    dim.rotation.x = -Math.PI / 2; dim.position.set((L.x0 + L.x1) / 2, .006, (L.z0 + L.z1 + .45) / 2);
     wall(L.x1 - L.x0, K.wallH, (L.x0 + L.x1) / 2, K.wallH / 2, L.z0, 0);
     wall(L.z1 - L.z0, K.wallH, L.x0, K.wallH / 2, (L.z0 + L.z1) / 2, Math.PI / 2);
     wall(L.z1 - L.z0, K.wallH, L.x1, K.wallH / 2, (L.z0 + L.z1) / 2, -Math.PI / 2);
@@ -267,10 +291,16 @@ export class Kitchen {
     this.mesh(lathe([[0, 0], [.13, 0], [.1, .05], [.03, .1], [.03, .55], [0, .55]], 16), M.brass, lampG);
     this.counterLamp = this.mesh(new THREE.SphereGeometry(.24, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), M.shade, lampG, {cast: false});
     this.counterLamp.position.y = .55;
-    // Her stepping perch: a walnut block on the wall left of the counter.
-    this.step = this.box(.62, .14, .66, -5.55, 1.08, zb + .33, M.walnut, this.group);
-    this.box(.08, .4, .5, -5.55, .85, zb + .27, M.walnutDark, this.group, {cast: false});
-    this.stepTop = 1.15;
+    // Her steps: floating walnut blocks on the wall at the left end, rising
+    // in a zig-zag with the counter and the shelves, so she can climb all
+    // the way up: floor, step, counter, step, lower shelf, step, top shelf.
+    this.steps = [1.15, 3.05, 4.85].map(top => {
+      const st = this.box(.62, .14, .66, -5.6, top - .07, zb + .33, M.walnut, this.group);
+      this.box(.06, .3, .5, -5.6, top - .29, zb + .27, M.walnutDark, this.group, {cast: false});
+      return st;
+    });
+    this.step = this.steps[0];
+    this.stepTops = [1.15, 3.05, 4.85];
   }
 
   // Two long brushed steel shelves, styled, with clear places to land.
@@ -437,7 +467,7 @@ export class Kitchen {
     const M = this.materials, T = K.tent, g = new THREE.Group();
     g.position.set(T.x, 0, T.z); g.rotation.y = T.ry; this.group.add(g);
     this.bed = g;
-    const W = .8, D = .78, H = 1.4;
+    const W = 1.0, D = .95, H = 1.75;
     for (const z of [-D, D]) for (const s of [-1, 1]) {
       const a = V(s * (W + .05), 0, z), b = V(-s * .1, H + .1, z), v = new THREE.Vector3().subVectors(b, a);
       const p = this.mesh(new THREE.CylinderGeometry(.03, .03, v.length(), 8), M.walnut, g);
@@ -452,9 +482,15 @@ export class Kitchen {
       geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
       this.mesh(geo, M.canvas, g);
     }
-    this.mesh(roundedBox(1.45, .16, 1.5, .07), M.olive, g).position.y = .08;
+    // Closed at the back, open at the front.
+    const back = new THREE.BufferGeometry();
+    back.setAttribute('position', new THREE.Float32BufferAttribute([-W, 0, -D, W, 0, -D, 0, H, -D], 3));
+    back.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, .5, 1], 2));
+    back.computeVertexNormals();
+    this.mesh(back, M.canvas, g);
+    this.mesh(roundedBox(1.85, .16, 1.85, .07), M.olive, g).position.y = .08;
     this.bedTop = .16;
-    this.bedRadius = .6;
+    this.bedRadius = .75;
   }
 
   // A round robot vacuum, parked on its discreet dock by the counter.
@@ -478,7 +514,7 @@ export class Kitchen {
     const beam = canvasTexture(256, 256, (c, w, h) => { c.filter = 'blur(10px)'; c.fillStyle = 'rgba(255,214,150,1)'; for (let i = 0; i < 2; i++) for (let j = 0; j < 5; j++) c.fillRect(24 + i * 110, 14 + j * 46, 96, 38); });
     this.sunPatch = this.mesh(new THREE.PlaneGeometry(3.2, 6.4), new THREE.MeshBasicMaterial({map: beam, transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false}), this.group, {cast: false, receive: false});
     this.sunPatch.rotation.set(-Math.PI / 2, 0, -.35);
-    this.sunPatch.position.set(-4.0, .02, 1.6);
+    this.sunPatch.position.set(-4.0, .02, 1.2);
   }
 
   // Everything the app needs to know about the room's layout.
@@ -490,18 +526,24 @@ export class Kitchen {
       home: at(-1.0, 3.1), toyHome: V(.2, .13, 3.3),
       bowl: {p: at(4.55, 2.6), ry: -.5}, fountain: {p: at(3.0, 1.55), ry: .3},
       sunSpot: at(-4.7, 2.6),
+      // Where she sits to watch the bird at the garden doors.
+      windowSpot: at(-5.0, .4),
       // Floor -> stepping perch -> back counter -> lower shelf -> upper
       // shelf, all at the left end, well away from the range.
       perches: {
-        step: {spot: at(-5.55, -3.9), top: this.stepTop, base: at(-5.45, -2.45), face: 0},
+        step: {spot: at(-5.6, -3.87), top: this.stepTops[0], base: at(-5.45, -2.45), face: 0},
         counter: {spot: at(-4.65, -3.35), top: K.counter, via: 'step', face: 0},
-        shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'counter', face: 0},
-        shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'shelf', face: 0},
+        stepMid: {spot: at(-5.6, -3.87), top: this.stepTops[1], via: 'counter', face: 0},
+        shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'stepMid', face: 0},
+        stepTop: {spot: at(-5.6, -3.87), top: this.stepTops[2], via: 'shelf', face: 0},
+        shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0},
       },
-      perchTargets: [['step', this.step], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]]],
+      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]]],
+      // In the tent she lies along it, facing out of the open front.
+      sleepHeading: K.tent.ry - Math.PI / 2, // her sleep pose lies across her heading; this puts her head at the door
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},
       camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 18]},
-      camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, .9, 1.4]],
+      camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.1, 1.8]],
     };
   }
 
@@ -534,7 +576,7 @@ export class Kitchen {
     for (let i = 0; i < 30; i++) {
       const v = V(-4.8 + Math.random() * 10.4, 0, -2.1 + Math.random() * 6.2);
       if (v.x > KEEP_OUT.x0 && v.x < KEEP_OUT.x1 && v.z > KEEP_OUT.z0 && v.z < KEEP_OUT.z1) continue;
-      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.3 || Math.hypot(v.x - 3.0, v.z - 1.55) < .95 || Math.hypot(v.x - 4.55, v.z - 2.6) < .8) continue;
+      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || Math.hypot(v.x - 3.0, v.z - 1.55) < .95 || Math.hypot(v.x - 4.55, v.z - 2.6) < .8) continue;
       return v;
     }
     return V(-1, 0, 3.1);
@@ -574,6 +616,7 @@ export class Kitchen {
       if (this.scene.environment !== env) this.scene.environment = env;
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .6, 3, dt);
     }
+    Room.prototype.updateBird.call(this, t);
     // The orchid's stems sway, just a little.
     this.orchidStems.forEach((s, i) => { s.rotation.z = Math.sin(t * .8 + i * 2) * .025; });
   }
@@ -677,34 +720,49 @@ function drawCreamStone(g, w, h) {
   }
 }
 
-// Out of the window: an olive garden behind a low stone wall, terracotta
-// pots, and soft sky; at night, a blue dusk with dark trees.
-function drawGarden(g, w, h, night) {
+// Out of the window: a stone terrace with olive trees in terracotta pots,
+// a low wall, then dune grass and the sea under a soft sky; at night, a blue
+// dusk with the moon on the water.
+function drawTerrace(g, w, h, night) {
   const r = rng(night ? 231 : 233);
-  const sky = g.createLinearGradient(0, 0, 0, h * .6);
-  if (night) { sky.addColorStop(0, '#18213a'); sky.addColorStop(1, '#34405e'); }
-  else { sky.addColorStop(0, '#cfdbe0'); sky.addColorStop(1, '#f1ead8'); }
-  g.fillStyle = sky; g.fillRect(0, 0, w, h);
-  // Olive trees: silvery-green clouds on grey trunks.
-  for (let i = 0; i < 9; i++) {
-    const x = r() * w, y = h * (.25 + r() * .25), s = 60 + r() * 80;
-    g.fillStyle = night ? '#232a2c' : '#6d6a5c'; g.fillRect(x - 4, y, 8, h * .5);
-    g.filter = 'blur(4px)';
-    for (let k = 0; k < 14; k++) { g.fillStyle = night ? `rgba(30,38,40,${.7 + r() * .3})` : ['rgba(122,134,100,.75)', 'rgba(150,158,126,.7)', 'rgba(98,110,82,.75)'][k % 3]; g.beginPath(); g.ellipse(x + (r() - .5) * s * 1.4, y - r() * s * .8, s * (.25 + r() * .3), s * (.18 + r() * .2), 0, 0, 7); g.fill(); }
+  const sky = g.createLinearGradient(0, 0, 0, h * .42);
+  if (night) { sky.addColorStop(0, '#16203a'); sky.addColorStop(1, '#3a4766'); }
+  else { sky.addColorStop(0, '#c9d6dd'); sky.addColorStop(1, '#efe9db'); }
+  g.fillStyle = sky; g.fillRect(0, 0, w, h * .42);
+  g.filter = 'blur(8px)';
+  for (let i = 0; i < 14; i++) { g.fillStyle = night ? 'rgba(70,80,110,.35)' : 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(r() * w, r() * h * .3, 40 + r() * 60, 8 + r() * 12, 0, 0, 7); g.fill(); }
+  g.filter = 'none';
+  if (night) { const m = g.createRadialGradient(w * .7, h * .14, 0, w * .7, h * .14, 26); m.addColorStop(0, 'rgba(255,248,226,1)'); m.addColorStop(.35, 'rgba(255,244,215,.9)'); m.addColorStop(.42, 'rgba(255,240,210,.2)'); m.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = m; g.fillRect(0, 0, w, h * .4); }
+  // The sea, with a glint.
+  const sea = g.createLinearGradient(0, h * .4, 0, h * .48);
+  if (night) { sea.addColorStop(0, '#1d2a44'); sea.addColorStop(1, '#162034'); } else { sea.addColorStop(0, '#7890a0'); sea.addColorStop(1, '#5e7481'); }
+  g.fillStyle = sea; g.fillRect(0, h * .4, w, h * .09);
+  g.fillStyle = night ? 'rgba(220,228,250,.45)' : 'rgba(240,244,244,.5)';
+  for (let i = 0; i < 30; i++) g.fillRect(r() * w, h * (.41 + r() * .06), 8 + r() * 22, 1.2);
+  // Dunes and grass.
+  g.fillStyle = night ? '#2b2a27' : '#cfb47e';
+  g.beginPath(); g.moveTo(0, h * .5); for (let x = 0; x <= w; x += 20) g.lineTo(x, h * (.48 + Math.sin(x * .02) * .012 + r() * .008)); g.lineTo(w, h * .62); g.lineTo(0, h * .62); g.closePath(); g.fill();
+  g.strokeStyle = night ? 'rgba(40,40,36,.8)' : 'rgba(160,130,70,.7)'; g.lineWidth = 1.2;
+  for (let i = 0; i < 160; i++) { const x = r() * w, y = h * (.5 + r() * .1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - .5) * 8, y - 8 - r() * 10); g.stroke(); }
+  // The terrace: a low limestone wall, then pale paving.
+  g.fillStyle = night ? '#35322e' : '#d8c9ad'; g.fillRect(0, h * .6, w, h * .06);
+  g.fillStyle = night ? 'rgba(20,20,20,.25)' : 'rgba(150,130,100,.25)';
+  for (let x = 0; x < w; x += 46) g.fillRect(x, h * .6, 2, h * .06);
+  g.fillStyle = night ? '#2a2724' : '#e2d6c0'; g.fillRect(0, h * .66, w, h * .34);
+  g.strokeStyle = night ? 'rgba(10,10,10,.2)' : 'rgba(160,140,110,.25)'; g.lineWidth = 1.5;
+  for (let y = h * .72; y < h; y += h * .07) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+  // Olive trees in terracotta pots, either side.
+  for (const [x, s] of [[.12, 1], [.88, .9], [.42, .6]]) {
+    const px = w * x, base = h * (.86 - (1 - s) * .12), ph = 70 * s, pw = 54 * s;
+    g.fillStyle = night ? '#6b6a62' : '#7b7464'; g.fillRect(px - 3 * s, base - ph - 150 * s, 6 * s, 150 * s);
+    g.filter = 'blur(3px)';
+    for (let k = 0; k < 16; k++) { g.fillStyle = night ? `rgba(36,44,46,${.8 + r() * .2})` : ['rgba(118,132,98,.8)', 'rgba(150,160,128,.75)', 'rgba(96,110,82,.8)'][k % 3]; g.beginPath(); g.ellipse(px + (r() - .5) * 120 * s, base - ph - 150 * s - r() * 70 * s, (28 + r() * 26) * s, (18 + r() * 14) * s, 0, 0, 7); g.fill(); }
     g.filter = 'none';
+    g.fillStyle = night ? '#4a3329' : '#c27b52';
+    g.beginPath(); g.moveTo(px - pw, base - ph); g.lineTo(px + pw, base - ph); g.lineTo(px + pw * .75, base); g.lineTo(px - pw * .75, base); g.closePath(); g.fill();
+    g.fillStyle = night ? 'rgba(0,0,0,.2)' : 'rgba(255,230,200,.2)'; g.fillRect(px - pw, base - ph, pw * 2, 6 * s);
   }
-  // Low stone wall and gravel.
-  g.fillStyle = night ? '#2d2b29' : '#c9b89a'; g.fillRect(0, h * .66, w, h * .1);
-  for (let i = 0; i < 40; i++) { g.fillStyle = night ? 'rgba(20,20,20,.3)' : `rgba(140,120,95,${.2 + r() * .2})`; g.fillRect(r() * w, h * (.66 + r() * .09), 20 + r() * 30, 2); }
-  g.fillStyle = night ? '#1f1e1c' : '#d8ccb3'; g.fillRect(0, h * .76, w, h * .24);
-  // Terracotta pots.
-  for (const x of [.15, .82]) {
-    g.fillStyle = night ? '#3a2a22' : '#c07a52';
-    g.beginPath(); g.moveTo(w * x - 50, h * .72); g.lineTo(w * x + 50, h * .72); g.lineTo(w * x + 36, h * .9); g.lineTo(w * x - 36, h * .9); g.closePath(); g.fill();
-    g.fillStyle = night ? 'rgba(30,38,40,.9)' : 'rgba(110,122,90,.85)';
-    g.beginPath(); g.ellipse(w * x, h * .64, 70, 50, 0, 0, 7); g.fill();
-  }
-  if (night) for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(255,205,130,.8)'; g.beginPath(); g.arc(r() * w, h * (.7 + r() * .05), 2.5, 0, 7); g.fill(); }
+  if (night) for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(255,205,130,.85)'; g.beginPath(); g.arc(w * (.2 + r() * .6), h * .63, 2.5, 0, 7); g.fill(); }
 }
 
 function drawOrchidFlower(g, w, h) {
