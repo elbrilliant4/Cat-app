@@ -1214,8 +1214,8 @@ export class Room {
   }
 
   // Trailing ivy vines.
-  ivy(parent, at, vines, length, upright = false) {
-    const r = rng(71 + vines), leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.16, .16), this.materials.leaf, vines * 16);
+  ivy(parent, at, vines, length, upright = false, leaf = this.materials.leaf) {
+    const r = rng(71 + vines), leaves = new THREE.InstancedMesh(new THREE.PlaneGeometry(.16, .16), leaf, vines * 16);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
     let n = 0;
     for (let v = 0; v < vines; v++) {

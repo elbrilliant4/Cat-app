@@ -347,7 +347,7 @@ cat.root.add(contact);
 // Places in the room she's in: set by usePlace() for the study or the
 // kitchen. home: where she settles; the bowl, fountain and bed spots; her
 // perches; and the camera's limits there.
-let HOME, EAT_SPOT, CUSHION_SPOT, DRINK_SPOT, PERCHES, SUN_SPOT, LIMITS, CAM_BOX, CAM_SOLIDS;
+let HOME, EAT_SPOT, CUSHION_SPOT, DRINK_SPOT, PERCHES, SUN_SPOT, LIMITS, CAM_BOX, CAM_SOLIDS, CAM_BLOCKS;
 const RUG = {x: -.4, z: .3, rx: 1.55, rz: 1.2};
 function studyLayout() {
   const w = room.windowGroup, c = room.chair, f = room.fireplace;
@@ -389,7 +389,7 @@ function usePlace(p) {
   }
   bed = p.bed;
   HOME = L.home; TOY_HOME = L.toyHome; SUN_SPOT = L.sunSpot; PERCHES = L.perches;
-  LIMITS = L.limits; CAM_BOX = L.camBox; CAM_SOLIDS = L.camSolids;
+  LIMITS = L.limits; CAM_BOX = L.camBox; CAM_SOLIDS = L.camSolids; CAM_BLOCKS = L.camBlocks || [];
   const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
   EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
   CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
@@ -1860,6 +1860,9 @@ function updateCamera(dt) {
     if (tHit > 0 && tHit < d && view.focus.y + camOffset.y * tHit < h) d = tHit - .15;
   }
   camera.position.copy(view.focus).addScaledVector(camOffset, Math.max(.6, d));
+  // Never inside a worktop: over one, the camera stays just above it.
+  const cp = camera.position;
+  for (const [x0, x1, z0, z1, top] of CAM_BLOCKS) if (cp.x > x0 && cp.x < x1 && cp.z > z0 && cp.z < z1 && cp.y < top) cp.y = top;
   camera.lookAt(view.focus);
 }
 

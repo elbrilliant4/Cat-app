@@ -4,7 +4,8 @@
 // lower cabinets under a cream stone counter, two brushed steel open shelves,
 // a big rounded island in veined cream-and-brown stone with walnut-and-leather
 // stools, and a sculptural brass mobile light. Through the opening on the
-// right, a glimpse of the living room (to be explored later).
+// right, a glimpse of her study (the way back there, once she can walk between
+// rooms).
 // Mochi's own corner: a canvas tent bed, her fountain and bowl, and a robot
 // vacuum on its dock.
 //
@@ -19,7 +20,7 @@ const {damp} = THREE.MathUtils;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // The plan. Back wall at z = -4.2, window wall at x = -6, right wall at x = 7,
-// with the opening to the living room in the back wall between x = 3.8 and 6.2.
+// with the opening to her study in the back wall between x = 3.8 and 6.2.
 const K = {
   back: -4.2, left: -6, right: 7, door: [3.8, 6.2], doorTop: 5.4, wallH: 9.5,
   counter: 2.2, counterFront: -2.72, shelf1: 4.1, shelf2: 5.5, shelfX: [-5.2, 3.4], shelfD: .62,
@@ -88,15 +89,17 @@ export class Kitchen {
       canvas: new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawLinen(g, w, h, {base: '#efe6d6', dark: .06, seed: 43}), {repeat: [2, 2]}), roughness: 1, side: THREE.DoubleSide}),
       olive: this.room.materials.oliveLinen,
       leather: this.room.materials.leather,
-      jute: this.room.materials.jute,
-      leaf: this.room.materials.leaf,
+      // Leaves that stay solid at a distance: the study's leaf cut-out,
+      // without mipmaps (which fade the cut-out's edges away on small,
+      // far-off leaves and leave the shelf plants looking see-through).
+      leaf: (() => { const m = this.room.materials.leaf.clone(), t = m.map.clone(); t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.needsUpdate = true; m.map = t; m.alphaTest = .4; return m; })(),
       shade: new THREE.MeshStandardMaterial({color: '#f3eadb', emissive: '#ffe2b0', emissiveIntensity: .3, roughness: .6, side: THREE.DoubleSide}),
     };
     // Large stone pieces: their UVs run in scene units, so stretch the pattern.
     M.stone.map.repeat.set(.22, .22);
     this.buildShell();
     this.buildWindows();
-    this.buildLivingRoom();
+    this.buildStudyGlimpse();
     this.buildCounter();
     this.buildShelves();
     this.buildIsland();
@@ -108,7 +111,7 @@ export class Kitchen {
     this.buildSunPatch();
   }
 
-  // Floor, plaster walls and the opening to the living room.
+  // Floor, plaster walls and the opening to her study.
   buildShell() {
     const M = this.materials;
     const floor = this.mesh(new THREE.PlaneGeometry(60, 60), M.floor, this.group, {cast: false});
@@ -179,52 +182,42 @@ export class Kitchen {
     this.birdBox.mid = y0 + (T - y0) * 2 / 4 + .06;
   }
 
-  // Through the opening: a glimpse of the living room (explorable later).
-  buildLivingRoom() {
-    const M = this.materials, g = new THREE.Group();
-    this.livingRoom = g;
+  // Through the opening: a glimpse of her study, the room she started in,
+  // with its limestone fireplace and cognac chair. (When walking between
+  // rooms comes, this doorway leads there. The open living area will extend
+  // the kitchen towards the front, past the island, later.)
+  buildStudyGlimpse() {
+    const R = this.room.materials, g = new THREE.Group();
+    this.studyGlimpse = g;
     this.group.add(g);
-    const L = {x0: K.door[0], x1: 12.5, z0: -11, z1: K.back - .45};
-    // A touch dimmer and warmer than the kitchen, so the opening reads as a
-    // room beyond, out of the window light.
-    const plaster = M.plaster.clone(); plaster.color.set('#cdbda4');
-    const wall = (w, h, x, y, z, ry) => { const m = this.mesh(new THREE.PlaneGeometry(w, h), plaster, g, {cast: false}); m.position.set(x, y, z); m.rotation.y = ry; return m; };
+    const L = {x0: 2.6, x1: 11, z0: -11.6, z1: K.back - .45}, WAIN = 1.55;
+    // Out of the window light, a touch dimmer and warmer than the kitchen.
+    const plaster = R.plaster.clone(); plaster.color.multiplyScalar(.9);
+    const floorMap = R.floor.map.clone(); floorMap.repeat.set((L.x1 - L.x0) / 4, (L.z1 - L.z0 + .45) / 4); floorMap.needsUpdate = true;
+    const floor = this.mesh(new THREE.PlaneGeometry(L.x1 - L.x0, L.z1 - L.z0 + .45), new THREE.MeshStandardMaterial({map: floorMap, roughness: .72}), g, {cast: false});
+    floor.rotation.x = -Math.PI / 2; floor.position.set((L.x0 + L.x1) / 2, .004, (L.z0 + L.z1 + .45) / 2);
     const dim = this.mesh(new THREE.PlaneGeometry(L.x1 - L.x0, L.z1 - L.z0 + .45), new THREE.MeshBasicMaterial({color: '#2a1d12', transparent: true, opacity: .2, depthWrite: false}), g, {cast: false, receive: false});
-    dim.rotation.x = -Math.PI / 2; dim.position.set((L.x0 + L.x1) / 2, .006, (L.z0 + L.z1 + .45) / 2);
-    wall(L.x1 - L.x0, K.wallH, (L.x0 + L.x1) / 2, K.wallH / 2, L.z0, 0);
-    wall(L.z1 - L.z0, K.wallH, L.x0, K.wallH / 2, (L.z0 + L.z1) / 2, Math.PI / 2);
-    wall(L.z1 - L.z0, K.wallH, L.x1, K.wallH / 2, (L.z0 + L.z1) / 2, -Math.PI / 2);
-    // A tall window onto the garden, at the far end.
-    const glass = this.mesh(new THREE.PlaneGeometry(2.4, 5.6), new THREE.MeshBasicMaterial({map: this.view.day, toneMapped: false}), g, {cast: false, receive: false});
-    glass.position.set(10.2, 3.6, L.z0 + .02);
-    this.livingGlass = glass;
-    for (const dx of [-1.25, 1.25]) this.box(.1, 5.8, .12, 10.2 + dx, 3.6, L.z0 + .05, M.frame, g, {cast: false});
-    for (const y of [.8, 6.4]) this.box(2.6, .1, .12, 10.2, y, L.z0 + .05, M.frame, g, {cast: false});
-    // A deep, cream sofa against the far wall, with an olive cushion.
-    const sofaMat = new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (c, w, h) => drawLinen(c, w, h, {base: '#ece4d6', dark: .05, seed: 47})), roughness: 1});
-    const sofa = new THREE.Group(); sofa.position.set(6.6, 0, L.z0 + 1.1); g.add(sofa);
-    this.mesh(roundedBox(4.6, .9, 2.0, .2), sofaMat, sofa).position.set(0, .55, 0);
-    this.mesh(roundedBox(4.6, 1.2, .6, .25), sofaMat, sofa).position.set(0, 1.3, -.7);
-    for (const s of [-1, 1]) this.mesh(roundedBox(.55, 1.15, 2.0, .25), sofaMat, sofa).position.set(s * 2.3, .85, 0);
-    for (const s of [-1, 1]) this.mesh(roundedBox(1.9, .35, 1.4, .15), sofaMat, sofa).position.set(s * 1.0, 1.15, .1);
-    const pillow = this.mesh(roundedBox(.9, .75, .25, .12), M.olive, sofa); pillow.position.set(-1.3, 1.55, -.3); pillow.rotation.z = .1;
-    // Jute rug, a low walnut table with a bowl, a floor lamp and an olive tree.
-    this.mesh(roundedBox(5.5, .03, 3.8, .01), M.jute, g, {cast: false}).position.set(6.8, .015, L.z0 + 3.4);
-    const table = this.mesh(lathe([[0, 0], [.9, 0], [.9, .5], [.95, .52], [.95, .6], [0, .6]], 32), M.walnut, g);
-    table.position.set(6.8, 0, L.z0 + 3.5);
-    this.mesh(lathe([[0, 0], [.18, .02], [.3, .12], [.32, .16], [0, .16]], 24), M.cream, g).position.set(6.8, .6, L.z0 + 3.5);
-    const lamp = new THREE.Group(); lamp.position.set(9.8, 0, L.z0 + 1.0); g.add(lamp);
-    this.mesh(new THREE.CylinderGeometry(.03, .03, 3.6, 8), M.brass, lamp).position.y = 1.8;
-    this.mesh(new THREE.CylinderGeometry(.28, .3, .04, 24), M.brass, lamp).position.y = .02;
-    this.livingShade = this.mesh(lathe([[.18, 0], [.45, 0], [.3, .55], [.12, .55]], 24), M.shade, lamp, {cast: false});
-    this.livingShade.position.y = 3.3;
-    // A painting over the sofa: soft earthy bands.
-    const art = this.mesh(new THREE.PlaneGeometry(2.6, 1.8), new THREE.MeshStandardMaterial({map: canvasTexture(256, 180, drawEarthBands), roughness: .9}), g, {cast: false});
-    art.position.set(6.6, 4.4, L.z0 + .06);
-    this.box(2.7, 1.9, .05, 6.6, 4.4, L.z0 + .01, M.walnutDark, g, {cast: false});
-    const pot = this.mesh(lathe([[0, 0], [.4, 0], [.5, .7], [.46, .74], [0, .74]], 24), M.clay, g);
-    pot.position.set(4.6, 0, L.z0 + .9);
-    this.room.ivy(g, new THREE.Vector3(4.6, .72, L.z0 + .9), 10, 1.6, true);
+    dim.rotation.x = -Math.PI / 2; dim.position.set((L.x0 + L.x1) / 2, .008, (L.z0 + L.z1 + .45) / 2);
+    // Her study's walls: plaster over a panelled wainscot with a chair rail.
+    const wall = (len, x, z, ry) => {
+      const w = new THREE.Group(); w.position.set(x, 0, z); w.rotation.y = ry; g.add(w);
+      this.mesh(new THREE.PlaneGeometry(len, K.wallH - WAIN), plaster, w, {cast: false}).position.y = WAIN + (K.wallH - WAIN) / 2;
+      this.mesh(new THREE.PlaneGeometry(len, WAIN), R.panel, w, {cast: false}).position.y = WAIN / 2;
+      const n = Math.max(1, Math.round(len / 1.5)), pw = len / n;
+      for (let i = 0; i < n; i++) this.mesh(roundedBox(pw - .32, WAIN - .58, .06, .02, 2, .03), R.panel, w, {cast: false}).position.set(-len / 2 + pw * (i + .5), WAIN / 2 + .05, .03);
+      this.box(len, .1, .1, 0, WAIN, .05, R.trim, w, {cast: false});
+      this.box(len, .22, .08, 0, .11, .04, R.trim, w, {cast: false});
+    };
+    wall(L.x1 - L.x0, (L.x0 + L.x1) / 2, L.z0, 0);
+    wall(L.z1 - L.z0, L.x0, (L.z0 + L.z1) / 2, Math.PI / 2);
+    wall(L.z1 - L.z0, L.x1, (L.z0 + L.z1) / 2, -Math.PI / 2);
+    // The study's own fireplace and chair, built by the study's code into
+    // this room; its fire flickers here too.
+    const host = this.studyHost = {materials: R, group: g, walls: {right: 0}, mesh: Room.prototype.mesh};
+    Room.prototype.buildFireplace.call(host);
+    host.fireplace.position.set(7.9, 0, L.z0); host.fireplace.rotation.y = 0;
+    Room.prototype.buildChair.call(host);
+    host.chair.position.set(5.3, 0, -7.6); host.chair.rotation.y = .75;
   }
 
   // The back counter: walnut cabinets, a cream stone top, the sink with its
@@ -286,7 +279,7 @@ export class Kitchen {
     this.mesh(lathe([[0, 0], [.17, 0], [.18, .38], [.16, .4], [0, .4]], 20), M.cream, crock);
     for (let i = 0; i < 4; i++) { const s = this.mesh(new THREE.CylinderGeometry(.015, .02, .75, 6), M.walnut, crock); s.position.set((i - 1.5) * .05, .55, (i % 2) * .05); s.rotation.z = (i - 1.5) * .12; }
     const pot = this.mesh(lathe([[0, 0], [.14, 0], [.18, .25], [0, .25]], 20), M.clay, g); pot.position.set(-.55, C, -3.85);
-    this.room.sprigs(g, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a'});
+    this.room.sprigs(g, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a', leaf: M.leaf});
     for (const [x, h, c] of [[2.65, .55, '#3e4a2c'], [2.75, .45, '#7a4a1e']]) this.mesh(lathe([[0, 0], [.07, 0], [.07, h * .7], [.03, h * .85], [.03, h], [0, h]], 14), new THREE.MeshStandardMaterial({color: c, roughness: .2}), g).position.set(x, C, -4.0);
     const lampG = new THREE.Group(); lampG.position.set(3.35, C, -3.9); g.add(lampG);
     this.mesh(lathe([[0, 0], [.13, 0], [.1, .05], [.03, .1], [.03, .55], [0, .55]], 16), M.brass, lampG);
@@ -348,7 +341,7 @@ export class Kitchen {
     // Upper shelf: landing room at the left; a trailing plant, a print, the
     // cobalt vessel, plates, cups, books and another plant.
     const p1 = this.mesh(lathe([[0, 0], [.13, 0], [.16, .22], [0, .22]], 18), M.cream, this.group); p1.position.set(-3.25, S2, z);
-    this.room.ivy(this.group, new THREE.Vector3(-3.25, S2 + .2, z), 6, .9, false);
+    this.room.ivy(this.group, new THREE.Vector3(-3.25, S2 + .2, z), 10, .9, false, M.leaf);
     frame(-2.45, S2, z + .1, .55, .7, '#a9a291');
     const vessel = this.mesh(lathe([[0, 0], [.14, 0], [.28, .18], [.3, .34], [.2, .5], [.12, .56], [.13, .6], [0, .6]], 28), M.cobalt, this.group);
     vessel.position.set(-1.6, S2, z);
@@ -357,7 +350,7 @@ export class Kitchen {
     const bookColors = ['#6b4a2e', '#cdbb98', '#3c4a3a', '#8a6a46', '#e3d8c3'];
     bookColors.forEach((c, i) => this.box(.08, .45 + (i % 3) * .05, .38, 1.4 + i * .09, S2 + .23 + (i % 3) * .025, z, new THREE.MeshStandardMaterial({color: c, roughness: .8})));
     const p2 = this.mesh(lathe([[0, 0], [.15, 0], [.18, .26], [0, .26]], 18), M.clay, this.group); p2.position.set(2.75, S2, z);
-    this.room.ivy(this.group, new THREE.Vector3(2.75, S2 + .24, z), 7, 1.1, false);
+    this.room.ivy(this.group, new THREE.Vector3(2.75, S2 + .24, z), 11, 1.1, false, M.leaf);
   }
 
   // The island: a big, rounded block of veined stone with a walnut base
@@ -513,10 +506,10 @@ export class Kitchen {
   // Window light falling across the limestone.
   // On the right wall over her tent: Jan Davidsz de Heem, Vase of Flowers,
   // c. 1660 (National Gallery of Art, Washington; open access), in a dark
-  // frame with a gilt liner, a little larger than life as in Orion's design.
+  // frame with a narrow gilt liner, larger than life for drama, as in the study.
   buildPainting() {
-    const M = this.materials, W = 1.75, H = W * 69.6 / 56.5, F = .2, Ln = .04;
-    const g = new THREE.Group(); g.position.set(K.right, 3.95, .35); g.rotation.y = -Math.PI / 2; this.group.add(g);
+    const M = this.materials, W = 2.36, H = W * 69.6 / 56.5, F = .24, Ln = .045;
+    const g = new THREE.Group(); g.position.set(K.right, 4.2, .35); g.rotation.y = -Math.PI / 2; this.group.add(g);
     const ebony = new THREE.MeshStandardMaterial({color: '#21150e', roughness: .45, metalness: .1});
     const gilt = new THREE.MeshStandardMaterial({color: '#9c7b45', roughness: .45, metalness: .7}); // antique gold
     const ow = W + 2 * (F + Ln), oh = H + 2 * (F + Ln);
@@ -565,6 +558,9 @@ export class Kitchen {
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},
       camBox: {x: [-5.8, 6.8], y: [.2, 9.2], z: [-3.9, 18]},
       camSolids: [[-2.6, .7, 1.45, 2.3], [.2, .7, 1.45, 2.3], [K.tent.x, K.tent.z, 1.1, 1.8]],
+      // Tops the camera mustn't sink into (it would see through them): over
+      // the island or the back counter it stays a little above the surface.
+      camBlocks: [[K.island.x0 - .3, K.island.x1 + .3, K.island.z0 - .3, K.island.z1 + .3, K.island.top + .35], [K.left, K.right, K.back, K.counterFront + .3, K.counter + .35]],
     };
   }
 
@@ -575,7 +571,7 @@ export class Kitchen {
       // Wide screens look a little toward the right wall and its painting.
       yaw: wide ? -.2 : 0,
       across: [[I.x0, 1.2, I.z1], [I.x1, 1.2, I.z1], [-3.3, .8, I.z1 + .8], [K.tent.x + .7, .9, K.tent.z], [3.0, .3, 1.55], [4.55, .1, 2.6], [-5.2, 4.2, -3.9], [3.4, 4.2, -3.9]]
-        .concat(wide ? [[K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back], [K.right, 5.3, -.75], [K.right, 2.6, 1.45]] : [[-5.55, 1.2, -3.9]]),
+        .concat(wide ? [[K.left, 4, this.windowRect.z0], [K.left, 1, this.windowRect.z1], [K.door[1], 3, K.back], [K.right, 5.95, -1.2], [K.right, 2.45, 1.9]] : [[-5.55, 1.2, -3.9]]),
       bottom: [[I.x0, 0, I.z1 + .8], [I.x1, 0, I.z1 + .3], [4.55, 0, 3.0], [-1, 0, 3.4]],
       top: [[-5.2, 5.8, -3.9], [3.4, 5.8, -3.9], [-3.5, 7.4, .5], [.9, 7.6, 1.1]].concat(wide ? [[-1.2, 8.7, .7]] : []),
     };
@@ -631,7 +627,7 @@ export class Kitchen {
     this.materials.shade.emissiveIntensity = e;
     this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .3, 3, dt);
     const sky = night ? this.view.night : this.view.day;
-    for (const gl of [this.glass, this.livingGlass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
+    for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     const R = this.room;
     if (this.scene.environment && R.envNight) {
       const env = night ? R.envNight : R.envDay;
@@ -639,6 +635,7 @@ export class Kitchen {
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .6, 3, dt);
     }
     Room.prototype.updateBird.call(this, t);
+    Room.prototype.updateFire.call(this.studyHost, dt, t, night);
     // The orchid's stems sway, just a little.
     this.orchidStems.forEach((s, i) => { s.rotation.z = Math.sin(t * .8 + i * 2) * .025; });
   }
@@ -810,8 +807,3 @@ function drawPhoto(g, w, h, tint) {
   g.fillStyle = 'rgba(60,50,40,.35)'; g.beginPath(); g.ellipse(w / 2, h * .62, 9, 18, 0, 0, 7); g.fill();
 }
 
-function drawEarthBands(g, w, h) {
-  const r = rng(241);
-  for (const [y, c] of [[0, '#d9c7a6'], [.35, '#b88a5c'], [.6, '#e4d6bc'], [.8, '#8a6a4a']]) { g.fillStyle = c; g.fillRect(0, y * h, w, h); }
-  for (let i = 0; i < 200; i++) { g.fillStyle = `rgba(255,250,240,${r() * .15})`; g.fillRect(r() * w, r() * h, 8 + r() * 30, 2); }
-}
