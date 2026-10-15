@@ -286,7 +286,7 @@ if (want('kitchen')) {
     const k = kitten;
     document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = 'hidden');
     k.brain.pos.set(-4.9, 0, -1.7); k.brain.heading = Math.PI * .85; k.setActivity('sit');
-    const g = k.view.goal; Object.assign(g, {yaw: .5, pitch: .2, dist: 9.5}); g.focus.set(-4.4, 3.2, -3.2); k.view.mode = 'free';
+    const g = k.view.goal; Object.assign(g, {yaw: .5, pitch: .15, dist: 11}); g.focus.set(-4.3, 3.7, -3.4); k.view.mode = 'free';
     k.view.focus.copy(g.focus); Object.assign(k.view, {yaw: g.yaw, pitch: g.pitch, dist: g.dist});
     k.step(1 / 20, 20);
     window.phase = 'up';
