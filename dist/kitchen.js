@@ -323,26 +323,32 @@ export class Kitchen {
       gl.position.set(x, y, zz); return this.prop(gl, this.props.glasses);
     };
     const bowl = (x, y, zz, r = .22, mat = M.cream) => { const b = this.mesh(lathe([[0, 0], [r * .5, 0], [r, r * .55], [r * .95, r * .56], [r * .45, r * .05], [0, r * .05]], 24), mat, this.group); b.position.set(x, y, zz); return b; };
-    const frame = (x, y, zz, w, h, tint) => {
+    // A small framed picture leaning against the wall: walnut frame, an ivory
+    // mat, and one of Orion's paintings (3:4).
+    const frame = (x, y, zz, w, file) => {
+      const h = w * 4 / 3 + w * .12;
       const f = new THREE.Group(); f.position.set(x, y, zz - .1); f.rotation.x = -.08; this.group.add(f);
       this.mesh(roundedBox(w, h, .04, .01), M.walnutDark, f).position.y = h / 2;
-      const pic = this.mesh(new THREE.PlaneGeometry(w * .78, h * .78), new THREE.MeshStandardMaterial({map: canvasTexture(64, 80, (g, cw, ch) => drawPhoto(g, cw, ch, tint)), roughness: .9}), f, {cast: false});
-      pic.position.set(0, h / 2, .025);
+      const mat = this.mesh(new THREE.PlaneGeometry(w * .86, h * .88), new THREE.MeshStandardMaterial({color: '#f2ece2', roughness: .9}), f, {cast: false});
+      mat.position.set(0, h / 2, .022);
+      const pw = w * .7, art = new THREE.MeshStandardMaterial({color: '#d9cbb3', roughness: .8});
+      new THREE.TextureLoader().load(`./art/${file}`, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; art.map = t; art.color.set('#ffffff'); art.needsUpdate = true; });
+      this.mesh(new THREE.PlaneGeometry(pw, pw * 4 / 3), art, f, {cast: false}).position.set(0, h / 2, .024);
     };
     // Lower shelf: landing room at the left; then plates, bowls, two cups,
-    // a gap, amber glasses, a board, a framed photograph, a bowl.
+    // a gap, amber glasses, a board, a little painting (the blue pitcher), a bowl.
     for (let i = 0; i < 5; i++) plate(-3.25, S1 + i * .045, z);
     bowl(-2.6, S1, z); bowl(-2.6, S1 + .1, z, .19);
     cup(-2.05, S1, z); cup(-1.75, S1, z + .05);
     for (const x of [.25, .48, .71]) glass(x, S1, z);
     const board = this.mesh(roundedBox(.5, .75, .05, .02), M.walnut, this.group); board.position.set(1.45, S1 + .37, K.back + .1); board.rotation.x = -.12;
-    frame(2.3, S1, z + .1, .5, .62, '#c9b79a');
+    frame(2.3, S1, z + .1, .5, 'shelf-blue-pitcher.jpg');
     bowl(3.0, S1, z, .24, M.clay);
-    // Upper shelf: landing room at the left; a trailing plant, a print, the
+    // Upper shelf: landing room at the left; a trailing plant, the pears, the
     // cobalt vessel, plates, cups, books and another plant.
     const p1 = this.mesh(lathe([[0, 0], [.13, 0], [.16, .22], [0, .22]], 18), M.cream, this.group); p1.position.set(-3.25, S2, z);
     this.room.ivy(this.group, new THREE.Vector3(-3.25, S2 + .2, z), 10, .9, false, M.leaf);
-    frame(-2.45, S2, z + .1, .55, .7, '#a9a291');
+    frame(-2.45, S2, z + .1, .55, 'shelf-pears.jpg');
     const vessel = this.mesh(lathe([[0, 0], [.14, 0], [.28, .18], [.3, .34], [.2, .5], [.12, .56], [.13, .6], [0, .6]], 28), M.cobalt, this.group);
     vessel.position.set(-1.6, S2, z);
     for (let i = 0; i < 4; i++) plate(-.65, S2 + i * .045, z, .24);
@@ -799,11 +805,5 @@ function drawSalmon(g, w, h) {
   g.fillStyle = '#ea8f6b'; g.fillRect(0, 0, w, h);
   g.strokeStyle = 'rgba(255,235,220,.8)'; g.lineWidth = 2;
   for (let x = 4; x < w; x += 8) { g.beginPath(); g.moveTo(x, 0); g.quadraticCurveTo(x + 4, h / 2, x, h); g.stroke(); }
-}
-
-function drawPhoto(g, w, h, tint) {
-  g.fillStyle = '#f2ece2'; g.fillRect(0, 0, w, h);
-  g.fillStyle = tint; g.fillRect(6, 6, w - 12, h - 12);
-  g.fillStyle = 'rgba(60,50,40,.35)'; g.beginPath(); g.ellipse(w / 2, h * .62, 9, 18, 0, 0, 7); g.fill();
 }
 
