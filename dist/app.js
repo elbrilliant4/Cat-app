@@ -444,7 +444,7 @@ const brain = {
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
   petTimes: [],
-  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextVacuum: 40, vacReactAt: 0, vacStalk: false, nextBird: 12, birdSeen: false, nextKnock: 0, swatHit: 0,
+  perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextVacuum: 40, vacReactAt: 0, vacStalk: false, vacRide: false, nextBird: 12, birdSeen: false, nextKnock: 0, swatHit: 0,
 };
 if (pet.sleeping) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
 
@@ -1049,6 +1049,8 @@ function vacuumLife(t) {
   const v = kitchen.vac;
   v.rider = brain.perch === 'vacuum';
   if (brain.vacStalk && brain.activity === 'stalk') brain.swatAt.copy(kitchen.vacuum.position);
+  // Coming to ride: once she's close, it politely waits for her.
+  if (brain.vacRide && v.state === 'out' && brain.pos.distanceTo(kitchen.vacuum.position) < 2.4) v.wait = Math.max(v.wait, t + .6);
   if (v.state === 'docked' && !pet.sleeping && t > brain.nextVacuum) {
     brain.nextVacuum = t + rand(160, 320);
     kitchen.startVacuum(t);
@@ -1075,13 +1077,24 @@ function vacuumAttack() {
   brain.swatAt = vacAt().clone(); brain.vacStalk = true;
   const go = tries => {
     if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; return; }
-    if (brain.pos.distanceTo(vacAt()) > 2.2 && tries < 3) { walkTo(nearVacuum(1.6), () => go(tries + 1), false, true); return; }
+    if (brain.pos.distanceTo(vacAt()) > 2.2) { if (tries < 4) walkTo(nearVacuum(1.5), () => go(tries + 1), true, true); else { brain.vacStalk = false; setActivity('sit'); } return; }
     // Stalk: low, bottom wiggling, eyes locked on; then the pounce.
     setActivity('stalk', rand(1.2, 2.2), () => {
+      if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; setActivity('sit'); return; }
+      // It's driven off while she was winding up: after it again.
+      if (brain.pos.distanceTo(vacAt()) > 2.6 && tries < 4) { go(tries + 1); return; }
       brain.vacStalk = false;
-      if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { setActivity('sit'); return; }
-      const p = vacAt(), dx = p.x - brain.pos.x, dz = p.z - brain.pos.z, d = Math.max(.01, Math.hypot(dx, dz));
-      brain.pounce = {start: clockNow, from: brain.pos.clone(), to: kitchen.clampFloor(new THREE.Vector3(p.x - dx / d * .5, 0, p.z - dz / d * .5)), caught: false, at: vacAt, onHit: () => {
+      // A pounce is at most a good long bound; if it's driven on, she misses.
+      // She leads it: aims where it'll be by the time she lands.
+      const v = kitchen.vac, moving = v.state !== 'docked' && clockNow > v.wait && !v.spin;
+      const p = vacAt().clone().add(new THREE.Vector3(Math.sin(v.heading), 0, Math.cos(v.heading)).multiplyScalar(moving ? .3 : 0));
+      const dx = p.x - brain.pos.x, dz = p.z - brain.pos.z, d = Math.max(.01, Math.hypot(dx, dz)), reach = Math.min(2.0, Math.max(0, d - .45));
+      brain.pounce = {start: clockNow, from: brain.pos.clone(), to: kitchen.clampFloor(new THREE.Vector3(brain.pos.x + dx / d * reach, 0, brain.pos.z + dz / d * reach)), caught: false, at: vacAt, onHit: () => {
+        if (brain.pos.distanceTo(vacAt()) > 1.15) {
+          setActivity('pause', 1.2, () => setActivity('sit'));
+          later(.5, () => { glanceAt(camera.position, 2); if (Math.random() < .5) say(pick(['I meant to do that.', '…', 'Next time.']), 2200); });
+          return;
+        }
         brain.swatAt = vacAt().clone(); brain.swatSoft = false;
         setActivity('swat', .45, () => setActivity('pause', 1.2, () => setActivity('sit')));
         kitchen.hitVacuum(clockNow, brain.pos);
@@ -1096,9 +1109,13 @@ function vacuumAttack() {
 }
 function vacuumRide() {
   glanceAt(vacAt().clone().setY(.2), 2); express('curious', 1.2);
-  walkTo(nearVacuum(.95), () => {
+  brain.vacRide = true;
+  const go = tries => walkTo(nearVacuum(.95), () => {
     const v = kitchen.vac;
-    if (v.state === 'docked' || brain.mode !== 'idle' || brain.pos.distanceTo(vacAt()) > 1.5) { setActivity('sit'); return; }
+    if (v.state === 'docked' || brain.mode !== 'idle') { brain.vacRide = false; setActivity('sit'); return; }
+    // It moved on: after it (a few times), then give up.
+    if (brain.pos.distanceTo(vacAt()) > 1.4) { if (tries < 5) go(tries + 1); else { brain.vacRide = false; setActivity('sit'); } return; }
+    brain.vacRide = false;
     // It waits for her (it's polite), and up she hops.
     v.wait = Math.max(v.wait, clockNow + 2.4);
     leap(vacAt(), PERCHES.vacuum.top, 'vacuum', () => {
@@ -1106,7 +1123,8 @@ function vacuumRide() {
       setActivity(Math.random() < .5 ? 'loaf' : 'sit');
       later(.6, () => { if (Math.random() < .6) say(pick(['Onward!', 'Chauffeur, please.', 'Wheee.', 'To the bowl, please.']), 2200); });
     });
-  }, false, true);
+  }, tries > 1, true);
+  go(0);
 }
 function vacuumWatch() {
   [0, 1.6, 3.4].forEach(d => later(d, () => { if (kitchen.vac.state !== 'docked' && !brain.perch) glanceAt(vacAt().clone().setY(.2), 1.4); }));

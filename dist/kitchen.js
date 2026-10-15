@@ -400,7 +400,7 @@ export class Kitchen {
     if (v.spin) {
       const k = (t - v.spin.start) / 1.1;
       v.heading = v.spin.from + v.spin.dir * Math.PI * 2.5 * Math.sin(Math.min(1, k) * Math.PI / 2);
-      if (v.shove && t - v.shove.start < .4) { p.x += v.shove.x * dt / .4; p.z += v.shove.z * dt / .4; this.clampFloor(p); }
+      if (v.shove && t - v.shove.start < .4) { p.x += v.shove.x * dt / .4; p.z += v.shove.z * dt / .4; this.clampVacuum(p); }
       g.rotation.y = v.heading;
       if (k >= 1) { v.spin = null; v.wait = t + .6; }
       return;
@@ -410,7 +410,7 @@ export class Kitchen {
       v.bumped = t; v.back = t + .5; v.wait = t + 1.4; v.path = null;
       v.turnTo = v.heading + (Math.random() < .5 ? -1 : 1) * (1.8 + Math.random());
     }
-    if (t < v.back) { p.x -= Math.sin(v.heading) * .22 * dt; p.z -= Math.cos(v.heading) * .22 * dt; this.clampFloor(p); return; }
+    if (t < v.back) { p.x -= Math.sin(v.heading) * .22 * dt; p.z -= Math.cos(v.heading) * .22 * dt; this.clampVacuum(p); return; }
     if (v.turnTo != null) {
       const d = Math.atan2(Math.sin(v.turnTo - v.heading), Math.cos(v.turnTo - v.heading));
       v.heading += Math.sign(d) * Math.min(Math.abs(d), 2.4 * dt); g.rotation.y = v.heading;
@@ -440,6 +440,8 @@ export class Kitchen {
     g.rotation.y = v.heading;
     if (Math.abs(d) < .35) { const sp = Math.min(dist, (v.rider ? .38 : .55) * dt); p.x += Math.sin(v.heading) * sp; p.z += Math.cos(v.heading) * sp; }
   }
+  // On the floor and out of the island (but not out of its own circle).
+  clampVacuum(p) { const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r; }
   get vacuumNearHome() { return this.vacuum.position.distanceTo(VAC_HOME) < 1.3; }
 
   // Trailing ivy from a pot on a shelf: the vines spill forward out of the
