@@ -48,7 +48,7 @@
     <div class="top-actions">
       <span class="chip build-chip" id="build-chip" hidden></span>
       <span class="chip day-chip"><svg><use href="#i-heart"/></svg><span id="age">Day 1</span></span>
-      <button class="icon-btn" id="decor-btn" aria-label="Room decor" title="Room decor"><svg><use href="#i-sparkle"/></svg></button>
+      <button class="icon-btn" id="decor-btn" aria-label="Rooms and decor" title="Rooms and decor"><svg><use href="#i-sparkle"/></svg></button>
       <div class="sound-wrap">
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
         <div class="sound-panel" id="sound-panel" hidden>
@@ -176,8 +176,10 @@
 <dialog id="decor-dialog" aria-labelledby="decor-title">
   <form method="dialog">
     <button class="close" aria-label="Close">×</button>
-    <span class="eyebrow">Room decor</span>
-    <h2 id="decor-title">Dress up the room</h2>
+    <span class="eyebrow">Rooms</span>
+    <h2 id="decor-title">Where shall we go?</h2>
+    <div class="snacks decor-options" id="place-options"></div>
+    <span class="eyebrow decor-eyebrow">Study decor</span>
     <div class="snacks decor-options" id="decor-options"></div>
   </form>
 </dialog>

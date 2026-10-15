@@ -148,6 +148,10 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 
 /* Float effects */
 .float-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+/* Moving between rooms: a brief fade. */
+.scene canvas { transition: opacity .3s var(--ease); }
+.scene.moving canvas { opacity: 0; }
+.decor-eyebrow { display: block; margin-top: 18px; }
 .tap-paw { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; color: #fff; filter: drop-shadow(0 1px 3px rgba(60,40,20,.45)); pointer-events: none; animation: tap-paw .9s var(--ease) forwards; }
 .tap-paw svg { width: 100%; height: 100%; fill: currentColor; }
 @keyframes tap-paw { 0% { opacity: .95; transform: scale(.55); } 100% { opacity: 0; transform: scale(1.35); } }

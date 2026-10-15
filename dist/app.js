@@ -4,6 +4,7 @@ import {DECORS, applyDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {Room} from './room.js';
+import {Kitchen} from './kitchen.js';
 import {Sounds} from './sound.js';
 
 const $ = s => document.querySelector(s);
@@ -144,7 +145,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the sill, chair or mantel to invite her · pinch to zoom` : `Stroke ${pet.name} to pet · click the sill, chair or mantel to invite her up · drag to look around · scroll to zoom`;
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap ${perchHint()} to invite her · pinch to zoom` : `Stroke ${pet.name} to pet · click ${perchHint()} to invite her up · drag to look around · scroll to zoom`;
 }
 
 function showDeltas(before) {
@@ -294,11 +295,19 @@ function mesh(geo, material, parent = scene) {
 }
 // The room: furniture, bowls, fountain and bed (room.js).
 const room = new Room(scene, renderer, {mobile: matchMedia('(pointer: coarse)').matches});
-const {bowl, kibbles, fountain, bed} = room;
+room.id = 'study';
+const {bowl, kibbles, fountain} = room;
+let bed = room.bed;
 applyDecor(room, pet.decor);
+// The study's lamp light belongs to the scene, so it can hang over whichever
+// room she's in (the number of lights never changes, so nothing recompiles).
+scene.attach(room.lamp);
+const lampHome = room.lamp.position.clone();
+// The kitchen (kitchen.js) is built the first time she goes there.
+let kitchen = null, place = room;
 
 // Toy ball.
-const TOY_HOME = new THREE.Vector3(-1.15, .13, 1.35);
+let TOY_HOME = new THREE.Vector3(-1.15, .13, 1.35);
 const toy = mesh(new THREE.SphereGeometry(.12, 28, 18), mat('#f2689a', .55));
 toy.position.copy(TOY_HOME);
 mesh(new THREE.TorusGeometry(.121, .012, 6, 32), mat('#ffe2a8'), toy).rotation.x = .6;
@@ -335,38 +344,68 @@ const contact = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), new THREE.Mesh
 contact.rotation.x = -Math.PI / 2; contact.position.y = .02;
 cat.root.add(contact);
 
-// Places in the room.
-const HOME = new THREE.Vector3(0, 0, .3);
+// Places in the room she's in: set by usePlace() for the study or the
+// kitchen. home: where she settles; the bowl, fountain and bed spots; her
+// perches; and the camera's limits there.
+let HOME, EAT_SPOT, CUSHION_SPOT, DRINK_SPOT, PERCHES, SUN_SPOT, LIMITS, CAM_BOX, CAM_SOLIDS;
 const RUG = {x: -.4, z: .3, rx: 1.55, rz: 1.2};
-const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
-const EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
-const CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
-const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
-const DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
-// Places she jumps up to: the window sill (from her bed, just below it) and
-// the club chair's seat. spot: where she sits; top: its height; base: where
-// she jumps from and back down to; face: the way she sits there.
-const PERCHES = (() => {
+function studyLayout() {
   const w = room.windowGroup, c = room.chair, f = room.fireplace;
   w.updateMatrixWorld(true); c.updateMatrixWorld(true); f.updateMatrixWorld(true);
   return {
-    sill: {spot: w.localToWorld(new THREE.Vector3(-.05, 0, room.sillDepth * .5)).setY(0), top: room.sillTop,
-      base: new THREE.Vector3(bed.position.x, 0, bed.position.z - .3), face: Math.PI},
-    chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
-      base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
-    // The mantel shelf, beside the vase, facing the room; she takes off from
-    // the floor just in front of the hearth.
-    mantel: {spot: f.localToWorld(new THREE.Vector3(-.3, 0, .36)).setY(0), top: room.mantelTop,
-      base: f.localToWorld(new THREE.Vector3(-.3, 0, 1.5)).setY(0), face: -Math.PI / 2},
+    home: new THREE.Vector3(0, 0, .3), toyHome: new THREE.Vector3(-1.15, .13, 1.35),
+    sunSpot: new THREE.Vector3(room.sunPatch.position.x + .2, 0, room.sunPatch.position.z + .3),
+    // Places she jumps up to. spot: where she sits; top: its height; base:
+    // where she jumps from and back down to; face: the way she sits there.
+    perches: {
+      // The window sill, from her bed just below it.
+      sill: {spot: w.localToWorld(new THREE.Vector3(-.05, 0, room.sillDepth * .5)).setY(0), top: room.sillTop,
+        base: new THREE.Vector3(room.bed.position.x, 0, room.bed.position.z - .3), face: Math.PI},
+      chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
+        base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
+      // The mantel shelf, beside the vase, facing the room; she takes off
+      // from the floor just in front of the hearth.
+      mantel: {spot: f.localToWorld(new THREE.Vector3(-.3, 0, .36)).setY(0), top: room.mantelTop,
+        base: f.localToWorld(new THREE.Vector3(-.3, 0, 1.5)).setY(0), face: -Math.PI / 2},
+    },
+    perchTargets: [['sill', room.windowGroup], ['chair', room.chair], ['mantel', room.fireplace]],
+    limits: {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]},
+    // The camera stays inside the room (it may stand back past the open
+    // front) and out of the tall furniture: [x, z, radius, height].
+    camBox: {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]},
+    camSolids: [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]],
   };
-})();
-const SUN_SPOT = new THREE.Vector3(room.sunPatch.position.x + .2, 0, room.sunPatch.position.z + .3);
+}
+function usePlace(p) {
+  place = p;
+  room.group.visible = p === room;
+  if (kitchen) kitchen.group.visible = p === kitchen;
+  const L = p.layoutCache ??= p === room ? studyLayout() : p.layout();
+  // Her bowl and fountain come with her.
+  for (const [obj, spot] of [[bowl, L.bowl], [fountain, L.fountain]]) {
+    const home = obj.userData.studyHome ??= {p: obj.position.clone(), r: obj.rotation.y};
+    (p === room ? room.group : p.group).add(obj);
+    obj.position.copy(spot ? spot.p : home.p); obj.rotation.y = spot ? spot.ry : home.r;
+  }
+  bed = p.bed;
+  HOME = L.home; TOY_HOME = L.toyHome; SUN_SPOT = L.sunSpot; PERCHES = L.perches;
+  LIMITS = L.limits; CAM_BOX = L.camBox; CAM_SOLIDS = L.camSolids;
+  const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
+  EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
+  CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
+  const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
+  DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
+  if (p === room) room.lamp.position.copy(lampHome); else p.activate(room.lamp);
+}
+if (pet.place === 'kitchen') kitchen = new Kitchen(scene, room);
+usePlace(pet.place === 'kitchen' ? kitchen : room);
 function onRug(v) {
+  if (place !== room) return place.clampFloor(v);
   const dx = (v.x - RUG.x) / RUG.rx, dz = (v.z - RUG.z) / RUG.rz, r = Math.hypot(dx, dz);
   if (r > 1) { v.x = RUG.x + dx / r * RUG.rx; v.z = RUG.z + dz / r * RUG.rz; }
   return v;
 }
-const randomRugPoint = () => onRug(new THREE.Vector3(rand(-1.4, 1.4), 0, rand(-.7, 1.2)));
+const randomRugPoint = () => place !== room ? place.randomFloorPoint() : onRug(new THREE.Vector3(rand(-1.4, 1.4), 0, rand(-.7, 1.2)));
 
 let ready = false;
 cat.load('./assets/mochi-ragdoll.glb', p => {
@@ -426,14 +465,20 @@ function walkTo(point, then = null, run = false, anywhere = false) {
   // Mid-jump: go there once she lands. Up on a perch: hop down first.
   if (brain.jump) { brain.jump.then = () => walkTo(point, then, run, anywhere); return; }
   if (brain.perch) { jumpDown(() => walkTo(point, then, run, anywhere)); return; }
-  brain.target = anywhere ? point.clone() : onRug(point.clone());
+  const target = anywhere ? point.clone() : onRug(point.clone());
+  // In the kitchen she goes round the island, not through it.
+  if (place.route) {
+    const path = place.route(brain.pos, target);
+    if (path.length > 1) { walkTo(path[0], () => walkTo(target, then, run, true), run, true); return; }
+  }
+  brain.target = target;
   brain.run = run;
   const dist = Math.hypot(brain.target.x - brain.pos.x, brain.target.z - brain.pos.z);
   setActivity('walk', 8 + dist / (run ? 1.2 : .45), then);
 }
 // Jumping: a crouch and a little wiggle while she sizes it up, then an arc to
 // the new spot and height, and a soft landing.
-const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < room.bedRadius ? room.bedTop : 0;
+const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < place.bedRadius ? place.bedTop : 0;
 function leap(to, toY, perch, then = null) {
   brain.target = null;
   brain.jumpFace = angleTo(brain.pos, to);
@@ -446,7 +491,15 @@ function leap(to, toY, perch, then = null) {
 }
 function jumpTo(name, then = null, stay = 40) {
   const P = PERCHES[name];
-  if (brain.perch === name) { then?.(); return; }
+  if (!P || brain.perch === name) { then?.(); return; }
+  // A perch reached by way of another (the kitchen's step, counter and
+  // shelves): up from the one below; from higher up, come down to it first.
+  if (P.via) {
+    if (brain.perch === P.via && !brain.jump) { leap(P.spot, P.top, name, () => { brain.perchUntil = clockNow + stay; then ? then() : setActivity('sit'); }); return; }
+    if (brain.perch && PERCHES[brain.perch]?.top > P.top) { jumpDown(() => jumpTo(name, then, stay)); return; }
+    jumpTo(P.via, () => jumpTo(name, then, stay), 5);
+    return;
+  }
   // Only jump from the take-off spot (a walk can end early if it ran out of
   // time); otherwise keep walking there, or give up after a few tries.
   const go = tries => walkTo(P.base, () => {
@@ -457,6 +510,8 @@ function jumpTo(name, then = null, stay = 40) {
 }
 function jumpDown(then = null) {
   const P = PERCHES[brain.perch];
+  // Down the way she went up, one perch at a time.
+  if (P.via) { const U = PERCHES[P.via]; leap(U.spot, U.top, P.via, then); return; }
   leap(P.base, groundAt(P.base), null, then);
 }
 function restingActivity() {
@@ -754,7 +809,8 @@ function idleLife(t) {
   if (brain.mode !== 'idle' || !['sit', 'loaf'].includes(brain.activity) || t < brain.nextIdle || t - brain.pointerAt < 2.5) return;
   brain.nextIdle = t + rand(4, 8);
   if (brain.perch) { perchLife(t); return; }
-  const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', 'window', 'window', 'chair', 'sunbeam'];
+  const perchChoices = place === room ? ['window', 'window', 'chair'] : ['counter', 'shelf', 'shelf'];
+  const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', ...perchChoices, 'sunbeam'];
   if (pet.energy > 35) options.push('solo', 'solo');
   if (pet.happiness > 60) options.push('slowBlink', 'zoomies');
   if (pet.energy < 55) options.push('yawn', 'loaf', 'stretch');
@@ -768,7 +824,7 @@ function idleLife(t) {
   // app, then every half a minute or so. A tired kitten picks the calm ones.
   if (t > brain.nextShow) {
     brain.nextShow = t + rand(25, 40);
-    const shows = ['window', 'chair', 'sunbeam', 'mantel', 'mantel'];
+    const shows = place === room ? ['window', 'chair', 'sunbeam', 'mantel', 'mantel'] : ['counter', 'shelf', 'shelfHigh', 'shelfHigh', 'sunbeam'];
     if (pet.energy > 35) shows.push('solo', 'solo', 'zoomies');
     choice = pick(shows);
   }
@@ -794,6 +850,7 @@ function idleLife(t) {
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
   if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 5); }, rand(20, 35));
   if (choice === 'mantel') jumpTo('mantel', () => setActivity('sit'), rand(18, 30));
+  if (['step', 'counter', 'shelf', 'shelfHigh'].includes(choice)) jumpTo(choice, () => setActivity('sit'), rand(18, 30));
   if (choice === 'chair') jumpTo('chair', () => {
     // Kneads the seat, turns, and settles in for a catnap.
     brain.kneadUntil = clockNow + 3;
@@ -870,6 +927,8 @@ function knockBook() {
 // the floor now and then one catches her eye and she may go up to watch.
 function watchBirds(t) {
   room.batsOn = false;
+  // (Birds and bats visit the study's window only, for now.)
+  if (place !== room) { brain.watching = false; host.classList.remove('bird'); return; }
   if (pet.sleeping || !ready) {
     brain.watching = false;
     // Halloween evenings: bats swoop outside the window; now and then she
@@ -1120,7 +1179,7 @@ function updatePlay(dt, t) {
   toy.rotation.z -= toyVel.x * dt / .12;
   // A decor can swap the ball for its own toy (Halloween's felt bat): it
   // slides and wobbles where the ball would roll.
-  const alt = room.altToy;
+  const alt = place === room ? room.altToy : null;
   toy.visible = !alt;
   if (alt) {
     const speed = toyVel.length();
@@ -1163,7 +1222,7 @@ function updatePlay(dt, t) {
     }
     if (brain.activity === 'walk') setActivity('play');
     if (brain.activity !== 'play' || t < brain.pounceReadyAt || t - brain.stillSince < .5) return;
-    if (room.altToy && !brain.stalked) {
+    if (place === room && room.altToy && !brain.stalked) {
       // The felt bat: she stalks it (low, tail twitching, a little wiggle),
       // taps it, pauses to watch, then pounces.
       brain.stalked = true;
@@ -1222,7 +1281,6 @@ const view = {
   goal: {focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7},
   mode: 'room', lastDrag: -10, zoomedAt: -100,
 };
-const LIMITS = {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]};
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.13);
 const gazePlane = new THREE.Plane();
@@ -1243,7 +1301,7 @@ function hitsFountain() { return ready && ray.intersectObjects(room.clickables, 
 function perchAt() {
   if (!ready) return null;
   let best = null;
-  for (const [name, obj] of [['sill', room.windowGroup], ['chair', room.chair], ['mantel', room.fireplace]]) {
+  for (const [name, obj] of place.layoutCache.perchTargets) {
     if (!obj.visible) continue;
     const hit = ray.intersectObject(obj, true).find(h => h.object.visible && h.object.material?.blending !== THREE.AdditiveBlending);
     if (hit && (!best || hit.distance < best.d)) best = {name, d: hit.distance};
@@ -1375,12 +1433,20 @@ function roomFrame() {
   const tanV = Math.tan(THREE.MathUtils.degToRad(fitCam.fov / 2)), tanH = tanV * fitCam.aspect;
   // (?roomview=full keeps the earlier phone view, for comparison.)
   const wide = W / H > 1, full = new URLSearchParams(location.search).get('roomview') === 'full';
-  const across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom, wide ? ROOM_FRAME.left.concat(ROOM_FRAME.fireWide) : full ? ROOM_FRAME.left.concat(ROOM_FRAME.fireNarrow) : ROOM_FRAME.leftNarrow.concat(ROOM_FRAME.fireWide.slice(1)));
+  let across, bottomPts, topPts, yaw;
+  if (place === room) {
+    across = ROOM_FRAME.across.concat(ROOM_FRAME.bottom, wide ? ROOM_FRAME.left.concat(ROOM_FRAME.fireWide) : full ? ROOM_FRAME.left.concat(ROOM_FRAME.fireNarrow) : ROOM_FRAME.leftNarrow.concat(ROOM_FRAME.fireWide.slice(1)));
+    bottomPts = ROOM_FRAME.bottom; topPts = ROOM_FRAME.top;
+    // Turned a little towards the fireplace on the right wall.
+    yaw = -.3;
+  } else {
+    const F = place.frame(wide);
+    across = F.across.concat(F.bottom); bottomPts = F.bottom; topPts = F.top; yaw = F.yaw;
+  }
   // For a distance, slide the focus so the furniture sits centred in the
   // clear area with the rug's front edge on its bottom; report whether it fits.
-  // Turned a little towards the fireplace on the right wall.
-  const yaw = -.3, camRight = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  const place = (d, f, pitch) => {
+  const camRight = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const placeAt = (d, f, pitch) => {
     fitOff.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
     let fits = false;
     for (let it = 0; it < 6; it++) {
@@ -1391,8 +1457,8 @@ function roomFrame() {
         lo = Math.max(lo, L - fitPt.x);
         hi = Math.min(hi, (fitPt.y > camsBottom ? Rcams : Redge) - fitPt.x);
       }
-      for (const p of ROOM_FRAME.bottom) { fitPt.fromArray(p).project(fitCam); y0 = Math.min(y0, fitPt.y); }
-      for (const p of ROOM_FRAME.top) { fitPt.fromArray(p).project(fitCam); y1 = Math.max(y1, fitPt.y); }
+      for (const p of bottomPts) { fitPt.fromArray(p).project(fitCam); y0 = Math.min(y0, fitPt.y); }
+      for (const p of topPts) { fitPt.fromArray(p).project(fitCam); y1 = Math.max(y1, fitPt.y); }
       if (y1 < -1e8) y1 = y0;
       fits = lo <= hi && y1 - y0 <= T - B;
       // Shift the picture by the middle of the allowed range. (Moving the
@@ -1407,11 +1473,11 @@ function roomFrame() {
   // Lower the angle a little if the camera would otherwise rise above the
   // room's ceiling.
   for (; pitch >= .1; pitch -= .03) {
-    let lo = 3, hi = 18;
-    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (place(mid, f.set(0, .9, -.6), pitch)) hi = mid; else lo = mid; }
-    place(hi, f.set(0, .9, -.6), pitch);
+    let lo = 3, hi = place === room ? 18 : 24;
+    for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (placeAt(mid, f.set(0, .9, -.6), pitch)) hi = mid; else lo = mid; }
+    placeAt(hi, f.set(0, .9, -.6), pitch);
     dist = hi;
-    if (f.y + Math.sin(pitch) * dist < 6.3) break; // CAM_BOX.y, less a little
+    if (f.y + Math.sin(pitch) * dist < CAM_BOX.y[1] - .2) break;
   }
   return {yaw, pitch, dist, focus: f};
 }
@@ -1547,10 +1613,52 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.b
 
 // Room decor: the furniture stays put, only the look changes (decor.js).
 const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2']};
+// What to tap to invite her up, in the room she's in.
+function perchHint() { return place === room ? 'the sill, chair or mantel' : 'the counter or a shelf'; }
+// Rooms she can be in. The kitchen is built the first time she goes there.
+const PLACES = {
+  study: {name: 'The study', note: 'Fireplace, window seat and the bird', swatch: ['#9a5a34', '#5a6b38', '#e7d3b2', '#1d3f9a']},
+  kitchen: {name: 'The kitchen', note: 'Shelves to climb, a tent bed, a robot vacuum', swatch: ['#4b2e1c', '#efe3d0', '#cfd0cc', '#d8c3a5']},
+};
+function renderPlaces() {
+  $('#place-options').innerHTML = Object.entries(PLACES).map(([id, d]) => `<button type="button" data-place="${id}" aria-pressed="${place.id === id}" style="--tint:var(--accent)"><span class="decor-swatch">${d.swatch.map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
+}
+// Take her (and the camera) to another room.
+function goTo(id) {
+  const target = id === 'kitchen' ? (kitchen ??= new Kitchen(scene, room)) : room;
+  if (target === place) return;
+  if (brain.mode === 'play') endPlay(true);
+  if (brain.mode !== 'idle') setMode('idle');
+  Object.assign(brain, {perch: null, jump: null, target: null, pounce: null});
+  usePlace(target);
+  brain.pos.copy(pet.sleeping ? CUSHION_SPOT : HOME);
+  brain.elevation = pet.sleeping ? place.bedTop : 0;
+  brain.heading = pet.sleeping ? .6 : 0;
+  setActivity(pet.sleeping ? 'sleep' : 'sit');
+  toy.position.copy(TOY_HOME); toyTarget.copy(TOY_HOME);
+  CAMERA_VIEWS.room();
+  view.focus.copy(view.goal.focus);
+  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
+  pet.place = id;
+  save();
+  refresh();
+  if (!pet.sleeping) { express('curious', 2); setTimeout(() => glanceAt(new THREE.Vector3(rand(-3, 3), rand(1, 4), -2.5), 2), 600); }
+}
+$('#place-options').addEventListener('click', e => {
+  const b = e.target.closest('[data-place]');
+  if (!b) return;
+  const id = b.dataset.place;
+  $('#decor-dialog').close();
+  if (place.id === id) return;
+  toast(id === 'kitchen' ? 'Off to the kitchen…' : 'Back to the study…');
+  host.classList.add('moving');
+  setTimeout(() => { goTo(id); setTimeout(() => host.classList.remove('moving'), 120); }, 320);
+});
+
 function renderDecor() {
   $('#decor-options').innerHTML = Object.entries(DECORS).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
 }
-$('#decor-btn').onclick = () => { renderDecor(); $('#decor-dialog').showModal(); };
+$('#decor-btn').onclick = () => { renderPlaces(); renderDecor(); $('#decor-dialog').showModal(); };
 $('#decor-options').addEventListener('click', e => {
   const b = e.target.closest('[data-decor]');
   if (!b) return;
@@ -1698,11 +1806,6 @@ CAMERA_VIEWS.room();
 view.focus.copy(view.goal.focus);
 Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
 
-// Room bounds for the camera itself: it may stand back past the open front,
-// but never behind the back or side walls.
-const CAM_BOX = {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]};
-// Tall furniture the camera must not end up inside: [x, z, radius, height].
-const CAM_SOLIDS = [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]];
 function updateCamera(dt) {
   const g = view.goal, following = view.mode === 'follow' && ready;
   let distGoal = g.dist;
@@ -1756,7 +1859,8 @@ function updateRoom(dt, t) {
   rim.intensity = damp(rim.intensity, night ? 0 : 1.8, 3, dt);
   moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
   fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
-  room.update(dt, t, night, {drinking: brain.activity === 'drink', camera});
+  if (place === room) room.update(dt, t, night, {drinking: brain.activity === 'drink', camera});
+  else { place.update(dt, t, night, {camera, lamp: room.lamp}); room.updateFountain(dt, t, brain.activity === 'drink'); }
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat') {
@@ -1796,6 +1900,6 @@ function frame(now) {
 }
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
-if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
+if (new URLSearchParams(location.search).has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, PERCHES, SUN_SPOT, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera};
 
 renderer?.setAnimationLoop(now => { if (!document.hidden) frame(now); else last = now; });

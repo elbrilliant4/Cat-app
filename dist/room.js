@@ -40,7 +40,7 @@ export function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) 
 // ---------------------------------------------------------------------------
 // limed: lime paste left in the open grain (pale streaks), softer knots and
 // seams, and a faint white wash: lightly limed natural oak.
-function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46, limed = false}) {
+export function drawWood(g, w, h, {planks = 8, colors, seed = 1, grain = 46, limed = false}) {
   const r = rng(seed), ph = h / planks;
   for (let i = 0; i < planks; i++) {
     let x = -r() * 400;
@@ -120,7 +120,7 @@ export function drawNoise(g, w, h, {base, blobs, seed = 5}) {
   }
 }
 
-function drawLeather(g, w, h) {
+export function drawLeather(g, w, h) {
   drawNoise(g, w, h, {base: '#4f2a17', blobs: [['rgba(130,78,42,.09)', 900, 8, 40], ['rgba(50,20,6,.08)', 900, 6, 34], ['rgba(190,120,60,.05)', 400, 20, 70]], seed: 9});
   const r = rng(11);
   for (let i = 0; i < 260; i++) {
@@ -1264,6 +1264,21 @@ export class Room {
     pm.dispose();
   }
 
+  // The fountain goes wherever Mochi lives, so it animates on its own too.
+  updateFountain(dt, t, drinking) {
+    // Ripples: gentle rings from the spout, livelier while Mochi drinks.
+    this.ripple = damp(this.ripple, drinking ? 3 : 1, 4, dt);
+    const p = this.waterGeo.attributes.position, b = this.waterBase;
+    for (let i = 0; i < p.count; i++) {
+      const x = b[i * 3], z = b[i * 3 + 2], r = Math.hypot(x, z);
+      p.setY(i, (Math.sin(r * 70 - t * 7) * .0025 + Math.sin(x * 40 + t * 5) * Math.cos(z * 37 - t * 4) * .001 * this.ripple) * this.ripple);
+    }
+    p.needsUpdate = true;
+    this.waterGeo.computeVertexNormals();
+    const s = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04;
+    this.bubble.scale.set(s, 1 / s, s);
+  }
+
   update(dt, t, night, {drinking = false, camera = null} = {}) {
     if (camera) {
       for (const w of this.wallGroups) {
@@ -1286,17 +1301,7 @@ export class Room {
       if (this.scene.environment !== env) this.scene.environment = env;
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .55, 3, dt);
     }
-    // Fountain ripples: gentle rings from the spout, livelier while Mochi drinks.
-    this.ripple = damp(this.ripple, drinking ? 3 : 1, 4, dt);
-    const p = this.waterGeo.attributes.position, b = this.waterBase;
-    for (let i = 0; i < p.count; i++) {
-      const x = b[i * 3], z = b[i * 3 + 2], r = Math.hypot(x, z);
-      p.setY(i, (Math.sin(r * 70 - t * 7) * .0025 + Math.sin(x * 40 + t * 5) * Math.cos(z * 37 - t * 4) * .001 * this.ripple) * this.ripple);
-    }
-    p.needsUpdate = true;
-    this.waterGeo.computeVertexNormals();
-    const s = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04;
-    this.bubble.scale.set(s, 1 / s, s);
+    this.updateFountain(dt, t, drinking);
     if (this.candleLight) {
       const glow = this.candleLight.material;
       glow.opacity = damp(glow.opacity, night ? .95 : .3, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
