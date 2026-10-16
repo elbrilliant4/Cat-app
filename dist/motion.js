@@ -65,12 +65,16 @@ export class MotionRig {
     // The head's own levelling (as the app's rest pose), as a world turn.
     this.restHeadQ = cat.rest?.head ? this.mq.clone().multiply(cat.rest.head).multiply(this.mqi) : new THREE.Quaternion();
     // Where things are at rest, for building the neutral stance.
-    const R = this.restPos;
+    // Her own stance, from the sculpt: front paws stand well ahead of the
+    // shoulder joints and hind paws ahead of the hip joints (which sit far
+    // back in the haunch). The sculpt's left hind leg is stepped out, so the
+    // right one is the reference for both.
+    const R = this.restPos, [sRF, sLF, sRH] = this.soleRest;
+    const mid = (R.shoulderL.x + R.shoulderR.x) / 2;
     this.stance = {
-      hips: R.hips.clone(), chest: R.chest.clone(),
-      width: {front: (R.shoulderL.x - R.shoulderR.x) / 2, hind: (R.hipL.x - R.hipR.x) / 2},
-      mid: (R.shoulderL.x + R.shoulderR.x) / 2,
-      frontZ: (R.shoulderL.z + R.shoulderR.z) / 2, hindZ: (R.hipL.z + R.hipR.z) / 2,
+      hips: R.hips.clone(), chest: R.chest.clone(), mid,
+      width: {front: (sLF.x - sRF.x) / 2, hind: mid - sRH.x},
+      frontZ: (sLF.z + sRF.z) / 2, hindZ: sRH.z,
     };
     this.dW = {};
     this.planted = {};
@@ -223,10 +227,10 @@ export function trialSequence(rig, opts = {}) {
   const W = {front: S.width.front * .82, hind: S.width.hind * .82}; // she walks with her paws closer in
   // Paw places relative to the pelvis (standing): under the shoulders and hips.
   const off = {
-    LF: new THREE.Vector3(S.mid + W.front, 0, S.frontZ - S.hips.z + .05),
-    RF: new THREE.Vector3(S.mid - W.front, 0, S.frontZ - S.hips.z + .05),
-    LH: new THREE.Vector3(S.mid + W.hind, 0, S.hindZ - S.hips.z - .01),
-    RH: new THREE.Vector3(S.mid - W.hind, 0, S.hindZ - S.hips.z - .01),
+    LF: new THREE.Vector3(S.mid + W.front, 0, S.frontZ - S.hips.z),
+    RF: new THREE.Vector3(S.mid - W.front, 0, S.frontZ - S.hips.z),
+    LH: new THREE.Vector3(S.mid + W.hind, 0, S.hindZ - S.hips.z),
+    RH: new THREE.Vector3(S.mid - W.hind, 0, S.hindZ - S.hips.z),
   };
   const X0 = S.hips.x, Z0 = 0;
 
