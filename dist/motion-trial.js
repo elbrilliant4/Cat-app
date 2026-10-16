@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import {RealCat, EXPRESSIONS, POSES} from './real-cat.js';
 import {MotionRig, trialSequence, LEGS} from './motion.js';
+import {GLTFExporter} from './vendor/GLTFExporter.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
@@ -194,6 +195,46 @@ function slide(cat = 'new', dt = 1 / 60) {
   return out;
 }
 
+// --- Baked clips --------------------------------------------------------------
+// The sequence sampled at 30 fps into named clips on the trial skeleton:
+// bone turns, the pelvis's travel (root motion), shoulder-blade lifts and
+// breathing (spine/chest scale). The face, eyes and the app's own gaze, ear
+// and tail-tip touches stay live on top, as before.
+function bakeClips(fps = 30) {
+  const parts = [['notice', 0, T.walk], ['walk', T.walk, T.walkEnd], ['stop', T.walkEnd, T.sit], ['sit', T.sit, T.lie], ['lie_down', T.lie, T.lie + 2.6], ['rest', T.lie + 2.6, seq.duration]];
+  const B = fresh.bones, names = Object.keys(B);
+  return parts.map(([name, a, b]) => {
+    const n = Math.max(2, Math.round((b - a) * fps) + 1), times = new Float32Array(n);
+    const q = Object.fromEntries(names.map(k => [k, new Float32Array(n * 4)]));
+    const pos = {hips: new Float32Array(n * 3), scapulaL: new Float32Array(n * 3), scapulaR: new Float32Array(n * 3)};
+    const scl = {spine: new Float32Array(n * 3), chest: new Float32Array(n * 3)};
+    for (let i = 0; i < n; i++) {
+      const t = a + (b - a) * i / (n - 1);
+      times[i] = t - a;
+      const s = seq.state(t);
+      rig.apply(s, 1 / fps, t);
+      for (const k of names) B[k].quaternion.toArray(q[k], i * 4);
+      for (const k of Object.keys(pos)) B[k].position.toArray(pos[k], i * 3);
+      for (const k of Object.keys(scl)) B[k].scale.toArray(scl[k], i * 3);
+    }
+    const tracks = [
+      ...names.map(k => new THREE.QuaternionKeyframeTrack(`${k}.quaternion`, times, q[k])),
+      ...Object.keys(pos).map(k => new THREE.VectorKeyframeTrack(`${k}.position`, times, pos[k])),
+      ...Object.keys(scl).map(k => new THREE.VectorKeyframeTrack(`${k}.scale`, times, scl[k])),
+    ];
+    return new THREE.AnimationClip(name, b - a, tracks);
+  });
+}
+// The model, skeleton and clips as a GLB (for Blender or the app).
+async function exportGLB() {
+  const clips = bakeClips();
+  const hidden = [];
+  fresh.skinned.traverse(o => { if (o !== fresh.skinned && (o.isMesh || o.isLine || o.isLineSegments) && o.visible) { o.visible = false; hidden.push(o); } });
+  try {
+    return await new GLTFExporter().parseAsync(fresh.skinned, {binary: true, animations: clips, onlyVisible: true});
+  } finally { hidden.forEach(o => o.visible = true); frame(now); }
+}
+
 // --- Controls -----------------------------------------------------------------
 let playing = !q.has('paused'), last = performance.now();
 const scrub = document.getElementById('scrub');
@@ -204,6 +245,13 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { viewNa
 document.getElementById('marks').onclick = e => { showMarks = !showMarks; e.target.setAttribute('aria-pressed', String(showMarks)); frame(now); };
 document.getElementById('fur').onclick = e => { const on = !fresh.fur.visible; fresh.fur.visible = live.fur.visible = on; e.target.setAttribute('aria-pressed', String(on)); frame(now); };
 scrub.oninput = () => { frame(scrub.value / 1000 * seq.duration, true); };
+document.getElementById('glb').onclick = async e => {
+  e.target.textContent = 'Baking…';
+  const buf = await exportGLB();
+  const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(new Blob([buf], {type: 'model/gltf-binary'})), download: 'mochi-motion-trial.glb'});
+  a.click(); URL.revokeObjectURL(a.href);
+  e.target.textContent = 'Save GLB';
+};
 press('[data-cat]', x => x.dataset.cat === which); press('[data-view]', x => x.dataset.view === viewName);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 function loop() {
@@ -215,4 +263,5 @@ frame(0, true);
 if (!q.has('capture')) loop();
 else { document.getElementById('bar').style.display = 'none'; document.getElementById('time').style.display = 'none'; }
 window.trial = {ready: true, duration: seq.duration, T, seq, rig, fresh, live,
+  bakeClips, exportGLB,
   show: w => { which = w; }, view: v => { viewName = v; }, marks: on => { showMarks = on; }, fur: on => { fresh.fur.visible = live.fur.visible = on; }, frame, slide};
