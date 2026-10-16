@@ -631,7 +631,7 @@ function updateCat(dt, t) {
     const dx = brain.target.x - brain.pos.x, dz = brain.target.z - brain.pos.z, dist = Math.hypot(dx, dz);
     desiredHeading = Math.atan2(dx, dz);
     const facing = Math.abs(Math.atan2(Math.sin(desiredHeading - brain.heading), Math.cos(desiredHeading - brain.heading)));
-    const top = brain.run ? 2.1 : .65;
+    const top = typeof brain.run === 'number' ? brain.run : brain.run ? 2.1 : .65;
     brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * 2.5 + .2) : .15, 5, dt);
     if (dist < .06) {
       brain.speed = 0;
@@ -888,7 +888,7 @@ function idleLife(t) {
   if (brain.mode !== 'idle' || !['sit', 'loaf'].includes(brain.activity) || t < brain.nextIdle || t - brain.pointerAt < 2.5) return;
   brain.nextIdle = t + rand(4, 8);
   if (brain.perch) { perchLife(t); return; }
-  const perchChoices = place === room ? ['window', 'window', 'chair'] : ['shelf', 'shelf', 'shelfHigh', 'shelfHigh', 'salmonRaid', 'faucet'].concat(pet.food < 75 ? ['salmonRaid'] : [], pet.water < 75 ? ['faucet'] : []);
+  const perchChoices = place === room ? ['window', 'window', 'chair'] : ['shelf', 'shelf', 'shelfHigh', 'shelfHigh', 'salmonRaid', 'faucet', 'faucet'].concat(pet.food < 75 ? ['salmonRaid'] : [], pet.water < 85 ? ['faucet', 'faucet'] : []);
   const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', ...perchChoices, 'sunbeam'];
   if (pet.energy > 35) options.push('solo', 'solo');
   if (pet.happiness > 60) options.push('slowBlink', 'zoomies');
@@ -955,8 +955,9 @@ function perchLife(t) {
   if (brain.perch === 'sill' && t > brain.nextKnock && !room.bookFall && t - brain.actStart > 6) options.push('book');
   if (brain.perch === 'mantel' && t > brain.nextKnock && !room.vaseFall && t - brain.actStart > 4) options.push('vase', 'vase');
   if (PERCHES[brain.perch]?.lane && place === kitchen && t - brain.actStart > 2) options.push('stroll', 'stroll', 'stroll');
-  if (brain.perch === 'shelf' && place === kitchen && t > brain.nextKnock && kitchen.nextCup() && t - brain.actStart > 3) options.push('cups');
-  if (brain.perch === 'counter' && place === kitchen && t - brain.actStart > 2) options.push('faucet');
+  // Something on this shelf that could do with being on the floor.
+  if (PERCHES[brain.perch]?.lane && place === kitchen && t > brain.nextKnock && kitchen.knockableNear(brain.perch, brain.pos.x) && t - brain.actStart > 2) options.push('knock', 'knock');
+  if (brain.perch === 'counter' && place === kitchen && t - brain.actStart > 2) options.push('faucet', 'faucet');
   if (HOPS[brain.perch] && place === kitchen && t - brain.actStart > 2) options.push('hop');
   options.push('call');
   const choice = pick(options);
@@ -968,7 +969,7 @@ function perchLife(t) {
   if (choice === 'loaf') setActivity('loaf', rand(6, 12), () => setActivity('sit'));
   if (choice === 'book') knockBook();
   if (choice === 'vase') knockVase();
-  if (choice === 'cups') tapCups();
+  if (choice === 'knock') knockThing(kitchen.knockableNear(brain.perch, brain.pos.x));
   if (choice === 'stroll') stroll();
   if (choice === 'faucet') drinkFaucet();
   if (choice === 'hop') hopFrom();
@@ -1028,7 +1029,7 @@ function knockThing(item, pats = 1 + Math.floor(Math.random() * 3)) {
   const shelf = brain.perch, P = PERCHES[shelf];
   if (!item || !P?.lane || item.shelf !== shelf || brain.jump || item.obj.userData.fall) return false;
   const obj = item.obj;
-  brain.nextKnock = clockNow + rand(40, 90);
+  brain.nextKnock = clockNow + rand(25, 50);
   brain.perchUntil = Math.max(brain.perchUntil, clockNow + 25);
   const at = () => kitchen.cupWorld(obj, new THREE.Vector3()).add(new THREE.Vector3(0, .1, 0));
   const still = () => brain.perch === shelf && !brain.jump && place === kitchen;
@@ -1083,9 +1084,9 @@ function stroll() {
   // another shelf, further along, or a rest. No set tour.
   walkPath(path, () => {
     const item = kitchen.knockableNear(brain.perch, brain.pos.x), r = Math.random();
-    if (r < .35 && item && Math.abs(item.obj.position.x - brain.pos.x) < 1.2 && clockNow > brain.nextKnock) knockThing(item);
-    else if (r < .55 && hopFrom()) return;
-    else if (r < .68) { setActivity('sit', rand(1.5, 3), () => { if (PERCHES[brain.perch]?.lane && brain.mode === 'idle') stroll(); }); }
+    if (r < .55 && item && Math.abs(item.obj.position.x - brain.pos.x) < 1.5 && clockNow > brain.nextKnock) knockThing(item);
+    else if (r < .7 && hopFrom()) return;
+    else if (r < .8) { setActivity('sit', rand(1.5, 3), () => { if (PERCHES[brain.perch]?.lane && brain.mode === 'idle') stroll(); }); }
     else {
       setActivity(Math.random() < .5 ? 'sit' : 'loaf', rand(3, 6)); glanceAt(new THREE.Vector3(brain.pos.x + rand(-2, 2), rand(1, 3), rand(-1, 2)), 2);
       if (Math.random() < .25) later(1, () => { glanceAt(camera.position, 2); meow(pick(['mew', 'chirp']), 'idle'); });
@@ -1158,19 +1159,22 @@ function drinkFaucet() {
   return true;
 }
 
-// Tapping a cup asks her to: up she goes if she isn't on the shelf already.
-function inviteCup() {
+// Tapping something on a shelf asks her to see to it: up she goes if she
+// isn't on that shelf already, along to it, and over it goes (usually).
+function inviteKnock(item) {
+  if (!item || item.obj.userData.fall) return;
   if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
   if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
-  const cup = kitchen?.nextCup();
-  if (!cup) { glanceAt(camera.position, 2); say(pick(['Already done.', 'Nothing left up there.']), 2200); return; }
-  glanceAt(kitchen.cupWorld(cup, new THREE.Vector3()), 1.6);
+  glanceAt(kitchen.cupWorld(item.obj, new THREE.Vector3()), 1.6);
   twitchEar(0, 1);
-  if (Math.random() > .8) { later(.9, () => { glanceAt(camera.position, 2.2); say(pick(['Not now.', 'Maybe later.', '*tail flick*']), 2400); }); return; }
+  if (Math.random() > .85) { later(.9, () => { glanceAt(camera.position, 2.2); say(pick(['Not now.', 'Maybe later.', '*tail flick*']), 2400); }); return; }
   brain.mode = 'idle';
+  brain.nextKnock = 0;
   later(.35, () => meow('chirp', 'idle'));
-  if (brain.perch === 'shelf' && !brain.jump) tapCups();
-  else jumpTo('shelf', () => { if (!tapCups()) setActivity('sit'); }, rand(25, 40));
+  const go = () => { if (!knockThing(item, 4)) setActivity('sit'); };
+  if (brain.perch === item.shelf && !brain.jump) go();
+  else if (brain.perch && brain.perch !== 'shelf' && brain.perch !== 'shelfHigh') jumpDown(() => jumpTo(item.shelf, go, rand(25, 40)));
+  else jumpTo(item.shelf, go, rand(25, 40));
 }
 
 // The robot vacuum, the star of the kitchen. Now and then it goes out on a
@@ -1182,24 +1186,27 @@ function vacuumLife(t) {
   if (place !== kitchen) return;
   const v = kitchen.vac;
   // First run soon after she arrives in the kitchen.
-  if (!brain.vacInit) { brain.vacInit = true; brain.nextVacuum = t + rand(15, 30); }
+  if (!brain.vacInit) { brain.vacInit = true; brain.nextVacuum = t + rand(20, 40); }
   if (!v.rider && brain.perch === 'vacuum') v.stops += 2; // with her aboard it goes a bit further
   v.rider = brain.perch === 'vacuum';
   if (brain.vacStalk && brain.activity === 'stalk') brain.swatAt.copy(kitchen.vacuum.position);
   // Coming to ride: once she's close, it politely waits for her.
   if (brain.vacRide && v.state === 'out' && brain.pos.distanceTo(kitchen.vacuum.position) < 2.4) v.wait = Math.max(v.wait, t + .6);
   if (v.state === 'docked' && !pet.sleeping && t > brain.nextVacuum) {
-    brain.nextVacuum = t + rand(80, 150);
+    brain.nextVacuum = t + rand(150, 260);
     kitchen.startVacuum(t);
-    brain.vacReactAt = t + rand(1.5, 3);
+    brain.vacReactAt = t + rand(1.5, 3); brain.vacReacts = 0;
   }
   if (v.rider && !brain.jump && brain.activity !== 'prejump' && (v.state === 'docked' || (v.state === 'home' && kitchen.vacuumNearHome) || pet.sleeping)) {
     jumpDown(() => { setActivity('sit'); glanceAt(kitchen.vacuum.position.clone().setY(.2), 2); });
     return;
   }
-  if (v.state === 'out' && t > brain.vacReactAt && brain.mode === 'idle' && !pet.sleeping && !brain.jump && ['sit', 'loaf', 'groom'].includes(brain.activity)) {
-    brain.vacReactAt = t + rand(8, 15);
-    const r = Math.random(), react = () => r < .4 ? vacuumAttack() : r < .88 ? vacuumRide() : vacuumWatch();
+  // Mostly one reaction a run (now and then a second): a swat, a ride, or a
+  // long suspicious look, or she just carries on.
+  if (v.state === 'out' && t > brain.vacReactAt && (brain.vacReacts ?? 0) < 2 && brain.mode === 'idle' && !pet.sleeping && !brain.jump && ['sit', 'loaf', 'groom'].includes(brain.activity)) {
+    brain.vacReactAt = t + rand(20, 35);
+    brain.vacReacts = (brain.vacReacts ?? 0) + (brain.vacReacts ? 1 : Math.random() < .7 ? 2 : 1);
+    const r = Math.random(), react = () => r < .28 ? vacuumAttack() : r < .7 ? vacuumRide() : r < .85 ? vacuumWatch() : null;
     // Up on a perch she may well come down for it.
     if (!brain.perch) react();
     else if (brain.perch !== 'vacuum') { if (Math.random() < .55) jumpDown(react); else vacuumWatch(); }
@@ -1216,7 +1223,7 @@ function vacuumAttack() {
   brain.swatAt = vacAt().clone(); brain.vacStalk = true;
   const go = tries => {
     if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; return; }
-    if (brain.pos.distanceTo(vacAt()) > 2.2) { if (tries < 4) walkTo(nearVacuum(1.5), () => go(tries + 1), true, true); else { brain.vacStalk = false; setActivity('sit'); } return; }
+    if (brain.pos.distanceTo(vacAt()) > 2.2) { if (tries < 4) walkTo(nearVacuum(1.5), () => go(tries + 1), 1.0, true); else { brain.vacStalk = false; setActivity('sit'); } return; }
     // Stalk: low, bottom wiggling, eyes locked on; then the pounce.
     setActivity('stalk', rand(1.2, 2.2), () => {
       if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; setActivity('sit'); return; }
@@ -1262,7 +1269,7 @@ function vacuumRide() {
       setActivity(Math.random() < .5 ? 'loaf' : 'sit');
       later(.6, () => { meow('chirp', 'reply'); if (Math.random() < .6) say(pick(['Onward!', 'Chauffeur, please.', 'Wheee.', 'To the bowl, please.']), 2200); });
     });
-  }, tries > 1, true);
+  }, tries > 1 ? 1.0 : false, true);
   go(0);
 }
 function vacuumWatch() {
@@ -1275,7 +1282,7 @@ function vacuumWatch() {
 function inviteVacuum() {
   if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
   const v = kitchen.vac;
-  if (v.state === 'docked') { kitchen.startVacuum(clockNow); brain.vacReactAt = clockNow + rand(1.2, 2.5); brain.nextVacuum = clockNow + rand(160, 320); glanceAt(vacAt().clone().setY(.2), 1.5); twitchEar(0, 1); return; }
+  if (v.state === 'docked') { kitchen.startVacuum(clockNow); brain.vacReactAt = clockNow + rand(1.2, 2.5); brain.vacReacts = 0; brain.nextVacuum = clockNow + rand(150, 260); glanceAt(vacAt().clone().setY(.2), 1.5); twitchEar(0, 1); return; }
   if (brain.perch === 'vacuum') { meow('chirp', 'idle'); return; }
   if (!['idle', 'solo'].includes(brain.mode)) return;
   brain.mode = 'idle';
@@ -1679,9 +1686,13 @@ function hitsFountain() { return ready && ray.intersectObjects(room.clickables, 
 function perchAt() {
   if (!ready) return null;
   let best = null;
-  if (place === kitchen) for (const cup of kitchen.shelfCups) {
-    const hit = ray.intersectObject(cup, true)[0];
-    if (hit && (!best || hit.distance < best.d)) best = {name: 'cup', d: hit.distance};
+  if (place === kitchen) {
+    kitchen.knockables.forEach((k, i) => {
+      if (k.obj.userData.fall) return;
+      const hit = ray.intersectObject(k.obj, true)[0];
+      if (hit && (!best || hit.distance < best.d)) best = {name: 'knock:' + i, d: hit.distance};
+    });
+    for (const part of kitchen.faucetParts) { const hit = ray.intersectObject(part, false)[0]; if (hit && (!best || hit.distance < best.d)) best = {name: 'faucet', d: hit.distance}; }
   }
   for (const [name, obj] of place.layoutCache.perchTargets) {
     if (!obj.visible) continue;
@@ -1695,7 +1706,8 @@ function perchAt() {
 // more likely to give in.
 let lastInvite = {name: null, at: -99};
 function invite(name) {
-  if (name === 'cup') { inviteCup(); return; }
+  if (name.startsWith('knock:')) { inviteKnock(kitchen.knockables[+name.slice(6)]); return; }
+  if (name === 'faucet') { if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; } if (!['idle', 'solo'].includes(brain.mode)) return; brain.mode = 'idle'; later(.35, () => meow('chirp', 'idle')); if (brain.perch && brain.perch !== 'counter') jumpDown(drinkFaucet); else drinkFaucet(); return; }
   if (name === 'vacuum') { inviteVacuum(); return; }
   if (name === 'salmon') { if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; } if (!kitchen.salmonReady) { say('All gone…', 2000); return; } if (Math.random() < .85) { brain.mode = 'idle'; stealSalmon(); } else say(pick(['I would never.', '*innocent look*']), 2200); return; }
   if (pet.sleeping) { toast('Shh… wake your kitten first.'); return; }
@@ -1999,7 +2011,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.b
 // Room decor: the furniture stays put, only the look changes (decor.js).
 const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2']};
 // What to tap to invite her up, in the room she's in.
-function perchHint() { return place === room ? 'the sill, chair or mantel' : 'a shelf, a cup or the vacuum'; }
+function perchHint() { return place === room ? 'the sill, chair or mantel' : 'a shelf, a cup, the tap or the vacuum'; }
 // Rooms she can be in. The kitchen is built the first time she goes there.
 const PLACES = {
   study: {name: 'The study', note: 'Fireplace, window seat and the bird', swatch: ['#9a5a34', '#5a6b38', '#e7d3b2', '#1d3f9a']},

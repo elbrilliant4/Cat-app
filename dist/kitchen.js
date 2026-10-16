@@ -263,9 +263,10 @@ export class Kitchen {
     this.sink = {x: (sink.x0 + sink.x1) / 2, z: (sink.z0 + sink.z1) / 2, y: by};
     // Brass gooseneck faucet and lever.
     const fx = this.sink.x, fz = zb + .28;
-    this.mesh(new THREE.CylinderGeometry(.06, .07, .1, 16), M.brass, g).position.set(fx, C + .05, fz);
+    const faucetBase = this.mesh(new THREE.CylinderGeometry(.06, .07, .1, 16), M.brass, g); faucetBase.position.set(fx, C + .05, fz);
     const neck = new THREE.CatmullRomCurve3([V(fx, C, fz), V(fx, C + .7, fz), V(fx, C + 1.0, fz + .15), V(fx, C + .95, fz + .45), V(fx, C + .7, fz + .55)]);
-    this.mesh(new THREE.TubeGeometry(neck, 24, .035, 10), M.brass, g);
+    // (Tapping the faucet asks her up for a drink.)
+    this.faucetParts = [faucetBase, this.mesh(new THREE.TubeGeometry(neck, 24, .035, 10), M.brass, g)];
     this.faucetTip = V(fx, C + .68, fz + .55);
     const fall = this.faucetTip.y - by;
     this.stream = this.mesh(new THREE.CylinderGeometry(.012, .018, fall, 8), new THREE.MeshStandardMaterial({color: '#d9ecf5', transparent: true, opacity: .55, roughness: .05}), g, {cast: false, receive: false});
