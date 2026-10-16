@@ -223,7 +223,6 @@ const tr = keys => new Track(keys);
 export function trialSequence(rig, opts = {}) {
   const S = rig.stance;
   const h0 = S.hips.y - .012;                 // pelvis height standing (legs just off straight)
-  const chestDZ = S.chest.z - S.hips.z;
   const W = {front: S.width.front * .82, hind: S.width.hind * .82}; // she walks with her paws closer in
   // Paw places relative to the pelvis (standing): under the shoulders and hips.
   const off = {
@@ -232,6 +231,9 @@ export function trialSequence(rig, opts = {}) {
     LH: new THREE.Vector3(S.mid + W.hind, 0, S.hindZ - S.hips.z),
     RH: new THREE.Vector3(S.mid - W.hind, 0, S.hindZ - S.hips.z),
   };
+  // Walking, the front paws land a little further back (so the leg reaches
+  // its print as it lands) and she carries herself a touch lower.
+  const walkOff = {LF: -.035, RF: -.035, LH: 0, RH: 0};
   const X0 = S.hips.x, Z0 = 0;
 
   // ---- Timeline ------------------------------------------------------------
@@ -271,7 +273,7 @@ export function trialSequence(rig, opts = {}) {
     for (let n = 0; n < 20; n++) {
       const td = tl + (1 - duty) * cycle;                // touch down
       const mid = td + duty * cycle / 2;                 // middle of the next stance
-      const z = zAt(Math.min(mid, T.walkEnd)) + off[k].z;
+      const z = zAt(Math.min(mid, T.walkEnd)) + off[k].z + (mid < T.walkEnd ? walkOff[k] : 0);
       const to = new THREE.Vector3(X0 + off[k].x, 0, z);
       if (to.z - at.z < .02) break;                      // body's stopped: no step needed
       swings.push({t0: tl, t1: td, from: at.clone(), to: to.clone()});
@@ -331,10 +333,10 @@ export function trialSequence(rig, opts = {}) {
               [tl + .3, .18], [tl + 1.6, .135, 'io'], [tl + 2.3, .115, 'o'], [tl + 2.6, .118]]),
     pelZ: tr([[0, 0], [ts, 0], [ts + 1.0, -.15, 'io'], [tl + .3, -.15], [tl + 2.2, -.02, 'io']]), // sitting, the body pivots back over the front paws
     pelX: tr([[0, 0], [tl + .4, 0], [tl + 2.0, -.03, 'io']]),
-    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .56, 'io'], [ts + 1.3, .54, 'io'], [tl + .4, .54], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
+    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .48, 'io'], [ts + 1.3, .46, 'io'], [tl + .4, .46], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
     pelRoll: tr([[0, 0], [tl + .9, 0], [tl + 2.3, .38, 'io']]),
-    spinePitch: tr([[0, 0], [ts + .25, 0], [ts + 1.2, .17, 'io'], [tl + .5, .17], [tl + 1.9, -.03, 'io']]),
-    chestPitch: tr([[0, 0], [ts + .35, 0], [ts + 1.35, .1, 'io'], [tl + .6, .1], [tl + 1.9, -.06, 'io']]),
+    spinePitch: tr([[0, 0], [ts + .25, 0], [ts + 1.2, .1, 'io'], [tl + .5, .1], [tl + 1.9, -.03, 'io']]),
+    chestPitch: tr([[0, 0], [ts + .35, 0], [ts + 1.35, .05, 'io'], [tl + .6, .05], [tl + 1.9, -.06, 'io']]),
     spineRoll: tr([[0, 0], [tl + 1.0, 0], [tl + 2.3, -.2, 'io']]),
     // Head (world): looks up and left at something, then ahead; settles low.
     headYaw: tr([[0, 0], [.35, 0], [.75, .42, 'o'], [1.5, .4], [T.walk + .1, .1, 'io'], [T.walk + .6, 0, 'io'],
@@ -354,8 +356,8 @@ export function trialSequence(rig, opts = {}) {
   const extra = {
     // Sitting: the front paws shuffle back under the chest as the
     // hindquarters drop (right, then left); lying down: they walk out again.
-    RF: [{t0: ts + .45, t1: ts + .75, dz: -.08, dx: .01}, {t0: tl + .55, t1: tl + .95, dz: .26, dx: 0}],
-    LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.08, dx: -.01}, {t0: tl + .95, t1: tl + 1.35, dz: .26, dx: 0}],
+    RF: [{t0: ts + .45, t1: ts + .75, dz: -.1, dx: .01}, {t0: tl + .55, t1: tl + .95, dz: .28, dx: 0}],
+    LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.1, dx: -.01}, {t0: tl + .95, t1: tl + 1.35, dz: .28, dx: 0}],
     // Hind paws: as the hips roll on to her right side, the left hind slides
     // its paw out a little under the haunch.
     LH: [{t0: tl + 1.4, t1: tl + 1.9, dz: .05, dx: .03}],
@@ -387,7 +389,8 @@ export function trialSequence(rig, opts = {}) {
     const pre = smoothstep(t, T.walk - .45, T.walk - .05) * (1 - smoothstep(t, T.walk + .1, T.walk + .5));
     const swayH = .012 * (sw.RH - sw.LH), swayF = .01 * (sw.RF - sw.LF);
     const z = zAt(t) + ch.pelZ.at(t);
-    const pelY = ch.pelY.at(t) - (walking ? .006 * (sw.LH + sw.RH) + .003 * (sw.LF + sw.RF) : 0) - .006 * pre;
+    const low = smoothstep(t, T.walk - .2, T.walk + .6) * (1 - smoothstep(t, T.stop - .4, T.stop + .4));
+    const pelY = ch.pelY.at(t) - (walking ? .006 * (sw.LH + sw.RH) + .003 * (sw.LF + sw.RF) : 0) - .006 * pre - .02 * low;
     // Hips: the swinging side dips a little and turns forward.
     const pelRoll = ch.pelRoll.at(t) + .045 * (sw.RH - sw.LH);
     const pelYaw = .03 * (sw.RH - sw.LH);
@@ -413,7 +416,7 @@ export function trialSequence(rig, opts = {}) {
     return {
       pelvis: {pos, yaw: pelYaw, pitch: ch.pelPitch.at(t), roll: pelRoll},
       spine: {yaw: -.5 * pelYaw + .02 * (sw.LF - sw.RF), pitch: ch.spinePitch.at(t), roll: ch.spineRoll.at(t) + chestRoll * .5},
-      chest: {yaw: 0, pitch: ch.chestPitch.at(t) + .03 * pre, roll: chestRoll * .5},
+      chest: {yaw: 0, pitch: ch.chestPitch.at(t) + .03 * pre - .035 * low, roll: chestRoll * .5},
       head: {yaw: ch.headYaw.at(t), pitch: ch.headPitch.at(t), roll: ch.headRoll.at(t)},
       neckShare: .5,
       scap: {L: scapFor('LF'), R: scapFor('RF')},
