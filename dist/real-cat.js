@@ -7,7 +7,7 @@
 // grooming, eating, kneading, pouncing and rolling over.
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {buildSkeleton, computeWeights, BONES, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
+import {buildSkeleton, computeWeights, computeWeights2, syncHelpers, BONES, BONES2, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
 import {sculptFace, MOUTH, fade} from './face-sculpt.js';
 
 const {damp, clamp} = THREE.MathUtils;
@@ -219,7 +219,9 @@ float furHash(vec2 p) {
 `;
 
 export class RealCat {
-  constructor() {
+  // opts.rig: 2 for the motion trial's rig (shoulder blades, new weights).
+  constructor(opts = {}) {
+    this.opts = opts;
     this.root = new THREE.Group();
     this.model = new THREE.Group();
     this.root.add(this.model);
@@ -269,13 +271,14 @@ export class RealCat {
     const uv = geometry.attributes.uv, pos = geometry.attributes.position;
     const texel = i => texelAt(uv.getX(i), uv.getY(i));
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };
-    const {weld, names} = computeWeights(geometry, bright);
+    const v2 = this.opts.rig === 2;
+    const {weld, names} = v2 ? computeWeights2(geometry) : computeWeights(geometry, bright);
     this.rigSource = {bright}; // (for rig-check.html)
     this.weightMouth(geometry, names);
     this.sampleLidRing(pos, texel, px);
     this.furLengths(geometry, weld);
 
-    const {root, bones, list} = buildSkeleton();
+    const {root, bones, list} = buildSkeleton(v2 ? BONES2 : BONES);
     this.bones = bones;
     const skinned = new THREE.SkinnedMesh(geometry, material);
     skinned.castShadow = true;
@@ -679,6 +682,7 @@ export class RealCat {
     this.ground = this.ground === undefined ? want : damp(this.ground, want, 14, dt);
     this.model.position.y = this.ground;
     this.plantPaws(dt, t, ctl, lift);
+    syncHelpers(this.bones);
   }
 
   // Planted paws: a paw in contact with the floor stays where it was put

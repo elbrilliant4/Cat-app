@@ -11,7 +11,7 @@
 //   check.stats()      where influence crosses between body regions
 import * as THREE from 'three';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
-import {BONES, computeWeights} from './cat-rig.js';
+import {BONES, BONES2, computeWeights, computeWeights2, syncHelpers} from './cat-rig.js';
 
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
 renderer.setPixelRatio(1);
@@ -36,7 +36,10 @@ grid.position.y = .001;
 scene.add(grid);
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, .05, 50);
 
-const cat = new RealCat();
+// ?rig=2: the motion trial's rig (shoulder blades, repaired weights).
+const RIG = +new URLSearchParams(location.search).get('rig') || 1;
+const DEF = RIG === 2 ? BONES2 : BONES;
+const cat = new RealCat({rig: RIG});
 await cat.load('./assets/mochi-ragdoll.glb');
 scene.add(cat.root);
 cat.fur.visible = false;
@@ -48,18 +51,18 @@ const smoothW = {index: geo.attributes.skinIndex, weight: geo.attributes.skinWei
 const rawGeo = new THREE.BufferGeometry();
 rawGeo.setAttribute('position', geo.attributes.position);
 rawGeo.setIndex(geo.index);
-const {names} = computeWeights(rawGeo, cat.rigSource.bright, {smooth: 0});
+const {names} = RIG === 2 ? computeWeights2(rawGeo, {smooth: 0}) : computeWeights(rawGeo, cat.rigSource.bright, {smooth: 0});
 const rawW = {index: rawGeo.attributes.skinIndex, weight: rawGeo.attributes.skinWeight};
 
 // Colours by bone: body cool, front legs warm, hind legs red/pink, tail green.
 const GROUPS = {
   hips: '#7a4fd0', spine: '#3f6fd8', chest: '#33a6d6', neck: '#8aa0b0', head: '#b8b8b8', jaw: '#e0e0e0', earR: '#d8d8d8', earL: '#d8d8d8',
-  shoulderR: '#f08a24', elbowR: '#f6b54a', wristR: '#fbe08a', shoulderL: '#d4691a', elbowL: '#e0a040', wristL: '#efd27a',
-  hipR: '#d8313a', kneeR: '#ee6f86', hockR: '#f7aab8', hipL: '#a8202a', kneeL: '#c95468', hockL: '#df8c9c',
+  scapulaR: '#ff5e1a', scapulaL: '#c2410c', shoulderR: '#f08a24', elbowR: '#f6b54a', wristR: '#fbe08a', shoulderL: '#d4691a', elbowL: '#e0a040', wristL: '#efd27a',
+  thighR: '#ff7a7a', thighL: '#b84a4a', hipR: '#d8313a', kneeR: '#ee6f86', hockR: '#f7aab8', hipL: '#a8202a', kneeL: '#c95468', hockL: '#df8c9c',
 };
 for (let i = 0; i < 8; i++) GROUPS['tail' + i] = new THREE.Color().setHSL(.3 + i * .025, .6, .28 + i * .05).getStyle();
 const boneColor = names.map(n => new THREE.Color(GROUPS[n] || '#ff00ff'));
-const GROUP_SETS = {tail: names.filter(n => n.startsWith('tail')), hindL: ['hipL', 'kneeL', 'hockL'], hindR: ['hipR', 'kneeR', 'hockR'], frontR: ['shoulderR', 'elbowR', 'wristR'], frontL: ['shoulderL', 'elbowL', 'wristL']};
+const GROUP_SETS = {tail: names.filter(n => n.startsWith('tail')), hindL: ['thighL', 'hipL', 'kneeL', 'hockL'].filter(n => names.includes(n)), hindR: ['thighR', 'hipR', 'kneeR', 'hockR'].filter(n => names.includes(n)), frontR: ['scapulaR', 'shoulderR', 'elbowR', 'wristR'].filter(n => names.includes(n)), frontL: ['scapulaL', 'shoulderL', 'elbowL', 'wristL'].filter(n => names.includes(n))};
 
 const colors = new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3);
 geo.setAttribute('color', colors);
@@ -93,7 +96,7 @@ function mode(name) {
   geo.setAttribute('skinIndex', W.index); geo.setAttribute('skinWeight', W.weight);
   if (name === 'weights' || name === 'raw') {
     paint(W, byBone);
-    legend.innerHTML = Object.entries({hips: 'hips', spine: 'spine', chest: 'chest', 'shoulder/elbow/wrist R': 'shoulderR', 'L front': 'shoulderL', 'hip/knee/hock R': 'hipR', 'L hind': 'hipL', tail: 'tail3'}).map(([k, n]) => `<div><span style="background:${GROUPS[n]}"></span>${k}</div>`).join('');
+    legend.innerHTML = Object.entries({hips: 'hips', spine: 'spine', chest: 'chest', ...(RIG === 2 ? {'shoulder blade R': 'scapulaR'} : {}), 'shoulder/elbow/wrist R': 'shoulderR', 'L front': 'shoulderL', 'hip/knee/hock R': 'hipR', 'L hind': 'hipL', tail: 'tail3'}).map(([k, n]) => `<div><span style="background:${GROUPS[n]}"></span>${k}</div>`).join('');
   } else {
     const key = name.slice(5), set = new Set((GROUP_SETS[key] || [key]).map(n => names.indexOf(n)));
     const w2 = name.includes('raw:') ? rawW : W;
@@ -114,6 +117,9 @@ const BENDS = {
   'hind-forward': {hipR: [-.9, 0, 0], kneeR: [1.1, 0, 0], hockR: [-.45, 0, 0]},
   'hind-back': {hipR: [.6, 0, 0], kneeR: [.15, 0, 0], hockR: [.2, 0, 0]},
   'hind-sit-fold': {hipR: [-.95, 0, 0], kneeR: [2.15, 0, 0], hockR: [-1.25, 0, 0]},
+  // The same fold with the knee turned out a little (as a sitting cat's is).
+  'hind-sit-out': {hipR: [-.95, 0, -.3], kneeR: [2.15, 0, 0], hockR: [-1.25, 0, 0]},
+  'hind-sit-out2': {hipR: [-.95, 0, .3], kneeR: [2.15, 0, 0], hockR: [-1.25, 0, 0]},
   'spine-arch': {spine: [-.25, 0, 0], chest: [-.2, 0, 0]},
   'spine-sag': {spine: [.22, 0, 0], chest: [.18, 0, 0]},
   'spine-curl': {hips: [0, .45, 0], spine: [0, .9, 0], chest: [0, .9, 0], neck: [0, .7, 0]},
@@ -129,6 +135,7 @@ function pose(name) {
     if (name !== 'sculpt') for (const [n, q] of Object.entries(cat.rest)) B[n].quaternion.copy(q);
     if (BENDS[name]) for (const [n, [x, y, z]] of Object.entries(BENDS[name])) B[n].quaternion.multiply(_q.setFromEuler(_e.set(x, y, z)));
     if (name === 'tail-out') { cat.poseTail(0, {amp: 0, speed: 0}); }
+    syncHelpers(B);
     cat.model.position.y = 0;
     cat.root.updateMatrixWorld(true);
     // Stand on the lowest paw.
@@ -176,7 +183,7 @@ function drawBones() {
   boneLines.clear();
   if (!boneLines.visible) return;
   const pts = [], p = new THREE.Vector3(), q = new THREE.Vector3();
-  for (const [name, [parent]] of Object.entries(BONES)) {
+  for (const [name, [parent]] of Object.entries(DEF)) {
     B[name].getWorldPosition(p);
     const j = new THREE.Mesh(jointGeo, jointMat); j.position.copy(p); j.renderOrder = 10; boneLines.add(j);
     if (parent) { B[parent].getWorldPosition(q); pts.push(q.clone(), p.clone()); }
@@ -189,14 +196,14 @@ function bones(on) { boneLines.visible = on; drawBones(); }
 bones(false);
 
 function label(extra = '') {
-  document.getElementById('label').textContent = `pose: ${poseName}   view: ${viewName}   ${modeName === 'tex' ? 'textured, fur hidden' : modeName === 'raw' ? 'weights BEFORE smoothing' : modeName === 'weights' ? 'weights after smoothing (as used)' : modeName}${extra}`;
+  document.getElementById('label').textContent = `rig v${RIG}   pose: ${poseName}   view: ${viewName}   ${modeName === 'tex' ? 'textured, fur hidden' : modeName === 'raw' ? 'weights BEFORE smoothing' : modeName === 'weights' ? 'weights after smoothing (as used)' : modeName}${extra}`;
 }
 
 // Where influence crosses between regions. A vertex's region is the group
 // with most weight before smoothing (the masks decided it); after
 // smoothing, how much weight from other regions has it picked up?
 function stats() {
-  const region = n => n.startsWith('tail') ? 'tail' : /^(hip|knee|hock)L/.test(n) ? 'hindL' : /^(hip|knee|hock)R/.test(n) ? 'hindR' : /(shoulder|elbow|wrist)R/.test(n) ? 'frontR' : /(shoulder|elbow|wrist)L/.test(n) ? 'frontL' : n === 'hips' ? 'hips' : 'body';
+  const region = n => /^scapula/.test(n) ? (n.endsWith('R') ? 'frontR' : 'frontL') : n.startsWith('tail') ? 'tail' : /^(thigh|hip|knee|hock)L/.test(n) ? 'hindL' : /^(thigh|hip|knee|hock)R/.test(n) ? 'hindR' : /(shoulder|elbow|wrist)R/.test(n) ? 'frontR' : /(shoulder|elbow|wrist)L/.test(n) ? 'frontL' : n === 'hips' ? 'hips' : 'body';
   const regionOf = (W, i) => { const s = {}; for (let k = 0; k < 4; k++) { const r = region(names[W.index.getComponent(i, k)]); s[r] = (s[r] || 0) + W.weight.getComponent(i, k); } return s; };
   const out = {}, N = geo.attributes.position.count;
   for (let i = 0; i < N; i++) {

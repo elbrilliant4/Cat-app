@@ -68,12 +68,12 @@ function segDist(p, a, b) {
 }
 
 /** Returns {root, bones: {name: Bone}, list: Bone[]} with identity rotations. */
-export function buildSkeleton() {
+export function buildSkeleton(def = BONES) {
   const bones = {}, list = [];
-  for (const [name, [parent, pos]] of Object.entries(BONES)) {
+  for (const [name, [parent, pos]] of Object.entries(def)) {
     const b = new THREE.Bone();
     b.name = name;
-    const parentPos = parent ? BONES[parent][1] : new THREE.Vector3();
+    const parentPos = parent ? def[parent][1] : new THREE.Vector3();
     b.position.copy(pos).sub(parentPos);
     if (parent) bones[parent].add(b);
     bones[name] = b;
@@ -203,4 +203,318 @@ export function computeWeights(geometry, color, {smooth = 4} = {}) {
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
   return {weld, names};
+}
+
+// ---------------------------------------------------------------------------
+// Rig v2 (the motion trial; the app still uses the rig above until it's
+// approved). Same bones, plus a shoulder blade on each side between the chest
+// and the upper arm, and new skin weights:
+//  - the tail is told apart from the body by the mesh itself (cut a ring
+//    round its root and the rest of it comes away as one piece), not by
+//    colour, so the haunch it lies against stays with the body;
+//  - each thigh bone carries the haunch, fading into the pelvis above the
+//    hip joint, so the leg doesn't slide out of it when it swings or folds;
+//  - the shoulder blade carries the side of the chest, the upper arm only
+//    the leg and armpit;
+//  - every influence fades out smoothly with distance (no hard mask edges),
+//    and smoothing never mixes the tail with the body, one leg with
+//    another, or a leg with the far side.
+export const BONES2 = {};
+for (const [name, def] of Object.entries(BONES)) {
+  // Half-turn helpers at the hips: each follows its thigh halfway (see
+  // syncHelpers), and carries the upper haunch, so a deep fold (sitting)
+  // rolls the haunch instead of pushing the thigh through the belly.
+  if (name === 'hipR') BONES2.thighR = ['hips', BONES.hipR[1]];
+  if (name === 'hipL') BONES2.thighL = ['hips', BONES.hipL[1]];
+  if (name === 'shoulderR') BONES2.scapulaR = ['chest', V(-0.38, 0.25, 0.14)];
+  if (name === 'shoulderL') BONES2.scapulaL = ['chest', V(-0.24, 0.25, 0.14)];
+  BONES2[name] = name.startsWith('shoulder') ? ['scapula' + name.slice(-1), def[1]] : def;
+}
+
+const TAIL_CUT = 0.11;
+const FRONT_LIMIT = -0.05, HIND_LIMIT = -0.2; // z: front-leg bones only ahead of this, hind-leg bones only behind // radius round the first tail segment that separates the tail from the body
+const fall = (d, r0, r1) => 1 - THREE.MathUtils.smoothstep(d, r0, r1);
+
+export function computeWeights2(geometry, {smooth = 300} = {}) {
+  const pos = geometry.attributes.position, idx = geometry.index, N = pos.count;
+  const names = Object.keys(BONES2), NB = names.length;
+  const ix = Object.fromEntries(names.map((n, i) => [n, i]));
+  const seg = n => { const [, a, e] = BONES2[n]; if (e) return [a, e]; const c = Object.entries(BONES2).find(([, [p]]) => p === n); return [a, c ? c[1][1] : a]; };
+  const segs = names.map(seg);
+
+  // Weld seam duplicates, and near-duplicates across the model's split
+  // seams (within half a millimetre), so both sides of a seam move together;
+  // then the surface's neighbours.
+  const TOL = 5e-4, cell = new Map(), parent = new Int32Array(N).map((_, i) => i);
+  const root = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+  const ck = (x, y, z) => x + ',' + y + ',' + z;
+  for (let i = 0; i < N; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const cx = Math.floor(x / TOL), cy = Math.floor(y / TOL), cz = Math.floor(z / TOL);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const list = cell.get(ck(cx + dx, cy + dy, cz + dz));
+      if (!list) continue;
+      for (const j of list) if (Math.hypot(pos.getX(j) - x, pos.getY(j) - y, pos.getZ(j) - z) < TOL) { const a = root(i), b = root(j); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
+    }
+    const k = ck(cx, cy, cz);
+    if (!cell.has(k)) cell.set(k, []);
+    cell.get(k).push(i);
+  }
+  const weld = new Int32Array(N);
+  for (let i = 0; i < N; i++) weld[i] = root(i);
+  const adj = Array.from({length: N}, () => []);
+  for (let t = 0; t < idx.count; t += 3) {
+    const a = weld[idx.getX(t)], b = weld[idx.getX(t + 1)], c = weld[idx.getX(t + 2)];
+    adj[a].push(b, c); adj[b].push(a, c); adj[c].push(a, b);
+  }
+  const P = i => new THREE.Vector3().fromBufferAttribute(pos, i);
+
+  // Regions: 0 body, 1 tail, 2 root ring (tail <-> body), 3-6 legs.
+  const region = new Uint8Array(N);
+  const [r0, r1] = [BONES2.tail0[1], BONES2.tail1[1]];
+  const tailEnd = BONES2.tail7[2];
+  let tip = -1, best = 9;
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i) continue;
+    const p = P(i);
+    if (segDist(p, r0, r1) < TAIL_CUT) region[i] = 2;
+    const d = p.distanceTo(tailEnd);
+    if (d < best) { best = d; tip = i; }
+  }
+  const stack = [tip];
+  region[tip] = 1;
+  while (stack.length) { const v = stack.pop(); for (const u of adj[v]) if (region[u] === 0) { region[u] = 1; stack.push(u); } }
+  const LEG_REGIONS = {3: LEGS.R, 4: LEGS.L, 5: LEGS.HR, 6: LEGS.HL};
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i || region[i]) continue;
+    const p = P(i);
+    for (const [r, leg] of Object.entries(LEG_REGIONS)) {
+      const top = leg.bones[0].startsWith('shoulder') ? -0.2 : -0.24;
+      if (p.y < top && Math.hypot(p.x - leg.axis[0], p.z - leg.axis[1]) < 0.15) region[i] = +r;
+    }
+  }
+  const legOf = n => /R$/.test(n) && /^(scapula|shoulder|elbow|wrist)/.test(n) ? 3 : /L$/.test(n) && /^(scapula|shoulder|elbow|wrist)/.test(n) ? 4 : /R$/.test(n) && /^(hip|knee|hock)/.test(n) ? 5 : /L$/.test(n) && /^(hip|knee|hock)/.test(n) ? 6 : 0;
+  // Which bones a vertex in each region may follow.
+  // The body's midline (it runs slightly askew in the model): a leg's bones
+  // never reach the other side.
+  const midX = z => THREE.MathUtils.lerp(BONES2.hips[1].x, BONES2.chest[1].x, THREE.MathUtils.clamp((z - BONES2.hips[1].z) / (BONES2.chest[1].z - BONES2.hips[1].z), 0, 1));
+  const allowed = (reg, n) => {
+    if (reg === 1) return n.startsWith('tail') && n !== 'tail0' || n === 'tail0';
+    if (reg === 2) return n === 'hips' || n === 'tail0' || n === 'tail1' || n === 'spine';
+    if (n.startsWith('tail')) return false;
+    if (reg >= 3) { const l = legOf(n); return l === reg || (l === 0 && !['head', 'jaw', 'earR', 'earL', 'neck'].includes(n)); }
+    return true;
+  };
+  const allow = names.map(n => [0, 1, 2, 3, 4, 5, 6].map(r => allowed(r, n)));
+
+  // How far each bone reaches into the body: [full until, gone by].
+  const reachOf = {
+    tail0: [.05, .12], tail1: [.05, .12], hips: [.1, .3], spine: [.1, .3], chest: [.1, .32], neck: [.08, .2], head: [.15, .3], jaw: [.03, .06], earR: [.03, .08], earL: [.03, .08],
+    scapulaR: [.07, .16], scapulaL: [.07, .16], shoulderR: [.06, .14], shoulderL: [.06, .14], elbowR: [.05, .1], elbowL: [.05, .1], wristR: [.05, .09], wristL: [.05, .09],
+    hipR: [.12, .21], hipL: [.12, .21], kneeR: [.06, .12], kneeL: [.06, .12], hockR: [.05, .1], hockL: [.05, .1],
+  };
+  const W = new Float32Array(N * NB);
+  const tailPts = TAIL.map(n => BONES2[n][1]).concat([tailEnd]);
+  // Along the tail: how far each vertex is from the root, measured over the
+  // surface (where the tip curls back on itself, the nearest bone can be
+  // three segments on, but the distance along the tail can't), scaled so the
+  // tip lands at the end of the last bone.
+  const cum = [0];
+  for (let k = 1; k < tailPts.length; k++) cum.push(cum[k - 1] + tailPts[k].distanceTo(tailPts[k - 1]));
+  const along = new Float32Array(N).fill(Infinity);
+  {
+    const chainPos = p => {
+      let bd = 1e9, u = 0;
+      for (let k = 0; k < tailPts.length - 1; k++) {
+        _ab.subVectors(tailPts[k + 1], tailPts[k]); _ap.subVectors(p, tailPts[k]);
+        const t = THREE.MathUtils.clamp(_ap.dot(_ab) / _ab.lengthSq(), 0, 1);
+        const d = _ap.addScaledVector(_ab, -t).length();
+        if (d < bd) { bd = d; u = cum[k] + t * (cum[k + 1] - cum[k]); }
+      }
+      return u;
+    };
+    // Start from the tail's edge at the root ring, then spread outwards.
+    const heap = [];
+    const push = (i, d) => { heap.push([d, i]); let c = heap.length - 1; while (c > 0) { const pa = (c - 1) >> 1; if (heap[pa][0] <= heap[c][0]) break; [heap[pa], heap[c]] = [heap[c], heap[pa]]; c = pa; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
+    for (let i = 0; i < N; i++) if (weld[i] === i && region[i] === 1 && adj[i].some(j => region[j] === 2)) { along[i] = chainPos(P(i)); push(i, along[i]); }
+    while (heap.length) {
+      const [d, i] = pop();
+      if (d > along[i]) continue;
+      for (const j of adj[i]) {
+        if (region[j] !== 1) continue;
+        const nd = d + P(i).distanceTo(P(j));
+        if (nd < along[j]) { along[j] = nd; push(j, nd); }
+      }
+    }
+    let maxU = 0;
+    for (let i = 0; i < N; i++) if (region[i] === 1 && isFinite(along[i])) maxU = Math.max(maxU, along[i]);
+    const start = Math.min(...Array.from({length: N}, (_, i) => region[i] === 1 && isFinite(along[i]) ? along[i] : Infinity));
+    for (let i = 0; i < N; i++) if (region[i] === 1 && isFinite(along[i])) along[i] = start + (along[i] - start) * (cum[cum.length - 1] - start) / Math.max(1e-6, maxU - start);
+  }
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i) continue;
+    const p = P(i), reg = region[i], row = i * NB;
+    if (reg === 1) {
+      // Its segment by the distance along the tail, blending into its neighbours.
+      const u = isFinite(along[i]) ? along[i] : cum[1];
+      let k = 1;
+      while (k < 7 && u > cum[k + 1]) k++;
+      const bt = THREE.MathUtils.clamp((u - cum[k]) / (cum[k + 1] - cum[k]), 0, 1);
+      const prev = ix['tail' + (k - 1)], cur = ix['tail' + k], next = k < 7 ? ix['tail' + (k + 1)] : cur;
+      const toPrev = (1 - THREE.MathUtils.smoothstep(bt, 0, 0.35)) * 0.5, toNext = THREE.MathUtils.smoothstep(bt, 0.65, 1) * 0.5;
+      W[row + prev] += toPrev; W[row + next] += toNext; W[row + cur] += 1 - toPrev - toNext;
+      continue;
+    }
+    if (reg === 2) {
+      // The root ring: from the pelvis into the tail along the first segment.
+      _ab.subVectors(r1, r0); _ap.subVectors(p, r0);
+      const t = THREE.MathUtils.clamp(_ap.dot(_ab) / _ab.lengthSq(), 0, 1);
+      W[row + ix.hips] = 1 - t; W[row + ix.tail0] = t * .7; W[row + ix.tail1] = t * .3;
+      continue;
+    }
+    const side = p.x - midX(p.z); // < 0: her right
+    for (let b = 0; b < NB; b++) {
+      const n = names[b];
+      if (!allow[b][reg] || !reachOf[n]) continue;
+      if (legOf(n) && (n.endsWith('R') ? side > .02 : side < -.02)) continue;
+      const d = segDist(p, segs[b][0], segs[b][1]);
+      let f = fall(d, ...reachOf[n]);
+      // The upper leg bones stop at the top of the leg (the back stays on the spine);
+      // the thigh reaches up to just above the hip joint.
+      if (/^(hip|knee|hock)[RL]$/.test(n)) f *= fall(p.y - BONES2[n][1].y, n.startsWith('hip') ? .02 : 0, n.startsWith('hip') ? .12 : .04);
+      if (/^(shoulder|elbow|wrist)/.test(n)) f *= fall(p.y - BONES2[n][1].y, .0, .06);
+      // Shoulder blades sit on the sides of the chest, not across the back or under the chest.
+      if (n.startsWith('scapula')) f *= fall(Math.abs(p.x - BONES2[n][1].x), .1, .2);
+      if (n === 'jaw') f *= +(p.z > 0.72 && p.y < 0.305 && p.y > 0.17 && Math.abs(p.x - MIDLINE_X) < 0.14);
+      if (n === 'earR' || n === 'earL') f *= +(p.y > 0.47 && p.z < 0.78);
+      if (n === 'head' || n === 'neck') f *= +(p.z > 0.25);
+      if (f <= 0) continue;
+      W[row + b] = f / Math.pow(d + 0.02, 2);
+    }
+    let s = 0; for (let b = 0; b < NB; b++) s += W[row + b];
+    if (s === 0) {
+      let bb = -1, bd = 1e9;
+      for (let b = 0; b < NB; b++) { if (!allow[b][reg]) continue; const d = segDist(p, segs[b][0], segs[b][1]); if (d < bd) { bd = d; bb = b; } }
+      W[row + bb] = 1; s = 1;
+    }
+    for (let b = 0; b < NB; b++) W[row + b] /= s;
+  }
+
+  // Bone heat (as Blender's automatic weights): each bone warms the skin it
+  // is nearest to, the more strongly the closer it is, and the heat spreads
+  // along the surface. Solving for the balance gives every joint a wide,
+  // smooth blend that follows the shape (narrow on a slim leg, broad across
+  // the body). Each vertex only takes bones its region allows; nothing
+  // crosses the tail cut, passes between legs, or reaches the far side.
+  // The tail and its root ring keep the weights set above.
+  const edge = (() => { let s = 0, n = 0; for (let t = 0; t < Math.min(idx.count, 30000); t += 3) { s += P(idx.getX(t)).distanceTo(P(idx.getX(t + 1))); n++; } return s / n; })();
+  const free = [], okList = [], heat = [], near = [];
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i || region[i] === 1 || !adj[i].length) continue;
+    const p = P(i), side = p.x - midX(p.z), reg = region[i];
+    const ok = [];
+    let nb = -1, nd = 1e9;
+    for (let b = 0; b < NB; b++) {
+      const n = names[b];
+      if (!allow[b][reg] || !reachOf[n]) continue;
+      if (legOf(n) && (n.endsWith('R') ? side > .02 : side < -.02)) continue;
+      ok.push(b);
+      // Nearest bone: the plain distance, except a leg bone only counts
+      // below the top of its own segment (the back belongs to the spine).
+      let d = segDist(p, segs[b][0], segs[b][1]);
+      if (/^(hip|knee|hock|shoulder|elbow|wrist)[RL]$/.test(n) && p.y > BONES2[n][1].y + (n.startsWith('hip') ? .1 : .02)) d += .3;
+      if (n.startsWith('scapula') && Math.abs(p.x - BONES2[n][1].x) > .14) d += .3;
+      if (n === 'jaw' && !(p.z > 0.72 && p.y < 0.305 && p.y > 0.17 && Math.abs(p.x - MIDLINE_X) < 0.14)) d += .3;
+      if ((n === 'earR' || n === 'earL') && !(p.y > 0.47 && p.z < 0.78)) d += .3;
+      if (d < nd) { nd = d; nb = b; }
+    }
+    // (The root ring reads the tail's fixed weights as its far boundary.)
+    const nbrs = [...new Set(adj[i])].filter(j => (region[j] !== 1 || reg === 2) && !(region[j] >= 3 && reg >= 3 && region[j] !== reg));
+    free.push([i, nbrs]); okList.push(ok); near.push(nb);
+    // The body's own bones sit deep inside it: count them as no further
+    // than 8 cm, so the flank holds firmly to the spine instead of being
+    // pulled about by the legs' influence spreading across it.
+    const body = ['hips', 'spine', 'chest', 'neck'].includes(names[nb]);
+    heat.push(1 / Math.pow(Math.max(body ? Math.min(nd, .08) : nd, edge * 2) / edge, 2));
+  }
+  for (let it = 0; it < smooth; it++) {
+    for (let f = 0; f < free.length; f++) {
+      const [i, nbrs] = free[f], ok = okList[f], h = heat[f], row = i * NB;
+      const deg = nbrs.length;
+      let s = 0;
+      for (const b of ok) {
+        let sum = 0;
+        for (const j of nbrs) sum += W[j * NB + b];
+        const w = (sum + (b === near[f] ? h : 0)) / (deg + h);
+        W[row + b] = w; s += w;
+      }
+      if (s > 0) for (const b of ok) W[row + b] /= s;
+    }
+  }
+
+  // Front legs fade out over the middle of the body going back, hind legs
+  // going forward, and each leg fades out at the midline: soft limits, so
+  // there's no edge where the influence stops.
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i || region[i] === 1 || region[i] === 2) continue;
+    const z = pos.getZ(i), side = pos.getX(i) - midX(z);
+    let s = 0;
+    for (let b = 0; b < NB; b++) {
+      const L = legOf(names[b]);
+      if (!L || !W[i * NB + b]) { s += W[i * NB + b]; continue; }
+      let k = L <= 4 ? THREE.MathUtils.smoothstep(z, FRONT_LIMIT - .12, FRONT_LIMIT + .06) : 1 - THREE.MathUtils.smoothstep(z, HIND_LIMIT - .06, HIND_LIMIT + .12);
+      k *= THREE.MathUtils.smoothstep(names[b].endsWith('R') ? -side : side, -.02, .05);
+      W[i * NB + b] *= k; s += W[i * NB + b];
+    }
+    if (s > 0) for (let b = 0; b < NB; b++) W[i * NB + b] /= s;
+  }
+  // Drop traces (under 4%) so neighbouring vertices keep the same few bones.
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i) continue;
+    let s = 0;
+    for (let b = 0; b < NB; b++) { if (W[i * NB + b] < .04) W[i * NB + b] = 0; s += W[i * NB + b]; }
+    if (s > 0) for (let b = 0; b < NB; b++) W[i * NB + b] /= s;
+  }
+  // The thigh's share of the upper haunch goes to its half-turn helper;
+  // from partway down the thigh to the knee it stays on the thigh bone.
+  for (const s of ['R', 'L']) {
+    const hip = ix['hip' + s], helper = ix['thigh' + s], [a, e] = segs[hip];
+    for (let i = 0; i < N; i++) {
+      if (weld[i] !== i) continue;
+      const w = W[i * NB + hip];
+      if (w <= 0) continue;
+      _ab.subVectors(e, a); _ap.fromBufferAttribute(pos, i).sub(a);
+      const t = THREE.MathUtils.clamp(_ap.dot(_ab) / _ab.lengthSq(), 0, 1);
+      const k = THREE.MathUtils.smoothstep(t, .3, .85);
+      W[i * NB + hip] = w * k; W[i * NB + helper] = w * (1 - k);
+    }
+  }
+
+  const skinIndex = new Uint16Array(N * 4), skinWeight = new Float32Array(N * 4);
+  const order = new Array(NB);
+  for (let i = 0; i < N; i++) {
+    const src = weld[i] * NB;
+    for (let b = 0; b < NB; b++) order[b] = b;
+    order.sort((x, y) => W[src + y] - W[src + x]);
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += W[src + order[k]];
+    for (let k = 0; k < 4; k++) {
+      skinIndex[i * 4 + k] = order[k];
+      skinWeight[i * 4 + k] = s > 0 ? W[src + order[k]] / s : (k === 0 ? 1 : 0);
+    }
+  }
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
+  return {weld, names, region};
+}
+
+// Point the half-turn helpers halfway between the pelvis and their thighs.
+// Call after the pose (and any IK) is set.
+const _hq = new THREE.Quaternion();
+export function syncHelpers(bones) {
+  for (const s of ['R', 'L']) {
+    const h = bones['thigh' + s];
+    if (h) h.quaternion.copy(_hq.identity()).slerp(bones['hip' + s].quaternion, .5);
+  }
 }
