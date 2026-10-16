@@ -505,6 +505,8 @@ function jumpTo(name, then = null, stay = 40, inner = false) {
     jumpTo(P.via, () => jumpTo(name, then, stay, true), 5, true);
     return;
   }
+  // Up on something else: down to the floor first.
+  if (brain.perch && !brain.jump) { jumpDown(() => jumpTo(name, then, stay, true)); return; }
   // Only jump from the take-off spot (a walk can end early if it ran out of
   // time); otherwise keep walking there, or give up after a few tries.
   const go = tries => walkTo(P.base, () => {
@@ -548,6 +550,8 @@ function backToSpot(then) {
 // Walking up on something (a shelf, the counter, the island): point to point,
 // at the height she's at.
 function walkPath(points, then) {
+  // (Out of the sink first: she doesn't walk through its sides.)
+  if (inSink() && !brain.jump) { outOfSink(() => walkPath(points, then)); return; }
   const [p, ...rest] = points;
   if (!p) { then?.(); return; }
   brain.target = p.clone();
@@ -707,7 +711,7 @@ function updateCat(dt, t) {
     if (brain.bodyTurning) desiredHeading = angleTo(brain.pos, brain.headGaze);
   }
   if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc || J ? 7 : a === 'prejump' ? 5 : 1.6, dt);
-  if (!J) brain.elevation = damp(brain.elevation, brain.perch ? PERCHES[brain.perch].top : groundAt(brain.pos), 8, dt);
+  if (!J) brain.elevation = damp(brain.elevation, brain.perch ? perchTop() : groundAt(brain.pos), 8, dt);
   cat.root.position.set(brain.pos.x, brain.elevation, brain.pos.z);
   cat.root.rotation.y = brain.heading;
 
@@ -957,7 +961,7 @@ function perchLife(t) {
   if (PERCHES[brain.perch]?.lane && place === kitchen && t - brain.actStart > 2) options.push('stroll', 'stroll', 'stroll');
   // Something on this shelf that could do with being on the floor.
   if (PERCHES[brain.perch]?.lane && place === kitchen && t > brain.nextKnock && kitchen.knockableNear(brain.perch, brain.pos.x) && t - brain.actStart > 2) options.push('knock', 'knock');
-  if (brain.perch === 'counter' && place === kitchen && t - brain.actStart > 2) options.push('faucet', 'faucet');
+  if (brain.perch === 'counter' && place === kitchen && !inSink() && t - brain.actStart > 2) options.push('faucet', 'faucet', 'sink');
   if (HOPS[brain.perch] && place === kitchen && t - brain.actStart > 2) options.push('hop');
   options.push('call');
   const choice = pick(options);
@@ -972,6 +976,7 @@ function perchLife(t) {
   if (choice === 'knock') knockThing(kitchen.knockableNear(brain.perch, brain.pos.x));
   if (choice === 'stroll') stroll();
   if (choice === 'faucet') drinkFaucet();
+  if (choice === 'sink') sinkSit();
   if (choice === 'hop') hopFrom();
   // Calling down to you from up there.
   if (choice === 'call') { glanceAt(camera.position, 2.2); meow(pick(['mew', 'chirp', 'meow']), 'idle'); }
@@ -1087,6 +1092,7 @@ function stroll() {
     if (r < .55 && item && Math.abs(item.obj.position.x - brain.pos.x) < 1.5 && clockNow > brain.nextKnock) knockThing(item);
     else if (r < .7 && hopFrom()) return;
     else if (r < .8) { setActivity('sit', rand(1.5, 3), () => { if (PERCHES[brain.perch]?.lane && brain.mode === 'idle') stroll(); }); }
+    else if (r < .88 && brain.perch === 'counter' && kitchen.sink.x0 < brain.pos.x && brain.pos.x < kitchen.sink.x1) sinkSit();
     else {
       setActivity(Math.random() < .5 ? 'sit' : 'loaf', rand(3, 6)); glanceAt(new THREE.Vector3(brain.pos.x + rand(-2, 2), rand(1, 3), rand(-1, 2)), 2);
       if (Math.random() < .25) later(1, () => { glanceAt(camera.position, 2); meow(pick(['mew', 'chirp']), 'idle'); });
@@ -1141,21 +1147,51 @@ function stealSalmon() {
 // the trickle.
 function drinkFaucet() {
   if (!kitchen || pet.sleeping || brain.mode !== 'idle') return false;
-  const F = place.layoutCache.faucet;
-  const go = () => walkPath(F.path, () => {
-    if (brain.perch !== 'counter') { setActivity('sit'); return; }
-    brain.heading = F.face;
+  if (inSink()) { outOfSink(drinkFaucet); return true; }
+  const S = place.layoutCache.sink;
+  const go = () => intoSink(S.drinkAt, () => {
     kitchen.faucetRun(true);
-    brain.eatAt = F.at.clone();
-    setActivity('drink', 4, () => {
+    brain.eatAt = S.drink.clone();
+    setActivity('drink', rand(4, 5.5), () => {
       kitchen.faucetRun(false); brain.eatAt = null;
-      setActivity('sit', rand(3, 5));
       later(.5, () => glanceAt(camera.position, 2));
+      // A moment in the sink, sometimes a longer one, then out.
+      setActivity('sit', Math.random() < .3 ? rand(8, 14) : rand(2.5, 4), () => { if (inSink()) outOfSink(() => setActivity('sit', rand(3, 5))); });
     });
     later(2, () => { if (brain.activity === 'drink') treat({water: 22, happiness: 3}); });
   });
   if (brain.perch === 'counter' && !brain.jump) go();
   else jumpTo('counter', go, rand(14, 20));
+  return true;
+}
+// The kitchen sink. Her height up on a perch is its top, except down in the
+// basin; she hops in over the front edge and back out the same way.
+function inSink() { return place === kitchen && brain.perch === 'counter' && kitchen.inBasin(brain.pos); }
+function perchTop() { return inSink() ? place.layoutCache.sink.y : PERCHES[brain.perch].top; }
+function intoSink(spot, then) {
+  const S = place.layoutCache.sink, x = THREE.MathUtils.clamp(spot.x, S.x0, S.x1);
+  const lane = Math.abs(brain.pos.z - S.laneZ) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, S.laneZ)];
+  walkPath([...lane, new THREE.Vector3(x, 0, S.laneZ)], () => {
+    if (brain.perch !== 'counter' || brain.mode !== 'idle') { setActivity('sit'); return; }
+    glanceAt(spot.clone().setY(S.y), 1);
+    leap(spot, S.y, 'counter', then);
+  });
+}
+function outOfSink(then) {
+  const S = place.layoutCache.sink;
+  leap(new THREE.Vector3(THREE.MathUtils.clamp(brain.pos.x, S.x0, S.x1), 0, S.laneZ), PERCHES.counter.top, 'counter', then);
+}
+// Sitting in the sink, because it's there: a sit, a loaf or a wash, a look
+// round, then out again.
+function sinkSit() {
+  if (place !== kitchen || brain.perch !== 'counter' || brain.jump || inSink()) return false;
+  brain.perchUntil = Math.max(brain.perchUntil, clockNow + 30);
+  intoSink(place.layoutCache.sink.sitAt, () => {
+    brain.heading = rand(-.6, .6);
+    const r = Math.random(), done = () => { if (inSink()) outOfSink(() => setActivity('sit', rand(2, 4))); };
+    setActivity(r < .4 ? 'sit' : r < .75 ? 'loaf' : 'groom', rand(8, 16), done);
+    later(rand(1.5, 3), () => { if (inSink()) { glanceAt(camera.position, 2.4); if (Math.random() < .4) meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .35) say(pick(['This is my sink now.', 'Fits perfectly.', 'I fits, I sits.']), 2400); } });
+  });
   return true;
 }
 
@@ -2308,7 +2344,7 @@ function frame(now) {
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; frame(virtualNow); } }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

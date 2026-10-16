@@ -260,7 +260,7 @@ export class Kitchen {
     const bw = sink.x1 - sink.x0, bd = sink.z1 - sink.z0, by = C - .45;
     this.box(bw, .02, bd, (sink.x0 + sink.x1) / 2, by, (sink.z0 + sink.z1) / 2, M.steelDark, g, {cast: false});
     for (const [w, d, x, z] of [[bw, .02, (sink.x0 + sink.x1) / 2, sink.z0], [bw, .02, (sink.x0 + sink.x1) / 2, sink.z1], [.02, bd, sink.x0, (sink.z0 + sink.z1) / 2], [.02, bd, sink.x1, (sink.z0 + sink.z1) / 2]]) this.box(w, .45, d, x, by + .22, z, M.steel, g, {cast: false});
-    this.sink = {x: (sink.x0 + sink.x1) / 2, z: (sink.z0 + sink.z1) / 2, y: by};
+    this.sink = {x: (sink.x0 + sink.x1) / 2, z: (sink.z0 + sink.z1) / 2, y: by, ...sink};
     // Brass gooseneck faucet and lever.
     const fx = this.sink.x, fz = zb + .28;
     const faucetBase = this.mesh(new THREE.CylinderGeometry(.06, .07, .1, 16), M.brass, g); faucetBase.position.set(fx, C + .05, fz);
@@ -556,6 +556,8 @@ export class Kitchen {
   eatSalmon(t) { this.salmon.visible = false; this.salmonBack = t + rand(150, 240); }
   // The brass faucet: a thin trickle, on while she drinks from it.
   faucetRun(on) { this.stream.visible = on; }
+  // Down in the sink's basin (rather than on the stone round it)?
+  inBasin(p) { const s = this.sink; return p.x > s.x0 + .12 && p.x < s.x1 - .12 && p.z > s.z0 + .08 && p.z < s.z1 - .06; }
   cupWorld(cup, v) { return cup.getWorldPosition(v); }
 
   // The island: a big, rounded block of veined stone with a walnut base
@@ -762,10 +764,12 @@ export class Kitchen {
       home: at(-1.0, 3.1), toyHome: V(.2, .13, 3.3),
       bowl: {p: at(4.55, 2.6), ry: -.5}, fountain: {p: at(3.0, 1.55), ry: .3},
       sunSpot: at(-4.7, 2.6),
-      // On the island, by the salmon (facing it); on the counter's front
-      // strip, at the faucet (facing it).
+      // On the island, by the salmon (facing it).
       salmonSpot: {at: at(.25, .95), face: Math.PI / 2},
-      faucet: {path: [at(-3.05, -2.95), at(-2.1, -2.88)], face: Math.PI, at: this.stream.position.clone()},
+      // The sink: she hops down into the basin from the front strip. To
+      // drink she stands along it, her head at the faucet's trickle; or she
+      // just sits in it, because it's there.
+      sink: {laneZ: -2.95, y: this.sink.y + .01, drinkAt: at(this.stream.position.x + .34, this.stream.position.z - .03), sitAt: at(-2.0, -3.45), drink: V(this.stream.position.x, this.sink.y + .14, this.stream.position.z), x0: this.sink.x0 + .3, x1: this.sink.x1 - .3},
       // Where she sits to watch the bird at the garden doors.
       windowSpot: at(-5.0, .4),
       // Floor -> stepping perch -> back counter -> lower shelf -> upper
