@@ -482,14 +482,14 @@ function walkTo(point, then = null, run = false, anywhere = false) {
 // Jumping: a crouch and a little wiggle while she sizes it up, then an arc to
 // the new spot and height, and a soft landing.
 const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < place.bedRadius ? place.bedTop : 0;
-function leap(to, toY, perch, then = null) {
+function leap(to, toY, perch, then = null, out = 0) {
   brain.target = null;
   brain.chainUntil = clockNow + 6;
   brain.jumpFace = angleTo(brain.pos, to);
   glanceAt(new THREE.Vector3(to.x, toY + .3, to.z), 1.2);
   setActivity('prejump', reduceMotion ? .3 : chainNext() ? rand(.5, .9) : .8, () => {
     const up = toY - brain.elevation;
-    brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, then, start: clockNow, dur: .5 + Math.abs(up) * .06, arc: .18 + Math.max(0, up) * .22};
+    brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, then, start: clockNow, dur: .5 + Math.abs(up) * .06, arc: .18 + Math.max(0, up) * .22, out};
     setActivity('jump');
   });
 }
@@ -647,6 +647,8 @@ function updateCat(dt, t) {
   if (J) {
     const k = Math.min(1, (t - J.start) / J.dur), e = k * k * (3 - 2 * k);
     brain.pos.lerpVectors(J.from, J.to, e);
+    // (Between shelves she arcs out past the edge of the one above.)
+    if (J.out) brain.pos.z += J.out * Math.sin(Math.PI * k);
     brain.elevation = J.fromY + (J.toY - J.fromY) * e + 4 * J.arc * k * (1 - k);
     desiredHeading = angleTo(J.from, J.to);
     if (k >= 1) {
@@ -895,6 +897,7 @@ function idleLife(t) {
   if (pet.food < 40) options.push('bowl', 'bowl');
   if (pet.water < 60) options.push('drink', 'drink', 'drink');
   if (pet.energy < 50) options.push('nap');
+  options.push('meow');
   if (pet.happiness > 50) options.push('meow');
   let choice = pick(options);
   // Something worth watching comes round often: soon after you open the
@@ -954,6 +957,8 @@ function perchLife(t) {
   if (PERCHES[brain.perch]?.lane && place === kitchen && t - brain.actStart > 2) options.push('stroll', 'stroll', 'stroll');
   if (brain.perch === 'shelf' && place === kitchen && t > brain.nextKnock && kitchen.nextCup() && t - brain.actStart > 3) options.push('cups');
   if (brain.perch === 'counter' && place === kitchen && t - brain.actStart > 2) options.push('faucet');
+  if (HOPS[brain.perch] && place === kitchen && t - brain.actStart > 2) options.push('hop');
+  options.push('call');
   const choice = pick(options);
   if (choice === 'glance') glanceAt(brain.perch === 'sill' ? room.glass.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rand(-.9, .9), rand(-.6, .6), 0)) : new THREE.Vector3(rand(-3, 3), rand(.2, 2.4), rand(-.5, 2.5)), rand(1.5, 3));
   if (choice === 'twitch') twitchEar();
@@ -966,6 +971,9 @@ function perchLife(t) {
   if (choice === 'cups') tapCups();
   if (choice === 'stroll') stroll();
   if (choice === 'faucet') drinkFaucet();
+  if (choice === 'hop') hopFrom();
+  // Calling down to you from up there.
+  if (choice === 'call') { glanceAt(camera.position, 2.2); meow(pick(['mew', 'chirp', 'meow']), 'idle'); }
 }
 
 // The vase on the mantel: the same slow, deliberate pats, and over it goes.
@@ -1042,7 +1050,7 @@ function knockThing(item, pats = 1 + Math.floor(Math.random() * 3)) {
       if (kitchen.nudgeCup(obj, clockNow) === 'fell') {
         later(.9, () => glanceAt(at(), 2));
         later(1.4, () => treat({happiness: 5}));
-        later(2.8, () => { glanceAt(camera.position, 2.5); express('curious', 2); if (Math.random() < .6) say(pick(['…it fell.', 'Gravity did it.', 'It was like that when I got here.', 'Oops.']), 2600); });
+        later(2.8, () => { glanceAt(camera.position, 2.5); express('curious', 2); if (Math.random() < .6) meow(pick(['mew', 'chirp']), 'reply'); if (Math.random() < .6) say(pick(['…it fell.', 'Gravity did it.', 'It was like that when I got here.', 'Oops.']), 2600); });
         later(.5, () => { if (still()) setActivity('sit', rand(4, 7)); });
         return;
       }
@@ -1071,11 +1079,38 @@ function stroll() {
   const x = rand(P.lane.x0, P.lane.x1), lane = P.lane.z;
   const path = (Math.abs(brain.pos.z - lane) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, lane)]).concat([new THREE.Vector3(x, 0, lane)]);
   brain.perchUntil = Math.max(brain.perchUntil, clockNow + 20);
+  // Where it goes from here is up to her: a pat at something, up or down to
+  // another shelf, further along, or a rest. No set tour.
   walkPath(path, () => {
-    const item = kitchen.knockableNear(brain.perch, brain.pos.x);
-    if (item && Math.abs(item.obj.position.x - brain.pos.x) < 1.2 && clockNow > brain.nextKnock && Math.random() < .7) knockThing(item);
-    else { setActivity(Math.random() < .5 ? 'sit' : 'loaf', rand(3, 6)); glanceAt(new THREE.Vector3(brain.pos.x + rand(-2, 2), rand(1, 3), rand(-1, 2)), 2); }
+    const item = kitchen.knockableNear(brain.perch, brain.pos.x), r = Math.random();
+    if (r < .35 && item && Math.abs(item.obj.position.x - brain.pos.x) < 1.2 && clockNow > brain.nextKnock) knockThing(item);
+    else if (r < .55 && hopFrom()) return;
+    else if (r < .68) { setActivity('sit', rand(1.5, 3), () => { if (PERCHES[brain.perch]?.lane && brain.mode === 'idle') stroll(); }); }
+    else {
+      setActivity(Math.random() < .5 ? 'sit' : 'loaf', rand(3, 6)); glanceAt(new THREE.Vector3(brain.pos.x + rand(-2, 2), rand(1, 3), rand(-1, 2)), 2);
+      if (Math.random() < .25) later(1, () => { glanceAt(camera.position, 2); meow(pick(['mew', 'chirp']), 'idle'); });
+    }
   });
+  return true;
+}
+// Up, down or across partway along, not only by the wall steps: counter to
+// lower shelf, shelf to shelf, lower shelf down to the counter. (Not over the
+// sink or the range, nor through the hanging ivy.)
+const counterSafe = x => (x > -4.85 && x < -3.05) || (x > -1.15 && x < .05);
+const clearOfIvy = x => Math.abs(x + 3.25) > .55 && Math.abs(x - 2.75) > .55;
+const HOPS = {shelf: [['shelfHigh', clearOfIvy], ['counter', counterSafe]], shelfHigh: [['shelf', clearOfIvy]], counter: [['shelf', counterSafe]]};
+function hopFrom() {
+  if (place !== kitchen || brain.jump || !HOPS[brain.perch]) return false;
+  const x = brain.pos.x, opts = HOPS[brain.perch].filter(([n, ok]) => PERCHES[n]?.lane && ok(x));
+  if (!opts.length) return false;
+  const [name] = pick(opts), P = PERCHES[name], tx = Math.min(P.lane.x1, Math.max(P.lane.x0, x + rand(-.25, .25)));
+  brain.climbGoal = null;
+  glanceAt(new THREE.Vector3(tx, P.top + .3, P.lane.z), 1.2);
+  leap(new THREE.Vector3(tx, 0, P.lane.z), P.top, name, () => {
+    brain.perchUntil = Math.max(brain.perchUntil, clockNow + rand(15, 30));
+    setActivity('sit');
+    later(rand(1, 3), () => { if (brain.perch === name && brain.mode === 'idle' && !brain.jump && Math.random() < .6) stroll(); });
+  }, .45);
   return true;
 }
 // The salmon on the island: up she goes (from behind it), creeps over and
@@ -1093,7 +1128,7 @@ function stealSalmon() {
         setActivity('eat', 3.2, () => {
           brain.eatAt = null;
           setActivity('sit', rand(3, 5));
-          later(.4, () => { glanceAt(camera.position, 2.2); if (Math.random() < .7) say(pick(['Mine now.', 'Finders keepers.', 'You weren’t eating that, were you?', 'Mmm. Salmon.']), 2600); });
+          later(.4, () => { glanceAt(camera.position, 2.2); meow('chirp', 'reply'); if (Math.random() < .7) say(pick(['Mine now.', 'Finders keepers.', 'You weren’t eating that, were you?', 'Mmm. Salmon.']), 2600); });
         });
         later(1.6, () => { if (brain.activity === 'eat') { kitchen.eatSalmon(clockNow); treat({food: 18, happiness: 6}); } });
       });
@@ -1203,7 +1238,7 @@ function vacuumAttack() {
         setActivity('swat', .45, () => setActivity('pause', 1.2, () => setActivity('sit')));
         kitchen.hitVacuum(clockNow, brain.pos);
         express('excited', 2);
-        later(.7, () => { glanceAt(vacAt().clone().setY(.2), 1.5); if (Math.random() < .5) say(pick(['Got it!', 'And stay out.', 'Intruder!', 'Who’s the boss now?']), 2200); });
+        later(.7, () => { glanceAt(vacAt().clone().setY(.2), 1.5); meow(pick(['meow', 'chirp']), 'reply'); if (Math.random() < .5) say(pick(['Got it!', 'And stay out.', 'Intruder!', 'Who’s the boss now?']), 2200); });
         later(2.4, () => glanceAt(camera.position, 2));
       }};
       setActivity('pause', 1.6);
@@ -1225,7 +1260,7 @@ function vacuumRide() {
     leap(vacAt(), PERCHES.vacuum.top, 'vacuum', () => {
       brain.perchUntil = clockNow + rand(40, 70); // rides till it heads home, mostly
       setActivity(Math.random() < .5 ? 'loaf' : 'sit');
-      later(.6, () => { if (Math.random() < .6) say(pick(['Onward!', 'Chauffeur, please.', 'Wheee.', 'To the bowl, please.']), 2200); });
+      later(.6, () => { meow('chirp', 'reply'); if (Math.random() < .6) say(pick(['Onward!', 'Chauffeur, please.', 'Wheee.', 'To the bowl, please.']), 2200); });
     });
   }, tries > 1, true);
   go(0);
@@ -2261,7 +2296,7 @@ function frame(now) {
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; frame(virtualNow); } }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

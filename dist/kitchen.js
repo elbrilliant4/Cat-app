@@ -771,7 +771,7 @@ export class Kitchen {
       // shelf, all at the left end, well away from the range.
       perches: {
         step: {spot: at(-5.6, -3.87), top: this.stepTops[0], base: at(-5.45, -2.45), face: 0},
-        counter: {spot: at(-4.65, -3.35), top: K.counter, via: 'step', face: 0},
+        counter: {spot: at(-4.65, -3.35), top: K.counter, via: 'step', face: 0, lane: {z: -2.95, x0: -4.9, x1: .1}},
         stepMid: {spot: at(-5.6, -3.87), top: this.stepTops[1], via: 'counter', face: 0},
         shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'stepMid', face: 0, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
         stepTop: {spot: at(-5.6, -3.87), top: this.stepTops[2], via: 'shelf', face: 0},
