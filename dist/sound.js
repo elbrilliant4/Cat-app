@@ -3,7 +3,9 @@
 // recording listed there (or a synthesized one if none is).
 // There is deliberately no background ambience: both the old fountain
 // trickle and the later room tone came across as white noise. The fountain
-// is visual only.
+// (and the robot vacuum) are visual only. The one other sound is a short,
+// soft knock when something she's sent over lands: a ceramic clink, a glass
+// tink, a plate's rattle or a book's thud, on her volume.
 //
 // Meows never overlap and leave quiet gaps between them. Each recording's
 // loudness envelope is measured when it loads, so the mouth can open and
@@ -86,6 +88,31 @@ export class Sounds {
   setVolume(kind, v) {
     this.volume[kind] = v;
     if (this.ctx) this.bus[kind].gain.setTargetAtTime(v, this.ctx.currentTime, .08);
+  }
+
+  // Something landing (see above). One-off and quiet; nothing if muted.
+  knock(kind = 'cup') {
+    if (!this.ctx || !this.enabled || this.ctx.state !== 'running') return;
+    const c = this.ctx, t0 = c.currentTime + .01, out = c.createGain();
+    out.gain.value = .5; out.connect(this.bus.cat);
+    const ping = (f, a, d, at) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = f; g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(a, at + .003); g.gain.exponentialRampToValueAtTime(.0001, at + d);
+      o.connect(g).connect(out); o.start(at); o.stop(at + d + .02);
+    };
+    const thud = (f, a, d, at) => {
+      const n = c.createBuffer(1, Math.ceil(c.sampleRate * d), c.sampleRate), ch = n.getChannelData(0);
+      for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * Math.exp(-i / ch.length * 6);
+      const src = c.createBufferSource(), lp = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = n; lp.type = 'lowpass'; lp.frequency.value = f; g.gain.value = a;
+      src.connect(lp).connect(g).connect(out); src.start(at);
+    };
+    const clink = (fs, a, d, at) => fs.forEach((f, i) => ping(f, a / (i + 1), d / (1 + i * .3), at));
+    if (kind === 'book') { thud(320, .35, .14, t0); return; }
+    if (kind === 'glass') { clink([3100, 4720, 7350], .04, .16, t0); thud(900, .06, .05, t0); clink([3150, 4800], .015, .1, t0 + .1); return; }
+    if (kind === 'plate') { clink([1480, 2630, 4100], .045, .2, t0); thud(500, .1, .07, t0); [.07, .12, .16].forEach((d, i) => clink([1500 + i * 40, 2700], .018 / (i + 1), .08, t0 + d)); return; }
+    // A cup (or the study's vase): a clink, a low knock, a little bounce.
+    clink([2050, 3300, 5150], .045, .13, t0); thud(420, .12, .08, t0); clink([2080, 3340], .014, .08, t0 + .11);
   }
 
   /**

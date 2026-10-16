@@ -17,26 +17,27 @@ import * as THREE from 'three';
 import {Room, rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
 
 const {damp} = THREE.MathUtils;
+const rand = (a, b) => a + Math.random() * (b - a);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // The plan. Back wall at z = -4.2, window wall at x = -6, right wall at x = 7,
 // with the opening to her study in the back wall between x = 3.8 and 6.2.
 const K = {
   back: -4.2, left: -6, right: 7, door: [3.8, 6.2], doorTop: 5.4, wallH: 9.5,
-  counter: 2.2, counterFront: -2.72, shelf1: 4.1, shelf2: 5.5, shelfX: [-5.2, 3.4], shelfD: .62,
+  counter: 2.2, counterFront: -2.72, shelf1: 4.1, shelf2: 5.5, shelfX: [-5.2, 3.4], shelfD: .9,
   island: {x0: -3.9, x1: 1.5, z0: -.55, z1: 1.95, top: 2.25},
   tent: {x: 4.75, z: .75, ry: -.45},
 };
 // Where she may walk: the open floor, keeping clear of the island.
 const FLOOR = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
 // The island and its stools, kept clear (the stools stand in front of it).
-const KEEP_OUT = {x0: K.island.x0 - .45, x1: K.island.x1 + .45, z0: K.island.z0 - .45, z1: K.island.z1 + 1.05};
+const KEEP_OUT = {x0: K.island.x0 - .55, x1: K.island.x1 + .55, z0: K.island.z0 - .55, z1: K.island.z1 + 1.05};
 // Round things on the floor she walks round: the fountain, her bowl, the
 // tent (in and out by its doorway only) and the robot vacuum.
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
 // (The vacuum's moves with it.)
-const VAC = {x: 3.15, z: -2.0, r: .6};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .6}, {x: 4.55, z: 2.6, r: .5}, TENT, VAC];
+const VAC = {x: 3.15, z: -2.0, r: .7};
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .7}, {x: 4.55, z: 2.6, r: .55}, TENT, VAC];
 const VAC_HOME = V(3.15, 0, -2.0);
 const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.cos(K.tent.ry) * 1.95);
 
@@ -266,6 +267,9 @@ export class Kitchen {
     const neck = new THREE.CatmullRomCurve3([V(fx, C, fz), V(fx, C + .7, fz), V(fx, C + 1.0, fz + .15), V(fx, C + .95, fz + .45), V(fx, C + .7, fz + .55)]);
     this.mesh(new THREE.TubeGeometry(neck, 24, .035, 10), M.brass, g);
     this.faucetTip = V(fx, C + .68, fz + .55);
+    const fall = this.faucetTip.y - by;
+    this.stream = this.mesh(new THREE.CylinderGeometry(.012, .018, fall, 8), new THREE.MeshStandardMaterial({color: '#d9ecf5', transparent: true, opacity: .55, roughness: .05}), g, {cast: false, receive: false});
+    this.stream.position.set(fx, by + fall / 2, fz + .55); this.stream.visible = false;
     const lever = this.mesh(new THREE.CylinderGeometry(.018, .018, .3, 8), M.brass, g); lever.position.set(fx + .14, C + .3, fz); lever.rotation.z = -1.1;
     // The range: brushed steel with black grates, knobs and an oven door.
     const rx0 = .3, rx1 = 2.5, rw = rx1 - rx0, rc = (rx0 + rx1) / 2;
@@ -317,7 +321,8 @@ export class Kitchen {
       this.shelves.push(s);
       for (const bx of [x0 + .6, (x0 + x1) / 2, x1 - .6]) this.box(.04, .28, K.shelfD - .1, bx, y - .23, zc - .03, M.steel, this.group, {cast: false});
     }
-    const S1 = K.shelf1, S2 = K.shelf2, z = zc + .02;
+    // Things stand toward the back; the front is a lane she can walk along.
+    const S1 = K.shelf1, S2 = K.shelf2, z = K.back + .33;
     // Separate, movable pieces.
     const cup = (x, y, zz, mat = M.ivory) => {
       const c = new THREE.Group(); c.position.set(x, y, zz); this.group.add(c);
@@ -350,25 +355,39 @@ export class Kitchen {
     // to pat at); then plates, bowls, a gap, amber glasses, a board, a little
     // painting (the blue pitcher), a bowl.
     this.shelfCups = [cup(-3.85, S1, z - .02), cup(-3.45, S1, z + .03)];
-    for (let i = 0; i < 5; i++) plate(-2.75, S1 + i * .045, z);
+    for (let i = 0; i < 5; i++) plate(-2.75, S1 + i * .045, z - .03);
     bowl(-2.1, S1, z); bowl(-2.1, S1 + .1, z, .19);
-    for (const x of [.25, .48, .71]) glass(x, S1, z);
+    const glasses = [.25, .48, .71].map(x => glass(x, S1, z));
     const board = this.mesh(roundedBox(.5, .75, .05, .02), M.walnut, this.group); board.position.set(1.45, S1 + .37, K.back + .1); board.rotation.x = -.12;
     frame(2.3, S1, z + .1, .5, 'shelf-blue-pitcher.jpg');
     bowl(3.0, S1, z, .24, M.clay);
     // Upper shelf: landing room at the left; a trailing plant, the pears, the
     // cobalt vessel, plates, cups, books and another plant.
     const p1 = this.mesh(lathe([[0, 0], [.13, 0], [.16, .22], [0, .22]], 18), M.cream, this.group); p1.position.set(-3.25, S2, z);
-    this.drapeIvy(V(-3.25, S2 + .2, z), 10, 1.0, z + K.shelfD / 2);
+    this.drapeIvy(V(-3.25, S2 + .2, z), 10, 1.0, K.back + K.shelfD + .02);
     frame(-2.45, S2, z + .1, .55, 'shelf-pears.jpg');
     const vessel = this.mesh(lathe([[0, 0], [.14, 0], [.28, .18], [.3, .34], [.2, .5], [.12, .56], [.13, .6], [0, .6]], 28), M.cobalt, this.group);
-    vessel.position.set(-1.6, S2, z);
-    for (let i = 0; i < 4; i++) plate(-.65, S2 + i * .045, z, .24);
-    cup(.05, S2, z, M.cream); cup(.35, S2, z + .04, M.cream);
+    vessel.position.set(-1.6, S2, K.back + .27); vessel.scale.setScalar(.82);
+    for (let i = 0; i < 4; i++) plate(-.65, S2 + i * .045, z - .02, .24);
+    const highCups = [cup(.05, S2, z, M.cream), cup(.35, S2, z + .04, M.cream)];
     const bookColors = ['#6b4a2e', '#cdbb98', '#3c4a3a', '#8a6a46', '#e3d8c3'];
-    bookColors.forEach((c, i) => this.box(.08, .45 + (i % 3) * .05, .38, 1.4 + i * .09, S2 + .23 + (i % 3) * .025, z, new THREE.MeshStandardMaterial({color: c, roughness: .8})));
+    bookColors.slice(0, 4).forEach((c, i) => this.box(.08, .45 + (i % 3) * .05, .38, 1.4 + i * .09, S2 + .23 + (i % 3) * .025, z, new THREE.MeshStandardMaterial({color: c, roughness: .8})));
+    // The last book stands on its own: she can tip it off.
+    const book = new THREE.Group(); book.position.set(1.4 + 4 * .09, S2, z); this.group.add(book);
+    this.box(.08, .5, .38, 0, .25, 0, new THREE.MeshStandardMaterial({color: bookColors[4], roughness: .8}), book);
+    this.prop(book);
+    // What she can pat off the edge, shelf by shelf.
+    const L = this.props.plates;
+    this.knockables = [
+      ...this.shelfCups.map(obj => ({obj, kind: 'cup', shelf: 'shelf'})),
+      ...glasses.map(obj => ({obj, kind: 'glass', shelf: 'shelf'})),
+      {obj: L[4], kind: 'plate', shelf: 'shelf'},
+      ...highCups.map(obj => ({obj, kind: 'cup', shelf: 'shelfHigh'})),
+      {obj: L[8], kind: 'plate', shelf: 'shelfHigh'},
+      {obj: book, kind: 'book', shelf: 'shelfHigh'},
+    ];
     const p2 = this.mesh(lathe([[0, 0], [.15, 0], [.18, .26], [0, .26]], 18), M.clay, this.group); p2.position.set(2.75, S2, z);
-    this.drapeIvy(V(2.75, S2 + .24, z), 11, 1.2, z + K.shelfD / 2);
+    this.drapeIvy(V(2.75, S2 + .24, z), 11, 1.2, K.back + K.shelfD + .02);
   }
 
   // The robot vacuum. Now and then (or when tapped) it sets off from its
@@ -378,7 +397,7 @@ export class Kitchen {
   startVacuum(t) {
     const v = this.vac;
     if (v.state !== 'docked') return false;
-    Object.assign(v, {state: 'out', stops: 3 + Math.floor(Math.random() * 3), goal: null, path: null, wait: t + 1.2, spin: null, back: 0});
+    Object.assign(v, {state: 'out', stops: 4 + Math.floor(Math.random() * 4), goal: null, path: null, wait: t + 1.2, spin: null, back: 0});
     this.vacuumButton.material.emissive.set('#6fb2ff');
     return true;
   }
@@ -473,51 +492,69 @@ export class Kitchen {
     this.group.add(leaves);
   }
 
-  // Her cups on the lower shelf. A pat slides one toward the front edge with
-  // a wobble; a pat too many and it tips off onto the counter below, rolls a
-  // little, and lies there (unbroken) until it's put back a minute later.
+  // Things on the shelves she can pat. A pat slides one toward the front
+  // edge with a wobble; a pat too many and it goes over, onto the counter
+  // below (from the top shelf it clears the lower one), and lies there,
+  // unbroken, until it's put back a minute later.
   nextCup() { return this.shelfCups.find(c => !c.userData.fall) || null; }
-  nudgeCup(cup, t) {
-    const u = cup.userData;
+  knockableNear(shelf, x) {
+    let best = null;
+    for (const k of this.knockables) if (k.shelf === shelf && !k.obj.userData.fall && (!best || Math.abs(k.obj.position.x - x) < Math.abs(best.obj.position.x - x))) best = k;
+    return best;
+  }
+  nudgeCup(obj, t) {
+    const u = obj.userData, k = this.knockables.find(k => k.obj === obj), kind = k?.kind || 'cup';
     if (u.fall) return null;
-    const edge = K.back + K.shelfD - .05, to = cup.position.z + .07 + Math.random() * .05;
+    const r = {cup: .1, glass: .085, plate: .25, book: .05}[kind], edge = K.back + K.shelfD - r + .04, to = obj.position.z + .2 + Math.random() * .12;
     u.wobble = t;
-    if (to > edge) { u.fall = {start: t, x: cup.position.x, y: cup.position.y, z: cup.position.z}; return 'fell'; }
-    u.slide = {start: t, from: cup.position.z, to};
+    if (to > edge) { u.fall = {start: t, kind, x: obj.position.x, y: obj.position.y, z: obj.position.z, r0: obj.rotation.clone()}; return 'fell'; }
+    u.slide = {start: t, from: obj.position.z, to};
     return 'nudged';
   }
   updateCups(t) {
-    for (const cup of this.shelfCups) {
-      const u = cup.userData, f = u.fall;
+    for (const {obj, kind} of this.knockables) {
+      const u = obj.userData, f = u.fall;
       if (f) {
-        const k = t - f.start, lying = K.counter + .1;
-        if (k < .3) { const q = k / .3; cup.position.z = f.z + q * .1; cup.rotation.x = q * .7; }
+        const k = t - f.start, lying = K.counter + {cup: .1, glass: .085, plate: .02, book: .04}[kind];
+        // How it ends up: cups and glasses on their sides, a plate flat, the
+        // book on its cover.
+        const end = kind === 'plate' ? [0, 0, 0] : kind === 'book' ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0];
+        if (k < .3) { const q = k / .3; obj.position.z = f.z + q * .1; if (kind === 'plate') obj.rotation.x = q * .25; else if (kind === 'book') obj.rotation.z = q * .5; else obj.rotation.x = q * .7; }
         else if (!f.landed) {
-          const fall = Math.sqrt((f.y - lying) / 4.9), q = Math.min(k - .3, fall);
-          cup.position.set(f.x + q * .1, Math.max(lying, f.y - 4.9 * q * q), f.z + .1 + q * .45);
-          cup.rotation.set(.7 + Math.min(1, q / fall) * (Math.PI / 2 - .7), 0, q * .5);
-          if (k - .3 >= fall) { cup.position.y = lying; cup.rotation.x = Math.PI / 2; f.landed = t; f.lx = cup.position.x; f.lz = cup.position.z; }
+          const fall = Math.sqrt((f.y - lying) / 4.9), q = Math.min(k - .3, fall), e = Math.min(1, q / fall);
+          obj.position.set(f.x + q * .1, Math.max(lying, f.y - 4.9 * q * q), f.z + .1 + q * .35);
+          if (kind === 'plate') obj.rotation.set(.25 * (1 - e), q * 2, 0);
+          else if (kind === 'book') obj.rotation.set(0, 0, .5 + e * (Math.PI / 2 - .5));
+          else obj.rotation.set(.7 + e * (end[0] - .7), 0, q * .5);
+          if (k - .3 >= fall) { obj.position.y = lying; obj.rotation.set(end[0], obj.rotation.y, end[2]); f.landed = t; f.lx = obj.position.x; f.ry = obj.rotation.y; this.onLand?.(kind); }
         } else if (t - f.landed < 1.1) {
-          // A little roll on its side.
+          // A little roll (a plate spins and settles).
           const r = (t - f.landed) / 1.1, e = Math.sin(r * Math.PI / 2);
-          cup.position.x = f.lx + e * .18; cup.rotation.y = e * .6;
+          if (kind === 'plate') { obj.rotation.y = f.ry + e * 1.2; obj.rotation.x = Math.sin(r * 18) * .05 * (1 - r); }
+          else if (kind !== 'book') { obj.position.x = f.lx + e * .18; obj.rotation.y = e * .6; }
         } else if (t - f.landed > 60) {
-          cup.position.copy(u.home.p); cup.rotation.copy(u.home.r); u.fall = null; u.slide = null; u.wobble = null;
+          obj.position.copy(u.home.p); obj.rotation.copy(u.home.r); u.fall = null; u.slide = null; u.wobble = null;
         }
         continue;
       }
       if (u.slide) {
         const q = Math.min(1, (t - u.slide.start) / .25);
-        cup.position.z = u.slide.from + (u.slide.to - u.slide.from) * (1 - (1 - q) * (1 - q));
+        obj.position.z = u.slide.from + (u.slide.to - u.slide.from) * (1 - (1 - q) * (1 - q));
         if (q >= 1) u.slide = null;
       }
       if (u.wobble != null) {
-        const w = t - u.wobble, d = Math.exp(-w * 5);
-        cup.rotation.x = Math.sin(w * 26) * .14 * d; cup.rotation.z = Math.sin(w * 19 + 1) * .05 * d;
-        if (w > 1.5) { cup.rotation.x = cup.rotation.z = 0; u.wobble = null; }
+        const w = t - u.wobble, d = Math.exp(-w * 5), base = u.home.r;
+        obj.rotation.x = base.x + Math.sin(w * 26) * (kind === 'plate' ? .05 : .14) * d; obj.rotation.z = base.z + Math.sin(w * 19 + 1) * .05 * d;
+        if (w > 1.5) { obj.rotation.x = base.x; obj.rotation.z = base.z; u.wobble = null; }
       }
     }
   }
+  // The salmon on the island: she may help herself. It's back a few minutes
+  // later (someone made more).
+  get salmonReady() { return this.salmon.visible; }
+  eatSalmon(t) { this.salmon.visible = false; this.salmonBack = t + rand(150, 240); }
+  // The brass faucet: a thin trickle, on while she drinks from it.
+  faucetRun(on) { this.stream.visible = on; }
   cupWorld(cup, v) { return cup.getWorldPosition(v); }
 
   // The island: a big, rounded block of veined stone with a walnut base
@@ -543,7 +580,7 @@ export class Kitchen {
     this.orchid = this.buildOrchid(I.x0 + .7, I.top, I.z0 + .75);
     const plate = new THREE.Group(); plate.position.set(I.x1 - .65, I.top, cz + .25); this.group.add(plate);
     this.mesh(lathe([[0, 0], [.18, 0], [.32, .03], [.33, .045], [0, .025]], 28), M.ivory, plate);
-    const fish = this.mesh(roundedBox(.34, .07, .16, .03), new THREE.MeshStandardMaterial({map: canvasTexture(64, 32, drawSalmon), roughness: .5}), plate);
+    const fish = this.salmon = this.mesh(roundedBox(.34, .07, .16, .03), new THREE.MeshStandardMaterial({map: canvasTexture(64, 32, drawSalmon), roughness: .5}), plate);
     fish.position.set(-.02, .065, 0); fish.rotation.y = .3;
     const herb = this.mesh(new THREE.SphereGeometry(.05, 8, 6), new THREE.MeshStandardMaterial({color: '#5f7a3a', roughness: .8}), plate); herb.position.set(.13, .06, .08); herb.scale.y = .5;
     this.foodPlate = this.prop(plate);
@@ -724,6 +761,10 @@ export class Kitchen {
       home: at(-1.0, 3.1), toyHome: V(.2, .13, 3.3),
       bowl: {p: at(4.55, 2.6), ry: -.5}, fountain: {p: at(3.0, 1.55), ry: .3},
       sunSpot: at(-4.7, 2.6),
+      // On the island, by the salmon (facing it); on the counter's front
+      // strip, at the faucet (facing it).
+      salmonSpot: {at: at(.25, .95), face: Math.PI / 2},
+      faucet: {path: [at(-3.05, -2.95), at(-2.1, -2.88)], face: Math.PI, at: this.stream.position.clone()},
       // Where she sits to watch the bird at the garden doors.
       windowSpot: at(-5.0, .4),
       // Floor -> stepping perch -> back counter -> lower shelf -> upper
@@ -732,13 +773,15 @@ export class Kitchen {
         step: {spot: at(-5.6, -3.87), top: this.stepTops[0], base: at(-5.45, -2.45), face: 0},
         counter: {spot: at(-4.65, -3.35), top: K.counter, via: 'step', face: 0},
         stepMid: {spot: at(-5.6, -3.87), top: this.stepTops[1], via: 'counter', face: 0},
-        shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'stepMid', face: 0},
+        shelf: {spot: at(-4.6, -3.9), top: K.shelf1, via: 'stepMid', face: 0, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
         stepTop: {spot: at(-5.6, -3.87), top: this.stepTops[2], via: 'shelf', face: 0},
-        shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0},
+        shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
+        // Up on the island (from behind it), only for the salmon.
+        island: {spot: at(.3, -.2), top: K.island.top, base: at(.3, -1.4), face: 0},
         // Riding the robot vacuum: wherever it is; off to one side of it.
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() { return kitchen.clampFloor(kitchen.vacuum.position.clone().add(V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8))); }},
       },
-      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum]],
+      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum], ['salmon', this.foodPlate]],
       // In the tent she lies along it, facing out of the open front.
       sleepHeading: 3.65, // curled up inside, her face at the doorway (chosen from renders)
       // Awake in the tent she faces out of the doorway (where it's tallest).
@@ -796,6 +839,31 @@ export class Kitchen {
     }
     return V(-1, 0, 3.1);
   }
+  // The safety net under every way she moves on the floor (walks, the toy
+  // chase, pounces, zoomies): her centre is kept out of the furniture, far
+  // enough that her body stays clear too. Into the tent only along its
+  // doorway; riding the vacuum, it doesn't count.
+  pushOut(v, {riding = false} = {}) {
+    const R = KEEP_OUT;
+    if (v.x > R.x0 && v.x < R.x1 && v.z > R.z0 && v.z < R.z1) {
+      const opts = [[R.x0 - v.x, 0], [R.x1 - v.x, 0], [0, R.z0 - v.z], [0, R.z1 - v.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
+      v.x += opts[0][0] * 1.01; v.z += opts[0][1] * 1.01;
+    }
+    for (const c of OBSTACLES) {
+      if (c === VAC && riding) continue;
+      const dx = v.x - c.x, dz = v.z - c.z, d = Math.hypot(dx, dz);
+      if (d >= c.r) continue;
+      if (c === TENT) {
+        // In by the doorway: a corridor along the door axis into the bed.
+        const ax = Math.sin(K.tent.ry), az = Math.cos(K.tent.ry), along = dx * ax + dz * az, side = Math.abs(dx * az - dz * ax);
+        if (side < .6 && along > -1.0) continue;
+      }
+      const k = c.r / Math.max(d, 1e-3);
+      v.x = c.x + (d < 1e-3 ? c.r : dx * k); v.z = c.z + (d < 1e-3 ? 0 : dz * k);
+    }
+    return v;
+  }
+
   // A walk round everything in the way: the shortest path through a few
   // points just clear of the island's corners and round each obstacle.
   // Into the tent only through its doorway; out the same way. A spot right
@@ -856,6 +924,8 @@ export class Kitchen {
     Room.prototype.updateBird.call(this, t);
     Room.prototype.updateFire.call(this.studyHost, dt, t, night);
     this.updateCups(t);
+    if (!this.salmon.visible && t > this.salmonBack) this.salmon.visible = true;
+    if (this.stream.visible) this.stream.scale.set(1 + Math.sin(t * 40) * .15, 1, 1 + Math.cos(t * 33) * .15);
     // The orchid's stems sway, just a little.
     this.orchidStems.forEach((s, i) => { s.rotation.z = Math.sin(t * .8 + i * 2) * .025; });
   }
