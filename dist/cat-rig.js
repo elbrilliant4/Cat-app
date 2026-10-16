@@ -92,8 +92,9 @@ function segmentFor(name) {
 /**
  * Computes skinIndex/skinWeight attributes. `color(i)` returns the texture
  * brightness (0..1) at vertex i, used to tell the dark tail from the haunch.
+ * `smooth`: surface smoothing passes (0 shows the raw, masked weights).
  */
-export function computeWeights(geometry, color) {
+export function computeWeights(geometry, color, {smooth = 4} = {}) {
   const pos = geometry.attributes.position, idx = geometry.index, N = pos.count;
   const names = Object.keys(BONES), NB = names.length;
   const nameIndex = Object.fromEntries(names.map((n, i) => [n, i]));
@@ -176,7 +177,7 @@ export function computeWeights(geometry, color) {
     adj[a].push(b, c); adj[b].push(a, c); adj[c].push(a, b);
   }
   const tmp = new Float32Array(NB);
-  for (let it = 0; it < 4; it++) {
+  for (let it = 0; it < smooth; it++) {
     for (let i = 0; i < N; i++) {
       if (weld[i] !== i || !adj[i].length) continue;
       tmp.fill(0);

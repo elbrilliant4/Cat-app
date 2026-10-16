@@ -270,6 +270,7 @@ export class RealCat {
     const texel = i => texelAt(uv.getX(i), uv.getY(i));
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };
     const {weld, names} = computeWeights(geometry, bright);
+    this.rigSource = {bright}; // (for rig-check.html)
     this.weightMouth(geometry, names);
     this.sampleLidRing(pos, texel, px);
     this.furLengths(geometry, weld);
