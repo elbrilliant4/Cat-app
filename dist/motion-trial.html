@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mochi motion trial</title>
+<style>
+  :root { --bg: #ece7e0; --ink: #2b2622; --panel: rgba(255,255,255,.88); --accent: #8a5a3b; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; font: 14px/1.35 system-ui, -apple-system, sans-serif; }
+  canvas { display: block; }
+  #label { position: fixed; left: 12px; top: 10px; background: var(--panel); padding: 6px 10px; border-radius: 8px; white-space: pre; }
+  #bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: calc(100vw - 32px); }
+  #bar button { font: inherit; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--panel); color: var(--ink); cursor: pointer; }
+  #bar button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  #time { position: fixed; left: 16px; right: 16px; bottom: 64px; }
+  #time input { width: 100%; }
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<div id="label">Loading…</div>
+<div id="time"><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Time"></div>
+<div id="bar">
+  <button id="play" aria-pressed="true">Pause</button>
+  <button data-cat="new" aria-pressed="true">New</button>
+  <button data-cat="current" aria-pressed="false">Current</button>
+  <button data-view="side" aria-pressed="true">Side</button>
+  <button data-view="threeq" aria-pressed="false">Three-quarter</button>
+  <button id="marks" aria-pressed="true">Paw marks</button>
+  <button id="fur" aria-pressed="true">Fur</button>
+</div>
+<script type="module" src="./motion-trial.js"></script>
+</body>
+</html>

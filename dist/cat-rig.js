@@ -321,7 +321,7 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
   // tip lands at the end of the last bone.
   const cum = [0];
   for (let k = 1; k < tailPts.length; k++) cum.push(cum[k - 1] + tailPts[k].distanceTo(tailPts[k - 1]));
-  const along = new Float32Array(N).fill(Infinity);
+  const along = new Float64Array(N).fill(Infinity);
   {
     const chainPos = p => {
       let bd = 1e9, u = 0;
@@ -415,11 +415,15 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     const p = P(i), side = p.x - midX(p.z), reg = region[i];
     const ok = [];
     let nb = -1, nd = 1e9;
+    // Skin beside the tail's root ring may take a little of the tail's first
+    // bones too, so the blend carries on past the ring instead of stopping at it.
+    const nearRoot = reg === 0 && segDist(p, r0, r1) < .2;
     for (let b = 0; b < NB; b++) {
       const n = names[b];
-      if (!allow[b][reg] || !reachOf[n]) continue;
+      if (!(allow[b][reg] || (nearRoot && (n === 'tail0' || n === 'tail1'))) || !reachOf[n]) continue;
       if (legOf(n) && (n.endsWith('R') ? side > .02 : side < -.02)) continue;
       ok.push(b);
+      if (reg === 0 && n.startsWith('tail')) continue; // (only ever blended in, never the body's own bone)
       // Nearest bone: the plain distance, except a leg bone only counts
       // below the top of its own segment (the back belongs to the spine).
       let d = segDist(p, segs[b][0], segs[b][1]);
