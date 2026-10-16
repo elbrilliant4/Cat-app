@@ -329,7 +329,7 @@ export function trialSequence(rig, opts = {}) {
     // Pelvis height and tilt, spine/chest bends.
     pelY: tr([[0, h0], [ts + .15, h0 + .005, 'io'], [ts + .95, .17, 'o'], [ts + 1.15, .185, 'io'], [ts + 1.35, .18, 'io'],
               [tl + .3, .18], [tl + 1.6, .135, 'io'], [tl + 2.3, .115, 'o'], [tl + 2.6, .118]]),
-    pelZ: tr([[0, 0], [ts, 0], [ts + 1.0, -.24, 'io'], [tl + .3, -.24], [tl + 2.2, -.08, 'io']]), // sitting, the body pivots back over the front paws
+    pelZ: tr([[0, 0], [ts, 0], [ts + 1.0, -.15, 'io'], [tl + .3, -.15], [tl + 2.2, -.02, 'io']]), // sitting, the body pivots back over the front paws
     pelX: tr([[0, 0], [tl + .4, 0], [tl + 2.0, -.03, 'io']]),
     pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .56, 'io'], [ts + 1.3, .54, 'io'], [tl + .4, .54], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
     pelRoll: tr([[0, 0], [tl + .9, 0], [tl + 2.3, .38, 'io']]),
@@ -352,8 +352,10 @@ export function trialSequence(rig, opts = {}) {
   // Front paws during sit (one small step back to tidy) and lie down (two
   // steps forward as the chest lowers): extra swings for the front paws.
   const extra = {
-    RF: [{t0: ts + 1.35, t1: ts + 1.65, dz: -.035, dx: .01}, {t0: tl + .55, t1: tl + .95, dz: .2, dx: 0}],
-    LF: [{t0: tl + .95, t1: tl + 1.35, dz: .2, dx: 0}],
+    // Sitting: the front paws shuffle back under the chest as the
+    // hindquarters drop (right, then left); lying down: they walk out again.
+    RF: [{t0: ts + .45, t1: ts + .75, dz: -.08, dx: .01}, {t0: tl + .55, t1: tl + .95, dz: .26, dx: 0}],
+    LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.08, dx: -.01}, {t0: tl + .95, t1: tl + 1.35, dz: .26, dx: 0}],
     // Hind paws: as the hips roll on to her right side, the left hind slides
     // its paw out a little under the haunch.
     LH: [{t0: tl + 1.4, t1: tl + 1.9, dz: .05, dx: .03}],
