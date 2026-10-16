@@ -874,7 +874,9 @@ export class Kitchen {
     const pre = [], post = [];
     if (inside(to, TENT)) { B = TENT_DOOR; post.push(to); }
     if (inside(from, TENT)) { A = TENT_DOOR; pre.push(TENT_DOOR); }
-    const circles = OBSTACLES.filter(c => !inside(A, c) && !inside(B, c));
+    // (Not the vacuum: it moves, and it backs off if she meets it; planning
+    // round it could send her the long way round the room.)
+    const circles = OBSTACLES.filter(c => c !== VAC && !inside(A, c) && !inside(B, c));
     const R = KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
     const clear = (p, q) => (!rectOn || !segmentHitsRect(p, q, R)) && circles.every(c => segmentDistance(c, p, q) >= c.r - 1e-3);
     let path = [B];
