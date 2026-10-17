@@ -99,6 +99,26 @@ export class MotionRig {
     }
     // The tail's tip (past its last joint) and its thickness along it.
     this.tailTip = BONES2.tail7[2].clone().sub(BONES2.tail7[1]);
+    // Tail segment lengths and thickness (from its skin at rest).
+    this.tailLen = []; this.tailR = [];
+    const tp = i => i < 8 ? this.restPos['tail' + i] : this.B.tail7.localToWorld(this.tailTip.clone());
+    for (let i = 0; i < 8; i++) this.tailLen.push(tp(i).distanceTo(tp(i + 1)));
+    {
+      const v = new THREE.Vector3(), ab = new THREE.Vector3(), ap = new THREE.Vector3();
+      for (let i = 0; i < 8; i++) {
+        const a = tp(i), b = tp(i + 1);
+        let r = 0;
+        for (const k of this.tailSamples[i]) {
+          v.fromBufferAttribute(geo.attributes.position, k).applyMatrix4(this.mesh.matrixWorld);
+          ab.subVectors(b, a); ap.subVectors(v, a);
+          const tt = clamp(ap.dot(ab) / ab.lengthSq(), 0, 1);
+          r = Math.max(r, ap.addScaledVector(ab, -tt).length());
+        }
+        this.tailR.push(Math.min(r || .04, .08));
+      }
+      this.tailR.push(this.tailR[7] * .8);
+    }
+    this.maxSquash = .06; // how far skin may press into the floor (≈2.4 cm), flattening, before the body lifts
   }
 
   // A bone's turn relative to its rest orientation, in world terms; set its
@@ -138,8 +158,10 @@ export class MotionRig {
     for (let pass = 0; pass < 4; pass++) {
       this.pose(s, t, lift);
       const low = this.lowest(this.bodySamples);
-      if (low >= -.002) break;
-      lift += .002 - low;
+      this.squash = Math.max(0, -low);
+      if (low >= -this.maxSquash) break;
+      lift += -this.maxSquash - low;
+      this.squash = this.maxSquash;
     }
     this.lift = lift;
     // Paws: if a paw's own skin (pads, heel) would dip below the floor, its
@@ -207,6 +229,69 @@ export class MotionRig {
     cat.tailUp = tl.up || 0;
     cat.poseTail(t, {amp: tl.amp ?? .2, speed: tl.speed ?? 1.2});
     cat.root.updateMatrixWorld(true);
+    if (tl.floor > 0) this.drapeTail(tl.floor, tl.wrap ?? 1, tl.radius ?? .2, pel);
+  }
+
+  // The tail lying on the floor: from its root it drops to the floor just
+  // behind her, then curves round her side on a smooth arc. w blends from
+  // the tail's own (lifted, swaying) shape to the draped one.
+  drapeTail(w, wrap, R, pel) {
+    const B = this.B, proc = [], P = new THREE.Vector3(), cur = new THREE.Vector3(), want = new THREE.Vector3();
+    for (let i = 0; i < 8; i++) proc.push(B['tail' + i].quaternion.clone());
+    const f = Z.clone().applyQuaternion(pel).setY(0).normalize(), left = new THREE.Vector3().crossVectors(Y, f).normalize();
+    const e1 = f.clone().negate(), e2 = left.clone().multiplyScalar(wrap);
+    const base = B.tail0.getWorldPosition(new THREE.Vector3());
+    const r0 = this.tailR[0];
+    const C = base.clone().addScaledVector(e1, .07); C.y = r0;
+    const l0 = base.distanceTo(C);
+    const path = (u, y) => {
+      if (u <= l0) return base.clone().lerp(C, u / l0);
+      const ph = (u - l0) / R;
+      return C.clone().addScaledVector(e1, R * Math.sin(ph)).addScaledVector(e2, R * (1 - Math.cos(ph))).setY(y);
+    };
+    let u = 0;
+    for (let i = 0; i < 8; i++) {
+      const bone = B['tail' + i];
+      bone.getWorldPosition(P);
+      u += this.tailLen[i];
+      want.copy(path(u, this.tailR[i + 1] + .004)).sub(P).normalize();
+      if (i < 7) B['tail' + (i + 1)].getWorldPosition(cur); else bone.localToWorld(cur.copy(this.tailTip));
+      cur.sub(P).normalize();
+      const turn = _q.setFromUnitVectors(cur, want);
+      const wq = bone.getWorldQuaternion(new THREE.Quaternion());
+      const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+      const draped = pq.invert().multiply(turn).multiply(wq);
+      bone.quaternion.copy(proc[i]).slerp(draped, w);
+      bone.updateMatrixWorld(true);
+    }
+  }
+
+  // Soft contact: skin pressing below the floor is squashed onto it (with a
+  // soft fall-off over the last few millimetres) rather than passing through
+  // it, as a cat's haunch or belly flattens where it rests. The contact rule
+  // above keeps the squash small (maxSquash); anything more lifts the body.
+  enableSoftFloor(floorY = 0, soft = .012) {
+    this.floorU = {floorY: {value: floorY}, floorSoft: {value: soft}};
+    for (const m of [this.cat.skinned.material, this.cat.fur?.material].filter(Boolean)) {
+      const prev = m.onBeforeCompile, key = m.customProgramCacheKey?.() || '';
+      m.onBeforeCompile = (sh, r) => {
+        prev?.call(m, sh, r);
+        Object.assign(sh.uniforms, this.floorU);
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float floorY;\nuniform float floorSoft;')
+          .replace('#include <project_vertex>', `{
+            vec4 fw = modelMatrix * vec4(transformed, 1.0);
+            float top = floorY + floorSoft;
+            if (fw.y < top) {
+              fw.y = top - floorSoft * (1.0 - exp(-(top - fw.y) / floorSoft));
+              transformed = (inverse(modelMatrix) * fw).xyz;
+            }
+          }
+          #include <project_vertex>`);
+      };
+      m.customProgramCacheKey = () => key + '-softfloor';
+      m.needsUpdate = true;
+    }
   }
 
   // Where the skin actually is (the mesh skinned on the CPU), for a sample
@@ -442,12 +527,16 @@ export function trialSequence(rig, opts = {}) {
     // Pelvis height and tilt, spine/chest bends.
     // (Heights set from where her skin meets the floor: sitting on her
     // haunches, then lying on her belly and right hip.)
-    pelY: tr([[0, h0], [ts + .15, h0 + .005, 'io'], [ts + .95, .295, 'o'], [ts + 1.15, .305, 'io'], [ts + 1.35, .3, 'io'],
-              [tl + .3, .3], [tl + 1.6, .32, 'io'], [tl + 2.3, .38, 'o'], [tl + 2.6, .385]]),
+    pelY: tr([[0, h0], [ts + .15, h0 + .005, 'io'], [ts + .95, .215, 'o'], [ts + 1.15, .23, 'io'], [ts + 1.35, .225, 'io'],
+              [tl + .3, .225], [tl + 1.6, .26, 'io'], [tl + 2.3, .24, 'o'], [tl + 2.6, .245]]),
     pelZ: tr([[0, 0], [ts, 0], [ts + 1.0, -.15, 'io'], [tl + .3, -.15], [tl + 2.2, -.02, 'io']]), // sitting, the body pivots back over the front paws
     pelX: tr([[0, 0], [tl + .4, 0], [tl + 2.0, -.03, 'io']]),
-    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .28, 'io'], [ts + 1.3, .26, 'io'], [tl + .4, .26], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
-    pelRoll: tr([[0, 0], [tl + .9, 0], [tl + 2.3, .38, 'io']]),
+    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .48, 'io'], [ts + 1.3, .46, 'io'], [tl + .4, .46], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
+    pelRoll: tr([[0, 0], [tl + .9, 0], [tl + 2.3, .3, 'io']]),
+    // Shoulder blades: sitting, they slide down the ribs (a cat has no
+    // collarbone; the chest hangs between them, so the front legs reach the
+    // floor); lying, they ride up as the chest sinks between them.
+    scapDrop: tr([[0, 0], [ts + .3, 0], [ts + 1.1, -.075, 'io'], [tl + .5, -.075], [tl + 2.0, .015, 'io']]),
     spinePitch: tr([[0, 0], [ts + .25, 0], [ts + 1.2, .12, 'io'], [tl + .5, .12], [tl + 1.9, -.03, 'io']]),
     chestPitch: tr([[0, 0], [ts + .35, 0], [ts + 1.35, .07, 'io'], [tl + .6, .07], [tl + 1.9, -.06, 'io']]),
     spineRoll: tr([[0, 0], [tl + 1.0, 0], [tl + 2.3, -.2, 'io']]),
@@ -460,6 +549,10 @@ export function trialSequence(rig, opts = {}) {
     tailLift: tr([[0, -.55], [.6, -.35, 'o'], [T.walk, -.4], [T.walk + .8, -.2, 'io'], [T.stop, -.3, 'io'], [ts + .6, -.4], [ts + 1.6, -1.2, 'io'], [tl + .8, -1.2], [tl + 2.4, -1.1, 'io']]),
     tailCurl: tr([[0, .2], [T.walk + .8, .3], [T.stop, .22], [ts + 1.6, .05, 'io'], [tl + 2.4, .05]]),
     tailSide: tr([[0, 0], [ts + .7, 0], [ts + 1.9, .9, 'io'], [tl + 1.2, .9], [tl + 2.8, 1.6, 'io']]),
+    // The tail settles on to the floor once she's down, curving round her
+    // left side (the camera side), and stays there.
+    tailFloor: tr([[0, 0], [ts + .8, 0], [ts + 1.8, 1, 'io']]),
+    tailWrapR: tr([[0, .2], [ts + 1.8, .2], [tl + 1.2, .2], [tl + 2.6, .24, 'io']]),
     breathe: tr([[0, 1], [T.stop, 1.2], [ts + 2.0, .9], [tl + 3.0, 1.4]]),
     breatheRate: tr([[0, .45], [T.stop, .5], [ts + 2, .4], [tl + 2.5, .4], [tl + 4.5, .28, 'io']]), // breaths a second
     eyes: tr([[0, .75], [.45, .75], [.6, 1, 'o'], [1.6, .95], [T.walk + .5, .75, 'io'], [tl + 2.6, .7], [tl + 3.6, .3, 'io'], [tl + 4.6, .25]]),
@@ -473,7 +566,11 @@ export function trialSequence(rig, opts = {}) {
     LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.1, dx: -.01}, {t0: tl + 1.2, t1: tl + 1.6, dz: .24, dx: 0}],
     // Hind paws: as the hips roll on to her right side, the left hind slides
     // its paw out a little under the haunch.
-    LH: [{t0: tl + 1.4, t1: tl + 1.9, dz: .05, dx: .03}],
+    // Lying: the hind legs fold out to the sides, so the belly can rest on
+    // the floor: the left beside her belly, the right (the side she rolls
+    // towards) well out and forward.
+    LH: [{t0: tl + 1.2, t1: tl + 1.7, dz: .16, dx: .16}],
+    RH: [{t0: tl + 1.55, t1: tl + 2.05, dz: .2, dx: -.2}],
   };
   for (const [k, list] of Object.entries(extra)) {
     for (const e of list) {
@@ -523,7 +620,7 @@ export function trialSequence(rig, opts = {}) {
     const scapFor = k => {
       const p = pawAt(k, t);
       const rel = p.pos.z - (z + off[k].z);          // paw ahead (+) or behind (-) of the shoulder
-      return {angle: walking ? clamp(rel * .9, -.25, .25) : 0, lift: walking ? .01 * (1 - sw[k]) : 0};
+      return {angle: walking ? clamp(rel * .9, -.25, .25) : 0, lift: (walking ? .01 * (1 - sw[k]) : 0) + ch.scapDrop.at(t)};
     };
     const breatheDepth = .012 * ch.breathe.at(t);
     return {
@@ -534,7 +631,8 @@ export function trialSequence(rig, opts = {}) {
       neckShare: .5,
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,
-      tail: {lift: ch.tailLift.at(t), curl: ch.tailCurl.at(t), side: ch.tailSide.at(t), amp: walking ? .3 : .12, speed: walking ? 2 : 1},
+      tail: {lift: ch.tailLift.at(t), curl: ch.tailCurl.at(t), side: ch.tailSide.at(t), amp: walking ? .3 : .12, speed: walking ? 2 : 1,
+             floor: ch.tailFloor.at(t), wrap: 1, radius: ch.tailWrapR.at(t)},
       // In a little quicker than out.
       breathe: breatheDepth * (() => { const ph = breathPhase(t) % 1; return ph < .4 ? -Math.cos(Math.PI * ph / .4) : Math.cos(Math.PI * (ph - .4) / .6); })(),
       eyes: ch.eyes.at(t),

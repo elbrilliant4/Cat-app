@@ -65,6 +65,7 @@ await Promise.all([fresh.load('./assets/mochi-ragdoll.glb'), live.load('./assets
 scene.add(fresh.root, live.root);
 for (const c of [fresh, live]) c.root.traverse(o => { if (o.isMesh) o.castShadow = true; });
 const rig = new MotionRig(fresh);
+rig.enableSoftFloor(0);
 const seq = trialSequence(rig);
 const {T} = seq;
 const phaseName = t => t < T.walk ? 'notices something' : t < T.stop ? 'walks' : t < T.sit ? 'stops' : t < T.lie ? 'sits' : t < T.lie + 2.6 ? 'lies down' : 'rests, breathing';
@@ -205,7 +206,9 @@ function measure(which = 'new', {dt = 1 / 30, floorEvery = .1, tol = .01} = {}) 
       if (f.deep * CM > floor.maxDeepCm) { floor.maxDeepCm = +(f.deep * CM).toFixed(1); floor.deepAt = +t.toFixed(2); }
     }
   }
-  const out = {slideWhileDownCm: Object.fromEntries(keys.map((k, i) => [k, +(slide[i] * CM).toFixed(1)])), floor};
+  // (For the new cat, skin below the floor is drawn squashed flat on it, not
+  // through it; these figures are how far it presses in before squashing.)
+  const out = {slideWhileDownCm: Object.fromEntries(keys.map((k, i) => [k, +(slide[i] * CM).toFixed(1)])), [which === 'new' ? 'pressedIntoFloor' : 'belowFloor']: floor};
   if (which === 'new') {
     out.slideScheduledCm = Object.fromEntries(Object.entries(sched).map(([k, v]) => [k, +(v * CM).toFixed(1)]));
     out.contactLiftCm = {max: Math.max(...lifts.map(l => l[1])), samples: lifts.filter((l, i) => i % 15 === 0 && l[1] > 0)};
