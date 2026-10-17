@@ -552,7 +552,7 @@ export function trialSequence(rig, opts = {}) {
     // The tail settles on to the floor once she's down, curving round her
     // left side (the camera side), and stays there.
     tailFloor: tr([[0, 0], [ts + .8, 0], [ts + 1.8, 1, 'io']]),
-    tailWrapR: tr([[0, .2], [ts + 1.8, .2], [tl + 1.2, .2], [tl + 2.6, .24, 'io']]),
+    tailWrapR: tr([[0, .38], [ts + 1.8, .38], [tl + 1.2, .38], [tl + 2.6, .42, 'io']]),
     breathe: tr([[0, 1], [T.stop, 1.2], [ts + 2.0, .9], [tl + 3.0, 1.4]]),
     breatheRate: tr([[0, .45], [T.stop, .5], [ts + 2, .4], [tl + 2.5, .4], [tl + 4.5, .28, 'io']]), // breaths a second
     eyes: tr([[0, .75], [.45, .75], [.6, 1, 'o'], [1.6, .95], [T.walk + .5, .75, 'io'], [tl + 2.6, .7], [tl + 3.6, .3, 'io'], [tl + 4.6, .25]]),
