@@ -17,12 +17,13 @@
 // the trial (notice, walk, stop, sit, lie down, rest) as state(t).
 // Units: the app's world units, the cat facing +z, its left side +x.
 import * as THREE from 'three';
-import {syncHelpers} from './cat-rig.js';
+import {syncHelpers, BONES2} from './cat-rig.js';
 
 const {clamp, smoothstep, lerp} = THREE.MathUtils;
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 const smoother = k => k * k * k * (k * (k * 6 - 15) + 10);
+const I0 = new THREE.Quaternion();
 
 // A rotation from yaw (about y), pitch (about x; positive raises the front)
 // and roll (about z; positive drops the right side), applied in that order.
@@ -78,6 +79,21 @@ export class MotionRig {
     };
     this.dW = {};
     this.planted = {};
+    // Contact samples: every vertex that isn't paw or tail, thinned out
+    // (a paw's own floor contact is its target; the tail has its own rule).
+    const names = this.mesh.skeleton.bones.map(b => b.name), geo = this.mesh.geometry;
+    const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+    this.bodySamples = [];
+    for (let i = 0; i < geo.attributes.position.count; i += 3) {
+      let top = 0, w = -1;
+      for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
+      const n = names[top];
+      if (/^(wrist|hock|tail)/.test(n)) continue;
+      this.bodySamples.push(i);
+    }
+    // The tail's tip (past its last joint) and its thickness along it.
+    this.tailTip = BONES2.tail7[2].clone().sub(BONES2.tail7[1]);
+    this.tailRadius = Array.from({length: 9}, (_, i) => lerp(.042, .026, i / 8));
   }
 
   // A bone's turn relative to its rest orientation, in world terms; set its
@@ -109,6 +125,24 @@ export class MotionRig {
    * }
    */
   apply(s, dt = 0, t = 0) {
+    // Pose, then make sure no part of her goes into the floor: if the body
+    // (belly, haunches, chest, legs) dips below it, the pelvis rises until
+    // it just touches and the legs solve again to their planted paws. The
+    // tail is laid along the floor rather than through it.
+    let lift = 0;
+    for (let pass = 0; pass < 4; pass++) {
+      this.pose(s, t, lift);
+      const low = this.lowest(this.bodySamples);
+      if (low >= -.002) break;
+      lift += .002 - low;
+    }
+    this.lift = lift;
+    this.tailOnFloor();
+    if (s.face) this.cat.updateFace(dt, t, s.face, s.look || {x: 0, y: 0});
+    this.cat.root.updateMatrixWorld(true);
+  }
+
+  pose(s, t, lift = 0) {
     const B = this.B, cat = this.cat, I = new THREE.Quaternion();
     cat.model.position.copy(this.modelPos);
     cat.root.updateMatrixWorld(true);
@@ -116,11 +150,16 @@ export class MotionRig {
     // Pelvis: the hips bone is the skeleton's root.
     const pel = ypr(s.pelvis.yaw, s.pelvis.pitch, s.pelvis.roll);
     this.setTurn('hips', pel, I);
-    B.hips.position.copy(this.mesh.worldToLocal(_v.copy(s.pelvis.pos)));
+    B.hips.position.copy(this.mesh.worldToLocal(_v.copy(s.pelvis.pos).add(_v2.set(0, lift, 0))));
     const spine = pel.clone().multiply(ypr(s.spine.yaw, s.spine.pitch, s.spine.roll));
     this.setTurn('spine', spine, pel);
     const chest = spine.clone().multiply(ypr(s.chest.yaw, s.chest.pitch, s.chest.roll));
     this.setTurn('chest', chest, spine);
+    // Breathing: the belly and ribs swell, the chest beyond kept to size.
+    // (Before the legs are solved, so the paws stay exactly on their marks.)
+    const br = s.breathe || 0;
+    B.spine.scale.set(1 + br * .45, 1 + br, 1 + br * .1);
+    B.chest.scale.set(1 / (1 + br * .45), 1 / (1 + br), 1 / (1 + br * .1));
     // Head: held in the world (steady, level), the neck sharing the turn.
     const head = ypr(s.head.yaw, s.head.pitch, s.head.roll).multiply(this.restHeadQ);
     const neck = chest.clone().slerp(head, s.neckShare ?? .5);
@@ -148,12 +187,60 @@ export class MotionRig {
     P.tailLift = tl.lift ?? -.55; P.tailCurl = tl.curl ?? .2; P.tailSide = tl.side ?? 0;
     cat.tailUp = tl.up || 0;
     cat.poseTail(t, {amp: tl.amp ?? .2, speed: tl.speed ?? 1.2});
-    // Breathing: the belly and ribs swell; the chest beyond is kept to size.
-    const br = s.breathe || 0;
-    B.spine.scale.set(1 + br * .45, 1 + br, 1 + br * .1);
-    B.chest.scale.set(1 / (1 + br * .45), 1 / (1 + br), 1 / (1 + br * .1));
-    if (s.face) cat.updateFace(dt, t, s.face, s.look || {x: 0, y: 0});
     cat.root.updateMatrixWorld(true);
+  }
+
+  // Where the skin actually is (the mesh skinned on the CPU), for a sample
+  // of vertices: the lowest point, in world height.
+  lowest(samples) {
+    this.mesh.skeleton.update();
+    let low = Infinity;
+    for (const i of samples) {
+      _v.fromBufferAttribute(this.mesh.geometry.attributes.position, i);
+      this.mesh.applyBoneTransform(i, _v);
+      _v.applyMatrix4(this.mesh.matrixWorld);
+      if (_v.y < low) low = _v.y;
+    }
+    return low;
+  }
+  // Every vertex below the floor (by more than `tol`): how many, how deep.
+  belowFloor(tol = .01) {
+    this.mesh.skeleton.update();
+    const N = this.mesh.geometry.attributes.position.count;
+    let n = 0, deep = 0;
+    for (let i = 0; i < N; i++) {
+      _v.fromBufferAttribute(this.mesh.geometry.attributes.position, i);
+      this.mesh.applyBoneTransform(i, _v);
+      _v.applyMatrix4(this.mesh.matrixWorld);
+      if (_v.y < -tol) { n++; deep = Math.max(deep, -_v.y); }
+    }
+    return {n, deep, of: N};
+  }
+
+  // The tail rests along the floor: any tail bone whose far end would go
+  // below the floor (allowing for the tail's thickness there) is lifted to
+  // lie on it, keeping its direction across the floor.
+  tailOnFloor() {
+    const B = this.B, end = new THREE.Vector3(), a = new THREE.Vector3(), d = new THREE.Vector3(), d2 = new THREE.Vector3();
+    for (let i = 0; i < 8; i++) {
+      const bone = B['tail' + i];
+      bone.getWorldPosition(a);
+      if (i < 7) B['tail' + (i + 1)].getWorldPosition(end);
+      else bone.localToWorld(end.copy(this.tailTip));
+      const r = this.tailRadius[i + 1] ?? this.tailRadius[i];
+      if (end.y >= r) continue;
+      d.subVectors(end, a);
+      const L = d.length();
+      const dy = clamp(r - a.y, -L, L), hl = Math.sqrt(Math.max(0, L * L - dy * dy));
+      d2.set(d.x, 0, d.z);
+      if (d2.lengthSq() < 1e-10) d2.set(0, 0, -1).applyQuaternion(this.dW.hips || I0);
+      d2.normalize().multiplyScalar(hl).setY(dy);
+      const turn = _q.setFromUnitVectors(d.normalize(), d2.normalize());
+      const wq = bone.getWorldQuaternion(new THREE.Quaternion());
+      const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+      bone.quaternion.copy(pq.invert().multiply(turn).multiply(wq));
+      bone.updateMatrixWorld(true);
+    }
   }
 
   // Two-bone IK: the upper and middle bones turn so the lowest joint lands

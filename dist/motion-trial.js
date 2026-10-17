@@ -159,41 +159,59 @@ function blinkAt(t) {
   return k;
 }
 
-// Foot sliding: how far each paw's sole moves while it's meant to be planted.
-function slide(cat = 'new', dt = 1 / 60) {
-  const out = {};
-  if (cat === 'new') {
-    const sole = new THREE.Vector3();
-    for (const k of Object.keys(LEGS)) {
-      let max = 0, ref = null, maxReach = -1;
-      for (let t = 0; t < seq.duration; t += dt) {
-        const s = seq.state(t);
-        rig.apply(s, dt, t);
-        if (!s.paws[k].planted) { ref = null; continue; }
-        fresh.legs[LEGS[k].sole].sole.getWorldPosition(sole);
-        if (!ref) ref = sole.clone();
-        max = Math.max(max, sole.distanceTo(ref));
-        maxReach = Math.max(maxReach, rig.legs[k].reachShort);
+// Measurements, the same way for both cats:
+//  slide: a paw counts as down while its sole is within 2 cm (real scale)
+//    of the floor; how far it moves (in 3D) from where it touched down,
+//    the most over the sequence. For the new cat, also during its
+//    scheduled planted intervals.
+//  floor: every vertex of the skin, every 0.1 s: how many are more than
+//    `tol` below the floor, and how deep the deepest goes.
+// (Distances in cm at real-cat scale: 1 app unit ≈ 40 cm.)
+const CM = 40;
+function stepCat(which, t) { if (which === 'new') { const s = seq.state(t); s.face = {...EXPRESSIONS.content, open: s.eyes}; rig.apply(s, 1 / 30, t); return s; } stepLive(t); return null; }
+function skinBelow(cat, tol) {
+  const m = cat.skinned, pos = m.geometry.attributes.position, v = new THREE.Vector3();
+  m.skeleton.update(); cat.root.updateMatrixWorld(true);
+  let n = 0, deep = 0;
+  for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); m.applyBoneTransform(i, v); v.applyMatrix4(m.matrixWorld); if (v.y < -tol) { n++; deep = Math.max(deep, -v.y); } }
+  return {n, deep};
+}
+function measure(which = 'new', {dt = 1 / 30, floorEvery = .1, tol = .01} = {}) {
+  const cat = which === 'new' ? fresh : live, keys = which === 'new' ? cat.legs.map((_, i) => legKey[i]) : legKey;
+  if (which === 'current') resetLive();
+  const down = [null, null, null, null], slide = [0, 0, 0, 0], sched = {LF: 0, RF: 0, LH: 0, RH: 0}, schedRef = {};
+  const floor = {maxVerts: 0, at: 0, maxDeepCm: 0, deepAt: 0}, lifts = [];
+  const sole = new THREE.Vector3();
+  let nextFloor = 0;
+  for (let t = 0; t <= seq.duration + 1e-6; t += dt) {
+    const s = stepCat(which, t);
+    cat.root.updateMatrixWorld(true);
+    cat.legs.forEach((l, i) => {
+      l.sole.getWorldPosition(sole);
+      if (sole.y < 2 / CM) { if (!down[i]) down[i] = sole.clone(); slide[i] = Math.max(slide[i], sole.distanceTo(down[i])); }
+      else down[i] = null;
+      if (s) {
+        const k = legKey[i];
+        if (s.paws[k].planted) { schedRef[k] ??= sole.clone(); sched[k] = Math.max(sched[k], sole.distanceTo(schedRef[k])); }
+        else schedRef[k] = null;
       }
-      out[k] = {maxSlideCm: +(max * 40).toFixed(1), overstretchCm: +(Math.max(0, maxReach) * 40).toFixed(1)};
+    });
+    if (s) lifts.push([+t.toFixed(2), +(rig.lift * CM).toFixed(1)]);
+    if (t >= nextFloor - 1e-6) {
+      nextFloor += floorEvery;
+      const f = skinBelow(cat, tol);
+      if (f.n > floor.maxVerts) { floor.maxVerts = f.n; floor.at = +t.toFixed(2); }
+      if (f.deep * CM > floor.maxDeepCm) { floor.maxDeepCm = +(f.deep * CM).toFixed(1); floor.deepAt = +t.toFixed(2); }
     }
-  } else {
-    resetLive();
-    const refs = [null, null, null, null], max = [0, 0, 0, 0], sole = new THREE.Vector3();
-    for (let t = 0; t < seq.duration; t += dt) {
-      stepLive(t);
-      live.legs.forEach((l, i) => {
-        l.sole.getWorldPosition(sole);
-        const down = sole.y < .02;
-        if (!down) { refs[i] = null; return; }
-        if (!refs[i]) refs[i] = sole.clone();
-        max[i] = Math.max(max[i], Math.hypot(sole.x - refs[i].x, sole.z - refs[i].z));
-      });
-    }
-    legKey.forEach((k, i) => out[k] = {maxSlideCm: +(max[i] * 40).toFixed(1)});
+  }
+  const out = {slideWhileDownCm: Object.fromEntries(keys.map((k, i) => [k, +(slide[i] * CM).toFixed(1)])), floor};
+  if (which === 'new') {
+    out.slideScheduledCm = Object.fromEntries(Object.entries(sched).map(([k, v]) => [k, +(v * CM).toFixed(1)]));
+    out.contactLiftCm = {max: Math.max(...lifts.map(l => l[1])), samples: lifts.filter((l, i) => i % 15 === 0 && l[1] > 0)};
   }
   return out;
 }
+const slide = measure; // (older name)
 
 // --- Baked clips --------------------------------------------------------------
 // The sequence sampled at 30 fps into named clips on the trial skeleton:
@@ -264,4 +282,4 @@ if (!q.has('capture')) loop();
 else { document.getElementById('bar').style.display = 'none'; document.getElementById('time').style.display = 'none'; }
 window.trial = {ready: true, duration: seq.duration, T, seq, rig, fresh, live,
   bakeClips, exportGLB,
-  show: w => { which = w; }, view: v => { viewName = v; }, marks: on => { showMarks = on; }, fur: on => { fresh.fur.visible = live.fur.visible = on; }, frame, slide};
+  show: w => { which = w; }, view: v => { viewName = v; }, marks: on => { showMarks = on; }, fur: on => { fresh.fur.visible = live.fur.visible = on; }, frame, slide, measure};
