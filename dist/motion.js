@@ -332,14 +332,17 @@ export class MotionRig {
       if (!samples.length) continue;
       for (let pass = 0; pass < 4; pass++) {
         const low = this.lowest(samples);
-        if (low >= -.002) break;
+        // (A little squash is fine: the soft floor flattens it. The tip's
+        // skin curls off the bone line in the sculpt, so it rests a touch
+        // lower than the bones suggest.)
+        if (low >= -.025) break;
         const bone = B['tail' + i];
         bone.getWorldPosition(a);
         if (i < 7) B['tail' + (i + 1)].getWorldPosition(end); else bone.localToWorld(end.copy(this.tailTip));
         d.subVectors(end, a);
         const L = d.length();
         // Raise the far end by the shortfall (the skin under it follows).
-        const dy = clamp(d.y + (.002 - low) * 1.3, -L, L), hl = Math.sqrt(Math.max(0, L * L - dy * dy));
+        const dy = clamp(d.y + (-.025 - low), -L, L), hl = Math.sqrt(Math.max(0, L * L - dy * dy));
         d2.set(d.x, 0, d.z);
         if (d2.lengthSq() < 1e-10) d2.set(0, 0, -1);
         d2.normalize().multiplyScalar(hl).setY(dy);
