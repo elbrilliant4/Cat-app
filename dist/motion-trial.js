@@ -123,6 +123,7 @@ function placeCamera(t, snap) {
   const z = (which === 'new' ? seq.state(t).pelvis.pos.z : live.root.position.z + rig.stance.hips.z) + .25;
   focusZ = snap || focusZ === null ? z : focusZ + (z - focusZ) * .12;
   if (viewName === 'side') { camera.position.set(4.6, .45, focusZ); camera.lookAt(0, .36, focusZ); }
+  else if (viewName === 'rear') { camera.position.set(2.2, 1.1, focusZ - 3.6); camera.lookAt(0, .25, focusZ - .2); }
   else { camera.position.set(3.0, 1.25, focusZ + 3.2); camera.lookAt(0, .3, focusZ - .05); }
   key.position.set(3, 6, focusZ + 3); key.target.position.set(0, 0, focusZ);
 }
@@ -160,7 +161,7 @@ function blinkAt(t) {
 }
 
 // Measurements, the same way for both cats:
-//  slide: a paw counts as down while its sole is within 2 cm (real scale)
+//  slide: a paw counts as down while its sole is within 0.5 cm (real scale)
 //    of the floor; how far it moves (in 3D) from where it touched down,
 //    the most over the sequence. For the new cat, also during its
 //    scheduled planted intervals.
@@ -188,7 +189,7 @@ function measure(which = 'new', {dt = 1 / 30, floorEvery = .1, tol = .01} = {}) 
     cat.root.updateMatrixWorld(true);
     cat.legs.forEach((l, i) => {
       l.sole.getWorldPosition(sole);
-      if (sole.y < 2 / CM) { if (!down[i]) down[i] = sole.clone(); slide[i] = Math.max(slide[i], sole.distanceTo(down[i])); }
+      if (sole.y < .5 / CM) { if (!down[i]) down[i] = sole.clone(); slide[i] = Math.max(slide[i], sole.distanceTo(down[i])); }
       else down[i] = null;
       if (s) {
         const k = legKey[i];

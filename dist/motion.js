@@ -84,16 +84,21 @@ export class MotionRig {
     const names = this.mesh.skeleton.bones.map(b => b.name), geo = this.mesh.geometry;
     const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
     this.bodySamples = [];
+    this.tailSamples = Array.from({length: 8}, () => []);
+    this.pawSamples = {LF: [], RF: [], LH: [], RH: []};
+    this.lastLeg = {};
     for (let i = 0; i < geo.attributes.position.count; i += 3) {
       let top = 0, w = -1;
       for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
       const n = names[top];
+      if (/^tail\d$/.test(n) && w > .5) (this.tailSamples[+n.slice(4)] ||= []).push(i);
+      const paw = {wristL: 'LF', wristR: 'RF', hockL: 'LH', hockR: 'RH'}[n];
+      if (paw) this.pawSamples[paw].push(i);
       if (/^(wrist|hock|tail)/.test(n)) continue;
       this.bodySamples.push(i);
     }
     // The tail's tip (past its last joint) and its thickness along it.
     this.tailTip = BONES2.tail7[2].clone().sub(BONES2.tail7[1]);
-    this.tailRadius = Array.from({length: 9}, (_, i) => lerp(.042, .026, i / 8));
   }
 
   // A bone's turn relative to its rest orientation, in world terms; set its
@@ -137,6 +142,19 @@ export class MotionRig {
       lift += .002 - low;
     }
     this.lift = lift;
+    // Paws: if a paw's own skin (pads, heel) would dip below the floor, its
+    // target rises by that much and the leg solves again.
+    for (const [k, L] of Object.entries(this.legs)) {
+      const last = this.lastLeg[k];
+      for (let pass = 0; pass < 2; pass++) {
+        const low = this.lowest(this.pawSamples[k]);
+        if (low >= -.002) break;
+        last.sole.y += .002 - low;
+        this.solveLeg(L, last.sole, last.pawQ, last.parentQ, last.bodyQ);
+      }
+    }
+    syncHelpers(this.B);
+    this.cat.root.updateMatrixWorld(true);
     this.tailOnFloor();
     if (s.face) this.cat.updateFace(dt, t, s.face, s.look || {x: 0, y: 0});
     this.cat.root.updateMatrixWorld(true);
@@ -179,6 +197,7 @@ export class MotionRig {
       const paw = s.paws[k];
       const parentQ = L.front ? this.dW['scapula' + (L.side > 0 ? 'L' : 'R')] : pel;
       const pawQ = ypr(paw.yaw ?? s.pelvis.yaw, paw.pitch || 0, paw.roll || 0);
+      this.lastLeg[k] = {sole: paw.pos.clone(), pawQ, parentQ, bodyQ: L.front ? chest : pel};
       this.solveLeg(L, paw.pos, pawQ, parentQ, L.front ? chest : pel);
     }
     syncHelpers(B);
@@ -217,29 +236,34 @@ export class MotionRig {
     return {n, deep, of: N};
   }
 
-  // The tail rests along the floor: any tail bone whose far end would go
-  // below the floor (allowing for the tail's thickness there) is lifted to
-  // lie on it, keeping its direction across the floor.
+  // The tail rests along the floor: working out from the root, any tail
+  // bone whose skin would go below the floor is turned up just enough to
+  // lie on it (keeping its direction across the floor), using the real skin
+  // of the tail, not an assumed thickness.
   tailOnFloor() {
-    const B = this.B, end = new THREE.Vector3(), a = new THREE.Vector3(), d = new THREE.Vector3(), d2 = new THREE.Vector3();
+    const B = this.B, a = new THREE.Vector3(), end = new THREE.Vector3(), d = new THREE.Vector3(), d2 = new THREE.Vector3();
     for (let i = 0; i < 8; i++) {
-      const bone = B['tail' + i];
-      bone.getWorldPosition(a);
-      if (i < 7) B['tail' + (i + 1)].getWorldPosition(end);
-      else bone.localToWorld(end.copy(this.tailTip));
-      const r = this.tailRadius[i + 1] ?? this.tailRadius[i];
-      if (end.y >= r) continue;
-      d.subVectors(end, a);
-      const L = d.length();
-      const dy = clamp(r - a.y, -L, L), hl = Math.sqrt(Math.max(0, L * L - dy * dy));
-      d2.set(d.x, 0, d.z);
-      if (d2.lengthSq() < 1e-10) d2.set(0, 0, -1).applyQuaternion(this.dW.hips || I0);
-      d2.normalize().multiplyScalar(hl).setY(dy);
-      const turn = _q.setFromUnitVectors(d.normalize(), d2.normalize());
-      const wq = bone.getWorldQuaternion(new THREE.Quaternion());
-      const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
-      bone.quaternion.copy(pq.invert().multiply(turn).multiply(wq));
-      bone.updateMatrixWorld(true);
+      const samples = this.tailSamples[i];
+      if (!samples.length) continue;
+      for (let pass = 0; pass < 4; pass++) {
+        const low = this.lowest(samples);
+        if (low >= -.002) break;
+        const bone = B['tail' + i];
+        bone.getWorldPosition(a);
+        if (i < 7) B['tail' + (i + 1)].getWorldPosition(end); else bone.localToWorld(end.copy(this.tailTip));
+        d.subVectors(end, a);
+        const L = d.length();
+        // Raise the far end by the shortfall (the skin under it follows).
+        const dy = clamp(d.y + (.002 - low) * 1.3, -L, L), hl = Math.sqrt(Math.max(0, L * L - dy * dy));
+        d2.set(d.x, 0, d.z);
+        if (d2.lengthSq() < 1e-10) d2.set(0, 0, -1);
+        d2.normalize().multiplyScalar(hl).setY(dy);
+        const turn = _q.setFromUnitVectors(d.normalize(), d2.normalize());
+        const wq = bone.getWorldQuaternion(new THREE.Quaternion());
+        const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+        bone.quaternion.copy(pq.invert().multiply(turn).multiply(wq));
+        bone.updateMatrixWorld(true);
+      }
     }
   }
 
@@ -320,7 +344,7 @@ export function trialSequence(rig, opts = {}) {
   };
   // Walking, the front paws land a little further back (so the leg reaches
   // its print as it lands) and she carries herself a touch lower.
-  const walkOff = {LF: -.035, RF: -.035, LH: 0, RH: 0};
+  const walkOff = {LF: -.05, RF: -.05, LH: 0, RH: 0};
   const X0 = S.hips.x, Z0 = 0;
 
   // ---- Timeline ------------------------------------------------------------
@@ -416,14 +440,16 @@ export function trialSequence(rig, opts = {}) {
   const ts = T.sit, tl = T.lie;
   const ch = {
     // Pelvis height and tilt, spine/chest bends.
-    pelY: tr([[0, h0], [ts + .15, h0 + .005, 'io'], [ts + .95, .17, 'o'], [ts + 1.15, .185, 'io'], [ts + 1.35, .18, 'io'],
-              [tl + .3, .18], [tl + 1.6, .135, 'io'], [tl + 2.3, .115, 'o'], [tl + 2.6, .118]]),
+    // (Heights set from where her skin meets the floor: sitting on her
+    // haunches, then lying on her belly and right hip.)
+    pelY: tr([[0, h0], [ts + .15, h0 + .005, 'io'], [ts + .95, .295, 'o'], [ts + 1.15, .305, 'io'], [ts + 1.35, .3, 'io'],
+              [tl + .3, .3], [tl + 1.6, .32, 'io'], [tl + 2.3, .38, 'o'], [tl + 2.6, .385]]),
     pelZ: tr([[0, 0], [ts, 0], [ts + 1.0, -.15, 'io'], [tl + .3, -.15], [tl + 2.2, -.02, 'io']]), // sitting, the body pivots back over the front paws
     pelX: tr([[0, 0], [tl + .4, 0], [tl + 2.0, -.03, 'io']]),
-    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .45, 'io'], [ts + 1.3, .43, 'io'], [tl + .4, .43], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
+    pelPitch: tr([[0, 0], [ts + .1, -.02], [ts + 1.0, .28, 'io'], [ts + 1.3, .26, 'io'], [tl + .4, .26], [tl + 1.9, .08, 'io'], [tl + 2.5, .02, 'io']]),
     pelRoll: tr([[0, 0], [tl + .9, 0], [tl + 2.3, .38, 'io']]),
-    spinePitch: tr([[0, 0], [ts + .25, 0], [ts + 1.2, .1, 'io'], [tl + .5, .1], [tl + 1.9, -.03, 'io']]),
-    chestPitch: tr([[0, 0], [ts + .35, 0], [ts + 1.35, .05, 'io'], [tl + .6, .05], [tl + 1.9, -.06, 'io']]),
+    spinePitch: tr([[0, 0], [ts + .25, 0], [ts + 1.2, .12, 'io'], [tl + .5, .12], [tl + 1.9, -.03, 'io']]),
+    chestPitch: tr([[0, 0], [ts + .35, 0], [ts + 1.35, .07, 'io'], [tl + .6, .07], [tl + 1.9, -.06, 'io']]),
     spineRoll: tr([[0, 0], [tl + 1.0, 0], [tl + 2.3, -.2, 'io']]),
     // Head (world): looks up and left at something, then ahead; settles low.
     headYaw: tr([[0, 0], [.35, 0], [.75, .42, 'o'], [1.5, .4], [T.walk + .1, .1, 'io'], [T.walk + .6, 0, 'io'],
@@ -443,8 +469,8 @@ export function trialSequence(rig, opts = {}) {
   const extra = {
     // Sitting: the front paws shuffle back under the chest as the
     // hindquarters drop (right, then left); lying down: they walk out again.
-    RF: [{t0: ts + .45, t1: ts + .75, dz: -.1, dx: .01}, {t0: tl + .75, t1: tl + 1.15, dz: .28, dx: 0}],
-    LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.1, dx: -.01}, {t0: tl + 1.15, t1: tl + 1.55, dz: .28, dx: 0}],
+    RF: [{t0: ts + .45, t1: ts + .75, dz: -.1, dx: .01}, {t0: tl + .85, t1: tl + 1.25, dz: .24, dx: 0}],
+    LF: [{t0: ts + .8, t1: ts + 1.1, dz: -.1, dx: -.01}, {t0: tl + 1.2, t1: tl + 1.6, dz: .24, dx: 0}],
     // Hind paws: as the hips roll on to her right side, the left hind slides
     // its paw out a little under the haunch.
     LH: [{t0: tl + 1.4, t1: tl + 1.9, dz: .05, dx: .03}],
@@ -488,7 +514,7 @@ export function trialSequence(rig, opts = {}) {
       const p = pawAt(k, t);
       const front = LEGS[k].front;
       let pitch = p.pitch;
-      if (!front) pitch = lerp(pitch, .75, hockDown.at(t));
+      if (!front) pitch = lerp(pitch, .4, hockDown.at(t));
       else pitch = lerp(pitch, .0, foreDown.at(t));
       paws[k] = {pos: p.pos.setY(p.pos.y + (p.planted ? 0 : 0)), pitch, yaw: 0, planted: p.planted};
     }
