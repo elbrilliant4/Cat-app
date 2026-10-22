@@ -3,6 +3,7 @@ import {fresh, advance, care, mood} from './pet-state.js';
 import {DECORS, applyDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
+import {MotionCat} from './motion-cat.js';
 import {Room} from './room.js';
 import {Kitchen} from './kitchen.js';
 import {Sounds} from './sound.js';
@@ -328,7 +329,11 @@ brushRig.add(brushTool);
 // ---------------------------------------------------------------------------
 // Kitten
 // ---------------------------------------------------------------------------
-const cat = new RealCat();
+// The new movement (repaired rig, authored motion: motion-cat.js) is the
+// default; ?motion=classic brings back the earlier animation for comparison
+// or as a quick rollback.
+const CLASSIC_MOTION = new URLSearchParams(location.search).get('motion') === 'classic';
+const cat = new RealCat(CLASSIC_MOTION ? {} : {rig: 2});
 scene.add(cat.root);
 cat.root.add(brushRig);
 
@@ -417,6 +422,7 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
   $('#load-fill').style.width = pct + '%';
   $('#load-progress').textContent = pct < 100 ? pct + '% · bringing your kitten home' : 'Fluffing the fur…';
 }).then(() => {
+  if (!CLASSIC_MOTION) { const motion = new MotionCat(cat); cat.update = (dt, t, ctl) => motion.update(dt, t, ctl); cat.motion = motion; }
   ready = true;
   host.classList.add('ready');
   $('#loading').classList.add('done');
@@ -640,9 +646,26 @@ function updateCat(dt, t) {
     if (dist < .06) {
       brain.speed = 0;
       brain.target = null;
+      brain.stuck = null;
       const next = brain.after;
       brain.after = null;
       if (next) next(); else setActivity(restingActivity());
+    } else if (!brain.jump && !brain.perch) {
+      // Not getting anywhere (blocked by the vacuum, say): look for another
+      // way round; after a few tries, give up and sit, eyeing what's in the way.
+      const s = brain.stuck ??= {x: brain.pos.x, z: brain.pos.z, t, tries: 0};
+      if (t - s.t > .8) {
+        if (Math.hypot(brain.pos.x - s.x, brain.pos.z - s.z) < .06) {
+          const target = brain.target, next = brain.after, tries = s.tries + 1;
+          brain.after = null; brain.target = null; brain.speed = 0;
+          if (tries < 3) { walkTo(target, next, brain.run, true); brain.stuck = {x: brain.pos.x, z: brain.pos.z, t, tries}; }
+          else {
+            brain.stuck = null;
+            setActivity('sit', rand(2, 4));
+            if (place === kitchen) glanceAt(kitchen.vacuum.position.clone().setY(.2), 2);
+          }
+        } else Object.assign(s, {x: brain.pos.x, z: brain.pos.z, t});
+      }
     }
   } else if (!pc) {
     brain.speed = damp(brain.speed, 0, 8, dt);
@@ -850,6 +873,9 @@ function updateCat(dt, t) {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
     groom: a === 'groom', swat, head: brain.head, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
+    // (For the new movement: how far through a jump she is, which way, and
+    // whether she's riding the vacuum.)
+    air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
   });
 
   // Screen anchor above the head for particles, and the face's rough
@@ -2335,8 +2361,9 @@ function frame(now) {
     idleLife(t);
     placeSpeech();
   }
-  renderer.render(scene, camera);
+  if (!skipDraw) renderer.render(scene, camera);
 }
+let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 
 // Handy for visual QA: open with ?debug to drive the kitten from the console.
 // With ?debug&frames the app doesn't run by itself: kitten.step(dt, n)
@@ -2345,7 +2372,7 @@ function frame(now) {
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
 if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
-  step(dt = 1 / 24, n = 1) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; frame(virtualNow); } }};
+  step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
 // In manual mode, draw one frame so the page isn't blank before stepping.

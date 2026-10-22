@@ -458,7 +458,17 @@ export class Kitchen {
     const want = Math.atan2(dx, dz), d = Math.atan2(Math.sin(want - v.heading), Math.cos(want - v.heading));
     v.heading += Math.sign(d) * Math.min(Math.abs(d), 2.2 * dt);
     g.rotation.y = v.heading;
-    if (Math.abs(d) < .35) { const sp = Math.min(dist, (v.rider ? .38 : .55) * dt); p.x += Math.sin(v.heading) * sp; p.z += Math.cos(v.heading) * sp; }
+    if (Math.abs(d) < .35) {
+      const sp = Math.min(dist, (v.rider ? .38 : .55) * dt), nx = p.x + Math.sin(v.heading) * sp, nz = p.z + Math.cos(v.heading) * sp;
+      // Never drives into her: if she's on the floor just ahead, it stops
+      // and turns away rather than closing in (and pinning her against the
+      // furniture).
+      if (cat && !v.rider && cat.elevation < .1) {
+        const now = Math.hypot(cat.pos.x - p.x, cat.pos.z - p.z), next = Math.hypot(cat.pos.x - nx, cat.pos.z - nz);
+        if (next < .9 && next < now) { v.path = null; v.wait = t + .8; v.turnTo = v.heading + (Math.random() < .5 ? -1 : 1) * (1.6 + Math.random()); return; }
+      }
+      p.x = nx; p.z = nz;
+    }
   }
   // On the floor and out of the island (but not out of its own circle).
   clampVacuum(p) { const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r; }
@@ -849,6 +859,12 @@ export class Kitchen {
   // enough that her body stays clear too. Into the tent only along its
   // doorway; riding the vacuum, it doesn't count.
   pushOut(v, {riding = false} = {}) {
+    // (A few passes: pushed clear of one thing can mean pushed into another,
+    // e.g. between the vacuum and the island.)
+    for (let pass = 0; pass < 3; pass++) this.pushOutOnce(v, riding);
+    return v;
+  }
+  pushOutOnce(v, riding) {
     const R = KEEP_OUT;
     if (v.x > R.x0 && v.x < R.x1 && v.z > R.z0 && v.z < R.z1) {
       const opts = [[R.x0 - v.x, 0], [R.x1 - v.x, 0], [0, R.z0 - v.z], [0, R.z1 - v.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
@@ -879,9 +895,11 @@ export class Kitchen {
     const pre = [], post = [];
     if (inside(to, TENT)) { B = TENT_DOOR; post.push(to); }
     if (inside(from, TENT)) { A = TENT_DOOR; pre.push(TENT_DOOR); }
-    // (Not the vacuum: it moves, and it backs off if she meets it; planning
-    // round it could send her the long way round the room.)
-    const circles = OBSTACLES.filter(c => c !== VAC && !inside(A, c) && !inside(B, c));
+    // The vacuum where it is now: its full size when it's docked (it won't
+    // move), a little smaller when it's out (it moves on, and backs off if
+    // she meets it), so she isn't sent the long way round the room.
+    const vac = {x: VAC.x, z: VAC.z, r: this.vac?.state === 'docked' ? .7 : .55};
+    const circles = OBSTACLES.filter(c => c !== VAC).concat(vac).filter(c => !inside(A, c) && !inside(B, c));
     const R = KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
     const clear = (p, q) => (!rectOn || !segmentHitsRect(p, q, R)) && circles.every(c => segmentDistance(c, p, q) >= c.r - 1e-3);
     let path = [B];

@@ -39,7 +39,9 @@ export const LEGS = {
 };
 
 export class MotionRig {
-  constructor(cat) {
+  // opts.sampleEvery: how thinly to sample the skin for floor contact (the
+  // app uses fewer samples than the trial page, for speed).
+  constructor(cat, opts = {}) {
     this.cat = cat;
     const B = this.B = cat.bones;
     this.mesh = cat.skinned;
@@ -87,7 +89,7 @@ export class MotionRig {
     this.tailSamples = Array.from({length: 8}, () => []);
     this.pawSamples = {LF: [], RF: [], LH: [], RH: []};
     this.lastLeg = {};
-    for (let i = 0; i < geo.attributes.position.count; i += 3) {
+    for (let i = 0; i < geo.attributes.position.count; i += opts.sampleEvery || 3) {
       let top = 0, w = -1;
       for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
       const n = names[top];
@@ -135,7 +137,12 @@ export class MotionRig {
     _v.copy(worldOff).applyQuaternion(_q.copy(parentDW).invert()).applyQuaternion(this.mqi).multiplyScalar(1 / this.scale);
     b.position.copy(this.restLocal[name]).add(_v);
   }
-  pos(name, out = new THREE.Vector3()) { return this.B[name].getWorldPosition(out); }
+  // (Positions, turns and heights here are all in her own frame: cat.root's
+  // space, which only moves and turns about the vertical. In the trial page
+  // that's the world; in the app it follows her around, up perches and on to
+  // the vacuum, so her support surface is always at height 0.)
+  pos(name, out = new THREE.Vector3()) { return this.cat.root.worldToLocal(this.B[name].getWorldPosition(out)); }
+  rootY() { return this.cat.root.getWorldPosition(_v2).y; }
 
   /**
    * state: {
@@ -149,7 +156,8 @@ export class MotionRig {
    *   face, look
    * }
    */
-  apply(s, dt = 0, t = 0) {
+  apply(s, dt = 0, t = 0, opt = {}) {
+    const contact = opt.contact ?? true;
     // Pose, then make sure no part of her goes into the floor: if the body
     // (belly, haunches, chest, legs) dips below it, the pelvis rises until
     // it just touches and the legs solve again to their planted paws. The
@@ -157,6 +165,7 @@ export class MotionRig {
     let lift = 0;
     for (let pass = 0; pass < 4; pass++) {
       this.pose(s, t, lift);
+      if (!contact) { this.squash = 0; break; }
       const low = this.lowest(this.bodySamples);
       this.squash = Math.max(0, -low);
       if (low >= -this.maxSquash) break;
@@ -168,6 +177,7 @@ export class MotionRig {
     // target rises by that much and the leg solves again.
     for (const [k, L] of Object.entries(this.legs)) {
       const last = this.lastLeg[k];
+      if (!contact || s.paws[k].free) continue;
       for (let pass = 0; pass < 2; pass++) {
         const low = this.lowest(this.pawSamples[k]);
         if (low >= -.002) break;
@@ -177,7 +187,7 @@ export class MotionRig {
     }
     syncHelpers(this.B);
     this.cat.root.updateMatrixWorld(true);
-    this.tailOnFloor();
+    if (contact) this.tailOnFloor();
     if (s.face) this.cat.updateFace(dt, t, s.face, s.look || {x: 0, y: 0});
     this.cat.root.updateMatrixWorld(true);
   }
@@ -190,7 +200,7 @@ export class MotionRig {
     // Pelvis: the hips bone is the skeleton's root.
     const pel = ypr(s.pelvis.yaw, s.pelvis.pitch, s.pelvis.roll);
     this.setTurn('hips', pel, I);
-    B.hips.position.copy(this.mesh.worldToLocal(_v.copy(s.pelvis.pos).add(_v2.set(0, lift, 0))));
+    B.hips.position.copy(this.mesh.worldToLocal(cat.root.localToWorld(_v.copy(s.pelvis.pos).add(_v2.set(0, lift, 0)))));
     const spine = pel.clone().multiply(ypr(s.spine.yaw, s.spine.pitch, s.spine.roll));
     this.setTurn('spine', spine, pel);
     const chest = spine.clone().multiply(ypr(s.chest.yaw, s.chest.pitch, s.chest.roll));
@@ -238,11 +248,12 @@ export class MotionRig {
   drapeTail(w, wrap, R, pel) {
     const B = this.B, proc = [], P = new THREE.Vector3(), cur = new THREE.Vector3(), want = new THREE.Vector3();
     for (let i = 0; i < 8; i++) proc.push(B['tail' + i].quaternion.clone());
-    const f = Z.clone().applyQuaternion(pel).setY(0).normalize(), left = new THREE.Vector3().crossVectors(Y, f).normalize();
+    const rootQ = this.cat.root.getWorldQuaternion(new THREE.Quaternion()), floor = this.rootY();
+    const f = Z.clone().applyQuaternion(pel).applyQuaternion(rootQ).setY(0).normalize(), left = new THREE.Vector3().crossVectors(Y, f).normalize();
     const e1 = f.clone().negate(), e2 = left.clone().multiplyScalar(wrap);
     const base = B.tail0.getWorldPosition(new THREE.Vector3());
     const r0 = this.tailR[0];
-    const C = base.clone().addScaledVector(e1, .07); C.y = r0;
+    const C = base.clone().addScaledVector(e1, .07); C.y = floor + r0;
     const l0 = base.distanceTo(C);
     const path = (u, y) => {
       if (u <= l0) return base.clone().lerp(C, u / l0);
@@ -254,7 +265,7 @@ export class MotionRig {
       const bone = B['tail' + i];
       bone.getWorldPosition(P);
       u += this.tailLen[i];
-      want.copy(path(u, this.tailR[i + 1] + .004)).sub(P).normalize();
+      want.copy(path(u, floor + this.tailR[i + 1] + .004)).sub(P).normalize();
       if (i < 7) B['tail' + (i + 1)].getWorldPosition(cur); else bone.localToWorld(cur.copy(this.tailTip));
       cur.sub(P).normalize();
       const turn = _q.setFromUnitVectors(cur, want);
@@ -299,24 +310,26 @@ export class MotionRig {
   lowest(samples) {
     this.mesh.skeleton.update();
     let low = Infinity;
+    const base = this.rootY();
     for (const i of samples) {
       _v.fromBufferAttribute(this.mesh.geometry.attributes.position, i);
       this.mesh.applyBoneTransform(i, _v);
       _v.applyMatrix4(this.mesh.matrixWorld);
       if (_v.y < low) low = _v.y;
     }
-    return low;
+    return low - base;
   }
   // Every vertex below the floor (by more than `tol`): how many, how deep.
   belowFloor(tol = .01) {
     this.mesh.skeleton.update();
-    const N = this.mesh.geometry.attributes.position.count;
+    const N = this.mesh.geometry.attributes.position.count, base = this.rootY();
     let n = 0, deep = 0;
     for (let i = 0; i < N; i++) {
       _v.fromBufferAttribute(this.mesh.geometry.attributes.position, i);
       this.mesh.applyBoneTransform(i, _v);
       _v.applyMatrix4(this.mesh.matrixWorld);
-      if (_v.y < -tol) { n++; deep = Math.max(deep, -_v.y); }
+      const y = _v.y - base;
+      if (y < -tol) { n++; deep = Math.max(deep, -y); }
     }
     return {n, deep, of: N};
   }

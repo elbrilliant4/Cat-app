@@ -362,7 +362,9 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
       while (k < 7 && u > cum[k + 1]) k++;
       const bt = THREE.MathUtils.clamp((u - cum[k]) / (cum[k + 1] - cum[k]), 0, 1);
       const prev = ix['tail' + (k - 1)], cur = ix['tail' + k], next = k < 7 ? ix['tail' + (k + 1)] : cur;
-      const toPrev = (1 - THREE.MathUtils.smoothstep(bt, 0, 0.35)) * 0.5, toNext = THREE.MathUtils.smoothstep(bt, 0.65, 1) * 0.5;
+      // Blend all the way from each segment's middle to the next, so a bend
+      // spreads along the tail instead of creasing at each joint.
+      const toPrev = (1 - THREE.MathUtils.smoothstep(bt, 0, 0.5)) * 0.5, toNext = THREE.MathUtils.smoothstep(bt, 0.5, 1) * 0.5;
       W[row + prev] += toPrev; W[row + next] += toNext; W[row + cur] += 1 - toPrev - toNext;
       continue;
     }
