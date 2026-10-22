@@ -760,7 +760,11 @@ export class Kitchen {
       },
       perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum], ['salmon', this.foodPlate]],
       // In the tent she lies along it, facing out of the open front.
-      sleepHeading: 3.65, // curled up inside, her face at the doorway (chosen from renders)
+      // Curled up inside, her back to the closed end (her tail lying along
+      // it, clear of the canvas) and her face to the doorway; a little
+      // forward of the middle, so the tail has room.
+      sleepHeading: K.tent.ry,
+      bedOffset: V(Math.sin(K.tent.ry) * .15, 0, Math.cos(K.tent.ry) * .15),
       // Awake in the tent she faces out of the doorway (where it's tallest).
       bedFace: K.tent.ry,
       limits: {dist: [1.1, 16], pitch: [.04, 1.25], x: [-5.6, 6.4], z: [-3.6, 4.6], y: [.08, 5.8]},

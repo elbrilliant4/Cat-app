@@ -680,12 +680,13 @@ function kitchenHalloween(kitchen, T) {
     if (!g.visible) return;
     for (const p of bats) { p.b.rotation.z = p.rot + Math.sin(t * 1.1 + p.phase) * .1; p.b.scale.x = 1 + Math.sin(t * 2.3 + p.phase) * .05; }
   };
-  // A ghost cushion propped at the back of her tent.
+  // A ghost cushion propped in the back corner of her tent (clear of where
+  // her tail lies when she sleeps).
   T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
   T.ghost.offset.set(.5, .5);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
   const cushion = mesh(roundedBox(.8, .74, .22, .09), ghostMat, kitchen.bed);
-  cushion.position.set(.3, kitchen.bedTop + .35, -.7); cushion.rotation.set(-.16, -.2, 0);
+  cushion.position.set(-.5, kitchen.bedTop + .35, -.72); cushion.rotation.set(-.16, .3, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;
   // Clementines in a stone bowl on the island.

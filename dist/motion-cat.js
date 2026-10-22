@@ -55,6 +55,9 @@ for (const k of Object.keys(POSES)) POSES[k] = {...BASE, ...POSES[k]};
 const CH = Object.keys(BASE);
 // How long each part takes when the pose changes, and how long it waits
 // (going down to sit/lie: hips first, chest after; getting up: chest first).
+// How far a planted paw may be from where it belongs, forward or back and to
+// the side, before its leg runs out of reach (in her own frame).
+const LEASH = {x: .1, z: .19};
 const PART = c => /^(y|z|x|pitch|roll|yaw)$/.test(c) ? 'pelvis' : /^(spine|chest)/.test(c) ? 'chest' : c === 'scap' ? 'scap' : /^(fd|lh|rh|hock|wrist)/.test(c) ? 'paws' : /^head/.test(c) ? 'head' : 'tail';
 const TIMING = {
   down: {pelvis: [0, .85], chest: [.25, .95], scap: [.15, .8], paws: [.1, .7], head: [0, .6], tail: [.55, 1.0]},
@@ -106,7 +109,8 @@ export class MotionCat {
       let dy = heading - this.prev.heading; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       this.yawRate = lerp(this.yawRate, dy / dt, 1 - Math.exp(-10 * dt));
     }
-    const jumped = this.prev && Math.abs(rootPos.y - this.prev.pos.y) > .5 && ctl.air < 0; // (a teleport, e.g. changing rooms)
+    // (A teleport, e.g. changing rooms: up or down, or across, in one go.)
+    const jumped = this.prev && ctl.air < 0 && (Math.abs(rootPos.y - this.prev.pos.y) > .5 || Math.hypot(rootPos.x - this.prev.pos.x, rootPos.z - this.prev.pos.z) > .45);
     this.prev = {pos: rootPos.clone(), heading};
     if (jumped) for (const k of PAWS) this.paws[k].pos = null;
     const speed = this.vel.length();
@@ -204,6 +208,23 @@ export class MotionCat {
         this.lastStep = t;
         pw.swing = {from: pw.pos.clone(), t0: t, dur: clamp(.18 + off * .5, .2, .4), h: clamp(.02 + off * .12, .025, .05)};
       }
+    }
+
+    // A paw never trails further than its leg can reach: when she's moved
+    // faster than she can step (a pounce, a dash, a hop between perches),
+    // the planted paw comes along at the end of its leg instead of staying
+    // behind and pulling the leg out of sight; standing, it steps at once.
+    for (const k of PAWS) {
+      const pw = this.paws[k];
+      if (pw.free) continue;
+      const home = this.homeLocal(k), loc = root.worldToLocal(pw.pos.clone());
+      const dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / LEASH.x, dz / LEASH.z);
+      if (e <= 1) continue;
+      loc.x = home.x + dx / e; loc.z = home.z + dz / e;
+      const y = pw.pos.y;
+      pw.pos.copy(root.localToWorld(loc)).setY(y);
+      if (pw.swing?.from) pw.swing.from.copy(pw.pos);
+      if (!walking && !pw.swing) { pw.swing = {from: pw.pos.clone(), t0: t, dur: .22, h: .04}; this.lastStep = t; }
     }
 
     // --- State for the rig -------------------------------------------------------

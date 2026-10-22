@@ -481,6 +481,7 @@ function usePlace(p) {
   const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
   EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
   CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
+  if (L.bedOffset) CUSHION_SPOT.add(L.bedOffset);
   const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
   DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
   if (p === room) room.lamp.position.copy(lampHome); else p.activate(room.lamp);
