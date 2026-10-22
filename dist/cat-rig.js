@@ -481,6 +481,18 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     }
     if (s > 0) for (let b = 0; b < NB; b++) W[i * NB + b] /= s;
   }
+  // The ears carry only the ears: none of the face below them (the heat
+  // spreads it there), easing out over their base and away from the middle
+  // of the crown, which stays with the head.
+  for (let i = 0; i < N; i++) {
+    if (weld[i] !== i) continue;
+    const y = pos.getY(i), mid = Math.abs(pos.getX(i) - MIDLINE_X);
+    const k = THREE.MathUtils.smoothstep(y, .47, .52) * THREE.MathUtils.smoothstep(mid, .04, .09) * +(pos.getZ(i) < .78);
+    for (const e of [ix.earR, ix.earL]) {
+      const w = W[i * NB + e];
+      if (w > 0) { W[i * NB + e] = w * k; W[i * NB + ix.head] += w * (1 - k); }
+    }
+  }
   // Drop traces (under 4%) so neighbouring vertices keep the same few bones.
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i) continue;

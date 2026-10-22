@@ -720,8 +720,9 @@ function updateCat(dt, t) {
           brain.after = null; brain.target = null; brain.speed = 0;
           if (tries < 3) { walkTo(target, next, brain.run, true); brain.stuck = {x: brain.pos.x, z: brain.pos.z, t, tries}; }
           else {
+            // (Whatever she was on her way to do, she still does, from here.)
             brain.stuck = null;
-            setActivity('sit', rand(2, 4));
+            if (next) next(); else setActivity('sit', rand(2, 4));
             if (place === kitchen) glanceAt(kitchen.vacuum.position.clone().setY(.2), 2);
           }
         } else Object.assign(s, {x: brain.pos.x, z: brain.pos.z, t});
@@ -2288,7 +2289,7 @@ fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).t
   if (!v) return;
   const text = `${v.channel === 'preview' ? 'Preview' : 'Version'} build ${v.build} · ${v.commit}`;
   $('#build-label').textContent = text;
-  if (v.channel === 'preview') { $('#build-chip').innerHTML = `Preview<span class="long"> · build</span> ${v.build}`; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
+  if (v.channel === 'preview') { $('.topbar').classList.add('has-build'); $('#build-chip').innerHTML = `Preview<span class="long"> · build</span> ${v.build}`; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
 }).catch(() => {});
 
 // ---------------------------------------------------------------------------
@@ -2417,6 +2418,8 @@ function frame(now) {
   const t = clockNow;
   runTimers(t);
   if (brain.mode === 'brush' && t > brain.modeUntil) finishMode();
+  // A meal or a drink that somehow never finishes mustn't lock the buttons.
+  if ((brain.mode === 'feed' || brain.mode === 'drink') && t - brain.modeStart > 30) { finishMode(); setActivity('sit'); }
   // Her own catnaps restore a little energy (about 1 a minute).
   if (ready && brain.activity === 'catnap') pet.energy = Math.min(100, pet.energy + dt / 60);
   updatePlay(dt, t);

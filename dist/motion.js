@@ -197,6 +197,8 @@ export class MotionRig {
     cat.model.position.copy(this.modelPos);
     cat.root.updateMatrixWorld(true);
     for (const b of Object.values(B)) b.scale.set(1, 1, 1);
+    // The face (updateFace) turns the jaw and ears on from rest each frame.
+    for (const n of ['jaw', 'earR', 'earL']) B[n].quaternion.identity();
     // Pelvis: the hips bone is the skeleton's root.
     const pel = ypr(s.pelvis.yaw, s.pelvis.pitch, s.pelvis.roll);
     this.setTurn('hips', pel, I);
