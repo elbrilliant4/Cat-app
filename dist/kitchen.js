@@ -14,7 +14,7 @@
 // as separate objects with their home positions, apart from the room itself.
 // Same scale as the study: about 2.4 scene units per metre.
 import * as THREE from 'three';
-import {Room, rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
+import {Room, MOONLIGHT, DAYLIGHT, rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
 
 const {damp} = THREE.MathUtils;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -906,7 +906,9 @@ export class Kitchen {
     if (lamp) lamp.intensity = damp(lamp.intensity, night ? 30 : 3, 3, dt);
     const e = damp(this.materials.shade.emissiveIntensity, night ? 2.6 : .3, 3, dt);
     this.materials.shade.emissiveIntensity = e;
-    this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .3, 3, dt);
+    // By night the window's light on the floor is moonlight: fainter and cool.
+    this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? .2 : .3, 3, dt);
+    this.sunPatch.material.color.lerp(night ? MOONLIGHT : DAYLIGHT, 1 - Math.exp(-3 * dt));
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     const R = this.room;

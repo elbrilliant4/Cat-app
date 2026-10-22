@@ -87,16 +87,20 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
    with the preview's build chip, steps aside). has-build is set by app.js
    rather than :has(), which older iPhones don't know. */
 .brand { min-width: 0; }
+.brand-mark { flex-shrink: 0; }
 .brand > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .top-actions { flex-shrink: 0; margin-left: auto; position: relative; z-index: 2; }
 @media (max-width: 560px) {
   .topbar.has-build .brand > span { display: none; }
+  .topbar.has-build .brand { flex-shrink: 0; }
   .build-chip { padding: 8px 10px; } .build-chip .long { display: none; }
   .top-actions { gap: 6px; }
   .topbar.has-build .day-chip span { display: none; }
 }
-@media (max-width: 370px) {
+@media (max-width: 400px) {
   .topbar.has-build .day-chip { display: none; }
+}
+@media (max-width: 370px) {
   .top-actions .icon-btn { width: 38px; height: 38px; border-radius: 12px; }
 }
 .build-chip { font-size: 11px; font-weight: 800; letter-spacing: .2px; color: var(--ink-2); }

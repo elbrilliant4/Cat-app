@@ -52,7 +52,8 @@ async function page(url, viewport) {
   const p = await browser.newPage({viewport, deviceScaleFactor: 1});
   p.setDefaultTimeout(600000);
   p.on('pageerror', e => errors.push(`${url}: ${e.message}`));
-  await p.goto(base + url);
+  // Daylight unless a shot asks for evening (night otherwise follows the clock).
+  await p.goto(base + url + (url.includes('?') ? '&' : '?') + 'night=0');
   return p;
 }
 const ready = p => p.waitForFunction(() => document.title === 'ready', null, {timeout: 600000});
@@ -201,7 +202,7 @@ async function roomShot(viewport, file, night = false) {
   await p.evaluate(night => {
     kitten.brain.nextIdle = 1e9;
     kitten.CAMERA_VIEWS.room();
-    if (night) kitten.pet.sleeping = true;
+    if (night) { kitten.pet.sleeping = true; kitten.setNight(true); }
   }, night);
   await p.waitForTimeout(night ? 9000 : 5000);
   await p.evaluate(() => document.querySelector('#speech').classList.remove('show'));
@@ -239,7 +240,7 @@ if (want('kitchen')) {
   await look({focus: [-4.2, 3.0, -3.5], yaw: .55, pitch: .25, dist: 7.5}); await snap(p, 'kitchen-shelves.png', 6000);
   await look({focus: [-1.0, 3.0, .6], yaw: -.2, pitch: .32, dist: 9}); await snap(p, 'kitchen-island.png', 6000);
   await look({focus: [4.0, 1.7, -1.2], yaw: -.38, pitch: .18, dist: 10}); await snap(p, 'kitchen-corner.png', 6000);
-  await p.evaluate(() => { document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = ''); kitten.pet.sleeping = true; kitten.CAMERA_VIEWS.room(); });
+  await p.evaluate(() => { document.querySelectorAll('.hud, .dock, .scene-hint').forEach(e => e.style.visibility = ''); kitten.pet.sleeping = true; kitten.setNight(true); kitten.CAMERA_VIEWS.room(); });
   await snap(p, 'kitchen-evening.png', 10000);
   await p.close();
   const ph = await kitchenPage({width: 390, height: 844});
@@ -270,7 +271,7 @@ if (study) {
   }, on);
   await shot('halloween-day.png', 9000);
   await pumpkins(true); await shot('halloween-pumpkins-day.png', 7000);
-  await p.evaluate(() => { kitten.pet.sleeping = true; });
+  await p.evaluate(() => { kitten.pet.sleeping = true; kitten.setNight(true); });
   await shot('halloween-pumpkins-evening.png', 11000);
   await pumpkins(false); await shot('halloween-evening.png', 8000);
   await p.close();

@@ -51,6 +51,7 @@
       <span class="chip build-chip" id="build-chip" hidden></span>
       <span class="chip day-chip"><svg><use href="#i-heart"/></svg><span id="age">Day 1</span></span>
       <button class="icon-btn" id="decor-btn" aria-label="Rooms and decor" title="Rooms and decor"><svg><use href="#i-house"/></svg></button>
+      <button class="icon-btn" id="daynight" aria-label="Switch to night" title="Switch to night"><svg><use href="#i-moon"/></svg></button>
       <div class="sound-wrap">
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
         <div class="sound-panel" id="sound-panel" hidden>
@@ -95,7 +96,7 @@
           <button data-action="play" style="--tint:var(--happy)"><span class="dock-icon"><svg><use href="#i-yarn"/></svg></span><span>Play</span></button>
           <button data-action="pet" style="--tint:var(--love)"><span class="dock-icon"><svg><use href="#i-heart"/></svg></span><span>Cuddle</span></button>
           <button data-action="brush" style="--tint:var(--clean)"><span class="dock-icon"><svg><use href="#i-brush"/></svg></span><span>Brush</span></button>
-          <button data-action="sleep" id="sleep-button" style="--tint:var(--energy)"><span class="dock-icon"><svg><use href="#i-moon" id="sleep-icon"/></svg></span><span id="sleep-label">Rest</span></button>
+          <button data-action="sleep" id="sleep-button" style="--tint:var(--energy)"><span class="dock-icon"><svg><use href="#i-bed" id="sleep-icon"/></svg></span><span id="sleep-label">Rest</span></button>
         </div>
       </div>
       <p class="scene-hint" id="scene-hint">Stroke Mochi to pet · drag to look around · pinch to zoom</p>

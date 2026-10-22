@@ -23,6 +23,7 @@ export function rng(seed) {
 
 let maxAniso = 4;
 const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
+export const MOONLIGHT = new THREE.Color('#7f9cff'), DAYLIGHT = new THREE.Color('#ffffff');
 export function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -654,6 +655,16 @@ export class Room {
     bird.visible = false;
     g.add(bird);
     this.bird = bird;
+    // By night a pale moth comes to the lit glass instead, and flutters there.
+    const moth = new THREE.Group(), dust = new THREE.MeshBasicMaterial({color: '#e8dfcc', side: THREE.DoubleSide});
+    const mb = this.mesh(new THREE.SphereGeometry(.012, 8, 6), new THREE.MeshBasicMaterial({color: '#b9ab92'}), moth, {cast: false, receive: false});
+    mb.scale.set(1, 2.6, 1);
+    const mwing = new THREE.Shape(); mwing.moveTo(0, 0); mwing.quadraticCurveTo(.05, .05, .045, -.005); mwing.quadraticCurveTo(.03, -.035, 0, -.02);
+    const mGeo = new THREE.ShapeGeometry(mwing, 5);
+    this.mothWings = [1, -1].map(sx => { const piv = new THREE.Group(); moth.add(piv); const w = this.mesh(mGeo, dust, piv, {cast: false, receive: false}); w.scale.x = sx; return piv; });
+    moth.visible = false;
+    g.add(moth);
+    this.moth = moth;
     this.birdRun = null;
     this.birdBox = {x0: -W / 2 - .3, x1: W / 2 + .3, low: bottom + .32, high: bottom + h * .7, mid: bottom + h / 2 + .06, z: .025};
   }
@@ -706,20 +717,37 @@ export class Room {
   startBird(t, kind = Math.random() < .5 ? 'flyby' : 'perch') {
     if (this.birdRun) return 0;
     const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
-    const dur = kind === 'flyby' ? 2.6 : 7;
+    const dur = kind === 'flyby' ? 2.6 : kind === 'moth' ? 6 + Math.random() * 5 : 7;
     this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25)};
-    this.bird.visible = true;
+    (kind === 'moth' ? this.moth : this.bird).visible = true;
     return dur;
   }
-  // The bird's position in world space (for Mochi to watch), or null.
+  // The bird's (or moth's) position in world space (for Mochi to watch), or null.
   birdWorld(v) {
-    return this.birdRun && this.bird.visible ? this.bird.getWorldPosition(v) : null;
+    if (!this.birdRun) return null;
+    const o = this.birdRun.kind === 'moth' ? this.moth : this.bird;
+    return o.visible ? o.getWorldPosition(v) : null;
   }
   updateBird(t) {
     const r = this.birdRun;
     if (!r) return;
     const k = (t - r.start) / r.dur, B = this.birdBox, b = this.bird;
-    if (k >= 1) { this.birdRun = null; b.visible = false; return; }
+    if (k >= 1) { this.birdRun = null; b.visible = false; this.moth.visible = false; return; }
+    if (r.kind === 'moth') {
+      // In from the side, a while fluttering and bumping about the glass in
+      // the middle, then off into the dark.
+      const m = this.moth, cx = r.land * .5, cy = B.mid + .35;
+      const flit = (x, y) => [x + Math.sin(t * 2.3) * .35 + Math.sin(t * 9.1) * .05, y + Math.sin(t * 1.7 + 1) * .3 + Math.sin(t * 11.3) * .05];
+      const from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0;
+      const e = k < .15 ? 1 - k / .15 : k > .85 ? (k - .85) / .15 : 0;
+      const [fx, fy] = flit(cx, cy);
+      m.position.set(fx + ((k < .5 ? from : to) - fx) * e * e, fy + e * .3, B.z + .005 + Math.abs(Math.sin(t * 5)) * .01);
+      m.rotation.z = Math.sin(t * 6) * .4;
+      m.scale.setScalar(2.4);
+      const a = Math.sin(t * 46) * 1.1;
+      this.mothWings[0].rotation.y = a; this.mothWings[1].rotation.y = -a;
+      return;
+    }
     const from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0;
     let x, y, flap = true;
     if (r.kind === 'flyby') {
@@ -1319,7 +1347,9 @@ export class Room {
     const k = night ? 1 : 0;
     if (!away) this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
     this.shadeMat.emissiveIntensity = damp(this.shadeMat.emissiveIntensity, night ? 2.2 : .45, 3, dt);
-    this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .32, 3, dt);
+    // By night the window's light on the floor is moonlight: fainter and cool.
+    this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? .2 : .32, 3, dt);
+    this.sunPatch.material.color.lerp(night ? MOONLIGHT : DAYLIGHT, 1 - Math.exp(-3 * dt));
     this.updateFire(dt, t, night);
     const sky = night ? this.view.night : this.view.day;
     if (this.glass.material.map !== sky) { this.glass.material.map = sky; this.glass.material.needsUpdate = true; }

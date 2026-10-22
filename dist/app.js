@@ -89,7 +89,28 @@ function greeting() {
   return `${part}. ${pet.name} is so happy you’re here.`;
 }
 
+// Night: the real evening, by the time of year (dusk about half an hour
+// after sunset, until sunrise), unless you've switched it with the sun/moon
+// button, which holds until the clock next turns. It isn't sleep: she may
+// well be up and about at night (Rest puts her to bed, day or night).
+const SUNSET = [16.9, 17.5, 18.2, 19.5, 20, 20.5, 20.4, 19.9, 19.1, 18.3, 16.7, 16.4];
+const SUNRISE = [7.2, 6.9, 7.1, 6.5, 5.8, 5.5, 5.7, 6.2, 6.6, 7.1, 6.6, 7.1];
+function clockNight(d = new Date()) {
+  const h = d.getHours() + d.getMinutes() / 60, m = d.getMonth();
+  return h >= SUNSET[m] + .5 || h < SUNRISE[m];
+}
+// (?night=1 or ?night=0 fixes it, for the review pack's day and evening shots.)
+let forcedNight = {1: true, 0: false}[new URLSearchParams(location.search).get('night')] ?? null;
+function isNight() {
+  if (forcedNight != null) return forcedNight;
+  const c = clockNight(), o = pet.nightOverride;
+  if (o && o.clock !== c) delete pet.nightOverride;
+  return pet.nightOverride ? pet.nightOverride.night : c;
+}
+let night = isNight();
+
 function refresh() {
+  night = isNight();
   const m = mood(pet);
   $('#pet-name').textContent = pet.name;
   $('#mood-text').textContent = m;
@@ -121,9 +142,11 @@ function refresh() {
   }
   shownLevel = lv.level;
   $('#sleep-label').textContent = pet.sleeping ? 'Wake' : 'Rest';
-  $('#sleep-icon').setAttribute('href', pet.sleeping ? '#i-sun' : '#i-moon');
-  document.body.classList.toggle('night', pet.sleeping);
-  document.querySelector('meta[name=theme-color]').content = pet.sleeping ? '#1c1612' : '#f7f1ea';
+  $('#sleep-icon').setAttribute('href', pet.sleeping ? '#i-sun' : '#i-bed');
+  document.body.classList.toggle('night', night);
+  document.querySelector('meta[name=theme-color]').content = night ? '#1c1612' : '#f7f1ea';
+  $('#daynight').innerHTML = icon(night ? 'i-sun' : 'i-moon');
+  $('#daynight').ariaLabel = $('#daynight').title = night ? 'Switch to day' : 'Switch to night';
   for (const b of document.querySelectorAll('.dock [data-action]')) {
     const off = pet.sleeping && b.dataset.action !== 'sleep';
     b.setAttribute('aria-disabled', String(off));
@@ -542,6 +565,7 @@ function walkTo(point, then = null, run = false, anywhere = false) {
   }
   brain.target = target;
   brain.run = run;
+  brain.faceAt = null;
   const dist = Math.hypot(brain.target.x - brain.pos.x, brain.target.z - brain.pos.z);
   setActivity('walk', 8 + dist / (run ? 1.2 : .45), then);
 }
@@ -780,6 +804,8 @@ function updateCat(dt, t) {
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
+  // Settled to watch something (the fire, say): she faces it.
+  if (desiredHeading === null && brain.faceAt && !brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom'].includes(a)) desiredHeading = angleTo(brain.pos, brain.faceAt);
   // In the kitchen's tent she lies along it, facing out of the front.
   const SH = place.layoutCache.sleepHeading;
   const inBed = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius;
@@ -977,8 +1003,10 @@ function idleLife(t) {
     return;
   }
   if (brain.mode !== 'idle' || !['sit', 'loaf'].includes(brain.activity) || t < brain.nextIdle || t - brain.pointerAt < 2.5) return;
-  brain.nextIdle = t + rand(4, 8);
+  // A night owl: after dark she's up to something every few seconds.
+  brain.nextIdle = t + (night ? rand(2.5, 5) : rand(4, 8));
   if (brain.perch) { perchLife(t); return; }
+  if (night && Math.random() < .75 && nightLife()) return;
   const perchChoices = place === room ? ['window', 'window', 'chair'] : ['shelf', 'shelf', 'shelfHigh', 'shelfHigh', 'salmonRaid', 'faucet', 'faucet'].concat(pet.food < 75 ? ['salmonRaid'] : [], pet.water < 85 ? ['faucet', 'faucet'] : []);
   const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', ...perchChoices, 'sunbeam'];
   if (pet.energy > 35) options.push('solo', 'solo');
@@ -1036,6 +1064,107 @@ function idleLife(t) {
   if (choice === 'solo') startSolo();
   if (choice === 'salmonRaid' && !stealSalmon()) setActivity('sit');
   if (choice === 'faucet' && place === kitchen) drinkFaucet();
+}
+
+// After dark (and awake): the hours a cat really comes alive. Night zoomies,
+// pouncing on shadows only she can see, the moth at the window, a doze in
+// the moonlight or by the fire, the counter and the salmon while nobody's
+// looking, and the robot vacuum's little light, asleep in its dock.
+// Returns false if she'd rather do an ordinary thing this time.
+function nightLife() {
+  if (pet.energy < 25) {
+    // Worn out: a proper catnap in her bed (it restores a little energy).
+    walkTo(CUSHION_SPOT, () => setActivity('loaf', 2.5, () => setActivity('catnap', rand(18, 30), () => { yawn(); setActivity('sit', 3); })), false, true);
+    return true;
+  }
+  const options = ['zoomies', 'zoomies', 'zoomies', 'shadow', 'shadow', 'shadow', 'moonbeam'];
+  if (place === room) options.push('fireside', 'fireside', 'window');
+  else {
+    options.push('raid', 'raid', 'shelf');
+    if (kitchen.vac.state === 'docked' && !kitchen.vac.rider) options.push('dock', 'dock');
+  }
+  const choice = pick(options);
+  if (choice === 'zoomies') nightZoomies();
+  if (choice === 'shadow') shadowPounce();
+  if (choice === 'moonbeam') walkTo(SUN_SPOT, () => {
+    // (The window's light on the floor is moonlight now.)
+    express('bliss', 2);
+    setActivity('loaf', 3, () => setActivity('catnap', rand(8, 14), () => { glanceAt(camera.position, 2); slowBlink(); setActivity('sit', 3); }));
+  }, false, true);
+  if (choice === 'fireside') {
+    // Stretched out on the warm hearth, slow-blinking at the flames.
+    const f = room.fireplace, fire = f.localToWorld(new THREE.Vector3(0, .4, 0)), spot = f.localToWorld(new THREE.Vector3(rand(-.4, .4), 0, 1.05)).setY(0);
+    walkTo(spot, () => {
+      brain.faceAt = fire;
+      setActivity('loaf', rand(10, 18), () => setActivity('groom', 2, () => setActivity('sit', 2)));
+      later(3, slowBlink); later(rand(6, 9), slowBlink);
+    }, false, true);
+  }
+  if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(1, 4); }, rand(20, 35));
+  if (choice === 'raid') { if (!(Math.random() < .6 && stealSalmon())) drinkFaucet(); }
+  if (choice === 'shelf') jumpTo(pick(['shelf', 'shelfHigh']), () => { later(rand(.8, 2), () => { if (brain.perch && brain.mode === 'idle') stroll(); }); setActivity('sit'); }, rand(20, 35));
+  if (choice === 'dock') dockHunt();
+  return true;
+}
+// Night zoomies: tearing about from one end of the room to the other, a
+// skid and a hop at each turn, sometimes ending with a leap up somewhere.
+function nightZoomies() {
+  express('excited', 4);
+  if (Math.random() < .5) say(pick(['Nyoom!!', '3 a.m. energy!', 'Can’t stop. Won’t stop.', 'Zoomies!!']), 1600);
+  let legs = 3 + Math.floor(rand(0, 3));
+  const ups = (place === room ? ['chair', 'sill'] : ['step', 'counter']).filter(n => PERCHES[n]);
+  const leg = () => {
+    hop();
+    if (--legs > 0) { walkTo(randomRugPoint(), leg, true); return; }
+    if (ups.length && Math.random() < .4) jumpTo(pick(ups), () => setActivity('sit'), rand(8, 15));
+    else setActivity('pause', 1, () => { glanceAt(camera.position, 1.5); setActivity('sit'); });
+  };
+  walkTo(randomRugPoint(), leg, true);
+}
+// A shadow, a flicker, a speck only she can see: ears forward, the stalk,
+// the wiggle, the pounce, the swat; then a look round as if nothing happened.
+function shadowPounce() {
+  const a = rand(0, Math.PI * 2), d = rand(1.3, 2.1);
+  const spot = onRug(new THREE.Vector3(brain.pos.x + Math.sin(a) * d, 0, brain.pos.z + Math.cos(a) * d));
+  if (spot.distanceTo(brain.pos) < .8) { nightZoomies(); return; }
+  brain.swatAt = spot.clone();
+  glanceAt(spot.clone().setY(.03), 2.5);
+  twitchEar(0, 1.2); later(.12, () => twitchEar(1, 1.2));
+  express('curious', 1.6);
+  setActivity('stalk', rand(1.3, 2.2), () => {
+    if (brain.mode !== 'idle') return;
+    const dx = spot.x - brain.pos.x, dz = spot.z - brain.pos.z, dd = Math.max(.01, Math.hypot(dx, dz)), reach = Math.max(0, dd - .35);
+    brain.pounce = {start: clockNow, from: brain.pos.clone(), to: onRug(new THREE.Vector3(brain.pos.x + dx / dd * reach, 0, brain.pos.z + dz / dd * reach)), caught: false, at: () => spot, onHit: () => {
+      brain.swatAt = spot.clone(); brain.swatSoft = true;
+      setActivity('swat', .45, () => setActivity('pause', 1.1, () => {
+        glanceAt(new THREE.Vector3(rand(-2, 2), rand(.2, 1.5), rand(-1, 2)), 1.2);
+        if (Math.random() < .35) say(pick(['Got it.', '…where did it go?', 'I definitely got it.']), 2000);
+        setActivity('sit', rand(2, 4));
+      }));
+      express('excited', 1.5);
+    }};
+    setActivity('pause', 1.6);
+  });
+}
+// The robot vacuum asleep in its dock, its little green light glowing in
+// the dark: clearly up to something.
+function dockHunt() {
+  const light = kitchen.vacuumButton.getWorldPosition(new THREE.Vector3());
+  glanceAt(light, 2.5); express('curious', 1.6);
+  walkTo(nearVacuum(1.3), () => {
+    if (kitchen.vac.state !== 'docked' || brain.mode !== 'idle') { setActivity('sit'); return; }
+    brain.swatAt = light.clone().setY(0);
+    setActivity('stalk', rand(1.4, 2.4), () => {
+      if (brain.mode !== 'idle') return;
+      const dx = light.x - brain.pos.x, dz = light.z - brain.pos.z, dd = Math.max(.01, Math.hypot(dx, dz)), reach = Math.max(0, dd - .55);
+      brain.pounce = {start: clockNow, from: brain.pos.clone(), to: kitchen.clampFloor(new THREE.Vector3(brain.pos.x + dx / dd * reach, 0, brain.pos.z + dz / dd * reach)), caught: false, at: () => light, onHit: () => {
+        brain.swatAt = light.clone().setY(0); brain.swatSoft = true;
+        setActivity('swat', .45, () => setActivity('swat', .45, () => setActivity('pause', 1.2, () => setActivity('sit', rand(2, 4)))));
+        later(.8, () => { meow('chirp', 'idle'); if (Math.random() < .5) say(pick(['It blinked at me.', 'Stay. Asleep.', 'I see you, little light.']), 2200); });
+      }};
+      setActivity('pause', 1.6);
+    });
+  }, false, true);
 }
 
 // Up on a perch: mostly she stays a while, watching, washing, dozing,
@@ -1315,7 +1444,7 @@ function vacuumLife(t) {
   if (brain.vacStalk && brain.activity === 'stalk') brain.swatAt.copy(kitchen.vacuum.position);
   // Coming to ride: once she's close, it politely waits for her.
   if (brain.vacRide && v.state === 'out' && brain.pos.distanceTo(kitchen.vacuum.position) < 2.4) v.wait = Math.max(v.wait, t + .6);
-  if (v.state === 'docked' && !pet.sleeping && t > brain.nextVacuum) {
+  if (v.state === 'docked' && !pet.sleeping && !night && t > brain.nextVacuum) {
     brain.nextVacuum = t + rand(150, 260);
     kitchen.startVacuum(t);
     brain.vacReactAt = t + rand(1.5, 3); brain.vacReacts = 0;
@@ -1430,19 +1559,20 @@ function watchBirds(t) {
     brain.watching = false;
     // Halloween evenings: bats swoop outside the window; now and then she
     // stirs and an ear flicks.
-    room.batsOn = ready && place === room && room.decor === 'halloween' && pet.sleeping;
+    room.batsOn = ready && place === room && room.decor === 'halloween' && night;
     if (room.batsOn && t > (brain.nextBatTwitch ??= t + 8)) { brain.nextBatTwitch = t + rand(10, 25); twitchEar(undefined, .7); }
     host.classList.remove('bird');
     return;
   }
+  room.batsOn = place === room && room.decor === 'halloween' && night;
   const onSill = brain.perch === 'sill' && !brain.jump;
-  // The bird is a regular: it comes by about once a minute while she's up
+  // The bird is a regular (by night, a moth at the glass): it comes by about once a minute while she's up
   // and about (whatever the decor), and keeps coming back while she sits at
   // the window. If she's busy on another perch it waits a little.
   if (!win.birdRun && t > brain.nextBird) {
     // (In the kitchen she can see the doors from her perches too.)
     if (brain.mode === 'idle' && (onSill || !brain.perch || place !== room)) {
-      const d = win.startBird(t);
+      const d = win.startBird(t, night ? 'moth' : undefined);
       brain.birdSeen = false;
       brain.nextBird = t + d + (onSill ? rand(5, 12) : place === room ? rand(22, 40) : rand(70, 130));
     } else brain.nextBird = t + rand(6, 12);
@@ -2181,6 +2311,15 @@ function renderDecor() {
   $('#decor-options').innerHTML = Object.entries(DECORS).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
 }
 $('#decor-btn').onclick = () => { renderPlaces(); renderDecor(); $('#decor-dialog').showModal(); };
+// Day or night by hand (until the clock next turns dusk or dawn).
+$('#daynight').onclick = () => {
+  pet.nightOverride = {night: !night, clock: clockNight()};
+  if (pet.nightOverride.night === pet.nightOverride.clock) delete pet.nightOverride;
+  save();
+  refresh();
+  toast(night ? 'Evening falls…' : 'Good morning!');
+  if (ready && !pet.sleeping) { twitchEar(0); later(.15, () => twitchEar(1)); glanceAt(new THREE.Vector3(rand(-2, 2), 1.6, -2.5), 1.6); }
+};
 $('#decor-options').addEventListener('click', e => {
   const b = e.target.closest('[data-decor]');
   if (!b) return;
@@ -2378,7 +2517,8 @@ function updateCamera(dt) {
 }
 
 function updateRoom(dt, t) {
-  const night = pet.sleeping;
+  // (The clock turning dusk or dawn while you watch.)
+  if (Math.floor(t / 5) !== Math.floor((t - dt) / 5) && isNight() !== night) refresh();
   sun.intensity = damp(sun.intensity, night ? .05 : 3.2, 3, dt);
   ambient.intensity = damp(ambient.intensity, night ? .35 : 1.5, 3, dt);
   rim.intensity = damp(rim.intensity, night ? 0 : 1.8, 3, dt);
@@ -2440,7 +2580,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
