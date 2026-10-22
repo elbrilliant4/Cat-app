@@ -36,7 +36,7 @@ const POSES = {
   // Sitting (from the trial): the body pivots back over the front paws, the
   // shoulder blades slide down the ribs so the front legs reach the floor,
   // the hocks lie along it and the tail wraps round.
-  sit: {y: .225, z: -.15, pitch: .46, spine: .12, chest: .07, scap: -.075, fdz: -.1, hock: .4, tailLift: -1.2, tailCurl: .05, tailSide: .9, tailFloor: 1, tailR: .38, abs: true},
+  sit: {y: .225, z: -.15, pitch: .46, spine: .12, chest: .07, scap: -.075, fdz: -.14, hock: .4, tailLift: -1.2, tailCurl: .05, tailSide: .9, tailFloor: 1, tailR: .38, abs: true},
   // Lying on her belly, hips rolled a little to her right, hind legs folded
   // out to the sides, front paws ahead.
   loaf: {y: .245, z: -.02, x: -.03, pitch: .02, roll: .3, spine: -.03, spineRoll: -.2, chest: -.06, scap: .015, fdz: .14, lhx: .16, lhz: .16, rhx: -.2, rhz: .2, hock: .4, headPitch: -.06, tailLift: -1.1, tailSide: 1.6, tailFloor: 1, tailR: .42, abs: true},
@@ -53,11 +53,11 @@ const POSES = {
 };
 for (const k of Object.keys(POSES)) POSES[k] = {...BASE, ...POSES[k]};
 const CH = Object.keys(BASE);
-// How long each part takes when the pose changes, and how long it waits
-// (going down to sit/lie: hips first, chest after; getting up: chest first).
 // How far a planted paw may be from where it belongs, forward or back and to
 // the side, before its leg runs out of reach (in her own frame).
 const LEASH = {x: .1, z: .19};
+// How long each part takes when the pose changes, and how long it waits
+// (going down to sit/lie: hips first, chest after; getting up: chest first).
 const PART = c => /^(y|z|x|pitch|roll|yaw)$/.test(c) ? 'pelvis' : /^(spine|chest)/.test(c) ? 'chest' : c === 'scap' ? 'scap' : /^(fd|lh|rh|hock|wrist)/.test(c) ? 'paws' : /^head/.test(c) ? 'head' : 'tail';
 const TIMING = {
   down: {pelvis: [0, .85], chest: [.25, .95], scap: [.15, .8], paws: [.1, .7], head: [0, .6], tail: [.55, 1.0]},
@@ -73,11 +73,18 @@ export class MotionCat {
     this.rig.enableSoftFloor(0);
     const S = this.rig.stance;
     this.S = S;
+    // Where each paw stands, from its own shoulder or hip (the sculpt is
+    // posed unevenly, so each side is placed from its own joint): the front
+    // paws a little in under the chest, the hind ones a little out from the
+    // hips, so from in front, behind or three-quarters all four legs show
+    // (in line, the far ones hide behind the near). Front legs upright, the
+    // hind ones just behind the hip.
+    const R = this.rig.restPos;
     this.home0 = {
-      LF: new THREE.Vector3(S.mid + S.width.front * .82, 0, S.frontZ), RF: new THREE.Vector3(S.mid - S.width.front * .82, 0, S.frontZ),
-      LH: new THREE.Vector3(S.mid + S.width.hind * .82, 0, S.hindZ), RH: new THREE.Vector3(S.mid - S.width.hind * .82, 0, S.hindZ),
+      LF: new THREE.Vector3(R.shoulderL.x - .015, 0, S.frontZ - .07), RF: new THREE.Vector3(R.shoulderR.x + .015, 0, S.frontZ - .07),
+      LH: new THREE.Vector3(R.hipL.x + .07, 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - .07, 0, S.hindZ + .02),
     };
-    this.h0 = S.hips.y - .012;
+    this.h0 = S.hips.y + .015;
     this.ch = {...POSES.stand, y: this.h0};
     this.from = {...this.ch};
     this.poseName = 'stand'; this.poseAt = -1; this.timing = TIMING.quick;
@@ -133,7 +140,10 @@ export class MotionCat {
       const k = smoother((t - this.poseAt - delay) / dur);
       // (Pelvis height is kept as an actual height: the resting poses give
       // theirs directly, the others relative to her standing height.)
-      const target = c === 'y' && !P.abs ? this.h0 + P.y : P[c];
+      let target = c === 'y' && !P.abs ? this.h0 + P.y : P[c];
+      // Crouched but on the move (chasing a toy): she runs nearly upright;
+      // the low crouch is for stalking, standing still or creeping.
+      if (name === 'crouch' && this.walkW > 0) target = lerp(target, c === 'y' ? this.h0 + POSES.stand.y : POSES.stand[c], this.walkW * .85);
       this.ch[c] = lerp(this.from[c], target, k);
     }
     const c = this.ch;
@@ -203,7 +213,8 @@ export class MotionCat {
       }
       pw.pos.y = rootPos.y;
       pw.pitch = 0;
-      const off = Math.hypot(pw.pos.x - homeW.x, pw.pos.z - homeW.z);
+      // (Off to the side shows more than off forward or back.)
+      const offL = root.worldToLocal(pw.pos.clone()).sub(home), off = Math.hypot(offL.x / .55, offL.z);
       if (off > .055 && t - this.lastStep > .14 && !PAWS.some(q => this.paws[q].swing && !this.paws[q].swing.gait)) {
         this.lastStep = t;
         pw.swing = {from: pw.pos.clone(), t0: t, dur: clamp(.18 + off * .5, .2, .4), h: clamp(.02 + off * .12, .025, .05)};
