@@ -111,7 +111,6 @@ export class Kitchen {
     M.stone.map.repeat.set(.22, .22);
     this.buildShell();
     this.buildWindows();
-    this.buildStudyGlimpse();
     this.buildCounter();
     this.buildShelves();
     this.buildIsland();
@@ -128,6 +127,7 @@ export class Kitchen {
     const M = this.materials;
     const floor = this.mesh(new THREE.PlaneGeometry(60, 60), M.floor, this.group, {cast: false});
     floor.rotation.x = -Math.PI / 2; floor.position.y = -.002;
+    this.floor = floor;
     // A wall panel; it hides when the camera swings round behind it.
     const wall = (w, h, x, y, z, ry, parent = this.group) => {
       const m = this.mesh(new THREE.PlaneGeometry(w, h), M.plaster, parent, {cast: false});
@@ -192,44 +192,6 @@ export class Kitchen {
     Room.prototype.buildBird.call(this, wg, z1 - z0 - 1.2, 2.0, 4.4);
     // Perched on a glazing bar at about Mochi's eye level from the counter.
     this.birdBox.mid = y0 + (T - y0) * 2 / 4 + .06;
-  }
-
-  // Through the opening: a glimpse of her study, the room she started in,
-  // with its limestone fireplace and cognac chair. (When walking between
-  // rooms comes, this doorway leads there. The open living area will extend
-  // the kitchen towards the front, past the island, later.)
-  buildStudyGlimpse() {
-    const R = this.room.materials, g = new THREE.Group();
-    this.studyGlimpse = g;
-    this.group.add(g);
-    const L = {x0: 2.6, x1: 11, z0: -11.6, z1: K.back - .45}, WAIN = 1.55;
-    // Out of the window light, a touch dimmer and warmer than the kitchen.
-    const plaster = R.plaster.clone(); plaster.color.multiplyScalar(.9);
-    const floorMap = R.floor.map.clone(); floorMap.repeat.set((L.x1 - L.x0) / 4, (L.z1 - L.z0 + .45) / 4); floorMap.needsUpdate = true;
-    const floor = this.mesh(new THREE.PlaneGeometry(L.x1 - L.x0, L.z1 - L.z0 + .45), new THREE.MeshStandardMaterial({map: floorMap, roughness: .72}), g, {cast: false});
-    floor.rotation.x = -Math.PI / 2; floor.position.set((L.x0 + L.x1) / 2, .004, (L.z0 + L.z1 + .45) / 2);
-    const dim = this.mesh(new THREE.PlaneGeometry(L.x1 - L.x0, L.z1 - L.z0 + .45), new THREE.MeshBasicMaterial({color: '#2a1d12', transparent: true, opacity: .2, depthWrite: false}), g, {cast: false, receive: false});
-    dim.rotation.x = -Math.PI / 2; dim.position.set((L.x0 + L.x1) / 2, .008, (L.z0 + L.z1 + .45) / 2);
-    // Her study's walls: plaster over a panelled wainscot with a chair rail.
-    const wall = (len, x, z, ry) => {
-      const w = new THREE.Group(); w.position.set(x, 0, z); w.rotation.y = ry; g.add(w);
-      this.mesh(new THREE.PlaneGeometry(len, K.wallH - WAIN), plaster, w, {cast: false}).position.y = WAIN + (K.wallH - WAIN) / 2;
-      this.mesh(new THREE.PlaneGeometry(len, WAIN), R.panel, w, {cast: false}).position.y = WAIN / 2;
-      const n = Math.max(1, Math.round(len / 1.5)), pw = len / n;
-      for (let i = 0; i < n; i++) this.mesh(roundedBox(pw - .32, WAIN - .58, .06, .02, 2, .03), R.panel, w, {cast: false}).position.set(-len / 2 + pw * (i + .5), WAIN / 2 + .05, .03);
-      this.box(len, .1, .1, 0, WAIN, .05, R.trim, w, {cast: false});
-      this.box(len, .22, .08, 0, .11, .04, R.trim, w, {cast: false});
-    };
-    wall(L.x1 - L.x0, (L.x0 + L.x1) / 2, L.z0, 0);
-    wall(L.z1 - L.z0, L.x0, (L.z0 + L.z1) / 2, Math.PI / 2);
-    wall(L.z1 - L.z0, L.x1, (L.z0 + L.z1) / 2, -Math.PI / 2);
-    // The study's own fireplace and chair, built by the study's code into
-    // this room; its fire flickers here too.
-    const host = this.studyHost = {materials: R, group: g, walls: {right: 0}, mesh: Room.prototype.mesh};
-    Room.prototype.buildFireplace.call(host);
-    host.fireplace.position.set(7.9, 0, L.z0); host.fireplace.rotation.y = 0;
-    Room.prototype.buildChair.call(host);
-    host.chair.position.set(5.3, 0, -7.6); host.chair.rotation.y = .75;
   }
 
   // The back counter: walnut cabinets, a cream stone top, the sink with its
@@ -928,11 +890,18 @@ export class Kitchen {
   // Where the room's lamp light hangs (the study's lamp light moves here).
   activate(lamp) { lamp.position.copy(this.lampSpot); }
 
-  update(dt, t, night, {camera = null, lamp = null, cat = null} = {}) {
-    this.updateVacuum(dt, t, night, cat);
-    if (camera) for (const w of this.walls) {
-      const n = V(0, 0, 1).applyQuaternion(w.quaternion);
-      w.visible = V(0, 0, 0).subVectors(camera.position, w.position).dot(n) > -.05;
+  // away: seen through the doorway from her study (the vacuum waits till
+  // she's here, and the scene's lighting belongs to the study).
+  update(dt, t, night, {camera = null, lamp = null, cat = null, away = false} = {}) {
+    if (!away) this.updateVacuum(dt, t, night, cat);
+    // (The camera in this room's own frame: the study may be the room she's
+    // in, with the kitchen joined on through the doorway.)
+    if (camera) {
+      const eye = this.group.worldToLocal(camera.position.clone());
+      for (const w of this.walls) {
+        const n = V(0, 0, 1).applyQuaternion(w.quaternion);
+        w.visible = V(0, 0, 0).subVectors(eye, w.position).dot(n) > -.05;
+      }
     }
     if (lamp) lamp.intensity = damp(lamp.intensity, night ? 30 : 3, 3, dt);
     const e = damp(this.materials.shade.emissiveIntensity, night ? 2.6 : .3, 3, dt);
@@ -941,13 +910,12 @@ export class Kitchen {
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     const R = this.room;
-    if (this.scene.environment && R.envNight) {
+    if (!away && this.scene.environment && R.envNight) {
       const env = night ? R.envNight : R.envDay;
       if (this.scene.environment !== env) this.scene.environment = env;
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .6, 3, dt);
     }
     Room.prototype.updateBird.call(this, t);
-    Room.prototype.updateFire.call(this.studyHost, dt, t, night);
     this.updateCups(t);
     if (!this.salmon.visible && t > this.salmonBack) this.salmon.visible = true;
     if (this.stream.visible) this.stream.scale.set(1 + Math.sin(t * 40) * .15, 1, 1 + Math.cos(t * 33) * .15);

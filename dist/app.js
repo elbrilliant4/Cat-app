@@ -381,10 +381,68 @@ function studyLayout() {
     camSolids: [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]],
   };
 }
+// The study and the kitchen are joined: the doorway in the study's left wall
+// is the opening in the kitchen's back wall. The room she's in stands at the
+// origin and the other is set beyond the doorway, so each is seen through it
+// from the other (with its floor cut to the room, under that doorway too).
+// (The kitchen's opening, x 3.8 to 6.2 in its back wall at z -4.2, .45 deep,
+// meets the study's at z -.1 to 2.3 in its left wall at x -4.6.)
+const JOIN = {kitchen: {p: [-9.25, 0, -3.9], ry: -Math.PI / 2}, room: {p: [3.9, 0, -9.25], ry: Math.PI / 2}};
+function floorPatch(floor, x0, x1, z0, z1) {
+  const S = floor.geometry.parameters.width, geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0);
+  geo.rotateX(-Math.PI / 2); geo.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+  // The same pattern as the whole floor, in the same place.
+  const pos = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + S / 2) / S, (S / 2 - pos.getZ(i)) / S);
+  const m = new THREE.Mesh(geo, floor.material);
+  m.receiveShadow = true; m.position.y = floor.position.y + .003; m.visible = false;
+  floor.parent.add(m);
+  return m;
+}
+function joinRooms() {
+  room.group.visible = true;
+  if (!kitchen) return;
+  room.floorPatch ??= floorPatch(room.floor, room.walls.left, room.walls.right, room.walls.back, 8.6);
+  kitchen.floorPatch ??= floorPatch(kitchen.floor, -6, 7, -4.65, 14);
+  for (const [id, r] of [['room', room], ['kitchen', kitchen]]) {
+    const here = r === place, j = JOIN[id];
+    r.group.visible = true;
+    r.group.position.set(...(here ? [0, 0, 0] : j.p)); r.group.rotation.set(0, here ? 0 : j.ry, 0);
+    r.group.updateMatrixWorld(true);
+    r.floor.visible = here; r.floorPatch.visible = !here;
+    if (here) r.group.traverse(o => o.layers.set(SEEN));
+  }
+}
+// The other room is only drawn while the doorway is in view, and then only
+// what can be seen through it (the rest is hidden behind the walls anyway).
+const doorBox = new THREE.Box3(), doorView = new THREE.Frustum(), doorPV = new THREE.Matrix4();
+const portal = new THREE.Frustum(), doorPts = [0, 1, 2, 3].map(() => new THREE.Vector3()), beyond = new THREE.Vector3();
+const SEEN = 0, UNSEEN = 31;
+function doorwayInView() {
+  const d = room.door;
+  doorBox.min.set(room.walls.left - .45, 0, d.z0); doorBox.max.set(room.walls.left, d.top, d.z1);
+  doorBox.applyMatrix4(room.group.matrixWorld);
+  camera.updateMatrixWorld();
+  return doorView.setFromProjectionMatrix(doorPV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)).intersectsBox(doorBox);
+}
+function cullThroughDoor(other) {
+  // The opening on the camera's side of the wall, in the world.
+  const d = room.door, x = room.walls.left - (place === room ? 0 : .45), C = camera.position;
+  [[d.z0, 0], [d.z1, 0], [d.z1, d.top], [d.z0, d.top]].forEach(([z, y], i) => doorPts[i].set(x, y, z).applyMatrix4(room.group.matrixWorld));
+  beyond.addVectors(doorPts[0], doorPts[2]).sub(C); // (as far past the opening as the camera is before it)
+  // Four planes through the camera and the opening's edges, and the opening.
+  for (let i = 0; i < 4; i++) {
+    const pl = portal.planes[i].setFromCoplanarPoints(C, doorPts[i], doorPts[(i + 1) % 4]);
+    if (pl.distanceToPoint(beyond) < 0) pl.negate();
+  }
+  const door = portal.planes[4].setFromCoplanarPoints(doorPts[0], doorPts[1], doorPts[2]);
+  if (door.distanceToPoint(C) > 0) door.negate();
+  portal.planes[5].copy(door);
+  other.group.traverse(o => { if (o.geometry) o.layers.set(portal.intersectsObject(o) ? SEEN : UNSEEN); });
+}
 function usePlace(p) {
   place = p;
-  room.group.visible = p === room;
-  if (kitchen) kitchen.group.visible = p === kitchen;
+  joinRooms();
   const L = p.layoutCache ??= p === room ? studyLayout() : p.layout();
   // Her bowl and fountain come with her.
   for (const [obj, spot] of [[bowl, L.bowl], [fountain, L.fountain]]) {
@@ -424,6 +482,8 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
 }).then(() => {
   if (!CLASSIC_MOTION) { const motion = new MotionCat(cat); cat.update = (dt, t, ctl) => motion.update(dt, t, ctl); cat.motion = motion; }
   ready = true;
+  // The kitchen through the study's doorway (built once she's home).
+  if (!kitchen) setTimeout(() => { if (!kitchen) { kitchen = new Kitchen(scene, room); kitchen.onLand = onLand; joinRooms(); } }, 400);
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
@@ -1874,10 +1934,11 @@ function roomFrame() {
   if (!ROOM_FRAME.top.length && room.printSize) {
     const pg = room.printGroup, {w, h} = room.printSize;
     pg.updateWorldMatrix(true, false);
-    for (const x of [-w / 2, w / 2]) ROOM_FRAME.top.push(pg.localToWorld(new THREE.Vector3(x, h / 2 + .05, 0)).toArray());
+    // (In the study's own frame: it may be standing beyond the kitchen's doorway.)
+    for (const x of [-w / 2, w / 2]) ROOM_FRAME.top.push(room.group.worldToLocal(pg.localToWorld(new THREE.Vector3(x, h / 2 + .05, 0))).toArray());
     const wg = room.windowGroup;
     wg.updateWorldMatrix(true, false);
-    ROOM_FRAME.top.push(wg.localToWorld(new THREE.Vector3(0, room.curtainRod.y + .15, 0)).toArray());
+    ROOM_FRAME.top.push(room.group.worldToLocal(wg.localToWorld(new THREE.Vector3(0, room.curtainRod.y + .15, 0))).toArray());
   }
   // The clear area, in screen units (-1 to 1): the camera buttons only cover
   // the right edge down to their last button.
@@ -2323,8 +2384,13 @@ function updateRoom(dt, t) {
   moon.intensity = damp(moon.intensity, night ? .45 : 0, 3, dt);
   fill.intensity = damp(fill.intensity, night ? .7 : 0, 3, dt);
   const atFountain = brain.activity === 'drink' && !brain.eatAt;
-  if (place === room) room.update(dt, t, night, {drinking: atFountain, camera});
-  else { place.update(dt, t, night, {camera, lamp: room.lamp, cat: brain}); room.updateFountain(dt, t, atFountain); }
+  const other = place === room ? kitchen : room;
+  if (other) { other.group.visible = doorwayInView(); if (other.group.visible) cullThroughDoor(other); }
+  if (place === room) { room.update(dt, t, night, {drinking: atFountain, camera}); if (kitchen?.group.visible) kitchen.update(dt, t, night, {camera, away: true}); }
+  else {
+    place.update(dt, t, night, {camera, lamp: room.lamp, cat: brain});
+    if (room.group.visible) room.update(dt, t, night, {drinking: atFountain, camera, away: true}); else room.updateFountain(dt, t, atFountain);
+  }
 
   // Feeding: kibble disappears bite by bite.
   if (brain.activity === 'eat' && !brain.eatAt) {

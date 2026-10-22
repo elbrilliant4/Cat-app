@@ -22,7 +22,7 @@ export function rng(seed) {
 }
 
 let maxAniso = 4;
-const _n = new THREE.Vector3(), _d = new THREE.Vector3();
+const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
 export function canvasTexture(w, h, draw, {repeat = [1, 1], color = true} = {}) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -499,33 +499,55 @@ export class Room {
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -.002;
     floor.material.map.repeat.set(10, 10);
+    this.floor = floor;
 
     const W = {back: -3.4, left: -4.6, right: 4.6}, H = 12, WAIN = 1.55;
     this.walls = W;
-    const wall = (len, x, z, ry) => {
+    // The doorway to her kitchen: in the left wall, straight across from the
+    // fireplace (the same opening the kitchen has in its back wall).
+    this.door = {z0: -.1, z1: 2.3, top: 5.4};
+    // A wall (plaster over panelled wainscot), with an opening from a to b
+    // along it (its own x) if given.
+    const wall = (len, x, z, ry, open = null) => {
       const g = new THREE.Group();
       g.position.set(x, 0, z); g.rotation.y = ry;
       this.group.add(g);
-      const up = this.mesh(new THREE.PlaneGeometry(len, H - WAIN), M.plaster, g, {cast: false});
-      up.position.y = WAIN + (H - WAIN) / 2;
-      // Wainscot: a backing board, raised panels, chair rail and skirting.
-      const back = this.mesh(new THREE.PlaneGeometry(len, WAIN), M.panel, g, {cast: false});
-      back.position.y = WAIN / 2;
-      const n = Math.max(1, Math.round(len / 1.5)), pw = len / n;
-      for (let i = 0; i < n; i++) {
-        const p = this.mesh(roundedBox(pw - .32, WAIN - .58, .06, .02, 2, .03), M.panel, g, {cast: false});
-        p.position.set(-len / 2 + pw * (i + .5), WAIN / 2 + .05, .03);
+      const spans = open ? [[-len / 2, open.a], [open.b, len / 2]] : [[-len / 2, len / 2]];
+      for (const [a, b] of spans) {
+        const L = b - a, cx = (a + b) / 2;
+        const up = this.mesh(new THREE.PlaneGeometry(L, H - WAIN), M.plaster, g, {cast: false});
+        up.position.set(cx, WAIN + (H - WAIN) / 2, 0);
+        // Wainscot: a backing board, raised panels, chair rail and skirting.
+        const back = this.mesh(new THREE.PlaneGeometry(L, WAIN), M.panel, g, {cast: false});
+        back.position.set(cx, WAIN / 2, 0);
+        const n = Math.max(1, Math.round(L / 1.5)), pw = L / n;
+        for (let i = 0; i < n; i++) {
+          const p = this.mesh(roundedBox(pw - .32, WAIN - .58, .06, .02, 2, .03), M.panel, g, {cast: false});
+          p.position.set(a + pw * (i + .5), WAIN / 2 + .05, .03);
+        }
+        const rail = this.mesh(new THREE.BoxGeometry(L, .1, .1), M.trim, g, {cast: false});
+        rail.position.set(cx, WAIN, .05);
+        const cap = this.mesh(new THREE.BoxGeometry(L, .04, .14), M.trim, g, {cast: false});
+        cap.position.set(cx, WAIN + .06, .06);
+        const skirt = this.mesh(new THREE.BoxGeometry(L, .22, .08), M.trim, g, {cast: false});
+        skirt.position.set(cx, .11, .04);
       }
-      const rail = this.mesh(new THREE.BoxGeometry(len, .1, .1), M.trim, g, {cast: false});
-      rail.position.set(0, WAIN, .05);
-      const cap = this.mesh(new THREE.BoxGeometry(len, .04, .14), M.trim, g, {cast: false});
-      cap.position.set(0, WAIN + .06, .06);
-      const skirt = this.mesh(new THREE.BoxGeometry(len, .22, .08), M.trim, g, {cast: false});
-      skirt.position.set(0, .11, .04);
+      if (open) {
+        // Plaster over the opening, and a broad limestone casing round it.
+        const head = this.mesh(new THREE.PlaneGeometry(open.b - open.a, H - open.top), M.plaster, g, {cast: false});
+        head.position.set((open.a + open.b) / 2, (H + open.top) / 2, 0);
+        const stone = new THREE.MeshStandardMaterial({color: '#eadfca', roughness: .55});
+        const cw = .26, cd = .07;
+        for (const xx of [open.a - cw / 2, open.b + cw / 2]) this.mesh(new THREE.BoxGeometry(cw, open.top + cw, cd), stone, g, {cast: false}).position.set(xx, (open.top + cw) / 2, cd / 2);
+        this.mesh(new THREE.BoxGeometry(open.b - open.a + cw * 2, cw, cd), stone, g, {cast: false}).position.set((open.a + open.b) / 2, open.top + cw / 2, cd / 2);
+      }
       return g;
     };
+    // (The left wall runs from the back corner forwards; along it, its own
+    // x points back, so the doorway is at x = 2.6 - z.)
+    const door = {a: 2.6 - this.door.z1, b: 2.6 - this.door.z0, top: this.door.top};
     // Kept so a wall the camera swings behind can be hidden (dollhouse style).
-    this.wallGroups = [wall(9.2, 0, W.back, 0), wall(12, W.left, 2.6, Math.PI / 2), wall(12, W.right, 2.6, -Math.PI / 2)];
+    this.wallGroups = [wall(9.2, 0, W.back, 0), wall(12, W.left, 2.6, Math.PI / 2, door), wall(12, W.right, 2.6, -Math.PI / 2)];
   }
 
   buildWindow() {
@@ -1279,24 +1301,29 @@ export class Room {
     this.bubble.scale.set(s, 1 / s, s);
   }
 
-  update(dt, t, night, {drinking = false, camera = null} = {}) {
+  // away: seen through the doorway from the kitchen, where she is (the lamp
+  // light and the lighting of the scene then belong to the kitchen).
+  update(dt, t, night, {drinking = false, camera = null, away = false} = {}) {
     if (camera) {
+      // (In the room's own frame: seen from the kitchen, it's joined on
+      // through the doorway.)
+      const eye = this.group.worldToLocal(_e.copy(camera.position));
       for (const w of this.wallGroups) {
         // A wall faces into the room along its local +z.
         _n.set(0, 0, 1).applyQuaternion(w.quaternion);
-        w.visible = _d.subVectors(camera.position, w.position).dot(_n) > .05;
+        w.visible = _d.subVectors(eye, w.position).dot(_n) > .05;
       }
       // Furniture standing against a hidden wall goes with it.
       this.fireplace.visible = this.wallGroups[2].visible;
     }
     const k = night ? 1 : 0;
-    this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
+    if (!away) this.lamp.intensity = damp(this.lamp.intensity, night ? 26 : 2.5, 3, dt);
     this.shadeMat.emissiveIntensity = damp(this.shadeMat.emissiveIntensity, night ? 2.2 : .45, 3, dt);
     this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? 0 : .32, 3, dt);
     this.updateFire(dt, t, night);
     const sky = night ? this.view.night : this.view.day;
     if (this.glass.material.map !== sky) { this.glass.material.map = sky; this.glass.material.needsUpdate = true; }
-    if (this.scene.environment && this.envNight) {
+    if (!away && this.scene.environment && this.envNight) {
       const env = night ? this.envNight : this.envDay;
       if (this.scene.environment !== env) this.scene.environment = env;
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .55, 3, dt);
