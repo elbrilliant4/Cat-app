@@ -909,6 +909,18 @@ export class Kitchen {
     // By night the window's light on the floor is moonlight: fainter and cool.
     this.sunPatch.material.opacity = damp(this.sunPatch.material.opacity, night ? .2 : .3, 3, dt);
     this.sunPatch.material.color.lerp(night ? MOONLIGHT : DAYLIGHT, 1 - Math.exp(-3 * dt));
+    // The holiday decor (decor.js): the lantern's candle, the jack-o'-lanterns
+    // (carved faces by day, lit in the evening) and the paper bats.
+    if (this.candleLight) {
+      this.candleLight.material.opacity = damp(this.candleLight.material.opacity, night ? .95 : .3, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
+      this.candleFlame.scale.y = 1 + Math.sin(t * 11) * .12;
+    }
+    if (this.pumpkinGlow) {
+      const f = 1 + Math.sin(t * 9) * .05 + Math.sin(t * 5.3) * .04;
+      for (const m of this.pumpkinGlow) m.emissiveIntensity = damp(m.emissiveIntensity, night ? 4 : .04, 3, dt) * f;
+      for (const m of this.pumpkinHalos) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
+    }
+    this.updatePaperBats?.(t);
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     const R = this.room;

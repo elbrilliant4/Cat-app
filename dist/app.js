@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {fresh, advance, care, mood} from './pet-state.js';
-import {DECORS, applyDecor} from './decor.js';
+import {DECORS, applyDecor, applyKitchenDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {MotionCat} from './motion-cat.js';
@@ -473,6 +473,8 @@ function usePlace(p) {
     (p === room ? room.group : p.group).add(obj);
     obj.position.copy(spot ? spot.p : home.p); obj.rotation.y = spot ? spot.ry : home.r;
   }
+  // (So does Halloween's felt bat toy.)
+  if (room.altToy) (p === room ? room.group : p.group).add(room.altToy);
   bed = p.bed;
   HOME = L.home; TOY_HOME = L.toyHome; SUN_SPOT = L.sunSpot; PERCHES = L.perches;
   LIMITS = L.limits; CAM_BOX = L.camBox; CAM_SOLIDS = L.camSolids; CAM_BLOCKS = L.camBlocks || [];
@@ -483,10 +485,16 @@ function usePlace(p) {
   DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
   if (p === room) room.lamp.position.copy(lampHome); else p.activate(room.lamp);
 }
-if (pet.place === 'kitchen') kitchen = new Kitchen(scene, room);
 // Something she's knocked over lands: a soft clink or thud (if sound's on).
 const onLand = kind => sounds.knock(kind);
-if (kitchen) kitchen.onLand = onLand;
+// The kitchen, dressed like the study (decor.js).
+function buildKitchen() {
+  kitchen = new Kitchen(scene, room);
+  kitchen.onLand = onLand;
+  applyKitchenDecor(kitchen, room.decor);
+  return kitchen;
+}
+if (pet.place === 'kitchen') buildKitchen();
 usePlace(pet.place === 'kitchen' ? kitchen : room);
 function onRug(v) {
   if (place !== room) return place.clampFloor(v);
@@ -506,7 +514,7 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
   if (!CLASSIC_MOTION) { const motion = new MotionCat(cat); cat.update = (dt, t, ctl) => motion.update(dt, t, ctl); cat.motion = motion; }
   ready = true;
   // The kitchen through the study's doorway (built once she's home).
-  if (!kitchen) setTimeout(() => { if (!kitchen) { kitchen = new Kitchen(scene, room); kitchen.onLand = onLand; joinRooms(); } }, 400);
+  if (!kitchen) setTimeout(() => { if (!kitchen) { buildKitchen(); joinRooms(); } }, 400);
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
@@ -1817,7 +1825,7 @@ function updatePlay(dt, t) {
   toy.rotation.z -= toyVel.x * dt / .12;
   // A decor can swap the ball for its own toy (Halloween's felt bat): it
   // slides and wobbles where the ball would roll.
-  const alt = place === room ? room.altToy : null;
+  const alt = room.altToy;
   toy.visible = !alt;
   if (alt) {
     const speed = toyVel.length();
@@ -1860,7 +1868,7 @@ function updatePlay(dt, t) {
     }
     if (brain.activity === 'walk') setActivity('play');
     if (brain.activity !== 'play' || t < brain.pounceReadyAt || t - brain.stillSince < .5) return;
-    if (place === room && room.altToy && !brain.stalked) {
+    if (room.altToy && !brain.stalked) {
       // The felt bat: she stalks it (low, tail twitching, a little wiggle),
       // taps it, pauses to watch, then pounces.
       brain.stalked = true;
@@ -2276,7 +2284,7 @@ function renderPlaces() {
 }
 // Take her (and the camera) to another room.
 function goTo(id) {
-  if (id === 'kitchen' && !kitchen) { kitchen = new Kitchen(scene, room); kitchen.onLand = onLand; }
+  if (id === 'kitchen' && !kitchen) buildKitchen();
   const target = id === 'kitchen' ? kitchen : room;
   if (target === place) return;
   if (brain.mode === 'play') endPlay(true);
@@ -2330,6 +2338,8 @@ $('#decor-options').addEventListener('click', e => {
   toast('Decorating…');
   setTimeout(() => {
     applyDecor(room, id);
+    if (kitchen) applyKitchenDecor(kitchen, id);
+    if (room.altToy) (place === room ? room.group : place.group).add(room.altToy);
     pet.decor = id;
     save();
     toast(`${DECORS[id].name}`);

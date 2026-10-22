@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons} from './room.js';
 
 export const DECORS = {
-  classic: {name: 'Classic study', note: 'Plaid, leather and greenery'},
+  classic: {name: 'Classic', note: 'Plaid, leather and greenery'},
   thanksgiving: {name: 'Thanksgiving in the Hamptons', note: 'Oatmeal, sage and candlelight'},
   halloween: {name: 'Halloween in the Hamptons', note: 'Jack-o’-lanterns, paper bats and a felt bat'},
 };
@@ -519,4 +519,180 @@ function buildHalloween(room) {
   bat.visible = false;
   room.feltBat = bat;
   return made;
+}
+
+// ---------------------------------------------------------------------------
+// The kitchen's holiday dress (from Orion's concepts): the same decor as the
+// study, so the house changes together. Shared by both: oak branches in a
+// cream pitcher at the island's left end (in place of the orchid) and a brass
+// lantern on the counter by the range. Thanksgiving: heirloom pumpkins on the
+// counter, pears, a white pumpkin and walnuts on a linen runner, an oak-leaf
+// wreath on the glazing and a striped linen towel over a stool. Halloween:
+// two jack-o'-lanterns on the counter (glowing in the evening), paper bats
+// on the glazing, a ghost cushion in her tent, clementines in a stone bowl,
+// an orange towel over a stool, and the felt bat toy. The shelves, their
+// landings, the faucet and the salmon plate stay as they are.
+// ---------------------------------------------------------------------------
+export function applyKitchenDecor(kitchen, name) {
+  if (!DECORS[name]) name = 'classic';
+  const room = kitchen.room, T = room.decorTextures ??= thanksgivingTextures();
+  const parts = kitchen.decorParts ??= {};
+  if (name !== 'classic') {
+    parts.shared ??= kitchenAutumn(kitchen, T);
+    parts[name] ??= name === 'halloween' ? kitchenHalloween(kitchen, T) : kitchenThanksgiving(kitchen, T);
+  }
+  for (const [part, g] of Object.entries(parts)) g.visible = name !== 'classic' && (part === 'shared' || part === name);
+  kitchen.orchid.visible = name === 'classic';
+  if (kitchen.ghostCushion) kitchen.ghostCushion.visible = name === 'halloween';
+  kitchen.candleLight = name === 'classic' ? null : kitchen.lanternHalo;
+  kitchen.candleFlame = kitchen.lanternFlame;
+  kitchen.pumpkinGlow = name === 'halloween' ? kitchen.jackGlow : null;
+  kitchen.pumpkinHalos = name === 'halloween' ? kitchen.jackHalos : null;
+  kitchen.decor = name;
+}
+
+const ISLAND_TOP = 2.25, COUNTER_TOP = 2.2;
+function kitchenPart(kitchen) { const g = new THREE.Group(); kitchen.group.add(g); return g; }
+const glowHalo = (inner, outer) => new THREE.SpriteMaterial({map: canvasTexture(64, 64, (g, w, h) => {
+  const grd = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  grd.addColorStop(0, inner); grd.addColorStop(.38, outer); grd.addColorStop(1, 'rgba(255,140,50,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, w, h);
+}), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0});
+
+function kitchenAutumn(kitchen, T) {
+  const g = kitchenPart(kitchen), M = kitchen.materials, room = kitchen.room;
+  const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  // Oak branches in a cream stoneware pitcher.
+  const stoneware = new THREE.MeshStandardMaterial({color: '#ece3d0', roughness: .75});
+  const pitcher = new THREE.Group(); pitcher.position.set(-3.3, ISLAND_TOP, .25); g.add(pitcher);
+  mesh(lathe([[0, 0], [.13, 0], [.17, .08], [.18, .2], [.13, .34], [.11, .4], [.13, .46], [.12, .47], [.09, .4], [0, .4]], 32), stoneware, pitcher);
+  const handle = mesh(new THREE.TorusGeometry(.09, .022, 8, 16, Math.PI * 1.1), stoneware, pitcher);
+  handle.position.set(-.16, .27, 0); handle.rotation.z = Math.PI / 2 + .1;
+  const oakMat = new THREE.MeshStandardMaterial({map: T.oak, alphaTest: .45, side: THREE.DoubleSide, roughness: .75});
+  room.sprigs(pitcher, new THREE.Vector3(0, .38, 0), 12, 1.25, {leaf: oakMat, stem: '#6a4a2c', size: 2.1, seed: 93});
+  // A brass lantern with a candle, on the counter by the range.
+  const lantern = new THREE.Group(); lantern.position.set(3.42, COUNTER_TOP, -3.3); lantern.scale.setScalar(1.45); g.add(lantern);
+  mesh(roundedBox(.2, .03, .2, .01), M.brass, lantern).position.y = .015;
+  for (const [x, z] of [[-.085, -.085], [.085, -.085], [-.085, .085], [.085, .085]]) mesh(new THREE.BoxGeometry(.016, .3, .016), M.brass, lantern).position.set(x, .18, z);
+  mesh(new THREE.BoxGeometry(.17, .28, .17), new THREE.MeshStandardMaterial({color: '#fff6e0', transparent: true, opacity: .18, roughness: .05, depthWrite: false}), lantern, {cast: false}).position.y = .18;
+  mesh(lathe([[0, 0], [.12, 0], [.1, .04], [.05, .09], [.02, .1], [0, .1]], 24), M.brass, lantern).position.y = .33;
+  mesh(new THREE.TorusGeometry(.035, .008, 6, 16), M.brass, lantern).position.y = .46;
+  mesh(new THREE.CylinderGeometry(.035, .035, .1, 16), new THREE.MeshStandardMaterial({color: '#f3ead6', roughness: .6}), lantern).position.y = .08;
+  const flame = mesh(new THREE.ConeGeometry(.012, .04, 8), new THREE.MeshBasicMaterial({color: '#ffcf70'}), lantern, {cast: false});
+  flame.position.y = .155;
+  const halo = new THREE.Sprite(glowHalo('rgba(255,200,120,1)', 'rgba(255,170,80,.45)'));
+  halo.material.opacity = .3; halo.scale.setScalar(.8); halo.position.y = .17;
+  lantern.add(halo);
+  kitchen.lanternHalo = halo; kitchen.lanternFlame = flame;
+  return g;
+}
+
+// A tea towel hung over the right-hand stool: folded on the seat, falling
+// down its front.
+function stoolTowel(kitchen, g, mat) {
+  const s = new THREE.Group(); s.position.set(-1.85, 1.69, 2.4); s.rotation.y = .12; g.add(s);
+  kitchen.mesh(new THREE.BoxGeometry(.36, .014, .5), mat, s, {cast: false}).position.set(0, .007, .1);
+  const fall = kitchen.mesh(new THREE.BoxGeometry(.36, .62, .014), mat, s);
+  fall.position.set(0, -.3, .35); fall.rotation.x = .08;
+}
+
+function kitchenThanksgiving(kitchen, T) {
+  const g = kitchenPart(kitchen), room = kitchen.room;
+  const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  const stemMat = new THREE.MeshStandardMaterial({color: '#6b4a2a', roughness: .8});
+  const pumpkin = (x, y, z, rad, height, color) => {
+    mesh(pumpkinGeometry(rad, height), new THREE.MeshStandardMaterial({color, roughness: .62})).position.set(x, y + height, z);
+    mesh(pumpkinStem(rad), stemMat).position.set(x + rad * .05, y + height * 2 + rad * .15, z);
+  };
+  // Heirloom pumpkins on the counter by the range.
+  pumpkin(2.82, COUNTER_TOP, -3.2, .26, .2, '#d9884a');
+  pumpkin(3.12, COUNTER_TOP, -2.98, .16, .12, '#efe6d2');
+  // On the island: a linen runner with a bowl of pears, a little white
+  // pumpkin and walnuts.
+  const runner = mesh(new THREE.BoxGeometry(1.7, .012, .62), new THREE.MeshStandardMaterial({map: T.runner, roughness: 1}), g, {cast: false});
+  runner.position.set(-2.85, ISLAND_TOP + .006, .55);
+  const stoneware = new THREE.MeshStandardMaterial({color: '#8a6a48', roughness: .8});
+  const bowl = new THREE.Group(); bowl.position.set(-2.55, ISLAND_TOP + .012, .55); g.add(bowl);
+  mesh(lathe([[0, 0], [.14, 0], [.22, .05], [.25, .13], [.24, .135], [.2, .07], [0, .06]], 32), stoneware, bowl);
+  const pearMat = new THREE.MeshStandardMaterial({color: '#c0ae48', roughness: .55});
+  const pear = (x, y, z, s, tilt) => {
+    const p = mesh(lathe([[0, 0], [.05, .005], [.065, .04], [.055, .08], [.03, .11], [.022, .14], [.012, .155], [0, .16]].map(([a, b]) => [a * s, b * s]), 24), pearMat, bowl);
+    p.position.set(x, y, z); p.rotation.z = tilt;
+    const st = mesh(new THREE.CylinderGeometry(.005, .007, .045 * s, 5), stemMat, bowl);
+    st.position.set(x - Math.sin(tilt) * .17 * s, y + .17 * s, z); st.rotation.z = tilt - .3;
+  };
+  pear(-.06, .07, -.03, 1.7, .15); pear(.08, .07, .05, 1.6, -.2); pear(.02, .08, -.1, 1.5, .05); pear(-.08, .08, .1, 1.5, .3);
+  pumpkin(-2.05, ISLAND_TOP + .012, .7, .11, .085, '#efe6d2');
+  const nut = new THREE.MeshStandardMaterial({color: '#7a5634', roughness: .85});
+  for (const [x, z] of [[-2.2, .32], [-2.12, .38], [-2.27, .4]]) mesh(new THREE.SphereGeometry(.035, 10, 8), nut).position.set(x, ISLAND_TOP + .045, z);
+  // An oak-leaf wreath hung on the glazing.
+  const oakMat = new THREE.MeshStandardMaterial({map: T.oak, alphaTest: .45, side: THREE.DoubleSide, roughness: .75});
+  const wreath = new THREE.InstancedMesh(new THREE.PlaneGeometry(.26, .26), oakMat, 90), r = rng(57);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  for (let i = 0; i < 90; i++) {
+    const a = i / 90 * Math.PI * 2 + r() * .1, rr = .42 + (r() - .5) * .14;
+    q.setFromEuler(e.set((r() - .5) * .7, Math.PI / 2 + (r() - .5) * .7, a + r() * 1.2));
+    m4.compose(new THREE.Vector3(-5.86 + r() * .06, 5.3 + Math.sin(a) * rr, -2.25 + Math.cos(a) * rr), q, new THREE.Vector3(1, 1, 1).multiplyScalar(.75 + r() * .4));
+    wreath.setMatrixAt(i, m4);
+  }
+  g.add(wreath);
+  mesh(new THREE.CylinderGeometry(.006, .006, 1.6, 4), new THREE.MeshStandardMaterial({color: '#a88b5a'})).position.set(-5.9, 6.5, -2.25);
+  stoolTowel(kitchen, g, new THREE.MeshStandardMaterial({map: T.cushion, roughness: 1}));
+  return g;
+}
+
+function kitchenHalloween(kitchen, T) {
+  const g = kitchenPart(kitchen), room = kitchen.room;
+  const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  const stemMat = new THREE.MeshStandardMaterial({color: '#5d4a28', roughness: .8});
+  kitchen.jackGlow = []; kitchen.jackHalos = [];
+  const halo = glowHalo('rgba(255,190,100,.9)', 'rgba(255,160,70,.35)');
+  // Two jack-o'-lanterns by the range, faces to the room.
+  const jack = (x, z, rad, height, base, sleepy, turn) => {
+    const opts = {base, sleepy};
+    const mat = new THREE.MeshStandardMaterial({
+      map: canvasTexture(256, 128, (c, cw, ch) => drawJack(c, cw, ch, opts)),
+      emissiveMap: canvasTexture(256, 128, (c, cw, ch) => drawJack(c, cw, ch, {...opts, glow: true})),
+      emissive: '#ffad4a', emissiveIntensity: .04, roughness: .7,
+    });
+    const body = mesh(pumpkinGeometry(rad, height), mat);
+    body.position.set(x, COUNTER_TOP + height, z); body.rotation.y = turn;
+    mesh(pumpkinStem(rad), stemMat).position.set(x + rad * .05, COUNTER_TOP + height * 2 + rad * .15, z);
+    kitchen.jackGlow.push(mat);
+    const h = new THREE.Sprite(halo.clone());
+    h.scale.setScalar(rad * 3.2);
+    h.position.set(x + Math.sin(turn) * rad * .9, COUNTER_TOP + height * 1.05, z + Math.cos(turn) * rad * .9);
+    g.add(h);
+    kitchen.jackHalos.push(h.material);
+  };
+  jack(2.82, -3.2, .3, .23, '#d98b45', false, -.1);
+  jack(3.14, -2.98, .19, .15, '#efe5d2', true, .15);
+  // Paper bats on the glazing, high up.
+  const batMat = new THREE.MeshStandardMaterial({map: canvasTexture(128, 64, drawPaperBat), color: '#38332f', alphaTest: .5, side: THREE.DoubleSide, roughness: 1});
+  const bats = [];
+  for (const [z, y, size, rot] of [[-2.9, 6.9, .95, .12], [-1.6, 6.3, .8, -.15], [-3.2, 5.2, .7, .06], [1.4, 6.6, .75, -.08]]) {
+    const geo = new THREE.PlaneGeometry(size, size / 2); geo.translate(0, -size / 4, 0);
+    const b = mesh(geo, batMat, g, {cast: false, receive: false});
+    b.position.set(-5.88, y + size / 4, z); b.rotation.set(0, Math.PI / 2, rot);
+    bats.push({b, rot, phase: bats.length * 1.7});
+  }
+  kitchen.updatePaperBats = t => {
+    if (!g.visible) return;
+    for (const p of bats) { p.b.rotation.z = p.rot + Math.sin(t * 1.1 + p.phase) * .1; p.b.scale.x = 1 + Math.sin(t * 2.3 + p.phase) * .05; }
+  };
+  // A ghost cushion propped at the back of her tent.
+  T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
+  T.ghost.offset.set(.5, .5);
+  const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
+  const cushion = mesh(roundedBox(.8, .74, .22, .09), ghostMat, kitchen.bed);
+  cushion.position.set(.3, kitchen.bedTop + .35, -.7); cushion.rotation.set(-.16, -.2, 0);
+  // (It lives in the tent's own group; the decor shows and hides it too.)
+  kitchen.ghostCushion = cushion;
+  // Clementines in a stone bowl on the island.
+  const bowl = new THREE.Group(); bowl.position.set(-2.55, ISLAND_TOP, .55); g.add(bowl);
+  mesh(lathe([[0, 0], [.14, 0], [.22, .05], [.25, .13], [.24, .135], [.2, .07], [0, .06]], 32), new THREE.MeshStandardMaterial({color: '#cfc6b6', roughness: .85}), bowl);
+  const orange = new THREE.MeshStandardMaterial({color: '#e8892f', roughness: .55});
+  for (const [x, y, z] of [[-.07, .1, -.04], [.08, .1, .03], [.0, .1, .1], [-.03, .17, .03], [.06, .1, -.1]]) mesh(new THREE.SphereGeometry(.06, 14, 10), orange, bowl).position.set(x, y, z);
+  stoolTowel(kitchen, g, new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (c, w, h) => { c.fillStyle = '#c8642a'; c.fillRect(0, 0, w, h); c.fillStyle = '#5d6b3a'; c.fillRect(0, h * .78, w, h * .08); }), roughness: 1}));
+  return g;
 }
