@@ -253,10 +253,22 @@ export class MotionRig {
     const e1 = f.clone().negate(), e2 = left.clone().multiplyScalar(wrap);
     const base = B.tail0.getWorldPosition(new THREE.Vector3());
     const r0 = this.tailR[0];
-    const C = base.clone().addScaledVector(e1, .07); C.y = floor + r0;
-    const l0 = base.distanceTo(C);
+    // From the root the tail curves down and back onto the floor (a smooth
+    // bend, not a corner), then lies along an arc round her.
+    const C = base.clone().addScaledVector(e1, .24); C.y = floor + r0;
+    const K = base.clone().addScaledVector(e1, .07); K.y = floor + r0;
+    const pts = [base.clone()], lens = [0];
+    for (let k = 1; k <= 16; k++) {
+      const s = k / 16, q = base.clone().multiplyScalar((1 - s) * (1 - s)).addScaledVector(K, 2 * s * (1 - s)).addScaledVector(C, s * s);
+      lens.push(lens[k - 1] + q.distanceTo(pts[k - 1])); pts.push(q);
+    }
+    const l0 = lens[16];
     const path = (u, y) => {
-      if (u <= l0) return base.clone().lerp(C, u / l0);
+      if (u <= l0) {
+        let k = 1; while (k < 16 && lens[k] < u) k++;
+        const q = pts[k - 1].clone().lerp(pts[k], (u - lens[k - 1]) / (lens[k] - lens[k - 1] || 1));
+        return q.setY(Math.max(q.y, y));
+      }
       const ph = (u - l0) / R;
       return C.clone().addScaledVector(e1, R * Math.sin(ph)).addScaledVector(e2, R * (1 - Math.cos(ph))).setY(y);
     };

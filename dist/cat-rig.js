@@ -230,6 +230,12 @@ for (const [name, def] of Object.entries(BONES)) {
   if (name === 'shoulderL') BONES2.scapulaL = ['chest', V(-0.24, 0.25, 0.14)];
   BONES2[name] = name.startsWith('shoulder') ? ['scapula' + name.slice(-1), def[1]] : def;
 }
+// The end of the tail, on the sculpt's own centreline: past its curl the tail
+// runs straight back to the tip (the first rig's last bone turned off sideways
+// short of it, so a straightened tail ended in an upturned tuft).
+BONES2.tail5 = ['tail4', V(0.515, -0.38, -0.60)];
+BONES2.tail6 = ['tail5', V(0.505, -0.372, -0.72)];
+BONES2.tail7 = ['tail6', V(0.48, -0.365, -0.82), V(0.43, -0.34, -0.95)];
 
 const TAIL_CUT = 0.11;
 const FRONT_LIMIT = -0.05, HIND_LIMIT = -0.2; // z: front-leg bones only ahead of this, hind-leg bones only behind // radius round the first tail segment that separates the tail from the body
