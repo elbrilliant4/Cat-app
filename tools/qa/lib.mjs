@@ -51,7 +51,11 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
     document.querySelectorAll('.hud, .dock, .scene-hint, #speech').forEach(e => e.style.visibility = 'hidden');
   }, [kitchen, quiet]);
   // Advance n frames of 1/20 s (drawing only the last one).
-  const step = (n = 1, dt = 1 / 20) => page.evaluate(([n, dt]) => { __vt.on = true; for (let i = 0; i < n; i++) { kitten.step(dt, 1, i === n - 1); __vt.tick(dt * 1000); } }, [n, dt]);
+  // (One app frame at a time, so timeouts run between frames; only the last is drawn.)
+  const step = (n = 1, dt = 1 / 20) => page.evaluate(([n, dt]) => {
+    const r = kitten.renderer, render = r.render; __vt.on = true;
+    try { for (let i = 0; i < n; i++) { r.render = i === n - 1 ? render : () => {}; kitten.step(dt, 1); __vt.tick(dt * 1000); } } finally { r.render = render; }
+  }, [n, dt]);
   // Put the camera somewhere and draw: {focus: [x,y,z], yaw, pitch, dist}.
   const look = v => page.evaluate(v => { const w = kitten.view; w.mode = 'free'; for (const o of [w, w.goal]) { o.focus.set(...v.focus); Object.assign(o, {yaw: v.yaw, pitch: v.pitch, dist: v.dist}); } w.cut = 0; w.lift = 0; kitten.step(1 / 60, 1, true); }, v);
   const close = async () => { await browser.close(); srv.close(); };
