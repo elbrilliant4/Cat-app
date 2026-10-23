@@ -197,11 +197,11 @@ export class MotionCat {
         // a quick one, rather than being dragged until its turn comes.
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
-          if (Math.hypot((lp.x - home.x) / LEASH.x, (lp.z - home.z) / LEASH.z) > .8) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
+          if (Math.hypot((lp.x - home.x) / LEASH.x, (lp.z - home.z) / LEASH.z) > .65) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
         if (pw.swing?.gait) {
           const early = pw.swing.early;
-          const u = early ? Math.min(1, (t - pw.swing.t0) / .2) : walking ? (p - duty) / (1 - duty) : Math.min(1, pw.swing.u + dt / .15);
+          const u = early ? Math.min(1, (t - pw.swing.t0) / .18) : walking ? (p - duty) / (1 - duty) : Math.min(1, pw.swing.u + dt / .15);
           if (early ? u >= 1 : !walking && u >= 1 || walking && !inSwing) {
             // Down: where the leg will be upright mid-stance.
             pw.pos.copy(pw.swing.to || pw.pos).setY(rootPos.y); pw.swing = null;

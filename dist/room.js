@@ -718,7 +718,7 @@ export class Room {
     g.add(bird);
     this.bird = bird;
     // By night a pale moth comes to the lit glass instead, and flutters there.
-    const moth = new THREE.Group(), dust = new THREE.MeshBasicMaterial({color: '#e8dfcc', side: THREE.DoubleSide});
+    const moth = new THREE.Group(), dust = this.mothDust = new THREE.MeshBasicMaterial({color: '#e8dfcc', side: THREE.DoubleSide});
     const mb = this.mesh(new THREE.SphereGeometry(.012, 8, 6), new THREE.MeshBasicMaterial({color: '#b9ab92'}), moth, {cast: false, receive: false});
     mb.scale.set(1, 2.6, 1);
     const mwing = new THREE.Shape(); mwing.moveTo(0, 0); mwing.quadraticCurveTo(.05, .05, .045, -.005); mwing.quadraticCurveTo(.03, -.035, 0, -.02);
@@ -778,6 +778,8 @@ export class Room {
   // window, hops and pecks, then flies off. Returns its length in seconds.
   startBird(t, kind = Math.random() < .5 ? 'flyby' : 'perch') {
     if (this.birdRun) return 0;
+    // (A moth by day is a brown one, so it shows against the bright sky.)
+    if (kind === 'dayMoth' || kind === 'moth') { this.mothDust.color.set(kind === 'dayMoth' ? '#7a6248' : '#e8dfcc'); kind = 'moth'; }
     const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
     const dur = kind === 'flyby' ? 2.6 : kind === 'moth' ? 6 + Math.random() * 5 : 7;
     this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25)};

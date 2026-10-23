@@ -744,9 +744,10 @@ function kitchenHalloween(kitchen, T) {
   T.ghost ??= canvasTexture(1024, 1024, drawGhostCushion);
   T.ghost.offset.set(0, 0);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
-  const cushion = mesh(pillowGeometry(.8, .78, .32), ghostMat, kitchen.bed);
+  const cushion = mesh(pillowGeometry(.68, .66, .3), ghostMat, kitchen.bed);
   kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#e6dcc7', roughness: .85}), cushion, {cast: false});
-  cushion.position.set(-.5, kitchen.bedTop + .35, -.58); cushion.rotation.set(-.1, .15, 0);
+  // (Well inside the sloping canvas: checked against it point by point.)
+  cushion.position.set(-.3, kitchen.bedTop + .3, -.62); cushion.rotation.set(-.12, .12, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;
   // Clementines in a stone bowl on the island.
