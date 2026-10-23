@@ -32,6 +32,7 @@ export function applyDecor(room, name) {
   for (const g of Object.values(room.decorProps || {})) g.forEach(o => o.visible = false);
   room.candleLight = null; room.pumpkinGlow = null; room.pumpkinHalos = null; room.altToy = null;
   if (name === 'classic') {
+    if (M.piping) M.piping.color.set('#6b7040');
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
     M.plaidBed.map = O.bedMap; M.sherpa.map = O.sherpaMap; M.plaidThrow.map = O.throwMap; room.fringeMat.color.copy(O.fringe);
     M.pillow.map = O.pillowMap;
@@ -49,11 +50,12 @@ export function applyDecor(room, name) {
     M.plaidBed.normalMap = T.linenWeave; M.plaidBed.normalScale.set(1, 1);
     M.plaidThrow.normalMap = T.knitRelief; M.plaidThrow.normalScale.set(1.4, 1.4);
     if (halloween) {
-      T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
+      T.ghost ??= canvasTexture(1024, 1024, drawGhostCushion);
       T.ghost.offset.set(0, 0);
       T.viewDusk ??= canvasTexture(256, 400, (g, w, h) => drawHamptons(g, w, h, 'dusk'));
     }
     M.pillow.map = halloween ? T.ghost : T.cushion;
+    if (M.piping) M.piping.color.set(halloween ? '#e6dcc7' : '#6b7040');
     room.view = {day: O.view.day, night: halloween ? T.viewDusk : O.view.night};
     room.sillSprigs.visible = false;
     room.decorProps ??= {};
@@ -240,17 +242,54 @@ function drawOakLeaf(g, w, h) {
 
 // Ghost cushion: flax linen with a little ivory felt ghost appliqué.
 // (Drawn round the centre; the cushion's texture offset puts it mid-front.)
+// A grown-up Halloween cushion: deep navy wool herringbone with one large
+// ghost embroidered in ivory satin stitch in the middle, softly shaded,
+// with black satin eyes. Tailored, not crafty.
 function drawGhostCushion(g, w, h) {
-  drawLinen(g, w, h, {base: '#cbb998', dark: .1, seed: 33});
-  g.save(); g.translate(w / 2, h / 2 + 6);
-  g.beginPath();
-  g.moveTo(-34, 40); g.lineTo(-34, -6); g.bezierCurveTo(-34, -50, 34, -50, 34, -6); g.lineTo(34, 40);
-  for (let i = 0; i < 4; i++) { const x = 34 - i * 17; g.quadraticCurveTo(x - 8.5, 52, x - 17, 40); }
-  g.closePath();
-  g.fillStyle = '#efe5d2'; g.fill();
-  g.setLineDash([3, 3]); g.strokeStyle = 'rgba(150,130,100,.7)'; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
-  g.fillStyle = '#38332f';
-  for (const x of [-11, 11]) { g.beginPath(); g.ellipse(x, -8, 3.5, 5, 0, 0, Math.PI * 2); g.fill(); }
+  const r = rng(37);
+  g.fillStyle = '#1f2633'; g.fillRect(0, 0, w, h);
+  // Herringbone: rows of short slanted twill strokes, alternating direction.
+  const row = w / 22;
+  for (let y = 0; y < h; y += 3) for (let col = 0; col < 22; col++) {
+    const x0 = col * row, dir = col % 2 ? 1 : -1;
+    g.strokeStyle = `rgba(${150 + r() * 40},${160 + r() * 40},${185 + r() * 40},${.08 + r() * .07})`;
+    g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + row, y + dir * 4); g.stroke();
+  }
+  // The ghost: a dome, gently swaying body, a flowing three-scallop hem.
+  const ghost = () => {
+    g.beginPath();
+    g.moveTo(-.28, .32);
+    g.bezierCurveTo(-.31, .05, -.3, -.12, -.24, -.24);
+    g.bezierCurveTo(-.16, -.4, .16, -.4, .24, -.24);
+    g.bezierCurveTo(.3, -.12, .3, .05, .29, .3);
+    g.quadraticCurveTo(.22, .4, .14, .31); g.quadraticCurveTo(.07, .39, 0, .32);
+    g.quadraticCurveTo(-.07, .4, -.14, .32); g.quadraticCurveTo(-.22, .41, -.28, .32);
+    g.closePath();
+  };
+  g.save(); g.translate(w / 2, h / 2); g.scale(w, h); g.rotate(-.04);
+  // A soft shadow where the embroidery sits proud of the cloth.
+  g.save(); g.translate(.006, .01); ghost(); g.fillStyle = 'rgba(0,0,0,.35)'; g.filter = `blur(${w * .006}px)`; g.fill(); g.restore();
+  ghost(); g.fillStyle = '#ece4d3'; g.fill();
+  // Satin stitch: fine slanting threads across it, catching the light.
+  g.save(); ghost(); g.clip();
+  g.lineWidth = 1.2 / w;
+  for (let i = -1; i < 1; i += .0045) {
+    g.strokeStyle = `rgba(${r() < .5 ? '255,250,238' : '190,178,155'},${.18 + r() * .2})`;
+    g.beginPath(); g.moveTo(i - .2, -.45); g.lineTo(i + .2, .45); g.stroke();
+  }
+  // Shading toward the edges, so it reads as padded.
+  const sh = g.createRadialGradient(-.03, -.08, .05, 0, 0, .42);
+  sh.addColorStop(0, 'rgba(255,255,255,.12)'); sh.addColorStop(1, 'rgba(120,100,70,.28)');
+  g.fillStyle = sh; g.fillRect(-.5, -.5, 1, 1);
+  g.restore();
+  // A fine ivory outline stitch.
+  ghost(); g.strokeStyle = 'rgba(214,200,170,.9)'; g.lineWidth = 2.2 / w; g.stroke();
+  // Black satin eyes.
+  g.fillStyle = '#121212';
+  for (const x of [-.085, .085]) { g.beginPath(); g.ellipse(x, -.14, .028, .045, 0, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.35)';
+  for (const x of [-.078, .092]) { g.beginPath(); g.ellipse(x, -.155, .008, .012, 0, 0, Math.PI * 2); g.fill(); }
   g.restore();
 }
 
@@ -591,9 +630,29 @@ function kitchenAutumn(kitchen, T) {
 // down its front.
 function stoolTowel(kitchen, g, mat) {
   const s = new THREE.Group(); s.position.set(-1.85, 1.69, 2.4); s.rotation.y = .12; g.add(s);
-  kitchen.mesh(new THREE.BoxGeometry(.36, .014, .5), mat, s, {cast: false}).position.set(0, .007, .1);
-  const fall = kitchen.mesh(new THREE.BoxGeometry(.36, .62, .014), mat, s);
-  fall.position.set(0, -.3, .35); fall.rotation.x = .08;
+  // One cloth: lying across the seat, rolling over its front edge and
+  // hanging in soft folds to a slightly uneven hem.
+  const W = .4, L = .95, geo = new THREE.PlaneGeometry(W, L, 16, 48), p = geo.attributes.position;
+  const edge = .34, R = .05;
+  for (let i = 0; i < p.count; i++) {
+    const u = p.getX(i) / W, t = .5 - p.getY(i) / L; // across, and along from its back end
+    let sAlong = t * L;
+    // (Its hem a little uneven.)
+    sAlong *= 1 + .04 * Math.sin(u * 9 + 1) * Math.max(0, t - .6) * 2.5;
+    let y, z;
+    const flat = edge + .12;
+    if (sAlong < flat) { y = .008 - Math.max(0, sAlong - edge) * .15; z = -.12 + sAlong; }
+    else if (sAlong < flat + Math.PI / 2 * R) { const a = (sAlong - flat) / R; y = .008 - .018 - R + Math.cos(a) * R; z = -.12 + flat + Math.sin(a) * R; }
+    else { const d = sAlong - flat - Math.PI / 2 * R; y = -.01 - R - d; z = -.12 + flat + R + d * .1; }
+    const hang = Math.max(0, -y - .06);
+    // Folds deepen as it hangs; the sides fall in a little.
+    z += Math.sin(u * 11 + .6) * .03 * Math.min(1, hang * 3) + Math.sin(u * 23) * .006;
+    const x = u * W * (1 - .1 * Math.min(1, hang * 2.5));
+    p.setXYZ(i, x, y, z);
+  }
+  geo.computeVertexNormals();
+  const m2 = mat.clone(); m2.side = THREE.DoubleSide;
+  kitchen.mesh(geo, m2, s);
 }
 
 function kitchenThanksgiving(kitchen, T) {
@@ -682,11 +741,11 @@ function kitchenHalloween(kitchen, T) {
   };
   // A ghost cushion propped in the back corner of her tent (clear of where
   // her tail lies when she sleeps).
-  T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
+  T.ghost ??= canvasTexture(1024, 1024, drawGhostCushion);
   T.ghost.offset.set(0, 0);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
   const cushion = mesh(pillowGeometry(.8, .78, .32), ghostMat, kitchen.bed);
-  kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#6b7040', roughness: .85}), cushion, {cast: false});
+  kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#e6dcc7', roughness: .85}), cushion, {cast: false});
   cushion.position.set(-.5, kitchen.bedTop + .35, -.58); cushion.rotation.set(-.1, .15, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;

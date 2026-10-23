@@ -1155,8 +1155,10 @@ function nightLife() {
 // it, trots over to the glass and sits staring, tail lashing, chattering at
 // it; when it puts a paw up on the glass, she swats back. Asleep, she
 // doesn't care.
+// (Off for now: the dog waits for a proper model. ?dog shows the draft.)
+const DOG_VISITS = new URLSearchParams(location.search).has('dog');
 function dogLife(t) {
-  if (place !== kitchen || !ready) return;
+  if (!DOG_VISITS || place !== kitchen || !ready) return;
   brain.nextDog ??= t + rand(25, 50);
   if (t > brain.nextDog && !pet.sleeping) {
     const d = kitchen.startDog(t);
