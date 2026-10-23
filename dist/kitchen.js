@@ -192,6 +192,8 @@ export class Kitchen {
     Room.prototype.buildBird.call(this, wg, z1 - z0 - 1.2, 2.0, 4.4);
     // Perched on a glazing bar at about Mochi's eye level from the counter.
     this.birdBox.mid = y0 + (T - y0) * 2 / 4 + .06;
+    // Halloween evenings: bats swooping past outside, as at the study window.
+    Room.prototype.buildNightBats.call(this, wg);
   }
 
   // The back counter: walnut cabinets, a cream stone top, the sink with its
@@ -934,6 +936,7 @@ export class Kitchen {
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .6, 3, dt);
     }
     Room.prototype.updateBird.call(this, t);
+    Room.prototype.updateBats.call(this, t);
     this.updateCups(t);
     if (!this.salmon.visible && t > this.salmonBack) this.salmon.visible = true;
     if (this.stream.visible) this.stream.scale.set(1 + Math.sin(t * 40) * .15, 1, 1 + Math.cos(t * 33) * .15);

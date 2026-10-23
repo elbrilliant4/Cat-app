@@ -829,7 +829,10 @@ export class RealCat {
       ear.vel += (-170 * ear.twitch - 10 * ear.vel) * dt;
       ear.twitch += ear.vel * dt;
       const name = i === 0 ? 'earR' : 'earL';
-      B[name].quaternion.multiply(_q.setFromEuler(_e.set(-(f.earBack + ear.twitch * .5), 0, -ear.s * (f.earOut + ear.twitch * .2))));
+      // (The new rig's ears carry only the ear itself, not the crown, so a
+      // flick turns them a little further to show as much.)
+      const tw = this.opts.rig === 2 ? 1.6 : 1;
+      B[name].quaternion.multiply(_q.setFromEuler(_e.set(-(f.earBack + ear.twitch * .5 * tw), 0, -ear.s * (f.earOut + ear.twitch * .2 * tw))));
     }
   }
 }

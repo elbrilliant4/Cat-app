@@ -829,7 +829,15 @@ function updateCat(dt, t) {
     if (Math.abs(brain.head.yaw) < .1) brain.bodyTurning = false;
     if (brain.bodyTurning) desiredHeading = angleTo(brain.pos, brain.headGaze);
   }
-  if (desiredHeading !== null) brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc || J ? 7 : a === 'prejump' ? 5 : 1.6, dt);
+  if (desiredHeading !== null) {
+    const was = brain.heading;
+    brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc || J ? 7 : a === 'prejump' ? 5 : 1.6, dt);
+    // Sitting or lying, she shuffles round no faster than her paws can step.
+    if (['sit', 'loaf', 'groom', 'catnap', 'sleep', 'beg', 'pause'].includes(a) && !brain.perch) {
+      const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = 1.1 * dt;
+      if (Math.abs(d) > max) brain.heading = was + Math.sign(d) * max;
+    }
+  }
   if (!J) brain.elevation = damp(brain.elevation, brain.perch ? perchTop() : groundAt(brain.pos), 8, dt);
   cat.root.position.set(brain.pos.x, brain.elevation, brain.pos.z);
   cat.root.rotation.y = brain.heading;
@@ -972,6 +980,8 @@ function updateCat(dt, t) {
     // (For the new movement: how far through a jump she is, which way, and
     // whether she's riding the vacuum.)
     air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
+    // In her bed, her tail stays inside the rim.
+    tailBounds: !brain.perch && brain.elevation > .05 && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius ? {x: bed.position.x, z: bed.position.z, r: place.bedRadius} : null,
   });
 
   // Screen anchor above the head for particles, and the face's rough
@@ -1569,11 +1579,13 @@ function watchBirds(t) {
     // Halloween evenings: bats swoop outside the window; now and then she
     // stirs and an ear flicks.
     room.batsOn = ready && place === room && room.decor === 'halloween' && night;
+    if (kitchen) kitchen.batsOn = ready && place === kitchen && room.decor === 'halloween' && night;
     if (room.batsOn && t > (brain.nextBatTwitch ??= t + 8)) { brain.nextBatTwitch = t + rand(10, 25); twitchEar(undefined, .7); }
     host.classList.remove('bird');
     return;
   }
   room.batsOn = place === room && room.decor === 'halloween' && night;
+  if (kitchen) kitchen.batsOn = place === kitchen && room.decor === 'halloween' && night;
   const onSill = brain.perch === 'sill' && !brain.jump;
   // The bird is a regular (by night, a moth at the glass): it comes by about once a minute while she's up
   // and about (whatever the decor), and keeps coming back while she sits at
@@ -1583,7 +1595,7 @@ function watchBirds(t) {
     if (brain.mode === 'idle' && (onSill || !brain.perch || place !== room)) {
       const d = win.startBird(t, night ? 'moth' : undefined);
       brain.birdSeen = false;
-      brain.nextBird = t + d + (onSill ? rand(5, 12) : place === room ? rand(22, 40) : rand(70, 130));
+      brain.nextBird = t + d + (onSill ? rand(5, 12) : rand(22, 40));
     } else brain.nextBird = t + rand(6, 12);
   }
   const at = win.birdWorld(tmpV3);

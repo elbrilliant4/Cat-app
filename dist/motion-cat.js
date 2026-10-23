@@ -55,7 +55,7 @@ for (const k of Object.keys(POSES)) POSES[k] = {...BASE, ...POSES[k]};
 const CH = Object.keys(BASE);
 // How far a planted paw may be from where it belongs, forward or back and to
 // the side, before its leg runs out of reach (in her own frame).
-const LEASH = {x: .1, z: .19};
+const LEASH = {x: .14, z: .26};
 // How long each part takes when the pose changes, and how long it waits
 // (going down to sit/lie: hips first, chest after; getting up: chest first).
 const PART = c => /^(y|z|x|pitch|roll|yaw)$/.test(c) ? 'pelvis' : /^(spine|chest)/.test(c) ? 'chest' : c === 'scap' ? 'scap' : /^(fd|lh|rh|hock|wrist)/.test(c) ? 'paws' : /^head/.test(c) ? 'head' : 'tail';
@@ -64,6 +64,7 @@ const TIMING = {
   up: {pelvis: [.12, .65], chest: [0, .55], scap: [0, .5], paws: [0, .4], head: [0, .45], tail: [0, .6]},
   quick: {pelvis: [0, .22], chest: [0, .25], scap: [0, .22], paws: [0, .2], head: [0, .2], tail: [0, .3]},
 };
+const _m = new THREE.Vector3();
 const LOW = new Set(['sit', 'loaf', 'sleep', 'beg', 'belly']);
 
 export class MotionCat {
@@ -84,7 +85,7 @@ export class MotionCat {
       LF: new THREE.Vector3(R.shoulderL.x - .015, 0, S.frontZ - .07), RF: new THREE.Vector3(R.shoulderR.x + .015, 0, S.frontZ - .07),
       LH: new THREE.Vector3(R.hipL.x + .07, 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - .07, 0, S.hindZ + .02),
     };
-    this.h0 = S.hips.y + .015;
+    this.h0 = S.hips.y - .005;
     this.ch = {...POSES.stand, y: this.h0};
     this.from = {...this.ch};
     this.poseName = 'stand'; this.poseAt = -1; this.timing = TIMING.quick;
@@ -92,6 +93,7 @@ export class MotionCat {
     this.phase = 0; this.walkW = 0; this.lastStep = -9;
     this.prev = null; this.vel = new THREE.Vector3(); this.yawRate = 0;
     this.br = 0;
+    this.groomPaw = new THREE.Vector3();
   }
 
   // Where a paw belongs now (her own frame), for the pose's current blend.
@@ -149,12 +151,17 @@ export class MotionCat {
     const c = this.ch;
 
     // --- Walk ------------------------------------------------------------------
-    const walking = !air && !riding && speed > .05;
-    this.walkW = damp(this.walkW, walking ? 1 : 0, walking ? 6 : 4, dt);
-    const stride = clamp(.38 + .42 * speed, .45, 1.25);       // metres-equivalent per cycle at her size
-    const duty = clamp(.64 - .1 * (speed - .62), .42, .66);
-    if (walking) this.phase = (this.phase + speed * dt / stride) % 1;
-    const cycle = stride / Math.max(speed, .05);
+    // (Turning counts too: her paws, a body's length apart, travel round as
+    // she turns, so a turn on the spot is stepped round, not slid.)
+    const gait = speed + Math.abs(this.yawRate) * .3;
+    const walking = !air && !riding && gait > .05;
+    this.walkW = damp(this.walkW, walking && speed > .05 ? 1 : 0, walking ? 6 : 4, dt);
+    // (Short enough that a planted paw stays within its leg's reach for the
+    // whole of its stance: quicker steps, not longer ones, as she speeds up.)
+    const stride = clamp(.3 + .3 * gait, .36, .8);          // metres-equivalent per cycle at her size
+    const duty = clamp(.64 - .1 * (gait - .62), .42, .66);
+    if (walking) this.phase = (this.phase + gait * dt / stride) % 1;
+    const cycle = stride / Math.max(gait, .05);
     // Each paw: planted, swinging, or free.
     const fwdW = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
     const sw = {};
@@ -259,7 +266,14 @@ export class MotionCat {
       // Knead: front paws press in turn; groom: left paw up to her face; swat: right paw reaches.
       if (ctl.knead && k[1] === 'F' && !air) local.y += Math.max(0, Math.sin(t * 5.5 + (k === 'LF' ? Math.PI : 0))) * .035;
       let free = pw.free;
-      if (ctl.groom && k === 'LF') { free = true; local.set(S.mid + .03, .5 + c.y * .3, S.frontZ + .12); pitch = -1.2; }
+      if (ctl.groom && k === 'LF') {
+        // Washing: the paw comes right up to her mouth (wherever her head is),
+        // its back to her tongue, rising a little with each lick.
+        const mouth = root.worldToLocal(this.cat.bones.jaw.localToWorld(_m.set(0, -.015, .14))).clone();
+        free = true;
+        local.copy(this.groomPaw.lerp(mouth.add(_m.set(.01, -.075 + Math.max(0, Math.sin(t * 7)) * .02, -.035)), 1 - Math.exp(-10 * dt)));
+        pitch = -1.6;
+      } else if (k === 'LF') this.groomPaw.copy(local);
       if (ctl.swat > .02 && k === 'RF') { free = true; local.lerp(new THREE.Vector3(S.mid - .05, .42, S.frontZ + .3), ctl.swat); pitch = lerp(pitch, -.6, ctl.swat); }
       if (P.frontFree && k[1] === 'F') { free = true; local.add(new THREE.Vector3(...P.frontFree)); pitch = -1; }
       if (air) { local.y += k[1] === 'F' ? .12 : .08; pitch = k[1] === 'F' ? -.3 : -.6; }
@@ -287,7 +301,7 @@ export class MotionCat {
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,
       tail: {lift: c.tailLift, curl: c.tailCurl, side: c.tailSide, up: ctl.tailUp || 0, amp: tl.amp, speed: tl.speed,
-        floor: air ? 0 : c.tailFloor, wrap: 1, radius: c.tailR},
+        floor: air ? 0 : c.tailFloor, wrap: 1, radius: c.tailR, bounds: ctl.tailBounds},
       breathe: breath, face: ctl.face, look: ctl.look,
     };
     // Soft contact on her support surface (not mid-air).

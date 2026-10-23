@@ -241,13 +241,15 @@ export class MotionRig {
     cat.tailUp = tl.up || 0;
     cat.poseTail(t, {amp: tl.amp ?? .2, speed: tl.speed ?? 1.2});
     cat.root.updateMatrixWorld(true);
-    if (tl.floor > 0) this.drapeTail(tl.floor, tl.wrap ?? 1, tl.radius ?? .2, pel);
+    if (tl.floor > 0) this.drapeTail(tl.floor, tl.wrap ?? 1, tl.radius ?? .2, pel, tl.bounds);
   }
 
   // The tail lying on the floor: from its root it drops to the floor just
   // behind her, then curves round her side on a smooth arc. w blends from
-  // the tail's own (lifted, swaying) shape to the draped one.
-  drapeTail(w, wrap, R, pel) {
+  // the tail's own (lifted, swaying) shape to the draped one. bounds (a
+  // circle on the floor, {x, z, r}, in the world): lying in a round bed, the
+  // tail keeps inside its rim, following it round.
+  drapeTail(w, wrap, R, pel, bounds = null) {
     const B = this.B, proc = [], P = new THREE.Vector3(), cur = new THREE.Vector3(), want = new THREE.Vector3();
     for (let i = 0; i < 8; i++) proc.push(B['tail' + i].quaternion.clone());
     const rootQ = this.cat.root.getWorldQuaternion(new THREE.Quaternion()), floor = this.rootY();
@@ -279,7 +281,12 @@ export class MotionRig {
       const bone = B['tail' + i];
       bone.getWorldPosition(P);
       u += this.tailLen[i];
-      want.copy(path(u, floor + this.tailR[i + 1] + .004)).sub(P).normalize();
+      want.copy(path(u, floor + this.tailR[i + 1] + .004));
+      if (bounds) {
+        const dx = want.x - bounds.x, dz = want.z - bounds.z, d = Math.hypot(dx, dz);
+        if (d > bounds.r) { want.x = bounds.x + dx / d * bounds.r; want.z = bounds.z + dz / d * bounds.r; }
+      }
+      want.sub(P).normalize();
       if (i < 7) B['tail' + (i + 1)].getWorldPosition(cur); else bone.localToWorld(cur.copy(this.tailTip));
       cur.sub(P).normalize();
       const turn = _q.setFromUnitVectors(cur, want);

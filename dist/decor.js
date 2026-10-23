@@ -686,7 +686,7 @@ function kitchenHalloween(kitchen, T) {
   T.ghost.offset.set(.5, .5);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
   const cushion = mesh(roundedBox(.8, .74, .22, .09), ghostMat, kitchen.bed);
-  cushion.position.set(-.5, kitchen.bedTop + .35, -.72); cushion.rotation.set(-.16, .3, 0);
+  cushion.position.set(-.5, kitchen.bedTop + .35, -.58); cushion.rotation.set(-.1, .15, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;
   // Clementines in a stone bowl on the island.
