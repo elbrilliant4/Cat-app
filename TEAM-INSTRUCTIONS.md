@@ -100,50 +100,17 @@ longer, because CI renders it.
 
 ## Instructions for Claude (Chad)
 
-### Code map (`dist/`)
+Start with `CLAUDE.md`, then the docs in `docs/` (workflow, roadmap, phase
+briefs, architecture, QA tools). One session = one phase. Keep the docs up
+to date instead of relying on chat history.
 
-| File | What's in it |
-|---|---|
-| `app.js` | The brain: behaviours, activities, walking and jumping, camera, night, eating and drinking, debug hooks. |
-| `motion-cat.js` | Movement: poses, gaits (walk and gallop), foot placement, reach while eating. |
-| `motion.js` | The rig solver: IK legs, spine, head, tail draping and bounds, floor contact. |
-| `cat-rig.js` | Builds the skeleton and skin weights at load time. |
-| `real-cat.js` | The cat's look: fur, eyes, face, ears. It also holds the classic movement (`?motion=classic`). |
-| `room.js` | The study: furniture, bowl, fountain, and window visitors (bird, moths, monarch). |
-| `kitchen.js` | The kitchen: island, shelves, sink and faucet, pendant lamp, robot vacuum, terrace, dog (off). |
-| `decor.js` | Seasonal decor for both rooms (Beach House, Halloween, Thanksgiving). |
-| `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
-| `sound.js`, `meows.js` | Sounds and meows. |
+## How to talk to Merlin (both Claude and ChatGPT)
 
-### Before every push
-
-- Run `npm run check`.
-- Test in a real browser. Playwright with Chromium (swiftshader) works:
-  load `index.html?debug`, wait for `kitten.cat.ready`, then drive her
-  with `kitten.step(dt, n)` and the other `window.kitten` hooks, measure,
-  and take screenshots. Seed `Math.random` when comparing before and
-  after.
-- Useful URL flags: `?debug` (exposes `window.kitten`), `?night=0` or
-  `?night=1` (forces day or night), `?dog` (the dog visit),
-  `?motion=classic` (old movement).
-- Re-read your own diff before committing. Keep each change focused.
-
-### Reporting to Merlin
-
-- Plain language. Say what was wrong, what changed, and how it was
-  checked, with numbers when you have them.
-- Send before/after screenshots.
-- Always end with the preview link, and say plainly what is live and what
-  is only on the preview.
+- Extremely concise. Simple words. Grammar optional.
+- If a request is ambiguous, ask ONE clarifying question before doing anything.
+- Evidence before confidence: show numbers, screenshots or clips; don't
+  claim what you haven't checked.
 
 ## Current state and open items
 
-See `MILESTONES.md` for live builds. Open items when this was written:
-
-- An occasional dragged leg (different legs, sometimes on shelves).
-- The robot vacuum sometimes passing through furniture ("Vision").
-- The tail sometimes passing through furniture.
-- Miso, the second cat: waiting for the Meshy model. Then the two cats
-  play together, and later Lettuce can adopt more cats by levelling up.
-- The dog visit: built but switched off until a proper model exists.
-- December: Christmas tree mischief.
+See `docs/ROADMAP.md` (phases) and `MILESTONES.md` (live builds).
