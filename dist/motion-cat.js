@@ -175,7 +175,7 @@ export class MotionCat {
     const runW = smoother(clamp((speed - 1.0) / .5, 0, 1));
     this.runW = runW;
     const stride = lerp(clamp(.3 + .3 * gait, .36, .8), clamp(.45 + .25 * gait, .8, 1.05), runW); // metres-equivalent per cycle at her size
-    const duty = lerp(clamp(.64 - .1 * (gait - .62), .42, .66), .36, runW);
+    const duty = lerp(clamp(.64 - .1 * (gait - .62), .42, .66), .3, runW);
     if (walking) this.phase = (this.phase + gait * dt / stride) % 1;
     const cycle = stride / Math.max(gait, .05);
     // Each paw: planted, swinging, or free.
@@ -199,7 +199,10 @@ export class MotionCat {
         // paw would stay down and be dragged until she stopped.)
         if (pw.swing && !pw.swing.gait) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
         const p =((this.phase - lerp(PHASE[k], PHASE_RUN[k], runW)) % 1 + 1) % 1;
-        const inSwing = walking && p >= duty;
+        // (Galloping, a hind paw pushes off a little sooner, before her bound
+        // carries the hips past where it can reach.)
+        const dk = duty - (front ? 0 : .05 * runW);
+        const inSwing = walking && p >= dk;
         if (inSwing && !pw.swing) {
           pw.swing = {gait: true, from: pw.pos.clone(), t0: t};
         }
@@ -212,12 +215,14 @@ export class MotionCat {
         }
         if (pw.swing?.gait) {
           const early = pw.swing.early;
-          const u = early ? Math.min(1, (t - pw.swing.t0) / .18) : walking ? (p - duty) / (1 - duty) : Math.min(1, pw.swing.u + dt / .15);
+          const u = early ? Math.min(1, (t - pw.swing.t0) / .18) : walking ? (p - dk) / (1 - dk) : Math.min(1, pw.swing.u + dt / .15);
           if (early ? u >= 1 : !walking && u >= 1 || walking && !inSwing) {
             // Down: where the leg will be upright mid-stance.
             pw.pos.copy(pw.swing.to || pw.pos).setY(rootPos.y); pw.swing = null;
           } else {
-            const ahead = early ? (1 - u) * .2 + duty * cycle * .3 : (1 - u) * (1 - duty) * cycle + duty * cycle / 2;
+            // (Galloping, a front paw lands a little nearer: reaching as far as
+            // the walk's would take it past the end of her leg.)
+            const ahead = (early ? (1 - u) * .2 + duty * cycle * .3 : (1 - u) * (1 - dk) * cycle + dk * cycle / 2) * (front ? 1 - .3 * runW : 1);
             const yaw = heading + this.yawRate * ahead;
             const local = home.clone().add(new THREE.Vector3(0, 0, front ? -.05 : 0));
             const to = rootPos.clone().addScaledVector(this.vel, walking ? ahead : 0)
@@ -233,6 +238,9 @@ export class MotionCat {
             continue;
           }
         }
+        // (Planted, it rises or sinks with her, as standing: stepping up into
+        // her bed, a paw left at floor height would pull its leg out straight.)
+        pw.pos.y = rootPos.y;
         pw.pitch = 0;
         continue;
       }
