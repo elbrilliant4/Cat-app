@@ -611,7 +611,7 @@ export class RealCat {
    */
   update(dt, t, ctl) {
     if (!this.ready) return;
-    const B = this.bones, P = this.pose, target = POSES[ctl.pose] || POSES.stand, rate = ctl.poseRate ?? 6;
+    const B = this.bones, P = this.pose, target = POSES[ctl.pose === 'eat' ? 'crouch' : ctl.pose] || POSES.stand, rate = ctl.poseRate ?? 6;
     for (const k of POSE_KEYS) P[k] = damp(P[k], target[k], rate, dt);
     const sleeping = ctl.pose === 'sleep';
     const breathe = Math.sin(t * (sleeping ? 1.4 : 2.4)) * (sleeping ? .03 : .015);

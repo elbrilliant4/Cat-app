@@ -487,11 +487,11 @@ function usePlace(p) {
   HOME = L.home; TOY_HOME = L.toyHome; SUN_SPOT = L.sunSpot; PERCHES = L.perches;
   LIMITS = L.limits; CAM_BOX = L.camBox; CAM_SOLIDS = L.camSolids; CAM_BLOCKS = L.camBlocks || [];
   const toHome = new THREE.Vector3().subVectors(HOME, bowl.position).setY(0).normalize();
-  EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .95).setY(0);
+  EAT_SPOT = bowl.position.clone().addScaledVector(toHome, .86).setY(0);
   CUSHION_SPOT = new THREE.Vector3(bed.position.x, 0, bed.position.z);
   if (L.bedOffset) CUSHION_SPOT.add(L.bedOffset);
   const toFountain = new THREE.Vector3().subVectors(HOME, fountain.position).setY(0).normalize();
-  DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, .88).setY(0);
+  DRINK_SPOT = fountain.position.clone().addScaledVector(toFountain, 1.0).setY(0);
   if (p === room) room.lamp.position.copy(lampHome); else p.activate(room.lamp);
 }
 // Something she's knocked over lands: a soft clink or thud (if sound's on).
@@ -548,7 +548,7 @@ const brain = {
   mouthAnim: null, rubUntil: 0, tailUpUntil: 0, chewUntil: 0, yawnAt: -10, hopAt: -10, kneadUntil: 0, strokeUntil: 0,
   gaze: new THREE.Vector3(0, 1.2, 4), headGaze: new THREE.Vector3(0, 1.2, 4), headWait: null, headMoving: false,
   bodyWait: null, bodyTurning: false, glance: null, glanceUntil: 0,
-  head: {yaw: 0, pitch: 0, roll: 0}, look: {x: 0, y: 0},
+  head: {yaw: 0, pitch: 0, roll: 0}, look: {x: 0, y: 0}, reach: {z: 0, dip: 0, pitch: 0},
   nextIdle: 6, nextShow: 10, nextZ: 0, nextTwitch: 3,
   pointerAt: -10, pointerWorld: new THREE.Vector3(),
   pounce: null, pounceReadyAt: 0, stillSince: 0, catches: 0, playEnd: 0,
@@ -721,6 +721,18 @@ function greet(first = false) {
 }
 
 const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3();
+// Where her mouth goes when she eats or drinks: the kibble in the middle of
+// the bowl, the water at the near edge of the fountain, or the salmon or the
+// faucet's trickle in the kitchen (a column: she laps at it wherever her
+// mouth meets it).
+function mouthTarget(a, out, mouthY = 0) {
+  if (brain.eatAt && brain.lapStream) return out.copy(brain.eatAt).setY(clamp(mouthY, brain.eatAt.y - .04, brain.eatAt.y + .75));
+  if (brain.eatAt) return out.copy(brain.eatAt).setY(brain.eatAt.y + (a === 'eat' ? .02 : 0));
+  const c = a === 'eat' ? bowl.position : fountain.position;
+  const dx = brain.pos.x - c.x, dz = brain.pos.z - c.z, d = Math.hypot(dx, dz) || 1;
+  const r = a === 'eat' ? .05 : .27;
+  return out.set(c.x + dx / d * r, a === 'eat' ? .12 : .225, c.z + dz / d * r);
+}
 const angleTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 function dampAngle(a, b, rate, dt) {
   const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -946,7 +958,19 @@ function updateCat(dt, t) {
   if (e === 'sleepy') { pitch -= .12; roll += .12; }
   if (e === 'lonely' || e === 'hungry') { pitch += .05; roll -= .1; }
   if (a === 'sleep' || a === 'catnap' || a === 'belly') { yaw = 0; pitch = 0; roll = 0; }
-  if ((a === 'eat' || a === 'drink') && t - brain.actStart > .5) { yaw = 0; pitch = (a === 'drink' ? -.62 : -.75) + Math.sin(t * 7) * .05; }
+  // Eating and drinking: her mouth goes right down to the food or the
+  // water. Each frame she leans in, dips her front and tips her head a
+  // little more towards wherever her mouth still has to go.
+  const R = brain.reach;
+  if ((a === 'eat' || a === 'drink') && t - brain.actStart > .35 && !J) {
+    const m = cat.root.worldToLocal(cat.bones.jaw.localToWorld(tmpV3.set(0, -.015, .14)));
+    const g = cat.root.worldToLocal(mouthTarget(a, tmpV2, cat.root.localToWorld(tmpV.copy(m)).y));
+    const ef = g.z - m.z, ev = g.y - m.y;
+    R.z = clamp(R.z + ef * 2.5 * dt, -.08, .18);
+    R.dip = clamp(R.dip - ev * 2 * dt, 0, brain.lapStream ? 0 : .3);
+    R.pitch = clamp(R.pitch + ev * 3 * dt, -.6, .25);
+  } else for (const k in R) R[k] = damp(R[k], 0, 4, dt);
+  if ((a === 'eat' || a === 'drink') && t - brain.actStart > .35) { yaw = 0; pitch = (brain.lapStream ? -.25 : -.85) + R.pitch + Math.sin(t * 7) * (a === 'eat' ? .04 : .02); }
   if (a === 'groom') { yaw = .35; pitch = -.3 + Math.sin(t * 5) * .1; roll = .2; }
   // Rubbing her cheek against your hand.
   if (t < brain.rubUntil && !['sleep', 'belly', 'eat', 'drink'].includes(a)) { const k = Math.min(1, (brain.rubUntil - t) * 2); roll += Math.sin(t * 6.5) * .28 * k; yaw += Math.sin(t * 3.2) * .12 * k; pitch += .08 * k; }
@@ -969,7 +993,8 @@ function updateCat(dt, t) {
   if (a === 'walk' || brain.speed > .05) { pose = 'stand'; walk = brain.speed / .8; tail = {amp: .3, speed: 2.5}; }
   if (a === 'loaf') pose = 'loaf';
   if (a === 'sleep') { pose = 'sleep'; tail = {amp: .05, speed: .5}; }
-  if (a === 'eat' || a === 'drink') { pose = 'crouch'; tail = {amp: .45, speed: 1.2}; }
+  // (At the faucet she sits in the sink and laps at the trickle.)
+  if (a === 'eat' || a === 'drink') { pose = a === 'drink' && brain.lapStream ? 'sit' : 'eat'; tail = {amp: .45, speed: 1.2}; }
   if (a === 'groom') pose = 'sit';
   if (a === 'belly') { pose = 'belly'; tail = {amp: .5, speed: 2}; }
   if (a === 'stretch') { pose = 'stretch'; poseRate = 3.5; }
@@ -1004,7 +1029,7 @@ function updateCat(dt, t) {
 
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
-    groom: a === 'groom', swat, head: brain.head, look: brain.look, face, tail,
+    groom: a === 'groom', swat, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
     // (For the new movement: how far through a jump she is, which way, and
     // whether she's riding the vacuum.)
@@ -1094,7 +1119,7 @@ function idleLife(t) {
   if (choice === 'drink') act('drink', {auto: true});
   if (choice === 'nap') walkTo(CUSHION_SPOT, () => { setActivity('loaf', rand(8, 14)); setTimeout(slowBlink, 1500); }, false, true);
   if (choice === 'bowl') {
-    walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); });
+    walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); }, false, true);
   }
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['Mrrp?', 'Mew!', 'I like it here. With you.'])); }
   if (choice === 'window') jumpTo('sill', () => { setActivity('sit'); brain.nextBird = clockNow + rand(2, 5); }, rand(20, 35));
@@ -1468,7 +1493,7 @@ function stealSalmon() {
       if (brain.perch !== 'island' || !kitchen.salmonReady) { setActivity('sit'); return; }
       brain.heading = S.face; brain.swatAt = fish.clone();
       setActivity('stalk', .7, () => {
-        brain.eatAt = fish.clone();
+        brain.eatAt = fish.clone(); brain.lapStream = false;
         setActivity('eat', 3.2, () => {
           brain.eatAt = null;
           setActivity('sit', rand(3, 5));
@@ -1488,9 +1513,9 @@ function drinkFaucet() {
   const S = place.layoutCache.sink;
   const go = () => intoSink(S.drinkAt, () => {
     kitchen.faucetRun(true);
-    brain.eatAt = S.drink.clone();
+    brain.eatAt = S.drink.clone(); brain.lapStream = true;
     setActivity('drink', rand(4, 5.5), () => {
-      kitchen.faucetRun(false); brain.eatAt = null;
+      kitchen.faucetRun(false); brain.eatAt = null; brain.lapStream = false;
       later(.5, () => glanceAt(camera.position, 2));
       // A moment in the sink, sometimes a longer one, then out.
       setActivity('sit', Math.random() < .3 ? rand(8, 14) : rand(2.5, 4), () => { if (inSink()) outOfSink(() => setActivity('sit', rand(3, 5))); });
@@ -1807,7 +1832,7 @@ function act(a, opts = {}) {
         setActivity('groom', 2.4, () => { finishMode(); setActivity('sit'); });
       });
       brain.chewUntil = clockNow + 3.6;
-    }, true);
+    }, true, true);
     moment(`A happy tummy, thanks to ${name}.`, 'i-bowl');
   } else if (a === 'drink') {
     setMode('drink');

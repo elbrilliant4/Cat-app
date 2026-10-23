@@ -36,6 +36,9 @@ const POSES = {
   stand: {},
   // Low and ready: the chest drops between the shoulder blades, which ride up.
   crouch: {y: -.07, z: -.02, pitch: -.03, chest: -.06, scap: .03, hock: -.1, headPitch: -.04, tailLift: -.75, tailCurl: .05},
+  // Eating or drinking: hind legs gathered, the front dipped, shoulder
+  // blades high and the neck stretched down to the bowl.
+  eat: {y: -.06, z: .02, pitch: -.12, spine: -.03, chest: -.2, scap: .055, hock: -.1, headPitch: 0, tailLift: -.8, tailCurl: .05},
   // Sitting (from the trial): the body pivots back over the front paws, the
   // shoulder blades slide down the ribs so the front legs reach the floor,
   // the hocks lie along it and the tail wraps round.
@@ -277,8 +280,10 @@ export class MotionCat {
     const pelY = c.y - .02 * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw) + rw * (.045 * Math.sin(gph - .6) - .01);
     const settled = c.y < this.h0 - .1; // resting on her body (sitting, lying)
     const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww;
-    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z), yaw: c.yaw + .03 * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
-      pitch: c.pitch + rw * .12 * Math.sin(gph), roll: c.roll + .045 * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw)};
+    // (Reach: a lean forward and a dip of the front, so her mouth finds the food.)
+    const reach = ctl.reach || {z: 0, dip: 0};
+    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
+      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph), roll: c.roll + .045 * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw)};
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
