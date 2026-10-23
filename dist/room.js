@@ -416,7 +416,7 @@ function drawJute(g, w, h) {
 // ---------------------------------------------------------------------------
 // One monarch wing pair (the right side; mirrored for the left), on a clear
 // background: orange cells veined in black, a black border with white dots.
-function drawMonarchWing(g, w, h) {
+function drawMonarchWing(g, w, h, under = false) {
   g.clearRect(0, 0, w, h);
   const wing = (path) => { g.beginPath(); path(); g.closePath(); };
   const fore = () => { g.moveTo(4, h * .5); g.bezierCurveTo(w * .3, h * .02, w * .82, h * .02, w * .98, h * .14); g.bezierCurveTo(w * .9, h * .32, w * .7, h * .5, w * .45, h * .55); g.lineTo(4, h * .54); };
@@ -425,7 +425,7 @@ function drawMonarchWing(g, w, h) {
     wing(part); g.fillStyle = '#121010'; g.fill();
     g.save(); wing(part); g.clip();
     g.translate(w * .03, 0); g.scale(.88, .9); g.translate(0, h * .05);
-    wing(part); g.fillStyle = '#e8781e'; g.fill();
+    wing(part); g.fillStyle = under ? '#d89a52' : '#e8781e'; g.fill();
     // Black veins.
     g.strokeStyle = '#121010'; g.lineWidth = 4;
     for (let a = -.9; a <= .9; a += .3) { g.beginPath(); g.moveTo(4, h * .53); g.lineTo(4 + Math.cos(a) * w, h * .53 + Math.sin(a) * h * .55); g.stroke(); }
@@ -753,11 +753,17 @@ export class Room {
     this.moth = moth;
     // By day sometimes a monarch butterfly instead: it flutters in, settles
     // on a glazing bar opening and closing its wings, and drifts off.
-    const fly = new THREE.Group(), wingTex = canvasTexture(256, 256, drawMonarchWing);
-    const wingMat = new THREE.MeshBasicMaterial({map: wingTex, transparent: true, alphaTest: .4, side: THREE.DoubleSide});
-    const wGeo = new THREE.PlaneGeometry(.17, .17); wGeo.translate(.085, 0, 0);
-    this.flyWings = [1, -1].map(sx => { const piv = new THREE.Group(); fly.add(piv); const w = this.mesh(wGeo, wingMat, piv, {cast: false, receive: false}); w.scale.x = sx; return piv; });
-    this.mesh(new THREE.CapsuleGeometry(.009, .07, 4, 6), new THREE.MeshBasicMaterial({color: '#1a1410'}), fly, {cast: false, receive: false});
+    const fly = new THREE.Group();
+    // Bright orange above, paler and buff beneath (what shows when its wings
+    // are closed), lit like everything else so it has some shape.
+    const top = new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawMonarchWing(g, w, h)), transparent: true, alphaTest: .4, side: THREE.FrontSide, roughness: .8});
+    const under = new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawMonarchWing(g, w, h, true)), transparent: true, alphaTest: .4, side: THREE.BackSide, roughness: .8});
+    const wGeo = new THREE.PlaneGeometry(.17, .17, 4, 4); wGeo.translate(.085, 0, 0);
+    // (A slight curve along each wing, so it isn't a flat card.)
+    const wp = wGeo.attributes.position; for (let i = 0; i < wp.count; i++) wp.setZ(i, -.012 * Math.pow(wp.getX(i) / .17, 2)); wGeo.computeVertexNormals();
+    this.flyWings = [1, -1].map(sx => { const piv = new THREE.Group(); fly.add(piv); for (const m of [top, under]) { const w = this.mesh(wGeo, m, piv, {cast: false, receive: false}); w.scale.x = sx; } return piv; });
+    this.mesh(new THREE.CapsuleGeometry(.009, .07, 4, 6), new THREE.MeshStandardMaterial({color: '#1a1410', roughness: .6}), fly, {cast: false, receive: false});
+    for (const sx of [-1, 1]) { const ant = this.mesh(new THREE.CylinderGeometry(.0015, .0015, .06, 3), new THREE.MeshBasicMaterial({color: '#1a1410'}), fly, {cast: false, receive: false}); ant.position.set(sx * .01, .07, 0); ant.rotation.z = -sx * .35; }
     fly.visible = false;
     g.add(fly);
     this.butterfly = fly;
@@ -817,7 +823,7 @@ export class Room {
     const flier = kind === 'moth' ? this.moth : kind === 'butterfly' ? this.butterfly : this.bird;
     const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
     const dur = kind === 'flyby' ? 2.6 : kind === 'moth' ? 6 + Math.random() * 5 : kind === 'butterfly' ? 10 + Math.random() * 6 : 7;
-    this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25)};
+    this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25), yaw: (Math.random() < .5 ? -1 : 1) * (.45 + Math.random() * .5)};
     flier.visible = true;
     return dur;
   }
@@ -833,17 +839,22 @@ export class Room {
     const k = (t - r.start) / r.dur, B = this.birdBox, b = this.bird;
     if (k >= 1) { this.birdRun = null; b.visible = false; this.moth.visible = false; this.butterfly.visible = false; return; }
     if (r.kind === 'butterfly') {
-      // In along a wandering, bobbing path (.0-.3), settled on the middle
-      // glazing bar, wings slowly opening and closing (.3-.75), then away.
+      // In along a wandering, bobbing path (.0-.3), its wings beating; settled
+      // on the middle glazing bar, wings mostly held closed and upright, now
+      // and then slowly opening (.3-.75); then away. Turned a little to one
+      // side, so it's often seen three-quarter on.
       const f = this.butterfly, from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0, sitX = r.land * .6, sitY = B.mid + .1;
-      let x, y, flap;
-      if (k < .3) { const q = k / .3, e = q * q * (3 - 2 * q); x = from + (sitX - from) * e; y = r.y0 + (sitY - r.y0) * e + Math.sin(q * 14) * .08 * (1 - q); flap = Math.sin(t * 26) * .9 + .2; }
-      else if (k < .75) { x = sitX; y = sitY; flap = .15 + .55 * (.5 + .5 * Math.sin(t * 1.6)); }
-      else { const q = (k - .75) / .25; x = sitX + (to - sitX) * q * q; y = sitY + q * .9 + Math.sin(q * 12) * .06; flap = Math.sin(t * 26) * .9 + .2; }
-      f.position.set(x, y, B.z + .01);
-      f.rotation.z = k < .3 || k > .75 ? Math.sin(t * 3) * .25 : 0;
+      let x, y, a, flying = true;
+      if (k < .3) { const q = k / .3, e = q * q * (3 - 2 * q); x = from + (sitX - from) * e; y = r.y0 + (sitY - r.y0) * e + Math.sin(q * 14) * .08 * (1 - q); }
+      else if (k < .75) { x = sitX; y = sitY; flying = false; }
+      else { const q = (k - .75) / .25; x = sitX + (to - sitX) * q * q; y = sitY + q * .9 + Math.sin(q * 12) * .06; }
+      // (0: wings spread flat; pi/2: closed together, upright.)
+      if (flying) a = .65 + .8 * Math.sin(t * 24);
+      else { const open = Math.pow(Math.max(0, Math.sin((t - r.start) * .8 - 1)), 3); a = 1.45 - 1.1 * open; }
+      f.position.set(x, y, B.z + .03);
+      f.rotation.set(flying ? -.25 : -.15, r.yaw + (flying ? Math.sin(t * 2.2) * .4 : 0), flying ? Math.sin(t * 3) * .25 : 0);
       f.scale.setScalar(1.6);
-      this.flyWings[0].rotation.y = flap; this.flyWings[1].rotation.y = -flap;
+      this.flyWings[0].rotation.y = -a; this.flyWings[1].rotation.y = a;
       return;
     }
     if (r.kind === 'moth') {

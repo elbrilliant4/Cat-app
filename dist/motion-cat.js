@@ -90,8 +90,11 @@ export class MotionCat {
     const R = this.rig.restPos;
     this.home0 = {
       LF: new THREE.Vector3(R.shoulderL.x - .015, 0, S.frontZ - .07), RF: new THREE.Vector3(R.shoulderR.x + .015, 0, S.frontZ - .07),
-      LH: new THREE.Vector3(R.hipL.x + .07, 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - .07, 0, S.hindZ + .02),
+      LH: new THREE.Vector3(R.hipL.x + .05, 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - .055, 0, S.hindZ + .02),
     };
+    // Each leg's own reach (the sculpt's legs differ a little: her left hind
+    // is the shortest), so a shorter leg steps a little sooner.
+    this.reach = Object.fromEntries(PAWS.map(k => { const L = this.rig.legs[k]; return [k, Math.min(1, (L.la + L.lb) / .448)]; }));
     this.h0 = S.hips.y - .005;
     this.ch = {...POSES.stand, y: this.h0};
     this.from = {...this.ch};
@@ -197,7 +200,8 @@ export class MotionCat {
         // a quick one, rather than being dragged until its turn comes.
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
-          if (Math.hypot((lp.x - home.x) / LEASH.x, (lp.z - home.z) / LEASH.z) > .65) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
+          const rk = this.reach[k];
+          if (Math.hypot((lp.x - home.x) / (LEASH.x * rk), (lp.z - home.z) / (LEASH.z * rk)) > .65 * rk) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
         if (pw.swing?.gait) {
           const early = pw.swing.early;
@@ -214,7 +218,8 @@ export class MotionCat {
             pw.swing.to = to; pw.swing.u = u;
             const e = smoother(clamp((u - .05) / .9, 0, 1));
             pw.pos.copy(pw.swing.from).lerp(to, e);
-            const H = (front ? .07 : .06) * clamp(pw.swing.from.distanceTo(to) / .5, .45, 1) * (1 + runW * .5);
+            // (Every step clears the floor, even a short one.)
+            const H = (front ? .08 : .075) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + runW * .5);
             pw.pos.y = rootPos.y + H * Math.pow(Math.sin(Math.PI * Math.pow(u, .8)), 1.3);
             pw.pitch = front ? -1.1 * Math.sin(Math.PI * clamp(u * 1.25, 0, 1)) * (1 - u) : -.7 * Math.sin(Math.PI * clamp(u * 1.3, 0, 1)) * (1 - u);
             sw[k] = Math.sin(Math.PI * u);
@@ -241,7 +246,7 @@ export class MotionCat {
       const offL = root.worldToLocal(pw.pos.clone()).sub(home), off = Math.hypot(offL.x / .55, offL.z);
       if (off > .055 && t - this.lastStep > .14 && !PAWS.some(q => this.paws[q].swing && !this.paws[q].swing.gait)) {
         this.lastStep = t;
-        pw.swing = {from: pw.pos.clone(), t0: t, dur: clamp(.18 + off * .5, .2, .4), h: clamp(.02 + off * .12, .025, .05)};
+        pw.swing = {from: pw.pos.clone(), t0: t, dur: clamp(.18 + off * .5, .2, .4), h: clamp(.03 + off * .14, .038, .06)};
       }
     }
 
@@ -253,7 +258,7 @@ export class MotionCat {
       const pw = this.paws[k];
       if (pw.free) continue;
       const home = this.homeLocal(k), loc = root.worldToLocal(pw.pos.clone());
-      const dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / LEASH.x, dz / LEASH.z);
+      const rk = this.reach[k], dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / (LEASH.x * rk), dz / (LEASH.z * rk));
       if (e <= 1) continue;
       loc.x = home.x + dx / e; loc.z = home.z + dz / e;
       const y = pw.pos.y;
