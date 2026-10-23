@@ -26,7 +26,7 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
   page.setDefaultTimeout(3600000);
   page.on('pageerror', e => console.log('pageerror', e.message));
   // Same random choices every run, so before/after numbers are comparable.
-  if (seed !== null) await page.addInitScript(s => { let x = s; Math.random = () => (x = (x * 16807) % 2147483647) / 2147483647; }, seed);
+  if (seed !== null) await page.addInitScript(s => { let x; (window.__seed = s => { x = s; })(s); Math.random = () => (x = (x * 16807) % 2147483647) / 2147483647; }, seed);
   // The app's setTimeout calls run on real time, but we step virtual time:
   // once stepping starts, timeouts wait for virtual time too, so a slow or
   // busy machine doesn't change what she does.
@@ -47,6 +47,10 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
   });
   await page.goto(`http://127.0.0.1:${port}/index.html?debug&frames&night=${night}${flags}`);
   await page.waitForFunction(() => window.kitten && kitten.cat.ready && kitten.cat.motion && kitten.kitchen, null, {timeout: 900000});
+  // (Let the start-up timeouts finish on real time, then start the random
+  // choices from the seed again: loading order varies from run to run.)
+  await page.waitForTimeout(3000);
+  if (seed !== null) await page.evaluate(s => __seed(s), seed);
   await page.evaluate(([k, quiet]) => {
     if (k) kitten.goTo('kitchen');
     if (quiet) Object.assign(kitten.brain, {nextIdle: 1e9, nextShow: 1e9, nextBird: 1e9, nextVacuum: 1e9, vacInit: true});
