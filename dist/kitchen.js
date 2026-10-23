@@ -695,16 +695,40 @@ export class Kitchen {
     for (const s of [-1, 1]) piece([s * W, 0, -D, s * W, 0, D, 0, H, D, 0, H, -D], [0, 0, 1, 0, 1, 1, 0, 1], V(s, 1, 0));
     // Closed at the back.
     piece([-W, 0, -D, W, 0, -D, 0, H, -D], [0, 0, 1, 0, .5, 1], V(0, 0, -1));
-    // At the front, two flaps tied back round an arched doorway.
+    // At the front, two flaps tied back round an arched doorway: each runs
+    // up its front pole to the tie, its inner edge curving round the
+    // doorway, the canvas gathered into soft folds that bunch at the tie.
+    const poleX = y => (W + .05) - (W + .15) * y / (H + .1), tieY = 1.3, tieX = poleX(tieY) - .02;
+    const curve = []; for (let i = 0; i <= 24; i++) { const t = i / 24, u = 1 - t; curve.push([u * u * .55 + 2 * u * t * .3 + t * t * tieX, 2 * u * t * .55 + t * t * tieY]); }
+    const innerAt = y => { for (let i = 1; i < curve.length; i++) if (curve[i][1] >= y) { const [x0, y0] = curve[i - 1], [x1, y1] = curve[i]; return x0 + (x1 - x0) * (y - y0) / Math.max(1e-6, y1 - y0); } return tieX; };
+    const tieMat = M.canvas.clone(); tieMat.color.set('#cdbf9f');
     for (const s of [-1, 1]) {
-      // Each flap runs up its front pole to where it's tied back, so its
-      // outer edge follows the pole; the inner edge curves round the doorway.
-      const poleX = y => (W + .05) - (W + .15) * y / (H + .1), tieY = 1.3, tieX = poleX(tieY) - .02;
-      const pts = [[poleX(0) - .03, 0], [.55, 0]];
-      for (let i = 1; i <= 8; i++) { const t = i / 8, u = 1 - t; pts.push([u * u * .55 + 2 * u * t * .3 + t * t * tieX, 2 * u * t * .55 + t * t * tieY]); }
-      const verts = [], uvs = [];
-      for (const [x, y] of pts) { verts.push(s * x, y, D + .01); uvs.push(x / W, y / H); }
-      piece(verts, uvs, V(0, 0, 1));
+      const cols = 14, rows = 20, verts = [], uvs = [], idx = [];
+      for (let j = 0; j <= rows; j++) {
+        const v = j / rows, y = v * tieY, xo = poleX(y) - .03, xi = innerAt(y), gather = Math.pow(v, 1.6);
+        for (let i = 0; i <= cols; i++) {
+          const u = i / cols, x = xo + (xi - xo) * u;
+          // Folds: fuller toward the tie, where the cloth is gathered in;
+          // the free edge rolls outward a little.
+          const fold = Math.sin(u * Math.PI * 3.5 + .4) * (.018 + .05 * gather) * Math.sin(Math.PI * Math.min(1, u * 1.15 + .05));
+          verts.push(s * x, y, D + .02 + Math.max(0, fold) * 1.2 + fold * .4 + u * u * .025 * (1 - v));
+          uvs.push(x / W, y / H);
+        }
+      }
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+        const a = j * (cols + 1) + i, b = a + 1, c = a + cols + 1, e = c + 1;
+        if (s > 0) idx.push(a, e, b, a, c, e); else idx.push(a, b, e, a, e, c);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setIndex(idx); geo.computeVertexNormals();
+      this.mesh(geo, outside, g); this.mesh(geo, inside, g, {cast: false});
+      // The tie: a band of darker canvas round the gathered flap and the pole.
+      const tie = this.mesh(new THREE.TorusGeometry(.075, .018, 8, 18), tieMat, g);
+      tie.position.set(s * (tieX + .02), tieY - .02, D + .06); tie.rotation.set(Math.PI / 2, 0, s * .4); tie.scale.set(1, 1, .7);
+      const tail = this.mesh(new THREE.BoxGeometry(.035, .22, .008), tieMat, g);
+      tail.position.set(s * (tieX + .05), tieY - .16, D + .1); tail.rotation.z = s * .15;
     }
     this.mesh(roundedBox(2.3, .16, 1.95, .07), M.olive, g).position.y = .08;
     this.bedTop = .16;

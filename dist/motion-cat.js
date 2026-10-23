@@ -163,7 +163,7 @@ export class MotionCat {
     // --- Walk ------------------------------------------------------------------
     // (Turning counts too: her paws, a body's length apart, travel round as
     // she turns, so a turn on the spot is stepped round, not slid.)
-    const gait = speed + Math.abs(this.yawRate) * .3;
+    const gait = speed + Math.abs(this.yawRate) * .6;
     const walking = !air && !riding && gait > .05;
     this.walkW = damp(this.walkW, walking && speed > .05 ? 1 : 0, walking ? 6 : 4, dt);
     // (Short enough that a planted paw stays within its leg's reach for the

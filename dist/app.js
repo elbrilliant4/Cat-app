@@ -855,10 +855,12 @@ function updateCat(dt, t) {
     // setting off (or walking slowly) toward something behind her, she
     // steps round, not spins on the spot. (At a run, or mid-jump or pounce,
     // she can turn as fast as she likes.)
-    const resting = ['sit', 'loaf', 'groom', 'catnap', 'sleep', 'beg', 'pause'].includes(a) && !brain.perch;
+    // (Up on a shelf or the counter too: turning round at the end of one,
+    // or settling after a landing.)
+    const resting = ['sit', 'loaf', 'groom', 'catnap', 'sleep', 'beg', 'pause', 'land', 'poise'].includes(a) && !J && brain.perch !== 'vacuum' && brain.perch !== 'pendant';
     const pivot = a === 'walk' && !pc && !J && brain.speed < .9;
     if (resting || pivot) {
-      const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = (resting ? 1.1 : 2.6 + brain.speed * 2) * dt;
+      const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = (resting ? 1.2 : 1.8 + brain.speed * 2.2) * dt;
       if (Math.abs(d) > max) brain.heading = was + Math.sign(d) * max;
     }
   }
