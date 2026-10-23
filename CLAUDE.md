@@ -12,7 +12,8 @@ A three.js virtual-pet web app: Mochi, a ragdoll kitten, in a study and a kitche
   simple words what was done.
 - Several options → always say which one you recommend and why (one line),
   and offer them as choices Merlin can pick (recommended first); picking
-  one means: go do it.
+  one means: go do it. Always give options as a multiple-choice picker
+  (the AskUserQuestion tool), never as plain text.
 - Starting a new chat for Merlin → also give a simple summary of what was
   handed over (done, next, anything waiting on Merlin).
 
