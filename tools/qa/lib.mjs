@@ -31,6 +31,8 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
   // once stepping starts, timeouts wait for virtual time too, so a slow or
   // busy machine doesn't change what she does.
   await page.addInitScript(() => {
+    // (The clock starts the same every run, not at however long loading took.)
+    performance.now = () => 1000; Date.now = () => 1.8e12 + vt.now;
     const vt = window.__vt = {on: false, now: 0, id: 1e6, q: []}, rs = setTimeout, rc = clearTimeout;
     window.setTimeout = (fn, ms = 0, ...a) => { if (!vt.on) return rs(fn, ms, ...a); vt.q.push({id: ++vt.id, at: vt.now + (+ms || 0), fn, a}); return vt.id; };
     window.clearTimeout = id => { const i = vt.q.findIndex(x => x.id === id); if (i >= 0) vt.q.splice(i, 1); else rc(id); };
