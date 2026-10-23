@@ -414,6 +414,33 @@ function drawJute(g, w, h) {
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
+// A soft cushion: plump in the middle, thinning to its seam all round,
+// the sides drawn in a little and the corners pinched to points, like a
+// real stuffed pillow (w wide, h tall, d thick at the middle). Its front
+// face takes the whole texture (u, v from 0 to 1).
+export function pillowGeometry(w, h, d, seg = 24) {
+  const pos = [], uv = [], idx = [];
+  for (const side of [1, -1]) {
+    const base = pos.length / 3;
+    for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
+      const u = i / seg * 2 - 1, v = j / seg * 2 - 1;
+      const puff = Math.pow(Math.max(0, 1 - u * u), .55) * Math.pow(Math.max(0, 1 - v * v), .55);
+      pos.push(u * w / 2 * (1 - .08 * (1 - v * v)), v * h / 2 * (1 - .08 * (1 - u * u)), side * d / 2 * puff);
+      uv.push(side > 0 ? (u + 1) / 2 : 1 - (u + 1) / 2, (v + 1) / 2);
+    }
+    for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
+      const a = base + j * (seg + 1) + i, b = a + 1, c = a + seg + 1, e = c + 1;
+      if (side > 0) idx.push(a, b, e, a, e, c); else idx.push(a, e, b, a, c, e);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export function roundedBox(w, h, d, r, seg = 3, corner = .2) {
   const s = new THREE.Shape(), x = -(w / 2 - r), y = -(h / 2 - r), W = w - 2 * r, H = h - 2 * r, c = Math.min(W, H) * corner;
   s.moveTo(x + c, y); s.lineTo(x + W - c, y); s.quadraticCurveTo(x + W, y, x + W, y + c);
@@ -612,7 +639,13 @@ export class Room {
         p.setZ(i, Math.sin(x * 22) * .045 + Math.sin(x * 9 + 1) * .03);
       }
       cg.computeVertexNormals();
-      const curtain = this.mesh(cg, M.linen, g, {cast: false});
+      // The folds shaded into the fabric too (deeper in the hollows), so
+      // they still show where the curtain is in shadow.
+      const col = [];
+      for (let i = 0; i < p.count; i++) { const k = .74 + .26 * (p.getZ(i) + .075) / .15; col.push(k, k * .99, k * .97); }
+      cg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      M.curtain ??= Object.assign(M.linen.clone(), {vertexColors: true});
+      const curtain = this.mesh(cg, M.curtain, g, {cast: false});
       curtain.position.set(s * (W / 2 + .45), (top + .4) / 2 + .02, .3);
     }
     // Sunlight from the window falls across the floor in pane-shaped patches.
@@ -859,28 +892,37 @@ export class Room {
     tufts.count = n;
     g.add(tufts);
     // Cushion pillow.
-    const pillow = this.mesh(roundedBox(.95, .75, .24, .1), M.pillow, g);
-    pillow.position.set(-.25, legH + 1.1, -.45); pillow.rotation.set(-.25, .1, .12);
-    // Plaid throw draped over the right arm.
-    const tw = 1.0, tl = 2.3, tg = new THREE.PlaneGeometry(tw, tl, 12, 40), tp = tg.attributes.position;
+    const pillow = this.mesh(pillowGeometry(.95, .8, .3), M.pillow, g);
+    pillow.position.set(-.25, legH + 1.12, -.42); pillow.rotation.set(-.25, .1, .12);
+    // Plaid throw draped over the right arm: up from the seat, over the
+    // roll, down the outside to an uneven hem; wider than the arm, so where
+    // it runs past the arm's front it sags and falls in soft folds.
+    const tw = 1.3, tl = 2.3, tz = .42, front = .9, tg = new THREE.PlaneGeometry(tw, tl, 20, 44), tp = tg.attributes.position;
     const path = v => {
       // Up the inside of the arm, over the roll, down the outside.
       const s = v * tl;
       if (s < .55) return [.62 + s * .45, legH + .62 + s * .9, 0];
-      if (s < 1.15) { const a = (s - .55) / .6 * Math.PI; return [.93 - Math.cos(a) * .24, legH + 1.12 + Math.sin(a) * .26, 0]; }
-      return [1.17 + (s - 1.15) * .05, legH + 1.12 - (s - 1.15) * .95, 0];
+      if (s < 1.15) { const a = (s - .55) / .6 * Math.PI; return [.93 - Math.cos(a) * .25, legH + 1.12 + Math.sin(a) * .27, 0]; }
+      return [1.18 + (s - 1.15) * .06, legH + 1.12 - (s - 1.15) * .95, 0];
     };
     for (let i = 0; i < tp.count; i++) {
-      const u = tp.getX(i), v = .5 - tp.getY(i) / tl;
-      const [x, y] = path(v);
-      const fold = Math.sin(u * 9 + v * 3) * .03 * (v > .5 ? 1 : .3);
-      tp.setXYZ(i, x + fold, y, .1 + u + Math.sin(v * 12) * .02);
+      const u = tp.getX(i), v0 = .5 - tp.getY(i) / tl;
+      // (A ragged hem: some of it hangs a little lower.)
+      const v = v0 * (1 + .06 * Math.sin(u * 7 + 1) * Math.max(0, v0 - .6) * 2.5);
+      let [x, y] = path(v);
+      const z = tz + u, over = Math.max(0, z - front);
+      // Past the arm's front it's unsupported: it sags and falls away.
+      y -= over * over * 2.2 + over * .5;
+      x += over * .25 * (v < .5 ? -1 : 1);
+      // Folds: soft on top, deeper down the outside.
+      const fold = (Math.sin(u * 11 + v * 2.5) * .028 + Math.sin(u * 23 + 1) * .01) * (v > .5 ? 1.4 : .35);
+      tp.setXYZ(i, x + fold, y + Math.sin(u * 13) * .008, z + Math.sin(v * 12) * .02 + over * .1);
     }
     tg.computeVertexNormals();
     const throwBlanket = this.mesh(tg, M.plaidThrow, g);
     const fringe = new THREE.InstancedMesh(new THREE.BoxGeometry(.008, .1, .008), this.fringeMat = new THREE.MeshStandardMaterial({color: '#3a4630', roughness: 1}), 40);
     const [fx, fy] = path(1);
-    for (let i = 0; i < 40; i++) { m4.makeTranslation(fx, fy - .05, .1 - tw / 2 + i * tw / 39); fringe.setMatrixAt(i, m4); }
+    for (let i = 0; i < 40; i++) { const z = tz - tw / 2 + i * tw / 39, over = Math.max(0, z - front); m4.makeTranslation(fx + over * .25, fy - .05 - over * over * 2.2 - over * .5, z); fringe.setMatrixAt(i, m4); }
     g.add(fringe);
     this.chair = g;
     this.chairSeatTop = legH + .62 + .15;

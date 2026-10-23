@@ -3,7 +3,7 @@
 // decor only recolours materials, changes the view from the window and adds
 // props where they're out of her way.
 //
-// Thanksgiving in the Hamptons (from Orion's reference and prop sheet):
+// Thanksgiving at the Beach House (from Orion's reference and prop sheet):
 // oatmeal wool rug with faded sage stripes and a flax border; flax-linen cat
 // bed with olive piping and a fluffy ivory lining; cream cable-knit throw;
 // linen cushion with sage stripes; dunes and the sea out of the window; and
@@ -11,12 +11,12 @@
 // branches, an oak-leaf garland on the curtain rod, the knit throw, the
 // linen cushion, a brass lantern with a candle and a pinecone basket.
 import * as THREE from 'three';
-import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons} from './room.js';
+import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons, pillowGeometry} from './room.js';
 
 export const DECORS = {
   classic: {name: 'Classic', note: 'Plaid, leather and greenery'},
-  thanksgiving: {name: 'Thanksgiving in the Hamptons', note: 'Oatmeal, sage and candlelight'},
-  halloween: {name: 'Halloween in the Hamptons', note: 'Jack-o’-lanterns, paper bats and a felt bat'},
+  thanksgiving: {name: 'Thanksgiving at the Beach House', note: 'Oatmeal, sage and candlelight'},
+  halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat'},
 };
 
 export function applyDecor(room, name) {
@@ -50,7 +50,7 @@ export function applyDecor(room, name) {
     M.plaidThrow.normalMap = T.knitRelief; M.plaidThrow.normalScale.set(1.4, 1.4);
     if (halloween) {
       T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
-      T.ghost.offset.set(.5, .5);
+      T.ghost.offset.set(0, 0);
       T.viewDusk ??= canvasTexture(256, 400, (g, w, h) => drawHamptons(g, w, h, 'dusk'));
     }
     M.pillow.map = halloween ? T.ghost : T.cushion;
@@ -683,9 +683,9 @@ function kitchenHalloween(kitchen, T) {
   // A ghost cushion propped in the back corner of her tent (clear of where
   // her tail lies when she sleeps).
   T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
-  T.ghost.offset.set(.5, .5);
+  T.ghost.offset.set(0, 0);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
-  const cushion = mesh(roundedBox(.8, .74, .22, .09), ghostMat, kitchen.bed);
+  const cushion = mesh(pillowGeometry(.8, .74, .3), ghostMat, kitchen.bed);
   cushion.position.set(-.5, kitchen.bedTop + .35, -.58); cushion.rotation.set(-.1, .15, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;

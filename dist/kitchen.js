@@ -120,6 +120,7 @@ export class Kitchen {
     this.buildPainting();
     this.buildVacuum();
     this.buildSunPatch();
+    this.buildDog();
   }
 
   // Floor, plaster walls and the opening to her study.
@@ -164,8 +165,16 @@ export class Kitchen {
   buildWindows() {
     const M = this.materials, {z0, z1, y0, y1} = this.windowRect, x = K.left + .02;
     this.view = {day: canvasTexture(600, 640, (g, w, h) => drawTerrace(g, w, h, false)), night: canvasTexture(600, 640, (g, w, h) => drawTerrace(g, w, h, true))};
-    this.glass = this.mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), new THREE.MeshBasicMaterial({map: this.view.day, toneMapped: false}), this.group, {cast: false, receive: false});
-    this.glass.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2); this.glass.rotation.y = Math.PI / 2;
+    // The view is painted a little way out, past a strip of real terrace
+    // paving, so there's room outside the doors for a visitor to walk by
+    // (and, seen at an angle, it has some depth). It's made larger than the
+    // glazing so it fills it from anywhere in the kitchen.
+    const out = 1.4, sc = 1.45;
+    this.glass = this.mesh(new THREE.PlaneGeometry((z1 - z0) * sc, (y1 - y0) * sc), new THREE.MeshBasicMaterial({map: this.view.day, toneMapped: false}), this.group, {cast: false, receive: false});
+    this.glass.position.set(K.left - out, y0 + (y1 - y0) * sc / 2, (z0 + z1) / 2); this.glass.rotation.y = Math.PI / 2;
+    this.paving = this.mesh(new THREE.PlaneGeometry(out + .05, (z1 - z0) * sc), new THREE.MeshBasicMaterial({color: '#e2d6c0', toneMapped: false}), this.group, {cast: false, receive: false});
+    this.paving.rotation.x = -Math.PI / 2; this.paving.position.set(K.left - out / 2, -.001, (z0 + z1) / 2);
+    this.outside = {x: K.left - out * .55, z0: z0 - 2.5, z1: z1 + 2.5, door: (z0 + z1) / 2};
     const zc = (z0 + z1) / 2, H = y1 - y0, T = 6.5;
     const v = (w, y0b, y1b, z) => this.box(.12, y1b - y0b, w, x + .04, (y0b + y1b) / 2, z, M.frame, this.group, {cast: false});
     const hz = (w, y, za, zb) => this.box(.12, w, zb - za, x + .04, y, (za + zb) / 2, M.frame, this.group, {cast: false});
@@ -404,11 +413,12 @@ export class Kitchen {
     if (t < v.wait) return;
     // Where to next: a few spots round the floor, then home.
     if (!v.goal) {
-      if (v.state === 'out' && v.stops-- > 0) v.goal = this.randomFloorPoint();
+      if (v.state === 'out' && v.stops-- > 0) v.goal = this.randomFloorPoint(.75);
       else { v.state = 'home'; v.goal = VAC_HOME.clone(); }
       v.path = null;
     }
-    if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal); VAC.r = r; }
+    // (Its own body clear of the island and stools: with her aboard, hers too.)
+    if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal, v.rider ? .75 : .45); VAC.r = r; }
     const next = v.path[0], dx = next.x - p.x, dz = next.z - p.z, dist = Math.hypot(dx, dz);
     if (dist < .08) {
       v.path.shift();
@@ -691,6 +701,101 @@ export class Kitchen {
     this.bedRadius = .9;
   }
 
+  // A neighbour's golden retriever who comes by on the terrace now and
+  // then: trots along outside, stops at the doors, looks in with its tail
+  // going, maybe puts a paw up on the glass, then trots off.
+  buildDog() {
+    const gold = new THREE.MeshStandardMaterial({color: '#cf9a55', roughness: .95});
+    const light = new THREE.MeshStandardMaterial({color: '#e6c290', roughness: .95});
+    const dark = new THREE.MeshStandardMaterial({color: '#1d1714', roughness: .35});
+    const dog = new THREE.Group(), body = new THREE.Group(); dog.add(body);
+    const m = (geo, mat, parent, x, y, z) => { const o = this.mesh(geo, mat, parent, {cast: false}); o.position.set(x, y, z); return o; };
+    const blob = (mat, parent, x, y, z, sx, sy, sz) => m(new THREE.SphereGeometry(1, 20, 14), mat, parent, x, y, z).scale.set(sx, sy, sz);
+    // (Built facing +x, the way it walks.) A deep chest, a level back,
+    // a soft feathered underline.
+    blob(gold, body, -.05, .74, 0, .52, .24, .21);
+    blob(gold, body, .3, .72, 0, .28, .29, .22);
+    blob(light, body, .38, .62, 0, .18, .24, .17);
+    blob(light, body, -.05, .55, 0, .4, .1, .16);
+    blob(gold, body, -.38, .76, 0, .2, .21, .2);
+    const neck = m(new THREE.CapsuleGeometry(.13, .22, 6, 12), gold, body, .5, .92, 0); neck.rotation.z = -.75;
+    const head = new THREE.Group(); head.position.set(.64, 1.08, 0); body.add(head);
+    blob(gold, head, 0, .02, 0, .16, .15, .14);
+    const muzzle = m(new THREE.CapsuleGeometry(.075, .1, 6, 12), light, head, .17, -.04, 0); muzzle.rotation.z = -Math.PI / 2;
+    m(new THREE.SphereGeometry(.04, 12, 10), dark, head, .3, -.02, 0);
+    for (const s of [-1, 1]) {
+      m(new THREE.SphereGeometry(.024, 10, 8), dark, head, .11, .06, s * .09);
+      // Soft ears hanging beside the face.
+      const ear = m(new THREE.SphereGeometry(1, 12, 10), gold, head, -.02, -.05, s * .135); ear.scale.set(.08, .15, .035); ear.rotation.x = s * .2;
+    }
+    const tongue = m(new THREE.CapsuleGeometry(.035, .04, 4, 8), new THREE.MeshStandardMaterial({color: '#d86a7a', roughness: .6}), head, .2, -.13, 0); tongue.scale.z = .6;
+    const legs = [];
+    for (const [x, z, hind] of [[.32, .11, 0], [.32, -.11, 0], [-.36, .11, 1], [-.36, -.11, 1]]) {
+      const hip = new THREE.Group(); hip.position.set(x, .66, z); body.add(hip);
+      m(new THREE.CapsuleGeometry(hind ? .085 : .07, .3, 6, 12), gold, hip, 0, -.2, 0);
+      m(new THREE.CapsuleGeometry(.055, .26, 6, 10), gold, hip, hind ? -.03 : 0, -.47, 0);
+      blob(light, hip, hind ? -.08 : -.06, -.3, 0, .05, .14, .05); // feathering
+      blob(light, hip, .03, -.64, 0, .08, .04, .065);
+      legs.push(hip);
+    }
+    // A plumed tail.
+    const tail = new THREE.Group(); tail.position.set(-.55, .82, 0); body.add(tail);
+    const t1 = m(new THREE.CapsuleGeometry(.05, .3, 6, 10), gold, tail, -.15, .06, 0); t1.rotation.z = 1.25;
+    const plume = m(new THREE.SphereGeometry(1, 12, 10), light, tail, -.2, -.02, 0); plume.scale.set(.2, .07, .06); plume.rotation.z = .35;
+    // A soft shadow under it on the paving.
+    const sh = this.mesh(new THREE.PlaneGeometry(1.7, .8), new THREE.MeshBasicMaterial({map: canvasTexture(128, 64, (g, w, h) => {
+      const grd = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); grd.addColorStop(0, 'rgba(60,45,30,.45)'); grd.addColorStop(1, 'rgba(60,45,30,0)');
+      g.setTransform(1, 0, 0, .5, 0, h / 4); g.fillStyle = grd; g.fillRect(0, 0, w, h * 2);
+    }), transparent: true, depthWrite: false}), dog, {cast: false, receive: false});
+    sh.rotation.x = -Math.PI / 2; sh.position.set(-.02, .005, 0);
+    dog.visible = false;
+    this.group.add(dog);
+    this.dog = {g: dog, body, head, legs, tail, tongue, run: null};
+  }
+  // Start a visit; returns how long it lasts (0 if one's already on).
+  startDog(t) {
+    const d = this.dog;
+    if (d.run) return 0;
+    const O = this.outside, dir = Math.random() < .5 ? 1 : -1, paw = Math.random() < .6;
+    const walk = (O.door - O.z0) / 1.1, stay = 5 + Math.random() * 4;
+    d.run = {start: t, dir, walk, stay, paw, dur: walk * 2 + stay};
+    d.g.visible = true;
+    return d.run.dur;
+  }
+  // Where its head is (for her to look at), or null.
+  dogWorld(v) { return this.dog.run ? this.dog.head.getWorldPosition(v) : null; }
+  // Its paw up on the glass?
+  get dogPawing() { const r = this.dog.run; return !!(r && r.pawing); }
+  updateDog(t) {
+    const d = this.dog, r = d.run;
+    if (!r) return;
+    const k = t - r.start, O = this.outside, from = r.dir > 0 ? O.z0 : O.z1, to = r.dir > 0 ? O.z1 : O.z0;
+    if (k > r.dur) { d.run = null; d.g.visible = false; return; }
+    let z, moving = true, look = 0, sit = 0;
+    if (k < r.walk) z = from + (O.door - from) * (k / r.walk);
+    else if (k < r.walk + r.stay) {
+      z = O.door; moving = false;
+      const q = (k - r.walk) / r.stay;
+      look = Math.min(1, q * 5) * Math.min(1, (1 - q) * 5);
+      sit = q > .15 && q < .55 && !r.paw ? 1 : 0;
+      r.pawing = r.paw && q > .3 && q < .6;
+    } else { z = O.door + (to - O.door) * ((k - r.walk - r.stay) / r.walk); r.pawing = false; }
+    d.g.position.set(O.x, 0, z);
+    d.g.rotation.y = r.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+    // Trotting: diagonal pairs swing together; standing, still.
+    const ph = t * 9;
+    d.legs.forEach((l, i) => { l.rotation.z = moving ? Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) * .45 : 0; });
+    d.body.position.y = moving ? Math.abs(Math.sin(ph)) * .03 : 0;
+    // A paw up on the glass (the front leg nearest the room), or sitting.
+    d.body.rotation.z = r.pawing ? .25 : sit * .35;
+    if (r.pawing) d.legs[r.dir > 0 ? 1 : 0].rotation.set(0, 0, 1.3 + Math.sin(t * 6) * .15); else d.legs.forEach(l => { l.rotation.x = 0; });
+    if (sit) { d.legs[2].rotation.z = d.legs[3].rotation.z = -1.1; d.body.position.y = -.12; }
+    // Looking in at the room (and her), tail going, tongue out.
+    d.head.rotation.set(0, look * (r.dir > 0 ? 1 : -1) * 1.1, moving ? -.1 : .1 + Math.sin(t * 2) * .05);
+    d.tail.rotation.x = Math.sin(t * (moving ? 10 : 16)) * (moving ? .4 : .7);
+    d.tongue.visible = !moving;
+  }
+
   // Where she sits on the big pendant shade (the top of its dome), in the
   // kitchen's frame.
   pendantTop(v) {
@@ -842,11 +947,11 @@ export class Kitchen {
     }
     return v;
   }
-  randomFloorPoint() {
+  randomFloorPoint(pad = 0) {
     const t = this.bed.position;
     for (let i = 0; i < 30; i++) {
       const v = V(-4.8 + Math.random() * 10.4, 0, -2.1 + Math.random() * 6.2);
-      if (v.x > KEEP_OUT.x0 && v.x < KEEP_OUT.x1 && v.z > KEEP_OUT.z0 && v.z < KEEP_OUT.z1) continue;
+      if (v.x > KEEP_OUT.x0 - pad && v.x < KEEP_OUT.x1 + pad && v.z > KEEP_OUT.z0 - pad && v.z < KEEP_OUT.z1 + pad) continue;
       if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || OBSTACLES.some(c => Math.hypot(v.x - c.x, v.z - c.z) < c.r + .3)) continue;
       return v;
     }
@@ -887,7 +992,9 @@ export class Kitchen {
   // points just clear of the island's corners and round each obstacle.
   // Into the tent only through its doorway; out the same way. A spot right
   // beside something (her bowl, the fountain) is fine to walk up to.
-  route(from, to) {
+  // pad: extra room all round (the robot vacuum, its body round its middle,
+  // and her on top of it).
+  route(from, to, pad = 0) {
     const inside = (p, c) => Math.hypot(p.x - c.x, p.z - c.z) < c.r;
     let A = from, B = to;
     const pre = [], post = [];
@@ -897,8 +1004,8 @@ export class Kitchen {
     // move), a little smaller when it's out (it moves on, and backs off if
     // she meets it), so she isn't sent the long way round the room.
     const vac = {x: VAC.x, z: VAC.z, r: this.vac?.state === 'docked' ? .7 : .55};
-    const circles = OBSTACLES.filter(c => c !== VAC).concat(vac).filter(c => !inside(A, c) && !inside(B, c));
-    const R = KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
+    const circles = OBSTACLES.filter(c => c !== VAC).concat(vac).map(c => pad ? {...c, r: c.r + pad * .5} : c).filter(c => !inside(A, c) && !inside(B, c));
+    const R = pad ? {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad} : KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
     const clear = (p, q) => (!rectOn || !segmentHitsRect(p, q, R)) && circles.every(c => segmentDistance(c, p, q) >= c.r - 1e-3);
     let path = [B];
     if (!clear(A, B)) {
@@ -960,6 +1067,8 @@ export class Kitchen {
     this.updatePaperBats?.(t);
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
+    this.paving.material.color.set(night ? '#2a2724' : '#e2d6c0');
+    this.updateDog(t);
     const R = this.room;
     if (!away && this.scene.environment && R.envNight) {
       const env = night ? R.envNight : R.envDay;

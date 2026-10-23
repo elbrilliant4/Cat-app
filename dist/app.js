@@ -417,8 +417,9 @@ function floorPatch(floor, x0, x1, z0, z1) {
   // The same pattern as the whole floor, in the same place.
   const pos = geo.attributes.position, uv = geo.attributes.uv;
   for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + S / 2) / S, (S / 2 - pos.getZ(i)) / S);
-  const m = new THREE.Mesh(geo, floor.material);
-  m.receiveShadow = true; m.position.y = floor.position.y + .003; m.visible = false;
+  // (Drawn over the other floor, never fighting it for the same pixels.)
+  const m = new THREE.Mesh(geo, Object.assign(floor.material.clone(), {polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4}));
+  m.receiveShadow = true; m.position.y = floor.position.y + .004; m.visible = false;
   floor.parent.add(m);
   return m;
 }
@@ -461,7 +462,14 @@ function cullThroughDoor(other) {
   const door = portal.planes[4].setFromCoplanarPoints(doorPts[0], doorPts[1], doorPts[2]);
   if (door.distanceToPoint(C) > 0) door.negate();
   portal.planes[5].copy(door);
-  other.group.traverse(o => { if (o.geometry) o.layers.set(portal.intersectsObject(o) ? SEEN : UNSEEN); });
+  // (A few centimetres' margin, so nothing pops at the opening's edges; a
+  // cluster of leaves is tested as the whole cluster, not one leaf.)
+  for (const pl of portal.planes) pl.constant += .25;
+  other.group.traverse(o => {
+    if (!o.geometry) return;
+    if (o.isInstancedMesh && !o.boundingSphere) o.computeBoundingSphere();
+    o.layers.set(portal.intersectsObject(o) ? SEEN : UNSEEN);
+  });
 }
 function usePlace(p) {
   place = p;
@@ -974,6 +982,7 @@ function updateCat(dt, t) {
   if (a === 'swat') { const q = (t - brain.actStart) / .45; swat = Math.max(0, Math.sin(Math.min(q, 1) * Math.PI)) * motion; tail = {amp: .5, speed: 4}; }
   // A bird at the window: quick tail flicks.
   if (brain.watching) tail = {amp: .45, speed: 6};
+  if (brain.dogWatch) tail = {amp: .7, speed: 7};
   if (pc) {
     const p = (t - pc.start) / 1.3;
     poseRate = 14;
@@ -1030,6 +1039,7 @@ function idleLife(t) {
   // Birds by day, bats on Halloween evenings (so before the sleeping return).
   watchBirds(t);
   vacuumLife(t);
+  dogLife(t);
   if (pet.sleeping) {
     if (t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
     return;
@@ -1041,7 +1051,7 @@ function idleLife(t) {
   if (night && Math.random() < .75 && nightLife()) return;
   const perchChoices = place === room ? ['window', 'window', 'chair'] : ['shelf', 'shelf', 'shelfHigh', 'shelfHigh', 'salmonRaid', 'faucet', 'faucet', 'pendant'].concat(pet.food < 75 ? ['salmonRaid'] : [], pet.water < 85 ? ['faucet', 'faucet'] : []);
   const options = ['glance', 'twitch', 'tilt', 'wander', 'wander', 'groom', ...perchChoices, 'sunbeam'];
-  if (pet.energy > 35) options.push('solo', 'solo');
+  if (pet.energy > 35) options.push('solo', 'solo', 'dash');
   if (pet.happiness > 60) options.push('slowBlink', 'zoomies');
   if (pet.energy < 55) options.push('yawn', 'loaf', 'stretch');
   if (pet.energy > 50) options.push('stretch');
@@ -1073,6 +1083,7 @@ function idleLife(t) {
     express('excited', 3);
     walkTo(randomRugPoint(), () => walkTo(randomRugPoint(), () => walkTo(HOME, null, true), true), true);
   }
+  if (choice === 'dash') dash();
   if (choice === 'drink') act('drink', {auto: true});
   if (choice === 'nap') walkTo(CUSHION_SPOT, () => { setActivity('loaf', rand(8, 14)); setTimeout(slowBlink, 1500); }, false, true);
   if (choice === 'bowl') {
@@ -1139,6 +1150,46 @@ function nightLife() {
   if (choice === 'dock') dockHunt();
   if (choice === 'pendant') ridePendant();
   return true;
+}
+// The neighbour's dog, on the terrace outside the kitchen doors. She spots
+// it, trots over to the glass and sits staring, tail lashing, chattering at
+// it; when it puts a paw up on the glass, she swats back. Asleep, she
+// doesn't care.
+function dogLife(t) {
+  if (place !== kitchen || !ready) return;
+  brain.nextDog ??= t + rand(25, 50);
+  if (t > brain.nextDog && !pet.sleeping) {
+    const d = kitchen.startDog(t);
+    brain.nextDog = t + d + rand(90, 180) * (night ? 2 : 1);
+    if (d) brain.dogSeen = false;
+  }
+  const at = kitchen.dogWorld(tmpV3);
+  if (!at || pet.sleeping) { brain.dogWatch = false; return; }
+  if (!brain.dogSeen && Math.abs(at.z - kitchen.outside.door) < 2.5) {
+    brain.dogSeen = true;
+    glanceAt(at.clone(), 2); twitchEar(0, 1.3); later(.12, () => twitchEar(1, 1.3)); express('curious', 2.5);
+    if (brain.mode === 'idle' && !brain.jump) {
+      const go = () => walkTo(place.layoutCache.windowSpot, () => { brain.dogWatch = true; brain.faceAt = kitchen.dogWorld(new THREE.Vector3()); setActivity('sit', 8); later(.6, () => meow('chirp', 'idle')); later(2, () => { if (Math.random() < .5) say(pick(['Who are YOU?', 'This is my house.', 'Hmph.', 'A… dog?!']), 2200); }); }, true, true);
+      if (brain.perch) jumpDown(go); else go();
+    }
+  }
+  if (brain.dogWatch) {
+    brain.glance = (brain.glance || new THREE.Vector3()).copy(at); brain.glanceUntil = t + .4;
+    if (kitchen.dogPawing && t > (brain.dogSwatAt || 0) && brain.activity === 'sit') {
+      brain.dogSwatAt = t + rand(1.2, 2);
+      brain.swatAt = at.clone().setY(0); brain.swatSoft = true;
+      setActivity('swat', .45, () => setActivity('sit', 6));
+    }
+  }
+}
+
+// A sudden sprint across the room (a sound only she heard, a thought), then
+// a stop, a look round and a sit as if nothing happened.
+function dash() {
+  let to = randomRugPoint();
+  for (let i = 0; i < 6 && to.distanceTo(brain.pos) < 2.2; i++) to = randomRugPoint();
+  express('excited', 2);
+  walkTo(to, () => { hop(); setActivity('pause', .8, () => { glanceAt(new THREE.Vector3(rand(-3, 3), rand(.3, 2), rand(-2, 2)), 1.5); setActivity('sit', rand(2, 4)); }); }, true);
 }
 // Night zoomies: tearing about from one end of the room to the other, a
 // skid and a hop at each turn, sometimes ending with a leap up somewhere.
@@ -2353,7 +2404,7 @@ function goTo(id) {
   toy.position.copy(TOY_HOME); toyTarget.copy(TOY_HOME);
   CAMERA_VIEWS.room();
   view.focus.copy(view.goal.focus);
-  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
+  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
   pet.place = id;
   save();
   refresh();
@@ -2530,7 +2581,7 @@ new ResizeObserver(resize).observe(host);
 resize();
 CAMERA_VIEWS.room();
 view.focus.copy(view.goal.focus);
-Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
+Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
 
 function updateCamera(dt) {
   const g = view.goal, following = view.mode === 'follow' && ready;
@@ -2563,18 +2614,48 @@ function updateCamera(dt) {
     if (o > 1e-4 && f + o * d > hi) d = Math.min(d, (hi - f) / o);
     if (o < -1e-4 && f + o * d < lo) d = Math.min(d, (lo - f) / o);
   }
-  // Keep furniture from coming between the camera and what it looks at:
-  // stop the arm just in front of the first tall piece in the way.
-  const fx = view.focus.x, fz = view.focus.z, ox = camOffset.x, oz = camOffset.z, hz = Math.hypot(ox, oz);
-  if (hz > 1e-4) for (const [cx, cz, r, h] of CAM_SOLIDS) {
-    const px = fx - cx, pz = fz - cz;
-    if (px * px + pz * pz < r * r) continue; // looking at the piece itself
-    const a2 = ox * ox + oz * oz, b2 = 2 * (px * ox + pz * oz), c2 = px * px + pz * pz - r * r, disc = b2 * b2 - 4 * a2 * c2;
-    if (disc < 0) continue;
-    const tHit = (-b2 - Math.sqrt(disc)) / (2 * a2);
-    if (tHit > 0 && tHit < d && view.focus.y + camOffset.y * tHit < h) d = tHit - .15;
+  // Keep furniture from coming between the camera and what it looks at.
+  // Something tall in the way: the arm stops just in front of it. Something
+  // low (the island, a stool, the chair): the camera rises to see over it.
+  // Both ease in and out, so a turn past a piece of furniture glides rather
+  // than jumping.
+  const fx = view.focus.x, fz = view.focus.z, fy = view.focus.y, ox = camOffset.x, oz = camOffset.z, oy = camOffset.y, hz = Math.hypot(ox, oz);
+  const dFree = d;
+  let lift = 0;
+  const blocked = (tHit, h) => {
+    if (!(tHit > 0 && tHit < d) || fy + oy * tHit >= h) return;
+    // Rise so the line of sight clears its top (at that distance along),
+    // if that's only a little; otherwise come in front of it.
+    const s = tHit / d, need = h < 3.2 && tHit > d * .25 ? fy + (h + .15 - fy) / s - (fy + oy * d) : Infinity;
+    if (need < 1.6) lift = Math.max(lift, need); else d = Math.min(d, tHit - .15);
+  };
+  if (hz > 1e-4) {
+    for (const [cx, cz, r, h] of CAM_SOLIDS) {
+      const px = fx - cx, pz = fz - cz;
+      if (px * px + pz * pz < r * r) continue; // looking at the piece itself
+      const a2 = ox * ox + oz * oz, b2 = 2 * (px * ox + pz * oz), c2 = px * px + pz * pz - r * r, disc = b2 * b2 - 4 * a2 * c2;
+      if (disc < 0) continue;
+      blocked((-b2 - Math.sqrt(disc)) / (2 * a2), h);
+    }
+    // Worktops (the island, the counter): boxes, so the camera never ends
+    // up looking at a close-up of the stone from inside one.
+    for (const [x0, x1, z0, z1, top] of CAM_BLOCKS) {
+      if (fx > x0 && fx < x1 && fz > z0 && fz < z1) continue;
+      let t0 = 0, t1 = d;
+      for (const [o, f, lo, hi] of [[ox, fx, x0, x1], [oz, fz, z0, z1]]) {
+        if (Math.abs(o) < 1e-6) { if (f < lo || f > hi) { t0 = 1; t1 = 0; } continue; }
+        const a = (lo - f) / o, b = (hi - f) / o;
+        t0 = Math.max(t0, Math.min(a, b)); t1 = Math.min(t1, Math.max(a, b));
+      }
+      if (t0 < t1) blocked(t0, top - .2);
+    }
   }
-  camera.position.copy(view.focus).addScaledVector(camOffset, Math.max(.6, d));
+  // (Only the dodging eases; zoom and turning follow you as before.)
+  const cut = dFree - d;
+  view.cut = damp(view.cut || 0, cut, cut > (view.cut || 0) ? 12 : 3, dt);
+  view.lift = damp(view.lift || 0, Math.min(lift, 4), lift > (view.lift || 0) ? 8 : 2.5, dt);
+  camera.position.copy(view.focus).addScaledVector(camOffset, Math.max(.6, dFree - view.cut));
+  camera.position.y += view.lift;
   // Never inside a worktop: over one, the camera stays just above it.
   const cp = camera.position;
   for (const [x0, x1, z0, z1, top] of CAM_BLOCKS) if (cp.x > x0 && cp.x < x1 && cp.z > z0 && cp.z < z1 && cp.y < top) cp.y = top;
@@ -2645,7 +2726,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, ridePendant, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

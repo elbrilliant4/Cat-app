@@ -122,7 +122,7 @@ ${finished ? '' : '<p class="notice"><b>This pack is incomplete:</b> rendering r
 <div class="grid">${img('eyes-open.png', 'Open')}${img('eyes-half.png', 'Half-closed')}${img('eyes-closed.png', 'Closed')}</div>
 <h2>Motion</h2>
 <div class="grid wide">${vid('idle.mp4', 'Idle, 5 s')}${vid('walk.mp4', 'Walking, 5 s')}</div>
-<h2>Halloween in the Hamptons (preview decor)</h2>
+<h2>Halloween at the Beach House (preview decor)</h2>
 <p class="meta">All from capture build ${version.build}. The evening is what the room looks like after Rest. The play clip is a time-lapse (one frame every 1.5 s of her playing on her own), because this test renderer is slow.</p>
 <div class="grid">${img('halloween-day.png', 'Halloween, day')}${img('halloween-evening.png', 'Halloween, evening')}${img('halloween-pumpkins-day.png', 'Jack-o’-lanterns, day')}${img('halloween-pumpkins-evening.png', 'Jack-o’-lanterns, evening')}</div>
 <div class="grid wide">${vid('halloween-bat-play.mp4', 'Playing with the felt bat (time-lapse)')}</div>
