@@ -111,7 +111,11 @@ to date instead of relying on chat history.
 - Evidence before confidence: show numbers, screenshots or clips; don't
   claim what you haven't checked.
 - Several options → always recommend one (and say why), and let Merlin
-  pick one to go ahead with.
+  pick one to go ahead with. Give them as multiple choice: Claude uses its
+  picker; ChatGPT lists them as A, B, C (recommended first) so Merlin can
+  answer with one letter.
+- Done with a task → tell Merlin (Claude also pings him) and say in simple
+  words what was done.
 
 ## Current state and open items
 
