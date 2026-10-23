@@ -8,6 +8,8 @@ A three.js virtual-pet web app: Mochi, a ragdoll kitten, in a study and a kitche
 - Request ambiguous → ask ONE clarifying question before doing anything.
 - Evidence before confidence: claim only what you measured or saw. Show numbers or screenshots.
 - Disagree → say so, with a reason and a better option.
+- Done with a task → always ping Merlin (push notification) and say in
+  simple words what was done.
 - Several options → always say which one you recommend and why (one line),
   and offer them as choices Merlin can pick (recommended first); picking
   one means: go do it.
