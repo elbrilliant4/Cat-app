@@ -48,7 +48,10 @@ resume it with a huge context: start a fresh one.
 At about 60% context: overwrite `docs/HANDOFF.md` with what's done, what's
 in flight (uncommitted? pushed? waiting on Merlin?), the next step, and
 anything learned that isn't in the docs yet. Commit and push, then give
-Merlin a 2–3 line prompt to paste into a new chat. Then stop.
+Merlin a 2–3 line prompt to paste into a new chat. Then ask Merlin:
+start the new chat for you, or will you paste it? If "start it", create
+the new session with that prompt (same repo and branch) and send Merlin
+its link. Then stop.
 
 ## Writing a phase brief (docs/phases/NN-name.md)
 Sections: **Goal** (in Merlin's words), **Known facts** (with numbers),

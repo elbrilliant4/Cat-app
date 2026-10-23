@@ -23,7 +23,9 @@ Full loop: `docs/WORKFLOW.md`.
 ## Heavy chat → hand off
 When context is about 60% full: write `docs/HANDOFF.md` (state, in-flight
 work, next step, gotchas), commit + push, give Merlin a short paste-in
-prompt for a new chat. Then stop.
+prompt for a new chat. Then ASK Merlin: "Start the new chat for you, or
+will you paste it?" If Merlin says start it: create the new session with
+that prompt (same repo and branch), send Merlin its link. Then stop.
 
 ## Docs
 - `docs/HANDOFF.md`: latest handoff (read first if it exists)
