@@ -5,7 +5,7 @@ One phase per session (see `WORKFLOW.md`). Briefs are in `docs/phases/`.
 
 | # | Phase | Status | Notes |
 |---|---|---|---|
-| 01 | [Leg drag](phases/01-leg-drag.md) | todo | Merlin still sees an occasional dragged leg (different legs, sometimes on shelves). |
+| 01 | [Leg drag](phases/01-leg-drag.md) | preview | Three causes fixed (stuck step when setting off, bed step-up, gallop reach). Left: a short front-leg stretch sitting down on perches, one high-shelf turn. |
 | 02 | [Vacuum "Vision"](phases/02-vacuum-vision.md) | todo | The vacuum, or she riding it, passing through furniture. |
 | 03 | [Tail through furniture](phases/03-tail-collision.md) | todo | Tail passes through things (bed and tent partly fixed). |
 | 04 | Miso, the second cat | blocked | Waiting for Merlin's Meshy .glb (blue British Shorthair kitten). Then: the cats play together; later, adopt more cats by levelling up. |

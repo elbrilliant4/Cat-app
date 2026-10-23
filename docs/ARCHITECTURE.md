@@ -50,6 +50,11 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
   (pad .45, .75 with her riding); `clampVacuum` keeps it out of the padded box.
 - The motion rig resets the jaw and ears each frame (otherwise rotations pile up).
 - Random choices make runs differ: seed `Math.random` (QA `open({seed})`).
+  `setTimeout` and `performance.now` are real time: in QA they're put on
+  virtual time (`lib.mjs`), else a busy machine changes the run.
+- `MotionCat` paws: a standing (corrective) swing and a walking (`gait`)
+  swing are advanced by different code; a swing of the wrong kind for the
+  current mode is never finished (that was the dragged leg).
 - Software WebGL is slow: step with `kitten.step(dt, n, false)` (draws only the last frame).
 - github.io is blocked from the cloud container; check the deploy workflow run instead.
 - Night: `clockNight()` (sunset table) or `?night=0` / `?night=1`.

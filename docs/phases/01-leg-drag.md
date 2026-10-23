@@ -38,5 +38,39 @@ No leg should look dragged or slide while planted.
 `node tools/qa/legs.mjs`. Target: stretched >2cm under 1% of frames in
 every row, worst under 4cm, no visible slide.
 
-## Result
-(fill in)
+## Result (preview, 2026-10-23)
+**The old baseline numbers were not repeatable.** The QA page ran the
+app's `setTimeout`s and its clock on real time while stepping virtual
+time, so the same seed gave different runs (high shelf RH 63.8% one run,
+0% the next, same code). `lib.mjs` now runs timeouts and the clock on
+virtual time and reseeds after start-up: two runs of a seed now match
+exactly.
+
+Causes found and fixed (`motion-cat.js`):
+1. **Stuck step when setting off.** A standing (corrective) step still
+   under way when she started walking was never advanced by the walking
+   code: the paw stayed down and was dragged at the end of its leg until
+   she stopped. Now it becomes a quick walking step. (Seed 42: shelf walk
+   LH 23% -> 0%, high shelf RH 5.9% -> 0%.)
+2. **Bed step-up.** Walking into her bed she rises 17cm; planted walking
+   paws stayed at floor height (legs up to 12cm short). Planted paws now
+   follow her height, as standing ones already did.
+3. **Gallop reach.** Front paws reached past the leg before landing, hind
+   paws trailed past it at push-off. Run duty .36 -> .30, front landing
+   nearer (`ahead * (1 - .3*runW)`), hind lift-off sooner (`-.05*runW`).
+   `gallop.mjs`: worst 7.2cm -> 3.6cm (LF 11.3% -> ~4% of running frames,
+   just over 2cm).
+
+`legs.mjs` SEC=120 (walk + play rows; before -> after):
+| seed | stretched >2cm | worst |
+|---|---|---|
+| 777 | 0.68% -> 0.21% | 7.3 -> 3.5cm |
+| 42 | 2.75% -> 0.24% | 12.1 -> 6.9cm |
+
+The check now skips paws raised on purpose (swat RF, groom LF): those were
+false alarms (12-20% "stretched").
+
+**Still open:** sitting down on a perch (chair, mantel, sill) the front paw
+reaches 7cm too far for ~2 frames (sit pose `fdz` with a low chest); turning
+while sitting on the high shelf, LF up to 6.9cm; one high-shelf walk turn
+(LH 6.9cm, 1.6%).
