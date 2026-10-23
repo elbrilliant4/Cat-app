@@ -11,7 +11,7 @@
 // branches, an oak-leaf garland on the curtain rod, the knit throw, the
 // linen cushion, a brass lantern with a candle and a pinecone basket.
 import * as THREE from 'three';
-import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons, pillowGeometry} from './room.js';
+import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHamptons, pillowGeometry, pillowPiping} from './room.js';
 
 export const DECORS = {
   classic: {name: 'Classic', note: 'Plaid, leather and greenery'},
@@ -685,7 +685,8 @@ function kitchenHalloween(kitchen, T) {
   T.ghost ??= canvasTexture(256, 256, drawGhostCushion);
   T.ghost.offset.set(0, 0);
   const ghostMat = new THREE.MeshStandardMaterial({map: T.ghost, roughness: .95});
-  const cushion = mesh(pillowGeometry(.8, .74, .3), ghostMat, kitchen.bed);
+  const cushion = mesh(pillowGeometry(.8, .78, .32), ghostMat, kitchen.bed);
+  kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#6b7040', roughness: .85}), cushion, {cast: false});
   cushion.position.set(-.5, kitchen.bedTop + .35, -.58); cushion.rotation.set(-.1, .15, 0);
   // (It lives in the tent's own group; the decor shows and hides it too.)
   kitchen.ghostCushion = cushion;

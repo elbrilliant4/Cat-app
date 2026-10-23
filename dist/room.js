@@ -414,18 +414,35 @@ function drawJute(g, w, h) {
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
-// A soft cushion: plump in the middle, thinning to its seam all round,
-// the sides drawn in a little and the corners pinched to points, like a
-// real stuffed pillow (w wide, h tall, d thick at the middle). Its front
-// face takes the whole texture (u, v from 0 to 1).
-export function pillowGeometry(w, h, d, seg = 24) {
+// A soft cushion (Orion's design): plump in the middle and full at the
+// sides, thinning to a piped seam all round, the sides drawn in a little and
+// the corners pinched; a "chop" in the top, a rounded dip with a short
+// compression crease down the front (lighter on the back), and an outline
+// that's slightly uneven, as a real stuffed pillow is. w wide, h tall, d
+// thick at the middle. Its front face takes the whole texture (u, v from 0
+// to 1); the same shape carries any fabric. The seam's path is kept for the
+// piping (pillowPiping).
+export function pillowGeometry(w, h, d, seg = 32, {chop = .11, crease = .7} = {}) {
   const pos = [], uv = [], idx = [];
+  const shape = (u, v) => {
+    // Outline: drawn in at the middle of each side, a little uneven.
+    let x = u * w / 2 * (1 - .08 * (1 - v * v)) * (1 + .018 * Math.sin(v * 2.7 + 1.3));
+    let y = v * h / 2 * (1 - .08 * (1 - u * u)) * (1 + .02 * Math.sin(u * 2.3 + .4));
+    // The chop: the top edge dips in a rounded V at the middle.
+    const top = Math.max(0, (v + 1) / 2);
+    y -= chop * h * Math.exp(-(u * u) / .14) * Math.pow(top, 3);
+    return [x, y];
+  };
   for (const side of [1, -1]) {
     const base = pos.length / 3;
     for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
       const u = i / seg * 2 - 1, v = j / seg * 2 - 1;
-      const puff = Math.pow(Math.max(0, 1 - u * u), .55) * Math.pow(Math.max(0, 1 - v * v), .55);
-      pos.push(u * w / 2 * (1 - .08 * (1 - v * v)), v * h / 2 * (1 - .08 * (1 - u * u)), side * d / 2 * puff);
+      const [x, y] = shape(u, v);
+      let puff = Math.pow(Math.max(0, 1 - u * u), .42) * Math.pow(Math.max(0, 1 - v * v), .48);
+      // The crease, from the dip partway down the face.
+      const c = Math.exp(-(u * u) / .03) * Math.pow(Math.max(0, Math.min(1, (v - .15) / .65)), 1.5) * (side > 0 ? crease : crease * .55);
+      puff *= 1 - c;
+      pos.push(x, y, side * d / 2 * puff);
       uv.push(side > 0 ? (u + 1) / 2 : 1 - (u + 1) / 2, (v + 1) / 2);
     }
     for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
@@ -438,7 +455,19 @@ export function pillowGeometry(w, h, d, seg = 24) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
+  const seam = [];
+  for (let i = 0; i < 4 * seg; i++) {
+    const k = i / seg, side = Math.floor(k), f = (k - side) * 2 - 1;
+    const [u, v] = [[f, -1], [1, f], [-f, 1], [-1, -f]][side];
+    const [x, y] = shape(u, v);
+    seam.push(new THREE.Vector3(x, y, 0));
+  }
+  geo.userData.seam = seam;
   return geo;
+}
+// The piping round a pillow's seam.
+export function pillowPiping(geo, r = .014) {
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(geo.userData.seam, true), geo.userData.seam.length * 2, r, 6, true);
 }
 
 export function roundedBox(w, h, d, r, seg = 3, corner = .2) {
@@ -491,7 +520,7 @@ export class Room {
       leather: new THREE.MeshPhysicalMaterial({map: canvasTexture(512, 512, drawLeather, {repeat: [1.4, 1.4]}), roughness: .48, clearcoat: .35, clearcoatRoughness: .45}),
       sherpa: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, drawSherpa, {repeat: [3, 3]}), roughness: 1}),
       linen: new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawLinen(g, w, h, {base: '#e7dcc6'}), {repeat: [2, 6]}), roughness: 1, side: THREE.DoubleSide}),
-      pillow: new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawLinen(g, w, h, {base: '#d9ccb1', dark: .1})), roughness: 1}),
+      pillow: new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawLinen(g, w, h, {base: '#cdbfa3', dark: .12})), roughness: 1}),
       oliveLinen: new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (g, w, h) => drawLinen(g, w, h, {base: '#66703f', dark: .12})), roughness: 1}),
       jute: new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, drawJute), roughness: 1}),
       brass: new THREE.MeshStandardMaterial({color: '#b58a3c', metalness: .85, roughness: .32}),
@@ -892,7 +921,8 @@ export class Room {
     tufts.count = n;
     g.add(tufts);
     // Cushion pillow.
-    const pillow = this.mesh(pillowGeometry(.95, .8, .3), M.pillow, g);
+    const pillow = this.mesh(pillowGeometry(.95, .92, .34), M.pillow, g);
+    this.mesh(pillowPiping(pillow.geometry), M.piping ??= new THREE.MeshStandardMaterial({color: '#6b7040', roughness: .85}), pillow, {cast: false});
     pillow.position.set(-.25, legH + 1.12, -.42); pillow.rotation.set(-.25, .1, .12);
     // Plaid throw draped over the right arm: up from the seat, over the
     // roll, down the outside to an uneven hem; wider than the arm, so where
