@@ -8,6 +8,11 @@ A three.js virtual-pet web app: Mochi, a ragdoll kitten, in a study and a kitche
 - Request ambiguous → ask ONE clarifying question before doing anything.
 - Evidence before confidence: claim only what you measured or saw. Show numbers or screenshots.
 - Disagree → say so, with a reason and a better option.
+- Several options → always say which one you recommend and why (one line),
+  and offer them as choices Merlin can pick (recommended first); picking
+  one means: go do it.
+- Starting a new chat for Merlin → also give a simple summary of what was
+  handed over (done, next, anything waiting on Merlin).
 
 ## Hard rules
 - Work only on branch `claude/expressive-cat-modern-ui-65z6r5` (it publishes the preview).

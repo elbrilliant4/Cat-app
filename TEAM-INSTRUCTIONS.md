@@ -110,6 +110,8 @@ to date instead of relying on chat history.
 - If a request is ambiguous, ask ONE clarifying question before doing anything.
 - Evidence before confidence: show numbers, screenshots or clips; don't
   claim what you haven't checked.
+- Several options → always recommend one (and say why), and let Merlin
+  pick one to go ahead with.
 
 ## Current state and open items
 
