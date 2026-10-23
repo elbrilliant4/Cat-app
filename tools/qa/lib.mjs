@@ -27,6 +27,22 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
   page.on('pageerror', e => console.log('pageerror', e.message));
   // Same random choices every run, so before/after numbers are comparable.
   if (seed !== null) await page.addInitScript(s => { let x = s; Math.random = () => (x = (x * 16807) % 2147483647) / 2147483647; }, seed);
+  // The app's setTimeout calls run on real time, but we step virtual time:
+  // once stepping starts, timeouts wait for virtual time too, so a slow or
+  // busy machine doesn't change what she does.
+  await page.addInitScript(() => {
+    const vt = window.__vt = {on: false, now: 0, id: 1e6, q: []}, rs = setTimeout, rc = clearTimeout;
+    window.setTimeout = (fn, ms = 0, ...a) => { if (!vt.on) return rs(fn, ms, ...a); vt.q.push({id: ++vt.id, at: vt.now + (+ms || 0), fn, a}); return vt.id; };
+    window.clearTimeout = id => { const i = vt.q.findIndex(x => x.id === id); if (i >= 0) vt.q.splice(i, 1); else rc(id); };
+    vt.tick = ms => {
+      vt.now += ms;
+      for (;;) {
+        let j = -1; vt.q.forEach((x, i) => { if (x.at <= vt.now && (j < 0 || x.at < vt.q[j].at)) j = i; });
+        if (j < 0) break;
+        const [x] = vt.q.splice(j, 1); if (typeof x.fn === 'function') x.fn(...x.a);
+      }
+    };
+  });
   await page.goto(`http://127.0.0.1:${port}/index.html?debug&frames&night=${night}${flags}`);
   await page.waitForFunction(() => window.kitten && kitten.cat.ready && kitten.cat.motion && kitten.kitchen, null, {timeout: 900000});
   await page.evaluate(([k, quiet]) => {
@@ -35,7 +51,7 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
     document.querySelectorAll('.hud, .dock, .scene-hint, #speech').forEach(e => e.style.visibility = 'hidden');
   }, [kitchen, quiet]);
   // Advance n frames of 1/20 s (drawing only the last one).
-  const step = (n = 1, dt = 1 / 20) => page.evaluate(([n, dt]) => kitten.step(dt, n, false), [n, dt]);
+  const step = (n = 1, dt = 1 / 20) => page.evaluate(([n, dt]) => { __vt.on = true; for (let i = 0; i < n; i++) { kitten.step(dt, 1, i === n - 1); __vt.tick(dt * 1000); } }, [n, dt]);
   // Put the camera somewhere and draw: {focus: [x,y,z], yaw, pitch, dist}.
   const look = v => page.evaluate(v => { const w = kitten.view; w.mode = 'free'; for (const o of [w, w.goal]) { o.focus.set(...v.focus); Object.assign(o, {yaw: v.yaw, pitch: v.pitch, dist: v.dist}); } w.cut = 0; w.lift = 0; kitten.step(1 / 60, 1, true); }, v);
   const close = async () => { await browser.close(); srv.close(); };
