@@ -1693,8 +1693,10 @@ function watchBirds(t) {
   if (!win.birdRun && t > brain.nextBird) {
     // (In the kitchen she can see the doors from her perches too.)
     if (brain.mode === 'idle' && (onSill || !brain.perch || place !== room)) {
-      // (By day mostly the bird, sometimes a moth; by night the moth.)
-      const d = win.startBird(t, night ? 'moth' : Math.random() < .25 ? 'dayMoth' : undefined);
+      // (By day mostly the bird, sometimes a monarch butterfly or a moth;
+      // by night the moth.)
+      const r = Math.random();
+      const d = win.startBird(t, night ? 'moth' : r < .25 ? 'butterfly' : r < .42 ? 'dayMoth' : undefined);
       brain.birdSeen = false;
       brain.nextBird = t + d + (onSill ? rand(4, 9) : rand(12, 24));
     } else brain.nextBird = t + rand(6, 12);

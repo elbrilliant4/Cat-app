@@ -414,6 +414,30 @@ function drawJute(g, w, h) {
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
+// One monarch wing pair (the right side; mirrored for the left), on a clear
+// background: orange cells veined in black, a black border with white dots.
+function drawMonarchWing(g, w, h) {
+  g.clearRect(0, 0, w, h);
+  const wing = (path) => { g.beginPath(); path(); g.closePath(); };
+  const fore = () => { g.moveTo(4, h * .5); g.bezierCurveTo(w * .3, h * .02, w * .82, h * .02, w * .98, h * .14); g.bezierCurveTo(w * .9, h * .32, w * .7, h * .5, w * .45, h * .55); g.lineTo(4, h * .54); };
+  const hind = () => { g.moveTo(4, h * .54); g.bezierCurveTo(w * .4, h * .5, w * .78, h * .6, w * .72, h * .8); g.bezierCurveTo(w * .62, h * .98, w * .25, h * .96, 4, h * .62); };
+  for (const part of [fore, hind]) {
+    wing(part); g.fillStyle = '#121010'; g.fill();
+    g.save(); wing(part); g.clip();
+    g.translate(w * .03, 0); g.scale(.88, .9); g.translate(0, h * .05);
+    wing(part); g.fillStyle = '#e8781e'; g.fill();
+    // Black veins.
+    g.strokeStyle = '#121010'; g.lineWidth = 4;
+    for (let a = -.9; a <= .9; a += .3) { g.beginPath(); g.moveTo(4, h * .53); g.lineTo(4 + Math.cos(a) * w, h * .53 + Math.sin(a) * h * .55); g.stroke(); }
+    g.restore();
+    // White dots along the border.
+    g.fillStyle = '#f4efe4';
+    g.save(); wing(part); g.clip();
+    for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2; g.beginPath(); g.arc(w * .45 + Math.cos(a) * w * .5, h * .5 + Math.sin(a) * h * .42, 2.6, 0, 7); g.fill(); }
+    g.restore();
+  }
+}
+
 // A soft cushion (Orion's design): plump in the middle and full at the
 // sides, thinning to a piped seam all round, the sides drawn in a little and
 // the corners pinched; a "chop" in the top, a rounded dip with a short
@@ -727,6 +751,16 @@ export class Room {
     moth.visible = false;
     g.add(moth);
     this.moth = moth;
+    // By day sometimes a monarch butterfly instead: it flutters in, settles
+    // on a glazing bar opening and closing its wings, and drifts off.
+    const fly = new THREE.Group(), wingTex = canvasTexture(256, 256, drawMonarchWing);
+    const wingMat = new THREE.MeshBasicMaterial({map: wingTex, transparent: true, alphaTest: .4, side: THREE.DoubleSide});
+    const wGeo = new THREE.PlaneGeometry(.17, .17); wGeo.translate(.085, 0, 0);
+    this.flyWings = [1, -1].map(sx => { const piv = new THREE.Group(); fly.add(piv); const w = this.mesh(wGeo, wingMat, piv, {cast: false, receive: false}); w.scale.x = sx; return piv; });
+    this.mesh(new THREE.CapsuleGeometry(.009, .07, 4, 6), new THREE.MeshBasicMaterial({color: '#1a1410'}), fly, {cast: false, receive: false});
+    fly.visible = false;
+    g.add(fly);
+    this.butterfly = fly;
     this.birdRun = null;
     this.birdBox = {x0: -W / 2 - .3, x1: W / 2 + .3, low: bottom + .32, high: bottom + h * .7, mid: bottom + h / 2 + .06, z: .025};
   }
@@ -780,23 +814,38 @@ export class Room {
     if (this.birdRun) return 0;
     // (A moth by day is a brown one, so it shows against the bright sky.)
     if (kind === 'dayMoth' || kind === 'moth') { this.mothDust.color.set(kind === 'dayMoth' ? '#7a6248' : '#e8dfcc'); kind = 'moth'; }
+    const flier = kind === 'moth' ? this.moth : kind === 'butterfly' ? this.butterfly : this.bird;
     const dir = Math.random() < .5 ? 1 : -1, B = this.birdBox;
-    const dur = kind === 'flyby' ? 2.6 : kind === 'moth' ? 6 + Math.random() * 5 : 7;
+    const dur = kind === 'flyby' ? 2.6 : kind === 'moth' ? 6 + Math.random() * 5 : kind === 'butterfly' ? 10 + Math.random() * 6 : 7;
     this.birdRun = {kind, dir, start: t, dur, y0: B.low + Math.random() * (B.high - B.low), land: dir * (.4 + Math.random() * .25)};
-    (kind === 'moth' ? this.moth : this.bird).visible = true;
+    flier.visible = true;
     return dur;
   }
   // The bird's (or moth's) position in world space (for Mochi to watch), or null.
   birdWorld(v) {
     if (!this.birdRun) return null;
-    const o = this.birdRun.kind === 'moth' ? this.moth : this.bird;
+    const k = this.birdRun.kind, o = k === 'moth' ? this.moth : k === 'butterfly' ? this.butterfly : this.bird;
     return o.visible ? o.getWorldPosition(v) : null;
   }
   updateBird(t) {
     const r = this.birdRun;
     if (!r) return;
     const k = (t - r.start) / r.dur, B = this.birdBox, b = this.bird;
-    if (k >= 1) { this.birdRun = null; b.visible = false; this.moth.visible = false; return; }
+    if (k >= 1) { this.birdRun = null; b.visible = false; this.moth.visible = false; this.butterfly.visible = false; return; }
+    if (r.kind === 'butterfly') {
+      // In along a wandering, bobbing path (.0-.3), settled on the middle
+      // glazing bar, wings slowly opening and closing (.3-.75), then away.
+      const f = this.butterfly, from = r.dir > 0 ? B.x0 : B.x1, to = r.dir > 0 ? B.x1 : B.x0, sitX = r.land * .6, sitY = B.mid + .1;
+      let x, y, flap;
+      if (k < .3) { const q = k / .3, e = q * q * (3 - 2 * q); x = from + (sitX - from) * e; y = r.y0 + (sitY - r.y0) * e + Math.sin(q * 14) * .08 * (1 - q); flap = Math.sin(t * 26) * .9 + .2; }
+      else if (k < .75) { x = sitX; y = sitY; flap = .15 + .55 * (.5 + .5 * Math.sin(t * 1.6)); }
+      else { const q = (k - .75) / .25; x = sitX + (to - sitX) * q * q; y = sitY + q * .9 + Math.sin(q * 12) * .06; flap = Math.sin(t * 26) * .9 + .2; }
+      f.position.set(x, y, B.z + .01);
+      f.rotation.z = k < .3 || k > .75 ? Math.sin(t * 3) * .25 : 0;
+      f.scale.setScalar(1.6);
+      this.flyWings[0].rotation.y = flap; this.flyWings[1].rotation.y = -flap;
+      return;
+    }
     if (r.kind === 'moth') {
       // In from the side, a while fluttering and bumping about the glass in
       // the middle, then off into the dark.
