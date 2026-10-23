@@ -11,6 +11,10 @@ The vacuum, and Mochi riding it, must never pass through furniture.
   gets on or off (fixed in `718d283`).
 - Earlier soak test: vacuum centre stayed ≥ .48 m clear (≥ .63 m riding).
   That only measured the island/stools box, and only the vacuum centre.
+- Baseline `tools/qa/vacuum.mjs` SEED=5 SEC=400 (preview `1d7a2b7`):
+  vacuum alone .53 m clear, vacuum with her riding .82 m clear, but **her
+  hips went 5 cm inside the island/stools box** (riding or on the floor;
+  not yet split). So the vacuum looks fine; her body is the suspect.
 - Merlin reported "Visioness" again after build 137 went live. Not yet
   reproduced. Unknown: where (stools? shelves' base? terrace doors? dock?)
   and whether it was the vacuum, her body, or her tail.
