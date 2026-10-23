@@ -194,7 +194,11 @@ export class MotionCat {
         continue;
       }
       if (walking || pw.swing?.gait) {
-        const p = ((this.phase - lerp(PHASE[k], PHASE_RUN[k], runW)) % 1 + 1) % 1;
+        // (A standing step still under way as she sets off becomes a quick
+        // walking step; left as it was, nothing here would finish it, and the
+        // paw would stay down and be dragged until she stopped.)
+        if (pw.swing && !pw.swing.gait) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
+        const p =((this.phase - lerp(PHASE[k], PHASE_RUN[k], runW)) % 1 + 1) % 1;
         const inSwing = walking && p >= duty;
         if (inSwing && !pw.swing) {
           pw.swing = {gait: true, from: pw.pos.clone(), t0: t};

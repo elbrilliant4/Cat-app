@@ -11,7 +11,8 @@ await page.evaluate(() => {
     u(dt, t, ctl);
     const B = kitten.brain, where = B.perch || 'floor';
     for (const k of ['LF', 'RF', 'LH', 'RH']) {
-      const pw = m.paws[k]; if (pw.free) { last[k] = null; continue; }
+      // (A paw raised on purpose, swatting or washing, isn't a planted one.)
+      const pw = m.paws[k]; if (pw.free || k === 'RF' && ctl.swat > .02 || k === 'LF' && ctl.groom) { last[k] = null; continue; }
       const short = m.rig.legs[k].reachShort || 0, key = `${where.padEnd(9)} ${B.activity.padEnd(7)} ${k}`;
       const r = R[key] ??= {n: 0, over: 0, max: 0, slide: 0};
       r.n++; if (short > .02) r.over++; r.max = Math.max(r.max, short);
