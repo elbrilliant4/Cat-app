@@ -417,7 +417,9 @@ export class Kitchen {
       else { v.state = 'home'; v.goal = VAC_HOME.clone(); }
       v.path = null;
     }
-    // (Its own body clear of the island and stools: with her aboard, hers too.)
+    // (Its own body clear of the island and stools: with her aboard, hers too,
+    // so it plans again when she hops on or off.)
+    if (v.planRider !== v.rider) { v.planRider = v.rider; v.path = null; }
     if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal, v.rider ? .75 : .45); VAC.r = r; }
     const next = v.path[0], dx = next.x - p.x, dz = next.z - p.z, dist = Math.hypot(dx, dz);
     if (dist < .08) {
@@ -445,7 +447,15 @@ export class Kitchen {
     }
   }
   // On the floor and out of the island (but not out of its own circle).
-  clampVacuum(p) { const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r; }
+  clampVacuum(p) {
+    const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r;
+    // Its body (and hers, aboard) out of the island and stools too.
+    const pad = this.vac.rider ? .75 : .45, R = {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad};
+    if (p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1) {
+      const opts = [[R.x0 - p.x, 0], [R.x1 - p.x, 0], [0, R.z0 - p.z], [0, R.z1 - p.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
+      if (Math.abs(opts[0][0] + opts[0][1]) < .4) { p.x += opts[0][0]; p.z += opts[0][1]; }
+    }
+  }
   get vacuumNearHome() { return this.vacuum.position.distanceTo(VAC_HOME) < 1.3; }
 
   // Trailing ivy from a pot on a shelf: the vines spill forward out of the
@@ -1005,7 +1015,14 @@ export class Kitchen {
     // she meets it), so she isn't sent the long way round the room.
     const vac = {x: VAC.x, z: VAC.z, r: this.vac?.state === 'docked' ? .7 : .55};
     const circles = OBSTACLES.filter(c => c !== VAC).concat(vac).map(c => pad ? {...c, r: c.r + pad * .5} : c).filter(c => !inside(A, c) && !inside(B, c));
-    const R = pad ? {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad} : KEEP_OUT, rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
+    const R = pad ? {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad} : KEEP_OUT;
+    // (Starting inside that margin, after a swat or backing off say: first
+    // straight out of it, by the nearest side, then round as usual.)
+    if (pad && A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) {
+      const opts = [[R.x0 - .05 - A.x, 0], [R.x1 + .05 - A.x, 0], [0, R.z0 - .05 - A.z], [0, R.z1 + .05 - A.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
+      A = V(A.x + opts[0][0], 0, A.z + opts[0][1]); pre.push(A);
+    }
+    const rectOn = !(A.x > R.x0 && A.x < R.x1 && A.z > R.z0 && A.z < R.z1) && !(B.x > R.x0 && B.x < R.x1 && B.z > R.z0 && B.z < R.z1);
     const clear = (p, q) => (!rectOn || !segmentHitsRect(p, q, R)) && circles.every(c => segmentDistance(c, p, q) >= c.r - 1e-3);
     let path = [B];
     if (!clear(A, B)) {

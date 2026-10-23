@@ -851,9 +851,14 @@ function updateCat(dt, t) {
   if (desiredHeading !== null) {
     const was = brain.heading;
     brain.heading = dampAngle(brain.heading, desiredHeading, a === 'walk' || pc || J ? 7 : a === 'prejump' ? 5 : 1.6, dt);
-    // Sitting or lying, she shuffles round no faster than her paws can step.
-    if (['sit', 'loaf', 'groom', 'catnap', 'sleep', 'beg', 'pause'].includes(a) && !brain.perch) {
-      const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = 1.1 * dt;
+    // Sitting or lying, she shuffles round no faster than her paws can step;
+    // setting off (or walking slowly) toward something behind her, she
+    // steps round, not spins on the spot. (At a run, or mid-jump or pounce,
+    // she can turn as fast as she likes.)
+    const resting = ['sit', 'loaf', 'groom', 'catnap', 'sleep', 'beg', 'pause'].includes(a) && !brain.perch;
+    const pivot = a === 'walk' && !pc && !J && brain.speed < .9;
+    if (resting || pivot) {
+      const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = (resting ? 1.1 : 2.6 + brain.speed * 2) * dt;
       if (Math.abs(d) > max) brain.heading = was + Math.sign(d) * max;
     }
   }
