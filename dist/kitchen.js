@@ -608,10 +608,17 @@ export class Kitchen {
     const top = V(ix, K.wallH, iz), P = V(ix, 8.4, iz);
     this.mesh(new THREE.CylinderGeometry(.15, .15, .05, 16), M.brass, g, {cast: false}).position.set(ix, K.wallH - .03, iz);
     arm(top, P, .02); joint(P);
-    const A = V(ix - 2.3, 8.15, iz - .2), B = V(ix + 1.6, 8.6, iz + .3);
+    const A = V(-3.6, 8.15, -2.2), B = V(ix + 1.6, 8.6, iz + .3);
     arm(P, A); arm(P, B); joint(A); joint(B);
-    // Left: a long drop to a big shade.
-    const a1 = V(A.x, 7.05, A.z); arm(A, a1, .012); this.shades = [shade(a1, 1.15, .12)];
+    // Left: a long drop to a big shade, hung low in front of the shelves, a
+    // leap from the top one. It hangs from a pivot and swings (with a cat on
+    // it, or after one's leapt off): see updatePendant.
+    const piv = new THREE.Group(); piv.position.copy(A); g.add(piv);
+    const drop = A.y - 5.0;
+    const cord = this.mesh(new THREE.CylinderGeometry(.012, .012, drop, 8), M.iron, piv, {cast: false}); cord.position.y = -drop / 2;
+    const big = shade(V(0, -drop, 0), 1.15, 0); piv.add(big);
+    this.shades = [big];
+    this.pendant = {pivot: piv, drop, top: .5 * .38 * 1.15, ax: 0, az: 0, vx: 0, vz: 0, spin: 0, vspin: 0};
     // Right: an arm out to a brass counterweight disc, with a shade hung
     // from its middle, and a short arm up to a small shade.
     const C = V(B.x + 1.2, 8.35, B.z + .35); arm(B, C); joint(C);
@@ -682,6 +689,25 @@ export class Kitchen {
     this.mesh(roundedBox(2.3, .16, 1.95, .07), M.olive, g).position.y = .08;
     this.bedTop = .16;
     this.bedRadius = .9;
+  }
+
+  // Where she sits on the big pendant shade (the top of its dome), in the
+  // kitchen's frame.
+  pendantTop(v) {
+    const p = this.pendant;
+    p.pivot.updateMatrixWorld(true);
+    return this.group.worldToLocal(p.pivot.localToWorld(v.set(0, -p.drop + p.top, 0)));
+  }
+  // The pendant swings from its pivot like a pendulum (lightly damped), and
+  // turns a little on its cord. bump(): a push, from a cat landing on it,
+  // shifting about up there, or leaping off.
+  bumpPendant(x, z, spin = 0) { const p = this.pendant; p.vx += x; p.vz += z; p.vspin += spin; }
+  updatePendant(dt, riding) {
+    const p = this.pendant, k = 9.8 / p.drop * 2.2, c = riding ? .35 : .5;
+    p.vx += (-k * p.ax - c * p.vx) * dt; p.vz += (-k * p.az - c * p.vz) * dt;
+    p.ax += p.vx * dt; p.az += p.vz * dt;
+    p.vspin += (-1.2 * p.spin - .6 * p.vspin) * dt; p.spin += p.vspin * dt;
+    p.pivot.rotation.set(p.ax, p.spin, p.az);
   }
 
   // A round robot vacuum, parked on its discreet dock by the counter.
@@ -757,10 +783,14 @@ export class Kitchen {
         shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
         // Up on the island (from behind it), only for the salmon.
         island: {spot: at(.3, -.2), top: K.island.top, base: at(.3, -1.4), face: 0},
+        // Riding the big pendant shade (from the top shelf, a flying leap):
+        // wherever it's swung to; she drops down onto the counter below.
+        pendant: {get spot() { return kitchen.pendantTop(V(0, 0, 0)).setY(0); }, get top() { return kitchen.pendantTop(V(0, 0, 0)).y; },
+          via: 'shelfHigh', face: 0, ride: true, dropTo: {at: at(-3.6, -2.95), top: K.counter, perch: 'counter'}},
         // Riding the robot vacuum: wherever it is; off to one side of it.
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() { return kitchen.clampFloor(kitchen.vacuum.position.clone().add(V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8))); }},
       },
-      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum], ['salmon', this.foodPlate]],
+      perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum], ['pendant', this.shades[0]], ['salmon', this.foodPlate]],
       // In the tent she lies along it, facing out of the open front.
       // Curled up inside, her back to the closed end (her tail lying along
       // it, clear of the canvas) and her face to the doorway; a little
@@ -900,6 +930,7 @@ export class Kitchen {
   // she's here, and the scene's lighting belongs to the study).
   update(dt, t, night, {camera = null, lamp = null, cat = null, away = false} = {}) {
     if (!away) this.updateVacuum(dt, t, night, cat);
+    if (!away) this.updatePendant(dt, cat?.perch === 'pendant');
     // (The camera in this room's own frame: the study may be the room she's
     // in, with the kitchen joined on through the doorway.)
     if (camera) {

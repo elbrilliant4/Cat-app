@@ -48,6 +48,10 @@ const POSES = {
   beg: {y: .225, z: -.17, pitch: .62, spine: .2, chest: .2, scap: -.05, fdz: -.1, hock: .4, headPitch: .1, tailFloor: 1, abs: true, frontFree: [.0, .12, .1]},
   // Rolled on to her back, paws in the air.
   belly: {y: .2, z: 0, roll: 1.45, spine: .05, headRoll: -1, headPitch: .1, tailLift: -.5, tailSide: .4, abs: true, allFree: true},
+  // Draped over something round and high (the kitchen's pendant shade),
+  // as cats do with chandeliers: belly on top, legs hanging down either
+  // end, tail straight down, head resting forward and looking down.
+  drape: {y: .13, z: 0, pitch: -.04, spine: .1, chest: -.2, scap: .07, headPitch: .55, tailLift: -1.5, tailCurl: .04, abs: true, allFree: true},
   // Mid-leap: stretched out, front paws reaching, hind legs trailing.
   leap: {y: .02, pitch: -.1, spine: -.04, chest: 0, fdz: .12, lhz: -.12, rhz: -.12, tailLift: -.2, tailCurl: -.05, allFree: true},
 };
@@ -65,7 +69,7 @@ const TIMING = {
   quick: {pelvis: [0, .22], chest: [0, .25], scap: [0, .22], paws: [0, .2], head: [0, .2], tail: [0, .3]},
 };
 const _m = new THREE.Vector3();
-const LOW = new Set(['sit', 'loaf', 'sleep', 'beg', 'belly']);
+const LOW = new Set(['sit', 'loaf', 'sleep', 'beg', 'belly', 'drape']);
 
 export class MotionCat {
   constructor(cat) {
@@ -277,6 +281,7 @@ export class MotionCat {
       if (ctl.swat > .02 && k === 'RF') { free = true; local.lerp(new THREE.Vector3(S.mid - .05, .42, S.frontZ + .3), ctl.swat); pitch = lerp(pitch, -.6, ctl.swat); }
       if (P.frontFree && k[1] === 'F') { free = true; local.add(new THREE.Vector3(...P.frontFree)); pitch = -1; }
       if (air) { local.y += k[1] === 'F' ? .12 : .08; pitch = k[1] === 'F' ? -.3 : -.6; }
+      if (name === 'drape') { local.y -= k[1] === 'F' ? .34 : .36; local.z += k[1] === 'F' ? .2 : -.16; pitch = k[1] === 'F' ? .7 : 1; }
       paws[k] = {pos: local, pitch, yaw: 0, free};
     }
     // Shoulder blades swing with their legs and lift over a supporting leg.
@@ -305,9 +310,11 @@ export class MotionCat {
       breathe: breath, face: ctl.face, look: ctl.look,
     };
     // Soft contact on her support surface (not mid-air).
-    rig.floorU.floorY.value = air ? -1e3 : rootPos.y;
+    // (Nothing to stand on under her paws when she's in the air or hanging.)
+    const unsupported = air || name === 'drape';
+    rig.floorU.floorY.value = unsupported ? -1e3 : rootPos.y;
     // (Contact whenever she's not walking or in the air: resting, crouching,
     // landing on a cushion. Walking, her legs carry her clear of it.)
-    rig.apply(state, dt, t, {contact: !air && (low || settled || c.tailFloor > .05 || this.walkW < .5)});
+    rig.apply(state, dt, t, {contact: !unsupported && (low || settled || c.tailFloor > .05 || this.walkW < .5)});
   }
 }
