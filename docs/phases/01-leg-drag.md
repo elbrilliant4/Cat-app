@@ -12,7 +12,15 @@ No leg should look dragged or slide while planted.
   caps on the floor and on perches, an earlier catch-up step, higher step
   lift. Seeded test: left hind over-stretch 15.6% → ~3% of walking frames;
   shelves: over-stretch ~5% → <1%.
-- Baseline from `tools/qa/legs.mjs`: (see Result once measured)
+- Baseline, `tools/qa/legs.mjs` SEED=777 SEC=120, preview `52b536b`
+  (rows with frames stretched >2cm):
+  - **shelfHigh walk RH: 63.8%** (worst 3.3cm), the clearest problem.
+  - floor walk: LF 5.9%, LH 5.8%, RH 7.6% (worst 16.9cm), RF 1.2% (12.3cm);
+    planted-paw slide ~26–32cm total per leg.
+  - floor prejump RH 11.8% (16.9cm), loaf LH 12% (4.4cm), swat RF 11.5%.
+  - Many worst moments: straight walking at full speed (0.65, no turn),
+    LH/RH ~4cm short. So the stride outruns the hind legs on the floor,
+    not only in turns.
 
 ## Where to look
 `motion-cat.js` `update`: `LEASH`, `reach`, stepping (catch-up at

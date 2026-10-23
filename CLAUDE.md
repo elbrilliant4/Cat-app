@@ -20,7 +20,13 @@ A three.js virtual-pet web app: Mochi, a ragdoll kitten, in a study and a kitche
 One session = one phase from `docs/ROADMAP.md`. Read the docs, not old chat.
 Full loop: `docs/WORKFLOW.md`.
 
+## Heavy chat → hand off
+When context is about 60% full: write `docs/HANDOFF.md` (state, in-flight
+work, next step, gotchas), commit + push, give Merlin a short paste-in
+prompt for a new chat. Then stop.
+
 ## Docs
+- `docs/HANDOFF.md`: latest handoff (read first if it exists)
 - `docs/WORKFLOW.md`: session loop, definition of done
 - `docs/ROADMAP.md`: phases, status, what's next
 - `docs/phases/`: one brief per phase (goal, facts, plan, how to test)
