@@ -99,3 +99,19 @@ Real cats walk a narrow track (hind paw lands near the front paw's print).
 
 **Next (part 2):** Merlin picks; Orion's notes on the clips; then change
 stance width, step height, cadence one at a time, a clip each.
+
+## A/B: hind paws lift 20% lower (2026-10-24, waiting on review)
+Asked by Merlin/Orion: one controlled change. B = `?hindlift=0.8` on the
+preview (hind step height .075 -> .06, walk and run; nothing else). Off by
+default: the preview is still A.
+
+`ab-walk.mjs` (seed 777, 2.5s, 60 fps): A and B identical in phase,
+position and speed (0.65) on every frame. Hind step peaks 7.4 -> 5.9cm,
+front unchanged (5.2-7.9cm).
+- `legs.mjs` B vs A: identical, every row (777: 0.17% / 3.6cm; 42: 0.10% / 3.8cm).
+- `gallop.mjs` B vs A: 777 LH worst 1.7 -> 1.8cm, rest identical; 42 identical
+  (LH 5.1cm take-off frame, as A). No regression.
+
+Seen in both A and B (not part of the A/B): on a straight steady walk the
+left hind touches down for one frame mid-swing and lifts again (frame 84,
+phase .88), about once in 3 strides: a small hitch.

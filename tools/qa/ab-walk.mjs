@@ -6,8 +6,10 @@
 // Writes OUT (60 fps) and OUT.json: each frame's gait phase and paw heights.
 import {open} from './lib.mjs';
 import fs from 'node:fs'; import path from 'node:path'; import {execFileSync} from 'node:child_process';
+const ONLY = process.env.ONLY?.split(',').map(Number); // (just these frames, kept as PNGs)
 const SEC = +(process.env.SEC || 2), OUT = path.resolve(process.env.OUT || 'qa-out/ab.mp4'), DIR = OUT + '.frames';
-fs.rmSync(DIR, {recursive: true, force: true}); fs.mkdirSync(DIR, {recursive: true});
+if (!process.env.ONLY) fs.rmSync(DIR, {recursive: true, force: true});
+fs.mkdirSync(DIR, {recursive: true});
 const {page, step, close} = await open({seed: +(process.env.SEED || 777), width: 640, height: 400, flags: process.env.FLAGS || ''});
 await page.evaluate(() => {
   // (Every mesh but the study floor and her own, every frame: the app shows
@@ -34,15 +36,25 @@ for (let i = 0; i < 200; i++) {
   if (await page.evaluate(p0 => kitten.cat.motion.phase < p0, p)) break;
 }
 const log = [];
+let good = 0;
 for (let i = 0; i < SEC * 60; i++) {
   await cam(); await step(1, 1 / 60);
   log.push(await page.evaluate(() => {
     const m = kitten.cat.motion, y = kitten.cat.root.position.y, h = k => +(m.paws[k].pos.y - y).toFixed(4);
     return {phase: +m.phase.toFixed(4), speed: +m.vel.length().toFixed(3), x: +kitten.cat.root.position.x.toFixed(3), LF: h('LF'), RF: h('RF'), LH: h('LH'), RH: h('RH'), act: kitten.brain.activity};
   }));
-  await page.locator('canvas').first().screenshot({path: `${DIR}/${String(i).padStart(4, '0')}.png`});
+  if (ONLY && !ONLY.includes(i)) continue;
+  // (Now and then the canvas comes back blank: drawn again and retaken.)
+  const file = `${DIR}/${String(i).padStart(4, '0')}.png`;
+  for (let k = 0; k < 4; k++) {
+    if (k) await page.evaluate(() => kitten.renderer.render(kitten.cat.root.parent, kitten.camera));
+    await page.locator('canvas').first().screenshot({path: file});
+    const size = fs.statSync(file).size;
+    if (size > Math.max(.6 * good, 30000)) { good = size; break; }
+  }
 }
 await close();
+if (ONLY) { console.log('frames in', DIR); process.exit(0); }
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '60', '-i', `${DIR}/%04d.png`, '-pix_fmt', 'yuv420p', OUT]);
 fs.writeFileSync(OUT + '.json', JSON.stringify(log));
 if (!process.env.KEEP) fs.rmSync(DIR, {recursive: true, force: true});

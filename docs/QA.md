@@ -9,6 +9,7 @@ measures, and takes screenshots. Slow: a few minutes per script.
 | `legs.mjs` | Roams the study, kitchen, shelves; a leg "stretched" = planted paw out of reach (looks dragged); paw slide. `SEC`, `SEED`. | stretched >2cm under ~1% of frames; worst under ~4cm |
 | `gallop.mjs` | Dashes across the rug; stretch per leg while running, how long each paw is up, how often both hind paws are up at once (rabbit hop). `DASHES`, `SEED`. | stretched >2cm few %, worst under ~4cm; both hind up under ~40% |
 | `clip.mjs` | Side-view clip following her (`SCENE` walk, turn, run (the walk's trip at a run, works on old builds too), gallop, bed or shelf, `SEC`, `OUT`), for checking by eye; old vs new: run in each checkout, `ffmpeg -i a.mp4 -i b.mp4 -filter_complex hstack`. | looks right |
+| `ab-walk.mjs` | Controlled walk clip for an A/B: empty floor, straight walk at walking speed, fixed side camera, starts at the top of a stride, 60 fps. `FLAGS` (e.g. `&hindlift=0.8`), `SEC`, `OUT`; writes `OUT.json` (phase, paw heights per frame). Blank frames are retaken; `ONLY=44,52` re-takes just those frames. Same seed: A and B match frame for frame except the change. | phase and position identical between A and B |
 | `vacuum.mjs` | Robot vacuum, alone and with her riding: closest approach to the island/stools box. `SEC`, `SEED`. | all values > 0 (never inside) |
 
 Run: `node tools/qa/<script>.mjs`. Uses `playwright` if installed,
