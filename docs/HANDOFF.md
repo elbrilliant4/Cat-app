@@ -1,34 +1,35 @@
-# Handoff — 2026-10-24
+# Handoff — 2026-10-24 (weekend pause)
 
 ## State
-- Live: build 137 = `631f8ab` (unchanged).
-- Preview branch: phase 01 (leg drag) pushed, waiting on Merlin. He says:
-  "much better" on the drag, but she struts when walking and her hind legs
-  hop together when running. Not live; don't go live until that's sorted.
+- Live: build 137 = `631f8ab` (unchanged). Nothing new is live.
+- Preview branch (`99bc1dd`), deployed:
+  - Phase 07 part 1: run fix (hind legs no longer hop together). Waiting on Merlin.
+  - A/B, off by default: `?hindlift=0.8` = hind paws lift 20% lower.
+    A: https://elbrilliant4.github.io/Cat-app/preview/
+    B: https://elbrilliant4.github.io/Cat-app/preview/?hindlift=0.8
+    Numbers: no regression (phase 07 brief, "A/B" section).
 
-## Done this session
-- QA runs are now repeatable (timeouts and clock on virtual time,
-  reseed after start-up): the old phase 01 baseline numbers were noise.
-- Leg drag: 3 causes fixed in `motion-cat.js` (see `docs/phases/01-leg-drag.md`).
-- New QA tools: `gallop.mjs`, `clip.mjs` (side-view clips, old vs new).
-- Rules added: ping Merlin when done (push notification, simple words);
-  options as a multiple-choice picker. `TEAM-INSTRUCTIONS.md` updated for ChatGPT.
+## Waiting on Merlin
+- Judge A vs B in the live preview (recordings were too big / hard to judge).
+- He has a real-cat walking video (YouTube, qHexBb35ens). YouTube is blocked
+  in the container; he may describe it or allow www.youtube.com.
+- Orion's notes on the clip pack (`qa-out/pack/`, not in git).
 
 ## Next
-Phase 07 part 1 done (run: hind legs no longer hop together; pushed, waiting
-on Merlin). Part 2, the strut: clips sent (`walk-old-vs-now.mp4`); waiting
-on Merlin's pick / Orion's notes; then stance width, step height, cadence one
-at a time, a clip each (see the phase brief's Result).
-Then 08 (friendly app screens), 09 (small test group).
+1. Merlin's pick on B: keep (make it the default, remove the flag) or drop.
+2. One change at a time, each as a preview flag + `ab-walk.mjs` A/B:
+   stance width (hind paws in under the hips), cadence, hip roll.
+3. Small hitch seen in A and B: on a steady straight walk the left hind
+   touches down for one frame mid-swing (phase ~.88, ~1 in 3 strides).
+   Likely the "catch-up" step (leash trigger) firing during a normal swing.
 
 ## Gotchas
-- Heavy runs (3-4 browsers at once) have restarted the container: 2 at a time.
+- Merlin judges in the real preview, not recordings: ship changes behind
+  a URL flag so A and B are both live links.
+- `ab-walk.mjs`: ~10 min per 2.5s clip; 2 browsers at a time max.
+- `pkill -f`/`pgrep -f` match your own shell line: use exact names.
 - Old builds: `git worktree add <scratch>/old <sha>`, copy in `tools/qa/lib.mjs`
-  and `clip.mjs` (old ones lack repeatable runs and the walk scene).
-- `qa-out/` is git-ignored; send clips to Merlin as files.
-- A clip takes ~9 min; gallop.mjs ~1.5 min; legs.mjs ~6 min.
-- Old 34d84a2 in the QA: drop `&& kitten.kitchen` from its lib.mjs wait.
-- Don't `pkill -f <script>` from a command line that names that script: it kills itself.
+  and `clip.mjs`; for 34d84a2 drop `&& kitten.kitchen` from lib's wait.
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then do phase 07 (docs/phases/07-walk-grace.md).
+> Read CLAUDE.md and docs/HANDOFF.md, then continue phase 07 (docs/phases/07-walk-grace.md).
