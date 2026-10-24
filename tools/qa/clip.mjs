@@ -1,6 +1,6 @@
 // Short clip of her legs, the camera following from the side, for checking
 // by eye. Writes OUT (default qa-out/<scene>.mp4; needs ffmpeg).
-//   SCENE=gallop|bed|shelf node tools/qa/clip.mjs     (SEED=777, SEC=6)
+//   SCENE=walk|gallop|bed|shelf node tools/qa/clip.mjs     (SEED=777, SEC=6)
 // Old build vs new: run it from each checkout, then put the two side by side:
 //   ffmpeg -i old.mp4 -i new.mp4 -filter_complex hstack both.mp4
 import {open} from './lib.mjs';
@@ -25,6 +25,8 @@ await page.evaluate(scene => {
   if (scene === 'gallop') kitten.dash();
   if (scene === 'bed') { const b = kitten.place.bed.position; kitten.walkTo(new kitten.cat.root.position.constructor(b.x, 0, b.z), () => kitten.setActivity('sit', 1e9), false, true); }
   if (scene === 'shelf') kitten.stroll();
+  // (An ordinary walk, a couple of metres across the room.)
+  if (scene === 'walk') { const p = kitten.brain.pos; kitten.walkTo(new kitten.cat.root.position.constructor(p.x > 0 ? p.x - 2.4 : p.x + 2.4, 0, p.z), () => kitten.setActivity('sit', 1e9), false, true); }
 }, SCENE);
 for (let i = 0; i < SEC * 20; i++) {
   // Camera beside her, at her height, a little behind.
