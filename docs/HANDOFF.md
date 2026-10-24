@@ -1,20 +1,29 @@
-# Handoff — 2026-10-23
+# Handoff — 2026-10-24
 
 ## State
-- Live: build 137 = `631f8ab` (Merlin said "Go live"; deploy workflow succeeded).
-- Preview branch: `52b536b`+ (docs and QA tools only; app same as live).
-- New way of working: `CLAUDE.md` → `docs/` (WORKFLOW, ROADMAP, phases, ARCHITECTURE, QA). One phase per session.
+- Live: build 137 = `631f8ab` (unchanged).
+- Preview branch: phase 01 (leg drag) pushed, waiting on Merlin. He says:
+  "much better" on the drag, but she struts when walking and her hind legs
+  hop together when running. Not live; don't go live until that's sorted.
 
-## In flight
-- Nothing uncommitted after this handoff.
-- Vacuum baseline done: vacuum stays clear (.53 / .82 m), but her hips went 5 cm inside the island/stools box. Details in `docs/phases/02-vacuum-vision.md`.
+## Done this session
+- QA runs are now repeatable (timeouts and clock on virtual time,
+  reseed after start-up): the old phase 01 baseline numbers were noise.
+- Leg drag: 3 causes fixed in `motion-cat.js` (see `docs/phases/01-leg-drag.md`).
+- New QA tools: `gallop.mjs`, `clip.mjs` (side-view clips, old vs new).
+- Rules added: ping Merlin when done (push notification, simple words);
+  options as a multiple-choice picker. `TEAM-INSTRUCTIONS.md` updated for ChatGPT.
 
 ## Next
-- Phase 01, leg drag: baseline numbers are in `docs/phases/01-leg-drag.md`. Biggest problem: high shelf, right hind leg (63.8% of frames). Floor walking: ~6–8%.
-- Then phase 02 (vacuum "Vision"), then phase 03 (tail).
+Phase 07 (`docs/phases/07-walk-grace.md`): first undo the hind lift-off
+change at the run, then clips of the early-rig walk vs now, and Orion's notes.
+Then 08 (friendly app screens), 09 (small test group).
 
-## Merlin's preferences
-Extremely concise; simple words; ask one question if a request is ambiguous; evidence before confidence; hand off at ~60% context.
+## Gotchas
+- Heavy runs (3-4 browsers at once) have restarted the container: 2 at a time.
+- Old builds: `git worktree add <scratch>/old <sha>`, copy in `tools/qa/lib.mjs`
+  and `clip.mjs` (old ones lack repeatable runs and the walk scene).
+- `qa-out/` is git-ignored; send clips to Merlin as files.
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then do phase 01 (docs/phases/01-leg-drag.md).
+> Read CLAUDE.md and docs/HANDOFF.md, then do phase 07 (docs/phases/07-walk-grace.md).
