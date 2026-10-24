@@ -50,5 +50,50 @@ or frame references if you can, and one or two real cat video references."
 Clips side by side; Merlin's eye decides. `legs.mjs` and `gallop.mjs` no
 worse than phase 01's result.
 
-## Result
-(fill in)
+## Result (preview, 2026-10-24): part 1, the run
+**Run fixed; strut not yet changed** (waiting on Merlin's eye and Orion's notes).
+
+Step 1 (revert phase 01's hind lift-off and run duty .30 -> .36) brought back
+the old reach problem exactly (LH 7.5% / 7.2cm) and didn't stop the hop:
+both hind paws still up 45% of running frames. Two causes of the hop:
+- hind legs only .1 of a stride apart (`PHASE_RUN` RH .1): they move as a pair;
+- each hind paw up 75% of the stride: whatever the spacing, two paws up
+  that long overlap at least 2x.75-1 = 50%.
+
+Change (`motion-cat.js`): hinds a quarter stride apart (`PHASE_RUN`
+`{LH 0, RH .25, LF .5, RF .7}`), hind duty .37 (front .36), and quicker,
+shorter bounds (run stride `clamp(.2 + .2*gait, .5, .62)`, was .8-1.05)
+so a planted hind paw stays in reach; bound .045 -> .035. Hind lift-off
+hack (`dk`) removed. Tried and dropped: bound later in the stride (front
+legs stretch more), a tighter leash at the run (no gain).
+
+`gallop.mjs` (HEAD -> now):
+| seed | both hind up | worst stretch | stretched >2cm (LF/RF/LH/RH) |
+|---|---|---|---|
+| 777 | 59% -> 36% | 2.6 -> 2.0cm | 3.8/0/0.9/0 -> 0.9/0/0/0 % |
+| 42 | 65% -> 37% | 3.1 -> 5.1cm | 3.9/1.3/1.3/0 -> 1.3/0/1.3/0 % |
+
+Seed 42's 5.1cm is one frame at take-off (0.3 -> 1.7 m/s in a quarter
+second, turning): the paw lands short mid-acceleration. Left as is.
+
+`legs.mjs` SEC=120, walk + play rows (HEAD -> now):
+| seed | stretched >2cm | worst |
+|---|---|---|
+| 777 | 0.21% -> 0.17% | 3.5 -> 3.6cm |
+| 42 | 0.24% -> 0.10% | 6.9 -> 3.8cm |
+
+Clips (sent to Merlin, `qa-out/`): `walk-old-vs-now.mp4` (34d84a2 vs now,
+same walk), `gallop-old-vs-new.mp4`. Old build in the QA: its kitchen is
+made only on a visit, so its copy of `lib.mjs` must not wait for
+`kitten.kitchen`.
+
+Walk, early rig vs now (from the code, 34d84a2 -> now), each added to fix
+leg drag: steps quicker (stride .65 -> .50 at her walking speed .65 m/s:
+1.0 -> 1.3 steps a second); paws lift higher (hind .06 -> .075, short steps
+lift more: min .45 -> .7); hind paws out wider than the hips, front paws
+in under the chest, a little taller. Same hip roll/yaw/sway as then. In the
+clips, now looks taller with hind legs set wide; early rig lower and longer.
+Real cats walk a narrow track (hind paw lands near the front paw's print).
+
+**Next (part 2):** Merlin picks; Orion's notes on the clips; then change
+stance width, step height, cadence one at a time, a clip each.

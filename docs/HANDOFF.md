@@ -15,8 +15,10 @@
   options as a multiple-choice picker. `TEAM-INSTRUCTIONS.md` updated for ChatGPT.
 
 ## Next
-Phase 07 (`docs/phases/07-walk-grace.md`): first undo the hind lift-off
-change at the run, then clips of the early-rig walk vs now, and Orion's notes.
+Phase 07 part 1 done (run: hind legs no longer hop together; pushed, waiting
+on Merlin). Part 2, the strut: clips sent (`walk-old-vs-now.mp4`); waiting
+on Merlin's pick / Orion's notes; then stance width, step height, cadence one
+at a time, a clip each (see the phase brief's Result).
 Then 08 (friendly app screens), 09 (small test group).
 
 ## Gotchas
@@ -24,6 +26,9 @@ Then 08 (friendly app screens), 09 (small test group).
 - Old builds: `git worktree add <scratch>/old <sha>`, copy in `tools/qa/lib.mjs`
   and `clip.mjs` (old ones lack repeatable runs and the walk scene).
 - `qa-out/` is git-ignored; send clips to Merlin as files.
+- A clip takes ~9 min; gallop.mjs ~1.5 min; legs.mjs ~6 min.
+- Old 34d84a2 in the QA: drop `&& kitten.kitchen` from its lib.mjs wait.
+- Don't `pkill -f <script>` from a command line that names that script: it kills itself.
 
 ## Paste into a new chat
 > Read CLAUDE.md and docs/HANDOFF.md, then do phase 07 (docs/phases/07-walk-grace.md).
