@@ -115,3 +115,14 @@ front unchanged (5.2-7.9cm).
 Seen in both A and B (not part of the A/B): on a straight steady walk the
 left hind touches down for one frame mid-swing and lifts again (frame 84,
 phase .88), about once in 3 strides: a small hitch.
+
+## Reference from Merlin (2026-10-24): animation walk-cycle tutorial
+8-drawing cat walk ("Animation Reference"): frames 1&5, 2&6, 3&7, 4&8 have
+left and right legs swapped; at least two paws on the floor at all times
+(Mochi already does both). What differs from Mochi (by eye, not measured):
+- Side on, the far legs sit almost behind the near ones: a narrow track.
+  Mochi's hind paws are set wide on purpose (6c56c04). Strongest strut lead.
+- Paws stay low; the front paw folds back at the wrist as it swings
+  rather than lifting high. Same direction as the hind-lift A/B.
+- Long, level back; head carried forward at about shoulder height.
+- Long reach: the front paw lands well forward, under the chin.
