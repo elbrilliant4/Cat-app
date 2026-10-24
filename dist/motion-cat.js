@@ -27,6 +27,8 @@ const PHASE = {LH: 0, LF: .25, RH: .5, RF: .75}; // four-beat walk
 // stride apart, so they don't hop together like a rabbit's), then the front
 // legs land one after the other half a stride later.
 const PHASE_RUN = {LH: 0, RH: .25, LF: .5, RF: .7};
+// (Preview A/B: ?hindlift=0.8 steps the hind paws 20% lower.)
+const HIND_LIFT = +(new URLSearchParams(globalThis.location?.search || '').get('hindlift') || 1);
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -232,7 +234,7 @@ export class MotionCat {
             const e = smoother(clamp((u - .05) / .9, 0, 1));
             pw.pos.copy(pw.swing.from).lerp(to, e);
             // (Every step clears the floor, even a short one.)
-            const H = (front ? .08 : .075) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + runW * .5);
+            const H = (front ? .08 : .075 * HIND_LIFT) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + runW * .5);
             pw.pos.y = rootPos.y + H * Math.pow(Math.sin(Math.PI * Math.pow(u, .8)), 1.3);
             pw.pitch = front ? -1.1 * Math.sin(Math.PI * clamp(u * 1.25, 0, 1)) * (1 - u) : -.7 * Math.sin(Math.PI * clamp(u * 1.3, 0, 1)) * (1 - u);
             sw[k] = Math.sin(Math.PI * u);

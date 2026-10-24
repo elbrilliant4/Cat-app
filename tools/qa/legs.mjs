@@ -1,10 +1,10 @@
 // Leg check: lets her roam (study, then kitchen, then strolls on the
 // shelves) and counts how often a planted leg is stretched past its reach
 // ("dragging") or a planted paw slides. Seeded, so runs are comparable.
-//   node tools/qa/legs.mjs            (SEC=120 per room, SEED=777)
+//   node tools/qa/legs.mjs            (SEC=120 per room, SEED=777, FLAGS='&hindlift=0.8')
 import {open} from './lib.mjs';
 const SEC = +(process.env.SEC || 120);
-const {page, step, close} = await open({seed: +(process.env.SEED || 777), quiet: false});
+const {page, step, close} = await open({seed: +(process.env.SEED || 777), quiet: false, flags: process.env.FLAGS || ''});
 await page.evaluate(() => {
   const m = kitten.cat.motion, u = m.update.bind(m), last = {}; window.R = {}; window.EV = [];
   m.update = (dt, t, ctl) => {

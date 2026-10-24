@@ -2,9 +2,9 @@
 // often it's stretched past its reach while she's running (looks dragged),
 // how much of the time each paw is up, and how often both hind paws are up
 // at once (a bunny hop, not a gallop).
-//   node tools/qa/gallop.mjs          (DASHES=12, SEED=777)
+//   node tools/qa/gallop.mjs          (DASHES=12, SEED=777, FLAGS)
 import {open} from './lib.mjs';
-const {page, step, close} = await open({seed: +(process.env.SEED || 777)});
+const {page, step, close} = await open({seed: +(process.env.SEED || 777), flags: process.env.FLAGS || ''});
 await page.evaluate(() => {
   const m = kitten.cat.motion, u = m.update.bind(m); window.R = {};
   m.update = (dt, t, ctl) => {
