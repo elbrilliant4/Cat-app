@@ -82,8 +82,10 @@ second, turning): the paw lands short mid-acceleration. Left as is.
 | 777 | 0.21% -> 0.17% | 3.5 -> 3.6cm |
 | 42 | 0.24% -> 0.10% | 6.9 -> 3.8cm |
 
-Clips (sent to Merlin, `qa-out/`): `walk-old-vs-now.mp4` (34d84a2 vs now,
-same walk), `gallop-old-vs-new.mp4`. Old build in the QA: its kitchen is
+Clips (sent to Merlin, `qa-out/`): `gallop-old-vs-new.mp4` (run fix), and
+the pack for Orion in `qa-out/pack/`: walk, run, turn, early rig (34d84a2)
+vs preview, same seed and path, with `for-orion.txt` (the question above
+plus what changed in the walk). Old build in the QA: its kitchen is
 made only on a visit, so its copy of `lib.mjs` must not wait for
 `kitten.kitchen`.
 
