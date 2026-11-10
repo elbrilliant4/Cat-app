@@ -1,31 +1,35 @@
 # Handoff — 2026-11-10
 
 ## State
-- Live: build 161 = `70ade23` (the walk and trot). Merlin: "much much better".
-- Preview branch, deployed:
-  - Phase 07: walk set to measured cat numbers (Merlin: "very nice"), is
-    the default; `?walk=old` = the old walk. A trot from 1.0; gallop only
-    at a dash / zoomies (2.6). Brief: parts 2 and 3.
+- Live: build 161 = `70ade23`: the cat walk (measured numbers, no
+  stutter-step), a trot for every run, gallop only at a dash or zoomies.
+  Merlin: "much much better than before".
+- Preview branch (`66395d2`), not live: Halloween stored away out of
+  October (`?decor=halloween` shows it; a room left in it wakes up as
+  Thanksgiving). Waiting on Merlin's "Go live".
 
-## Waiting on Merlin
-- His eye on the run (trot) in the preview: https://elbrilliant4.github.io/Cat-app/preview/
-  Then phase 02/03 ("Vision": through furniture).
-- The papers (PMC, PLOS, originalwisdom.com) are allowed in the Default
-  environment now: fetch with curl (WebFetch's resolver can't see them).
-
-## Next
-1. Remove the A/B flags once Merlin is happy with the run.
-2. Then phase 02 (vacuum/through furniture) and 03 (tail).
-Note: `legs.mjs` steps at 20 fps; the app runs at 60, so its "worst" on a
-fast change of speed is about 3x what the app shows.
+## Next (Merlin's order, 2026-11-10)
+1. Phase 02, Vision (`docs/phases/02-vacuum-vision.md`): she, the vacuum,
+   or her tail (phase 03) passing through furniture. Reproduce with
+   `tools/qa/vacuum.mjs` extended to every obstacle and her body points.
+2. Christmas decor: waiting on Orion's image (decor.js; different files
+   from Vision, can run as a second session).
+3. Miso, the second cat: waiting on Merlin's Meshy .glb.
+4. Phase 08 (app screens), 09 (small test group). Merlin wants a
+   commercial-quality app.
 
 ## Gotchas
-- Merlin judges in the real preview, not recordings: ship changes behind
-  a URL flag so A and B are both live links.
-- `ab-walk.mjs`: ~10 min per 2.5s clip; 2 browsers at a time max.
+- Merlin judges in the live preview, not recordings: ship an A/B behind a
+  URL flag so both are live links. Walk flags left in `motion-cat.js`
+  (`?walk=old`, `?gait=old`, `?low=0`, `?track=wide`, `?sway=1`,
+  `?hindlift=`, `?trot=0`); remove once nobody needs them.
+- QA: `gait-chart.mjs` (footfall chart, `RUN=2.1`), `legs.mjs` (steps at
+  20 fps: a "worst" on a fast change of speed is ~3x the app's), 2
+  browsers at a time; a leg run ~6 min, a clip ~10 min.
+- Papers: pmc.ncbi.nlm.nih.gov, journals.plos.org, www.originalwisdom.com
+  are allowed in the Default environment; fetch with curl (WebFetch's
+  resolver can't see them). Numbers are in the phase 07 brief.
 - `pkill -f`/`pgrep -f` match your own shell line: use exact names.
-- Old builds: `git worktree add <scratch>/old <sha>`, copy in `tools/qa/lib.mjs`
-  and `clip.mjs`; for 34d84a2 drop `&& kitten.kitchen` from lib's wait.
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then continue phase 07 (docs/phases/07-walk-grace.md).
+> Read CLAUDE.md and docs/HANDOFF.md, then do phase 02 (docs/phases/02-vacuum-vision.md).
