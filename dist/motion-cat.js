@@ -238,7 +238,9 @@ export class MotionCat {
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
           const rk = this.reach[k], lz = Math.max(.65 * LEASH_Z(speed) * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
-          const stretched = p > duty / 2 && (this.rig.legs[k].reachShort || 0) > -.01; // (behind her, about to go past straight)
+          // (Behind her, about to go past straight: within a centimetre, or a
+          // frame's travel, of it.)
+          const stretched = p > duty / 2 && (this.rig.legs[k].reachShort || 0) > -Math.max(.01, speed * dt);
           if (stretched || Math.hypot((lp.x - home.x) / (.65 * LEASH.x * rk * rk), (lp.z - home.z) / lz) > 1) pw.swing = near ? {gait: true, from: pw.pos.clone(), t0: t} : {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
         if (pw.swing?.gait) {

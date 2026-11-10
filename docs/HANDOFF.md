@@ -14,10 +14,10 @@
   environment now: fetch with curl (WebFetch's resolver can't see them).
 
 ## Next
-1. One 5.1cm left-hind stretch at speed .92 (seed 777), in the walk-to-trot
-   changeover (.95-1.3, gaits blend). Trace it (`lhtrace3.mjs` pattern).
-2. Remove the A/B flags once Merlin is happy with the run.
-3. Then phase 02 (vacuum/through furniture) and 03 (tail).
+1. Remove the A/B flags once Merlin is happy with the run.
+2. Then phase 02 (vacuum/through furniture) and 03 (tail).
+Note: `legs.mjs` steps at 20 fps; the app runs at 60, so its "worst" on a
+fast change of speed is about 3x what the app shows.
 
 ## Gotchas
 - Merlin judges in the real preview, not recordings: ship changes behind

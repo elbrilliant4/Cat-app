@@ -200,6 +200,15 @@ RF     # # # ## # # # # #. . . . .. . . . . ..
 No leg stretched at the trot (worst LH -2.8cm: slack). The head bob at
 the trot was 10cm with a .02 rad pelvis rock; .01 now.
 
+`legs.mjs` SEC=120, walk + play rows, with the trot (the catch-up trigger
+now anticipates a frame's travel: setting off, a paw placed for a slow
+stride ran out of leg before the trigger saw it):
+| seed | stretched >2cm | worst |
+|---|---|---|
+| 777 | 0.05% | 4.0cm (RH, at 1.36 in the trot, once) |
+| 42 | 0.00% | 1.6cm |
+`gallop.mjs` (a dash: trot, gallop at the top): no leg stretched.
+
 **Stutter-step (fixed, no flag: a bug).** Footfall chart, each row a paw,
 40 columns one stride, `#` down, `.` swing, `e` catch-up step:
 ```
