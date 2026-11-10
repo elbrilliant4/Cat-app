@@ -1,7 +1,7 @@
 # Handoff — 2026-11-10
 
 ## State
-- Live: build 137 = `631f8ab` (unchanged). Nothing new is live.
+- Live: build 161 = `70ade23` (the walk and trot). Merlin: "much much better".
 - Preview branch, deployed:
   - Phase 07: walk set to measured cat numbers (Merlin: "very nice"), is
     the default; `?walk=old` = the old walk. A trot from 1.0; gallop only
