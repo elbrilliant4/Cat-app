@@ -27,8 +27,15 @@ const PHASE = {LH: 0, LF: .25, RH: .5, RF: .75}; // four-beat walk
 // stride apart, so they don't hop together like a rabbit's), then the front
 // legs land one after the other half a stride later.
 const PHASE_RUN = {LH: 0, RH: .25, LF: .5, RF: .7};
-// (Preview A/B: ?hindlift=0.8 steps the hind paws 20% lower.)
-const HIND_LIFT = +(new URLSearchParams(globalThis.location?.search || '').get('hindlift') || 1);
+// Preview A/B flags (off by default): ?hindlift=0.8 steps the hind paws 20%
+// lower; ?stride=1.3 longer, slower walking steps; ?track=narrow puts the
+// hind paws in under the hips, like the front ones under the chest;
+// ?gait=long is stride 1.2 with each paw down less of the stride (hind .57,
+// front .62, as measured in walking cats); ?sway=0.5 halves the hip roll,
+// twist and side-sway of the walk.
+const AB = new URLSearchParams(globalThis.location?.search || '');
+const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = AB.get('track') === 'narrow', LONG = AB.get('gait') === 'long';
+const STRIDE_K = LONG ? 1.2 : +(AB.get('stride') || 1), SWAY = +(AB.get('sway') || 1);
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -96,7 +103,7 @@ export class MotionCat {
     const R = this.rig.restPos;
     this.home0 = {
       LF: new THREE.Vector3(R.shoulderL.x - .015, 0, S.frontZ - .07), RF: new THREE.Vector3(R.shoulderR.x + .015, 0, S.frontZ - .07),
-      LH: new THREE.Vector3(R.hipL.x + .05, 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - .055, 0, S.hindZ + .02),
+      LH: new THREE.Vector3(R.hipL.x + (NARROW ? -.03 : .05), 0, S.hindZ + .02), RH: new THREE.Vector3(R.hipR.x - (NARROW ? -.025 : .055), 0, S.hindZ + .02),
     };
     // Each leg's own reach (the sculpt's legs differ a little: her left hind
     // is the shortest), so a shorter leg steps a little sooner.
@@ -179,7 +186,7 @@ export class MotionCat {
     // hind paw can reach.)
     const runW = smoother(clamp((speed - 1.0) / .5, 0, 1));
     this.runW = runW;
-    const stride = lerp(clamp(.3 + .3 * gait, .36, .8), clamp(.2 + .2 * gait, .5, .62), runW); // metres-equivalent per cycle at her size
+    const stride = lerp(clamp(.3 + .3 * gait, .36, .8) * STRIDE_K, clamp(.2 + .2 * gait, .5, .62), runW); // metres-equivalent per cycle at her size
     const walkDuty = clamp(.64 - .1 * (gait - .62), .42, .66);
     if (walking) this.phase = (this.phase + gait * dt / stride) % 1;
     const cycle = stride / Math.max(gait, .05);
@@ -203,32 +210,49 @@ export class MotionCat {
         // walking step; left as it was, nothing here would finish it, and the
         // paw would stay down and be dragged until she stopped.)
         if (pw.swing && !pw.swing.gait) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
-        const duty = lerp(walkDuty, front ? .36 : .37, runW);
+        const duty = lerp(LONG ? Math.min(walkDuty, front ? .62 : .57) : walkDuty, front ? .36 : .37, runW);
         const p =((this.phase - lerp(PHASE[k], PHASE_RUN[k], runW)) % 1 + 1) % 1;
-        const inSwing = walking && p >= duty;
-        if (inSwing && !pw.swing) {
+        const inSwing = walking && p >= duty, near = walking && p >= duty - .12; // (its swing, or about to be)
+        if (!inSwing) pw.sat = false;
+        if (inSwing && !pw.swing && !pw.sat) {
           pw.swing = {gait: true, from: pw.pos.clone(), t0: t};
         }
         // A planted paw left too far behind (or beside) takes its step now,
         // a quick one, rather than being dragged until its turn comes.
+        // (When the leg has gone past straight, as the rig measured it last
+        // frame, or the paw is further off than a normal stance ever leaves
+        // it: half the stance travel behind home. Judged by the leash alone,
+        // a front paw tripped this at the end of every stance and
+        // stutter-stepped before its real swing. Tripped just before its own
+        // swing, that swing simply starts a little early.)
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
-          const rk = this.reach[k];
-          if (Math.hypot((lp.x - home.x) / (LEASH.x * rk), (lp.z - home.z) / (LEASH.z * rk)) > .65 * rk) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
+          const rk = this.reach[k], lz = Math.max(.65 * LEASH.z * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
+          const stretched = p > duty / 2 && (this.rig.legs[k].reachShort || 0) > -.01; // (behind her, about to go past straight)
+          if (stretched || Math.hypot((lp.x - home.x) / (.65 * LEASH.x * rk * rk), (lp.z - home.z) / lz) > 1) pw.swing = near ? {gait: true, from: pw.pos.clone(), t0: t} : {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
         if (pw.swing?.gait) {
           const early = pw.swing.early;
-          const u = early ? Math.min(1, (t - pw.swing.t0) / .18) : walking ? (p - duty) / (1 - duty) : Math.min(1, pw.swing.u + dt / .15);
-          if (early ? u >= 1 : !walking && u >= 1 || walking && !inSwing) {
-            // Down: where the leg will be upright mid-stance.
+          // (A swing started a little early moves from the moment it starts,
+          // not from when its turn would have come.)
+          const u = early ? Math.min(1, (t - pw.swing.t0) / .18) : walking ? Math.min(1, Math.max((p - duty) / (1 - duty), (t - pw.swing.t0) / ((1 - duty) * cycle))) : Math.min(1, pw.swing.u + dt / .15);
+          if (early ? u >= 1 : !walking && u >= 1 || walking && !near) {
+            // Down: where the leg will be upright mid-stance. (A quick step
+            // that lands late in its own swing window counts as that swing.)
             pw.pos.copy(pw.swing.to || pw.pos).setY(rootPos.y); pw.swing = null;
+            if (early && inSwing && (p - duty) / (1 - duty) > .6) pw.sat = true;
           } else {
             // (Galloping, a front paw lands a little nearer: reaching as far as
             // the walk's would take it past the end of her leg.)
             const ahead = (early ? (1 - u) * .2 + duty * cycle * .3 : (1 - u) * (1 - duty) * cycle + duty * cycle / 2) * (front ? 1 - .3 * runW : 1);
             const yaw = heading + this.yawRate * ahead;
             const local = home.clone().add(new THREE.Vector3(0, 0, front ? -.05 : 0));
-            const to = rootPos.clone().addScaledVector(this.vel, walking ? ahead : 0)
+            // (How far ahead it lands comes from the stride, not her speed of
+            // the moment: a stance always covers duty x stride, and placed by
+            // a speed she was still building up to, a paw landed short and
+            // ran out of leg before its next swing.)
+            const dist = early ? ahead * speed : ((1 - u) * (1 - duty) + duty / 2) * stride * (front ? 1 - .3 * runW : 1) * (speed / Math.max(gait, .05));
+            const to = rootPos.clone().addScaledVector(speed > .05 ? this.vel.clone().divideScalar(speed) : fwdW, walking ? dist : 0)
               .add(local.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)).setY(rootPos.y);
             pw.swing.to = to; pw.swing.u = u;
             const e = smoother(clamp((u - .05) / .9, 0, 1));
@@ -294,11 +318,11 @@ export class MotionCat {
     const rw = this.runW || 0, gph = Math.PI * 2 * this.phase;
     const pelY = c.y - .02 * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw) + rw * (.035 * Math.sin(gph - .6) - .01);
     const settled = c.y < this.h0 - .1; // resting on her body (sitting, lying)
-    const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww;
+    const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww * SWAY;
     // (Reach: a lean forward and a dip of the front, so her mouth finds the food.)
     const reach = ctl.reach || {z: 0, dip: 0};
-    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
-      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph), roll: c.roll + .045 * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw)};
+    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
+      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw)};
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }

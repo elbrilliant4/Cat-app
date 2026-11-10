@@ -126,3 +126,43 @@ left and right legs swapped; at least two paws on the floor at all times
   rather than lifting high. Same direction as the hind-lift A/B.
 - Long, level back; head carried forward at about shoulder height.
 - Long reach: the front paw lands well forward, under the chin.
+
+## Part 2 (2026-11-10): measured against real cats
+Numbers for real cats come from web-search summaries of the studies (the
+container can't open PMC/PLOS; Merlin declined allowing them), so they're
+second-hand. Mochi's numbers: `gait-chart.mjs` (scratch), straight walk at
+the app's walking speed .65, seed 777. Her model is about 2x a real cat
+(body .88, hips .54 high), so real-cat lengths are doubled to compare.
+
+| | real cat, walking | Mochi before | after |
+|---|---|---|---|
+| footfall order | lateral sequence: LH, LF, RH, RF; fore lands ~1/4 stride after same-side hind | same order, but each front paw stutter-stepped before its swing (chart below) | clean, LF lands .25 after LH, RF .25 after RH |
+| paw down (duty) | hind .54-.60, fore .63-.64 (0.54-0.76 m/s) | hind .64-.66, fore .59-.61 | same (flag `gait=long`: hind .57, fore .62) |
+| strides/s | 1.25-1.75 at a walk; speed grows by both cadence and stride | 1.4-1.5 | same (flag `gait=long`: 1.17) |
+| stride | ~.45-.5 m at .65 m/s (about 1 body length) | .43-.50 = .5 body length | same (flag `gait=long`: x1.2) |
+| head bob | ~1.5 cm peak to peak | 1.0 cm (= .5 real) | same |
+| head side sway | ~1 cm (= 2 cm at her scale) | +-3 cm (6 cm peak to peak) | same (flag `sway=0.5`) |
+| track | hind paws land about on the fore prints (direct register) | hind track 38 cm, front 21 cm | same (flag `track=narrow`: hind 22 cm) |
+| trot / gallop | trot ~2 m/s, gallop ~3.5 m/s real; transition mostly trot -> gallop | gallop from 1.0 (= .5 real): she gallops at a trotting speed | same (later) |
+
+**Stutter-step (fixed, no flag: a bug).** Footfall chart, each row a paw,
+40 columns one stride, `#` down, `.` swing, `e` catch-up step:
+```
+before                                      after
+LH  ##########################..............  #########################...............
+LF  ee#.......######################eeeeeeee  ..........#########################.....
+RH  #####+..............####################  #####+..............####################
+RF  ############eeeeeeeee#........##########  ###############...............##########
+```
+Both front paws took the catch-up step (from the leg-drag fix) at the end
+of every stance, touched down for a frame and lifted again for the real
+swing. Cause: the trigger was a fixed fraction of the leash, and a normal
+front stance (half the stance travel + the front's 5 cm landing offset)
+goes past it. Now: the step is taken when the leg is about to go past
+straight (the rig's per-leg reach, 1 cm before) or the paw is clearly
+further off than a normal stance leaves it; tripped just before the paw's
+own swing, that swing starts a hair early instead (and moves at once);
+a catch-up step that lands late in its swing window counts as the swing.
+Also: where a swinging paw lands now comes from the stride (a stance
+always covers duty x stride), not from her speed of the moment, which
+landed paws short while she was still speeding up out of a turn.
