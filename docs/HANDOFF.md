@@ -1,12 +1,13 @@
 # Handoff — 2026-11-10
 
 ## State
-- Live: build 161 = `70ade23`: the cat walk (measured numbers, no
-  stutter-step), a trot for every run, gallop only at a dash or zoomies.
-  Merlin: "much much better than before".
-- Preview branch (`66395d2`), not live: Halloween stored away out of
-  October (`?decor=halloween` shows it; a room left in it wakes up as
-  Thanksgiving). Waiting on Merlin's "Go live".
+- Live: build 174 = `97f11c8`: the cat walk (measured numbers, no
+  stutter-step), a trot for every run, gallop only at a dash or zoomies
+  (Merlin: "much much better than before"), and Halloween stored away out
+  of October (`?decor=halloween` shows it; a room left in it wakes up as
+  Thanksgiving). Preview = live; nothing waiting.
+- Build numbers = commits on the branch (pages.yml); count them in a full
+  clone (`git fetch --unshallow`), a shallow one undercounts.
 
 ## Next (Merlin's order, 2026-11-10)
 1. Phase 02, Vision (`docs/phases/02-vacuum-vision.md`): she, the vacuum,

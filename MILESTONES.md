@@ -12,7 +12,8 @@ brings that version's app back.
 | Live build 108 | `a82c556` | The kitchen, as Lettuce first enjoyed it. |
 | Live build 136 | `670a3b9` | The new rig and movement (gallop, real steps), the study and kitchen joined by a doorway, night with a sun/moon button and a night-owl cat, kitchen Halloween and Thanksgiving, the lamp ride, Orion's cushions. (`?motion=classic` still brings back the old movement.) |
 | Live build 137 | `631f8ab` | Mouth reaches the food and water (sits in the sink to lap the faucet), monarch butterflies at the windows, vacuum steers round the island and stools, steadier legs on turns and shelves, gathered tent flaps. |
-| Live build 161 | `70ade23` | Walks like a cat (set to measured cat numbers: longer slower steps, lower, narrow track, no stutter-step), a trot for every run, gallop only at a dash or zoomies, hind legs no longer hop together. |
+| Live build 171 | `70ade23` | Walks like a cat (set to measured cat numbers: longer slower steps, lower, narrow track, no stutter-step), a trot for every run, gallop only at a dash or zoomies, hind legs no longer hop together. |
+| Live build 174 | `97f11c8` | Halloween stored away out of October (a room left in it wakes up as Thanksgiving). |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
