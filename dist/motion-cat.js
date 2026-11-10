@@ -23,23 +23,26 @@ const {clamp, smoothstep, lerp, damp} = THREE.MathUtils;
 const smoother = k => (k = clamp(k, 0, 1), k * k * k * (k * (k * 6 - 15) + 10));
 const PAWS = Object.keys(LEGS);
 const PHASE = {LH: 0, LF: .25, RH: .5, RF: .75}; // four-beat walk
-// Running, a gallop: the hind legs push off one after the other (a quarter
-// stride apart, so they don't hop together like a rabbit's), then the front
-// legs land one after the other half a stride later.
+// Trotting (from about 1.0, where a real cat leaves its walk): diagonal
+// pairs move together, left hind with right front. (RF is 1, not 0, so the
+// blends from the walk's .75 and to the gallop's .7 go the short way round.)
+const PHASE_TROT = {LH: 0, RF: 1, RH: .5, LF: .5};
+// Flat out (from 2.2), a gallop: the hind legs push off one after the other
+// (a quarter stride apart, so they don't hop together like a rabbit's), then
+// the front legs land one after the other half a stride later.
 const PHASE_RUN = {LH: 0, RH: .25, LF: .5, RF: .7};
-// Preview A/B flags (off by default): ?hindlift=0.8 steps the hind paws 20%
-// lower; ?stride=1.3 longer, slower walking steps; ?track=narrow puts the
-// hind paws in under the hips, like the front ones under the chest;
-// ?gait=long is stride 1.2 with each paw down less of the stride (hind .57,
-// front .62, as measured in walking cats); ?sway=0.5 halves the hip roll,
-// twist and side-sway of the walk.
-// ?walk=cat is all of them together (gait=long, sway=0.5, track=narrow, low=0.05).
-const AB = new URLSearchParams(globalThis.location?.search || ''), CAT = AB.get('walk') === 'cat';
-const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = CAT || AB.get('track') === 'narrow', LONG = CAT || AB.get('gait') === 'long';
-const STRIDE_K = LONG ? 1.2 : +(AB.get('stride') || 1), SWAY = +(AB.get('sway') || (CAT ? .5 : 1));
-// ?low=0.05 carries her that much lower while walking (legs more bent, as a
-// real cat's: hips at ~77% of leg length at mid-stance, hers near straight).
-const CARRY_LOW = +(AB.get('low') || (CAT ? .05 : 0));
+// The walk is set to numbers measured in walking cats (Day & Jayne 2007 and
+// others; docs/phases/07-walk-grace.md): stride 1.2x the old one, hind paws
+// down less of the stride than the front (.57 / .62), carried 5 cm lower
+// (legs bent: hips at ~77% of leg length at mid-stance), hind paws in under
+// the hips like the front ones under the chest, half the old hip sway.
+// Preview flags: ?walk=old is the old walk (all four off); each part on its
+// own: ?gait=old, ?low=0, ?track=wide, ?sway=1. ?hindlift=0.8 steps the hind
+// paws 20% lower.
+const AB = new URLSearchParams(globalThis.location?.search || ''), OLD = AB.get('walk') === 'old';
+const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = !OLD && AB.get('track') !== 'wide', LONG = !OLD && AB.get('gait') !== 'old';
+const STRIDE_K = LONG ? 1.2 : 1, SWAY = +(AB.get('sway') || (OLD ? 1 : .5));
+const CARRY_LOW = +(AB.get('low') || (OLD ? 0 : .05));
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -188,12 +191,12 @@ export class MotionCat {
     this.walkW = damp(this.walkW, walking && speed > .05 ? 1 : 0, walking ? 6 : 4, dt);
     // (Short enough that a planted paw stays within its leg's reach for the
     // whole of its stance: quicker steps, not longer ones, as she speeds up.)
-    // Fast, she gallops: quick bounds, each paw down for a shorter time.
-    // (Quick, not long: a long bound carries her hips past where a planted
-    // hind paw can reach.)
-    const runW = smoother(clamp((speed - 1.0) / .5, 0, 1));
-    this.runW = runW;
-    const stride = lerp(clamp(.3 + .3 * gait, .36, .8) * STRIDE_K, clamp(.2 + .2 * gait, .5, .62), runW); // metres-equivalent per cycle at her size
+    // From 1.0 she trots; flat out (a dash, zoomies) she gallops: quick
+    // bounds, each paw down for a shorter time. (Quick, not long: a long
+    // bound carries her hips past where a planted hind paw can reach.)
+    const trotW = AB.get('trot') === '0' ? 0 : smoother(clamp((speed - .95) / .35, 0, 1)), runW = smoother(clamp((speed - 2.2) / .3, 0, 1));
+    this.trotW = trotW; this.runW = runW;
+    const stride = lerp(lerp(clamp(.3 + .3 * gait, .36, .8) * STRIDE_K, clamp(.35 + .2 * gait, .6, .78), trotW), clamp(.2 + .2 * gait, .5, .62), runW); // metres-equivalent per cycle at her size
     const walkDuty = clamp(.64 - .1 * (gait - .62), .42, .66);
     if (walking) this.phase = (this.phase + gait * dt / stride) % 1;
     const cycle = stride / Math.max(gait, .05);
@@ -217,8 +220,8 @@ export class MotionCat {
         // walking step; left as it was, nothing here would finish it, and the
         // paw would stay down and be dragged until she stopped.)
         if (pw.swing && !pw.swing.gait) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
-        const duty = lerp(LONG ? Math.min(walkDuty, front ? .62 : .57) : walkDuty, front ? .36 : .37, runW);
-        const p =((this.phase - lerp(PHASE[k], PHASE_RUN[k], runW)) % 1 + 1) % 1;
+        const duty = lerp(lerp(LONG ? Math.min(walkDuty, front ? .62 : .57) : walkDuty, .45, trotW), front ? .36 : .37, runW);
+        const p =((this.phase - lerp(lerp(PHASE[k], PHASE_TROT[k], trotW), PHASE_RUN[k], runW)) % 1 + 1) % 1;
         const inSwing = walking && p >= duty, near = walking && p >= duty - .12; // (its swing, or about to be)
         if (!inSwing) pw.sat = false;
         if (inSwing && !pw.swing && !pw.sat) {
@@ -265,7 +268,7 @@ export class MotionCat {
             const e = smoother(clamp((u - .05) / .9, 0, 1));
             pw.pos.copy(pw.swing.from).lerp(to, e);
             // (Every step clears the floor, even a short one.)
-            const H = (front ? .08 : .075 * HIND_LIFT) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + runW * .5);
+            const H = (front ? .08 : .075 * HIND_LIFT) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + trotW * .25 + runW * .25);
             pw.pos.y = rootPos.y + H * Math.pow(Math.sin(Math.PI * Math.pow(u, .8)), 1.3);
             pw.pitch = front ? -1.1 * Math.sin(Math.PI * clamp(u * 1.25, 0, 1)) * (1 - u) : -.7 * Math.sin(Math.PI * clamp(u * 1.3, 0, 1)) * (1 - u);
             sw[k] = Math.sin(Math.PI * u);
@@ -322,14 +325,16 @@ export class MotionCat {
     // Carried a touch lower while walking, dipping as each hind leg swings.
     // Galloping, she bounds: up off the hind legs, the back flexing as the
     // legs gather under her and stretching out as they reach.
-    const rw = this.runW || 0, gph = Math.PI * 2 * this.phase;
-    const pelY = c.y - (.02 + CARRY_LOW) * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw) + rw * (.035 * Math.sin(gph - .6) - .01);
+    // Trotting, a light bounce with each diagonal pair (twice a stride) and
+    // no hip roll or sway.
+    const rw = this.runW || 0, tw = (this.trotW || 0) * (1 - rw), gph = Math.PI * 2 * this.phase;
+    const pelY = c.y - (.02 + CARRY_LOW) * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw - tw) + tw * .012 * Math.sin(2 * gph - .8) + rw * (.035 * Math.sin(gph - .6) - .01);
     const settled = c.y < this.h0 - .1; // resting on her body (sitting, lying)
-    const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww * SWAY;
+    const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww * SWAY * (1 - tw);
     // (Reach: a lean forward and a dip of the front, so her mouth finds the food.)
     const reach = ctl.reach || {z: 0, dip: 0};
-    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
-      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw)};
+    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * SWAY * (1 - tw) * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
+      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph) + tw * .01 * Math.sin(2 * gph - .8), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw - tw)};
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }

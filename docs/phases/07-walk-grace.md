@@ -174,7 +174,31 @@ longer stance from dragging planted paws (slide 54 -> 17 cm over seed 777).
 | 42 | 0.10% -> 0.00% | 3.5 -> 1.9cm | 0+0+25+22 -> 10+5+1+10cm |
 `gallop.mjs` with the flag: no leg stretched at all (default: LF 1.5, LH 1.7cm).
 
-**Waiting on Merlin:** A = preview as is, B = preview `?walk=cat`.
+Merlin (2026-11-10): "Walking is very nice!" B is the default now
+(`?walk=old` brings the old walk back for comparison). What he still saw,
+on A and B: "Mochi gallops on running constantly" and, running, "drags
+hind legs a short bit".
+
+## Part 3: a trot (2026-11-10)
+Real cats walk to about 1 m/s, trot above that, and gallop only flat out
+(Bishop 2008: walk-trot at ~1 m/s; trot-gallop at ~2-2.5 m/s in the cat
+treadmill studies). Mochi went from her walk straight into a gallop at
+1.0, so every run (toy chase, dog at the door, going places at 2.1) was a
+gallop. Now: trot from 1.0 (`PHASE_TROT`: diagonal pairs, LH with RF, duty
+.45, stride .6-.78, a light bounce twice a stride, no hip roll), gallop
+from 2.2. Only a dash and the night zoomies run at 2.6 (`app.js`), so
+those gallop; everything else trots.
+
+`gait-chart.mjs RUN=2.1` (a run), steady strides:
+```
+speed 2.10 (trot 1.00 gallop 0.00)  2.65 strides/s  hips bob 2.4cm  head bob 6.3cm
+LH     # # # ## # # # # #. . . . .. . . . . ..
+LF     . . . .. . . . . .. # # # ## # # # # #.
+RH     . . . .. . . . . .. # # # ## # # # # #.
+RF     # # # ## # # # # #. . . . .. . . . . ..
+```
+No leg stretched at the trot (worst LH -2.8cm: slack). The head bob at
+the trot was 10cm with a .02 rad pelvis rock; .01 now.
 
 **Stutter-step (fixed, no flag: a bug).** Footfall chart, each row a paw,
 40 columns one stride, `#` down, `.` swing, `e` catch-up step:

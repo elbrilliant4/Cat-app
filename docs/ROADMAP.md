@@ -11,7 +11,7 @@ One phase per session (see `WORKFLOW.md`). Briefs are in `docs/phases/`.
 | 04 | Miso, the second cat | blocked | Waiting for Merlin's Meshy .glb (blue British Shorthair kitten). Then: the cats play together; later, adopt more cats by levelling up. |
 | 05 | Dog visit at the French doors | blocked | Code ready behind `?dog`; needs a proper (Meshy) dog model. |
 | 06 | Christmas tree mischief | todo (December) | Mochi climbs and bats at the tree. |
-| 07 | [Walk like a cat again](phases/07-walk-grace.md) | preview | Run fixed (hind legs no longer hop together). Walk: front-paw stutter-step every stride fixed; `?walk=cat` on the preview = the walk set to measured cat numbers (longer slower steps, hind paws down less than front, lower, narrower, half the sway). Waiting on Merlin: A (default) vs B (`?walk=cat`). |
+| 07 | [Walk like a cat again](phases/07-walk-grace.md) | preview | Walk: stutter-step fixed, set to measured cat numbers (Merlin: "very nice"). Run: a trot from 1.0, gallop only at a dash/zoomies (2.6). Waiting on Merlin's eye for the run. |
 | 08 | Friendly app screens | todo | Merlin wants it "real app ready": an easy, clear interface. Needs a brief with Merlin/Orion first. |
 | 09 | Small test group | todo | Share with 10-20 people (different phones) with a way to send feedback, before the 1000-member group. |
 

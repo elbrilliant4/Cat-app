@@ -3,22 +3,20 @@
 ## State
 - Live: build 137 = `631f8ab` (unchanged). Nothing new is live.
 - Preview branch, deployed:
-  - Phase 07: run fix; front-paw stutter-step fixed (default build).
-  - A/B, off by default: `?walk=cat` = walk set to measured cat numbers.
-    A: https://elbrilliant4.github.io/Cat-app/preview/
-    B: https://elbrilliant4.github.io/Cat-app/preview/?walk=cat
-    Numbers and sources: phase 07 brief, "Part 2".
+  - Phase 07: walk set to measured cat numbers (Merlin: "very nice"), is
+    the default; `?walk=old` = the old walk. A trot from 1.0; gallop only
+    at a dash / zoomies (2.6). Brief: parts 2 and 3.
 
 ## Waiting on Merlin
-- A (default) vs B (`?walk=cat`) in the live preview. Merlin wants the walk
-  first, then phase 02/03 ("Vision": through furniture).
+- His eye on the run (trot) in the preview: https://elbrilliant4.github.io/Cat-app/preview/
+  Then phase 02/03 ("Vision": through furniture).
 - The papers (PMC, PLOS, originalwisdom.com) are allowed in the Default
   environment now: fetch with curl (WebFetch's resolver can't see them).
 
 ## Next
-1. Merlin's pick: B as the default (then remove the flags), or parts of it.
-2. The run: she gallops from 1.0 (real cats trot at ~1 m/s, gallop faster);
-   a trot gait between walk and gallop. `gait-chart.mjs RUN=1`.
+1. One 5.1cm left-hind stretch at speed .92 (seed 777), in the walk-to-trot
+   changeover (.95-1.3, gaits blend). Trace it (`lhtrace3.mjs` pattern).
+2. Remove the A/B flags once Merlin is happy with the run.
 3. Then phase 02 (vacuum/through furniture) and 03 (tail).
 
 ## Gotchas

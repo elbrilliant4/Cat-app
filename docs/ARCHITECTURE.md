@@ -11,7 +11,7 @@ preview branch.
 | File | Job |
 |---|---|
 | `app.js` | The brain: state (`brain`, `pet`), behaviours, walking and jumping, camera, night, rooms, debug hooks. Big file; search by function name. |
-| `motion-cat.js` | `MotionCat`: poses (`POSES`), walk and gallop gaits, foot placement and stepping, eating reach. |
+| `motion-cat.js` | `MotionCat`: poses (`POSES`), walk (to 1.0), trot (1.0-2.2) and gallop gaits, foot placement and stepping, eating reach. Walk numbers from real cats: `docs/phases/07-walk-grace.md`. |
 | `motion.js` | `MotionRig`: IK legs (`solveLeg`, `reachShort` = how far a leg is short of its paw), spine, head and neck, tail (`drapeTail`, bed bounds), floor contact. |
 | `cat-rig.js` | Builds the skeleton and skin weights from the Meshy model at load. |
 | `real-cat.js` | Fur, eyes, face, ears, jaw; also the classic movement (`?motion=classic`). |

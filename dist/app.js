@@ -756,6 +756,7 @@ function updateCat(dt, t) {
     const dx = brain.target.x - brain.pos.x, dz = brain.target.z - brain.pos.z, dist = Math.hypot(dx, dz);
     desiredHeading = Math.atan2(dx, dz);
     const facing = Math.abs(Math.atan2(Math.sin(desiredHeading - brain.heading), Math.cos(desiredHeading - brain.heading)));
+    // (Running: a trot. A dash or zoomies, 2.6, is flat out: a gallop.)
     const top = typeof brain.run === 'number' ? brain.run : brain.run ? 2.1 : .65;
     brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * 2.5 + .2) : .15, 5, dt);
     if (dist < .06) {
@@ -1223,7 +1224,7 @@ function dash() {
   let to = randomRugPoint();
   for (let i = 0; i < 6 && to.distanceTo(brain.pos) < 2.2; i++) to = randomRugPoint();
   express('excited', 2);
-  walkTo(to, () => { hop(); setActivity('pause', .8, () => { glanceAt(new THREE.Vector3(rand(-3, 3), rand(.3, 2), rand(-2, 2)), 1.5); setActivity('sit', rand(2, 4)); }); }, true);
+  walkTo(to, () => { hop(); setActivity('pause', .8, () => { glanceAt(new THREE.Vector3(rand(-3, 3), rand(.3, 2), rand(-2, 2)), 1.5); setActivity('sit', rand(2, 4)); }); }, 2.6);
 }
 // Night zoomies: tearing about from one end of the room to the other, a
 // skid and a hop at each turn, sometimes ending with a leap up somewhere.
@@ -1234,11 +1235,11 @@ function nightZoomies() {
   const ups = (place === room ? ['chair', 'sill'] : ['step', 'counter']).filter(n => PERCHES[n]);
   const leg = () => {
     hop();
-    if (--legs > 0) { walkTo(randomRugPoint(), leg, true); return; }
+    if (--legs > 0) { walkTo(randomRugPoint(), leg, 2.6); return; }
     if (ups.length && Math.random() < .4) jumpTo(pick(ups), () => setActivity('sit'), rand(8, 15));
     else setActivity('pause', 1, () => { glanceAt(camera.position, 1.5); setActivity('sit'); });
   };
-  walkTo(randomRugPoint(), leg, true);
+  walkTo(randomRugPoint(), leg, 2.6);
 }
 // A shadow, a flicker, a speck only she can see: ears forward, the stalk,
 // the wiggle, the pounce, the swat; then a look round as if nothing happened.
