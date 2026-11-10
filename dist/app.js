@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {fresh, advance, care, mood} from './pet-state.js';
-import {DECORS, applyDecor, applyKitchenDecor} from './decor.js';
+import {DECORS, applyDecor, inSeason, decorNow, applyKitchenDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {MotionCat} from './motion-cat.js';
@@ -322,6 +322,9 @@ const room = new Room(scene, renderer, {mobile: matchMedia('(pointer: coarse)').
 room.id = 'study';
 const {bowl, kibbles, fountain} = room;
 let bed = room.bed;
+// (A seasonal look is stored away out of season: ?decor=halloween shows one anyway.)
+const DECOR_FORCE = new URLSearchParams(location.search).get('decor');
+if (pet.decor !== decorNow(pet.decor, DECOR_FORCE)) { pet.decor = decorNow(pet.decor, DECOR_FORCE); save(); }
 applyDecor(room, pet.decor);
 // The study's lamp light belongs to the scene, so it can hang over whichever
 // room she's in (the number of lights never changes, so nothing recompiles).
@@ -2460,7 +2463,7 @@ $('#place-options').addEventListener('click', e => {
 });
 
 function renderDecor() {
-  $('#decor-options').innerHTML = Object.entries(DECORS).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
+  $('#decor-options').innerHTML = Object.entries(DECORS).filter(([id]) => inSeason(id, DECOR_FORCE)).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
 }
 $('#decor-btn').onclick = () => { renderPlaces(); renderDecor(); $('#decor-dialog').showModal(); };
 // Day or night by hand (until the clock next turns dusk or dawn).

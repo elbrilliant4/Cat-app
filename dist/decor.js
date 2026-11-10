@@ -16,8 +16,23 @@ import {rng, canvasTexture, drawLinen, drawNoise, roundedBox, lathe, drawHampton
 export const DECORS = {
   classic: {name: 'Classic', note: 'Plaid, leather and greenery'},
   thanksgiving: {name: 'Thanksgiving at the Beach House', note: 'Oatmeal, sage and candlelight'},
-  halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat'},
+  // (Seasonal looks are stored away out of season: `months` says when
+  // they're offered, `then` what a room dressed in one changes to.)
+  halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat', months: [10], then: 'thanksgiving'},
 };
+// A look that's offered now (`force`: a decor named in the page's address,
+// to look at one out of season).
+export function inSeason(name, force = null, date = new Date()) {
+  const d = DECORS[name];
+  return !!d && (name === force || !d.months || d.months.includes(date.getMonth() + 1));
+}
+// The look a room dressed in `name` wears now: the same one in season,
+// otherwise what it's stored away for.
+export function decorNow(name, force = null, date = new Date()) {
+  let n = DECORS[name] ? name : 'classic';
+  for (let i = 0; i < 4 && !inSeason(n, force, date); i++) n = DECORS[n].then || 'classic';
+  return n;
+}
 
 export function applyDecor(room, name) {
   if (!DECORS[name]) name = 'classic';
