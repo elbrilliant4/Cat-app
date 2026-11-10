@@ -80,8 +80,9 @@ const CH = Object.keys(BASE);
 // How far a planted paw may be from where it belongs, forward or back and to
 // the side, before its leg runs out of reach (in her own frame).
 const LEASH = {x: .14, z: .26};
-// (Carried lower, her legs have more reach fore and aft.)
-const LEASH_Z = () => LEASH.z * (1 + CARRY_LOW * 3);
+// (Carried lower, her legs have more reach fore and aft: on the move, not
+// turning on the spot, where a paw out wide ran out of leg.)
+const LEASH_Z = speed => LEASH.z * (1 + CARRY_LOW * 3 * clamp(speed / .3, 0, 1));
 // How long each part takes when the pose changes, and how long it waits
 // (going down to sit/lie: hips first, chest after; getting up: chest first).
 const PART = c => /^(y|z|x|pitch|roll|yaw)$/.test(c) ? 'pelvis' : /^(spine|chest)/.test(c) ? 'chest' : c === 'scap' ? 'scap' : /^(fd|lh|rh|hock|wrist)/.test(c) ? 'paws' : /^head/.test(c) ? 'head' : 'tail';
@@ -233,7 +234,7 @@ export class MotionCat {
         // swing, that swing simply starts a little early.)
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
-          const rk = this.reach[k], lz = Math.max(.65 * LEASH_Z() * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
+          const rk = this.reach[k], lz = Math.max(.65 * LEASH_Z(speed) * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
           const stretched = p > duty / 2 && (this.rig.legs[k].reachShort || 0) > -.01; // (behind her, about to go past straight)
           if (stretched || Math.hypot((lp.x - home.x) / (.65 * LEASH.x * rk * rk), (lp.z - home.z) / lz) > 1) pw.swing = near ? {gait: true, from: pw.pos.clone(), t0: t} : {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
@@ -306,7 +307,7 @@ export class MotionCat {
       const pw = this.paws[k];
       if (pw.free) continue;
       const home = this.homeLocal(k), loc = root.worldToLocal(pw.pos.clone());
-      const rk = this.reach[k], dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / (LEASH.x * rk), dz / (LEASH_Z() * rk));
+      const rk = this.reach[k], dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / (LEASH.x * rk), dz / (LEASH_Z(speed) * rk));
       if (e <= 1) continue;
       loc.x = home.x + dx / e; loc.z = home.z + dz / e;
       const y = pw.pos.y;

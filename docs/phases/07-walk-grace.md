@@ -162,7 +162,19 @@ lengths are compared as a share of leg length.
 
 `?walk=cat` = `gait=long` + `sway=0.5` + `track=narrow` + `low=0.05`, each
 also a flag of its own. Footfall chart with it: clean, hind swings start at
-.57 of the stance (LH `###################.....`), front at .62.
+.57 of the stance (LH `###################.....`), front at .62. Carried
+lower, the reach leash is 15% longer on the move (not turning on the spot:
+a paw out wide then ran out of leg, 8 cm on a shelf), which stopped the
+longer stance from dragging planted paws (slide 54 -> 17 cm over seed 777).
+
+`legs.mjs` SEC=120, walk + play rows, default -> `?walk=cat`:
+| seed | stretched >2cm | worst | paw slide, floor walk (4 legs) |
+|---|---|---|---|
+| 777 | 0.17% -> 0.05% | 3.4 -> 3.4cm | 8+0+14+10 -> 17+18+18+11cm |
+| 42 | 0.10% -> 0.00% | 3.5 -> 1.9cm | 0+0+25+22 -> 10+5+1+10cm |
+`gallop.mjs` with the flag: no leg stretched at all (default: LF 1.5, LH 1.7cm).
+
+**Waiting on Merlin:** A = preview as is, B = preview `?walk=cat`.
 
 **Stutter-step (fixed, no flag: a bug).** Footfall chart, each row a paw,
 40 columns one stride, `#` down, `.` swing, `e` catch-up step:

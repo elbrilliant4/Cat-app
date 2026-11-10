@@ -1,27 +1,25 @@
-# Handoff — 2026-10-24 (weekend pause)
+# Handoff — 2026-11-10
 
 ## State
 - Live: build 137 = `631f8ab` (unchanged). Nothing new is live.
-- Preview branch (`99bc1dd`), deployed:
-  - Phase 07 part 1: run fix (hind legs no longer hop together). Waiting on Merlin.
-  - A/B, off by default: `?hindlift=0.8` = hind paws lift 20% lower.
+- Preview branch, deployed:
+  - Phase 07: run fix; front-paw stutter-step fixed (default build).
+  - A/B, off by default: `?walk=cat` = walk set to measured cat numbers.
     A: https://elbrilliant4.github.io/Cat-app/preview/
-    B: https://elbrilliant4.github.io/Cat-app/preview/?hindlift=0.8
-    Numbers: no regression (phase 07 brief, "A/B" section).
+    B: https://elbrilliant4.github.io/Cat-app/preview/?walk=cat
+    Numbers and sources: phase 07 brief, "Part 2".
 
 ## Waiting on Merlin
-- Judge A vs B in the live preview (recordings were too big / hard to judge).
-- He has a real-cat walking video (YouTube, qHexBb35ens). YouTube is blocked
-  in the container; he may describe it or allow www.youtube.com.
-- Orion's notes on the clip pack (`qa-out/pack/`, not in git).
+- A (default) vs B (`?walk=cat`) in the live preview. Merlin wants the walk
+  first, then phase 02/03 ("Vision": through furniture).
+- The papers (PMC, PLOS, originalwisdom.com) are allowed in the Default
+  environment now: fetch with curl (WebFetch's resolver can't see them).
 
 ## Next
-1. Merlin's pick on B: keep (make it the default, remove the flag) or drop.
-2. One change at a time, each as a preview flag + `ab-walk.mjs` A/B:
-   stance width (hind paws in under the hips), cadence, hip roll.
-3. Small hitch seen in A and B: on a steady straight walk the left hind
-   touches down for one frame mid-swing (phase ~.88, ~1 in 3 strides).
-   Likely the "catch-up" step (leash trigger) firing during a normal swing.
+1. Merlin's pick: B as the default (then remove the flags), or parts of it.
+2. The run: she gallops from 1.0 (real cats trot at ~1 m/s, gallop faster);
+   a trot gait between walk and gallop. `gait-chart.mjs RUN=1`.
+3. Then phase 02 (vacuum/through furniture) and 03 (tail).
 
 ## Gotchas
 - Merlin judges in the real preview, not recordings: ship changes behind
