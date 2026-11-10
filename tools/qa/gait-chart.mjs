@@ -7,7 +7,7 @@ const {page, step, close} = await open({seed: +(process.env.SEED || 777), flags:
 console.log(await page.evaluate(() => {
   const m = kitten.cat.motion, R = m.rig.restPos, S = m.S, r = kitten.cat.root;
   const d = (a, b) => R[a].distanceTo(R[b]);
-  return `root scale ${r.scale.x.toFixed(3)}  hips y ${S.hips.y.toFixed(3)}  hipL-hipR ${(R.hipL.x - R.hipR.x).toFixed(3)}  shoulderL-R ${(R.shoulderL.x - R.shoulderR.x).toFixed(3)}  frontZ ${S.frontZ.toFixed(3)} hindZ ${S.hindZ.toFixed(3)} (body length ${(S.frontZ - S.hindZ).toFixed(3)})  home0: ${Object.entries(m.home0).map(([k, v]) => k + ' x' + v.x.toFixed(3) + ' z' + v.z.toFixed(3)).join(', ')}  legs: ${Object.entries(m.rig.legs).map(([k, L]) => k + ' ' + (L.la + L.lb).toFixed(3)).join(' ')}`;
+  return `root scale ${r.scale.x.toFixed(3)}  hips y ${S.hips.y.toFixed(3)} hip joint y ${R.hipL.y.toFixed(3)} shoulder joint y ${R.shoulderL.y.toFixed(3)}  hipL-hipR ${(R.hipL.x - R.hipR.x).toFixed(3)}  shoulderL-R ${(R.shoulderL.x - R.shoulderR.x).toFixed(3)}  frontZ ${S.frontZ.toFixed(3)} hindZ ${S.hindZ.toFixed(3)} (body length ${(S.frontZ - S.hindZ).toFixed(3)})  home0: ${Object.entries(m.home0).map(([k, v]) => k + ' x' + v.x.toFixed(3) + ' z' + v.z.toFixed(3)).join(', ')}  legs: ${Object.entries(m.rig.legs).map(([k, L]) => k + ' ' + (L.la + L.lb).toFixed(3)).join(' ')}`;
 }));
 await page.evaluate(run => {
   const B = kitten.brain, V = kitten.cat.root.position.constructor;

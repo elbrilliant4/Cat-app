@@ -33,9 +33,13 @@ const PHASE_RUN = {LH: 0, RH: .25, LF: .5, RF: .7};
 // ?gait=long is stride 1.2 with each paw down less of the stride (hind .57,
 // front .62, as measured in walking cats); ?sway=0.5 halves the hip roll,
 // twist and side-sway of the walk.
-const AB = new URLSearchParams(globalThis.location?.search || '');
-const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = AB.get('track') === 'narrow', LONG = AB.get('gait') === 'long';
-const STRIDE_K = LONG ? 1.2 : +(AB.get('stride') || 1), SWAY = +(AB.get('sway') || 1);
+// ?walk=cat is all of them together (gait=long, sway=0.5, track=narrow, low=0.05).
+const AB = new URLSearchParams(globalThis.location?.search || ''), CAT = AB.get('walk') === 'cat';
+const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = CAT || AB.get('track') === 'narrow', LONG = CAT || AB.get('gait') === 'long';
+const STRIDE_K = LONG ? 1.2 : +(AB.get('stride') || 1), SWAY = +(AB.get('sway') || (CAT ? .5 : 1));
+// ?low=0.05 carries her that much lower while walking (legs more bent, as a
+// real cat's: hips at ~77% of leg length at mid-stance, hers near straight).
+const CARRY_LOW = +(AB.get('low') || (CAT ? .05 : 0));
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -76,6 +80,8 @@ const CH = Object.keys(BASE);
 // How far a planted paw may be from where it belongs, forward or back and to
 // the side, before its leg runs out of reach (in her own frame).
 const LEASH = {x: .14, z: .26};
+// (Carried lower, her legs have more reach fore and aft.)
+const LEASH_Z = () => LEASH.z * (1 + CARRY_LOW * 3);
 // How long each part takes when the pose changes, and how long it waits
 // (going down to sit/lie: hips first, chest after; getting up: chest first).
 const PART = c => /^(y|z|x|pitch|roll|yaw)$/.test(c) ? 'pelvis' : /^(spine|chest)/.test(c) ? 'chest' : c === 'scap' ? 'scap' : /^(fd|lh|rh|hock|wrist)/.test(c) ? 'paws' : /^head/.test(c) ? 'head' : 'tail';
@@ -227,7 +233,7 @@ export class MotionCat {
         // swing, that swing simply starts a little early.)
         if (walking && !pw.swing && !PAWS.some(q => q !== k && this.paws[q].swing?.early)) {
           const lp = root.worldToLocal(_m.copy(pw.pos));
-          const rk = this.reach[k], lz = Math.max(.65 * LEASH.z * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
+          const rk = this.reach[k], lz = Math.max(.65 * LEASH_Z() * rk * rk, duty * stride / 2 + (front ? .05 : 0) + .06);
           const stretched = p > duty / 2 && (this.rig.legs[k].reachShort || 0) > -.01; // (behind her, about to go past straight)
           if (stretched || Math.hypot((lp.x - home.x) / (.65 * LEASH.x * rk * rk), (lp.z - home.z) / lz) > 1) pw.swing = near ? {gait: true, from: pw.pos.clone(), t0: t} : {gait: true, early: true, from: pw.pos.clone(), t0: t};
         }
@@ -300,7 +306,7 @@ export class MotionCat {
       const pw = this.paws[k];
       if (pw.free) continue;
       const home = this.homeLocal(k), loc = root.worldToLocal(pw.pos.clone());
-      const rk = this.reach[k], dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / (LEASH.x * rk), dz / (LEASH.z * rk));
+      const rk = this.reach[k], dx = loc.x - home.x, dz = loc.z - home.z, e = Math.hypot(dx / (LEASH.x * rk), dz / (LEASH_Z() * rk));
       if (e <= 1) continue;
       loc.x = home.x + dx / e; loc.z = home.z + dz / e;
       const y = pw.pos.y;
@@ -316,7 +322,7 @@ export class MotionCat {
     // Galloping, she bounds: up off the hind legs, the back flexing as the
     // legs gather under her and stretching out as they reach.
     const rw = this.runW || 0, gph = Math.PI * 2 * this.phase;
-    const pelY = c.y - .02 * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw) + rw * (.035 * Math.sin(gph - .6) - .01);
+    const pelY = c.y - (.02 + CARRY_LOW) * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw) + rw * (.035 * Math.sin(gph - .6) - .01);
     const settled = c.y < this.h0 - .1; // resting on her body (sitting, lying)
     const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww * SWAY;
     // (Reach: a lean forward and a dip of the front, so her mouth finds the food.)

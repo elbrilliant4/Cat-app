@@ -128,22 +128,41 @@ left and right legs swapped; at least two paws on the floor at all times
 - Long reach: the front paw lands well forward, under the chin.
 
 ## Part 2 (2026-11-10): measured against real cats
-Numbers for real cats come from web-search summaries of the studies (the
-container can't open PMC/PLOS; Merlin declined allowing them), so they're
-second-hand. Mochi's numbers: `gait-chart.mjs` (scratch), straight walk at
-the app's walking speed .65, seed 777. Her model is about 2x a real cat
-(body .88, hips .54 high), so real-cat lengths are doubled to compare.
+Sources (read in full; Merlin allowed the sites):
+- Day & Jayne 2007, J Exp Biol 210:642, "Interspecific scaling of the
+  morphology and posture of the limbs during the locomotion of cats":
+  domestic cat (3.3 kg, 4 cats, 16 strides) walking at .80 m/s: fore duty
+  .62, hind duty .59, 1.5 strides/s, stride 165% of hind-leg length, hip
+  height at mid-stance 77% of hind-leg length, shoulder 74% of fore-leg.
+- Verdugo et al. 2013, BMC Vet Res (PMC3701551), 18 cats on a Tekscan
+  walkway at .54-.74 m/s: cycle .80-.85 s (1.2 strides/s), stride .45-.49 m,
+  fore stance 59-60%, hind stance 54-55%.
+- Klishko et al. 2014, J Neurophysiol (PMC4137248), 5 cats at .72 m/s:
+  cycle .71 s (1.4 strides/s), fore duty .64, hind duty .60.
+- Bishop et al. 2008, PLoS ONE 3:e3808, "Whole body mechanics of stealthy
+  walking in cats": walk-trot transition about 1 m/s (Froude .5); cats
+  often walk with diagonality near 25% (feet evenly spaced in time); the
+  more crouched, the more even the footfalls.
+- Cartmill et al. 2002 (lateral-sequence walk definition; cat in the data set).
+Mochi's numbers: `tools/qa/gait-chart.mjs`, straight walk at the app's
+walking speed .65, seed 777. Her hind leg (hip to sole) is .44, so real
+lengths are compared as a share of leg length.
 
-| | real cat, walking | Mochi before | after |
-|---|---|---|---|
-| footfall order | lateral sequence: LH, LF, RH, RF; fore lands ~1/4 stride after same-side hind | same order, but each front paw stutter-stepped before its swing (chart below) | clean, LF lands .25 after LH, RF .25 after RH |
-| paw down (duty) | hind .54-.60, fore .63-.64 (0.54-0.76 m/s) | hind .64-.66, fore .59-.61 | same (flag `gait=long`: hind .57, fore .62) |
-| strides/s | 1.25-1.75 at a walk; speed grows by both cadence and stride | 1.4-1.5 | same (flag `gait=long`: 1.17) |
-| stride | ~.45-.5 m at .65 m/s (about 1 body length) | .43-.50 = .5 body length | same (flag `gait=long`: x1.2) |
-| head bob | ~1.5 cm peak to peak | 1.0 cm (= .5 real) | same |
-| head side sway | ~1 cm (= 2 cm at her scale) | +-3 cm (6 cm peak to peak) | same (flag `sway=0.5`) |
-| track | hind paws land about on the fore prints (direct register) | hind track 38 cm, front 21 cm | same (flag `track=narrow`: hind 22 cm) |
-| trot / gallop | trot ~2 m/s, gallop ~3.5 m/s real; transition mostly trot -> gallop | gallop from 1.0 (= .5 real): she gallops at a trotting speed | same (later) |
+| | real cat, walking | Mochi before | Mochi now (default) | `?walk=cat` |
+|---|---|---|---|---|
+| footfall order | lateral sequence LH, LF, RH, RF; fore lands ~1/4 stride after same-side hind | same, but each front paw stutter-stepped before its swing (chart below) | clean: LF at .25 after LH, RF .25 after RH | same |
+| paw down (duty) | fore .62-.64, hind .59-.60 (hind less than fore) | fore .59-.61, hind .64-.66 (the other way round) | same | fore .62, hind .57 |
+| strides/s | 1.2 at .6 m/s, 1.5 at .8 m/s | 1.4-1.5 at .65 | 1.4 | 1.2 |
+| stride / leg length | 140% at .6 m/s, 165% at .8 m/s | 110% | 110% | 135% |
+| head bob | ~1.5 cm peak to peak (head-movement study, search summary only) | 1.0 cm | 1.0 | 0.9 |
+| head side sway | ~1 cm = ~1.3 cm at her leg length (same source) | +-3 cm | +-2.7 | +-2.1 |
+| track | hind paws land about on the fore prints (direct register) | hind track 38 cm, front 21 cm | same | hind 22 cm |
+| hip height at mid-stance | 77% of hind-leg length (legs bent) | hip joint at .506 with a .44 leg: near straight; left hind 1.6 cm past straight each stance | same | 5 cm lower while walking: every leg keeps slack (LH 1.1 cm) |
+| trot / gallop | walk to trot ~1 m/s; gallop faster still | gallops from 1.0 | same | same (later) |
+
+`?walk=cat` = `gait=long` + `sway=0.5` + `track=narrow` + `low=0.05`, each
+also a flag of its own. Footfall chart with it: clean, hind swings start at
+.57 of the stance (LH `###################.....`), front at .62.
 
 **Stutter-step (fixed, no flag: a bug).** Footfall chart, each row a paw,
 40 columns one stride, `#` down, `.` swing, `e` catch-up step:
