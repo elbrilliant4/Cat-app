@@ -78,7 +78,12 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
   `tailSolids()` in `app.js`: the room layout's `tailSolids` list (the
   kitchen's is in `layout()`, the study's in `studyTailSolids()`) minus her bed while
   she's in it and the counter while she sits in the sink, plus the vacuum
-  where it is. Shapes: `box`, `cyl`, `rbox` (turned box, the tent).
+  where it is, and the study's mantel vase while it stands. Shapes: `box`,
+  `cyl`, `rbox` (turned box, the tent, the armchair); `climb: true` on a
+  low `cyl` (her bed's rim) lifts a trailing tail over it instead of
+  shoving it sideways. Walls are 3 m deep on purpose: a tail swung right
+  through a thin one would be past it and never pushed back. Her bed
+  counts as "in it" over its cushion, or up off the floor near it.
 - The motion rig resets the jaw and ears each frame (otherwise rotations pile up).
 - Random choices make runs differ: seed `Math.random` (QA `open({seed})`).
   `setTimeout` and `performance.now` are real time: in QA they're put on
