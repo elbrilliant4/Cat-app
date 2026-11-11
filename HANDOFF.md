@@ -1,7 +1,7 @@
 # Handoff, 2026-11-11
 
 ## State
-- Live: build 201 = `795e591` (phase 03, tail through furniture).
+- Live: build 203 = `795e591` (phase 03, tail through furniture).
   Results: `docs/phases/03-tail-collision.md`.
 
 ## Next
