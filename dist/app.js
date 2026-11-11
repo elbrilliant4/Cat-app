@@ -18,7 +18,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const titleRoot = document.documentElement;
 let titleOn = titleRoot.classList.contains('title'), titleLeaving = false, titleFlip = false;
 const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
-const TITLE_CHIME = new URLSearchParams(location.search).get('chime') === 'b' ? 'wake-chime-b.mp3' : 'wake-chime-a.mp3';
+const TITLE_CHIME = 'wake-chime.mp3';
 function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = false); }
 const motion = reduceMotion ? 0.35 : 1;
 
@@ -2677,7 +2677,7 @@ function leaveTitle() {
   if (!titleOn || !ready || titleLeaving) return;
   titleLeaving = true;
   $('#title').classList.add('out');
-  // A short music-box chime as she wakes (sound on only; ?chime=b: the other take).
+  // A short music-box chime as she wakes (sound on only).
   if (!pet.sleeping) sounds.play(TITLE_CHIME, .5).then(ok => { if (params.has('debug')) window.kitten.chimed = ok; });
   // (Her own ideas wait until she has said hello.)
   brain.nextIdle = clockNow + 9; brain.nextShow = clockNow + 14; brain.nextBird = clockNow + 14;

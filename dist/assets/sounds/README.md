@@ -13,9 +13,7 @@ unless a recording is listed for that kind of call; her purr is the recorded sle
   seams). The recorded meow candidates were not approved; the script only
   writes them with `--with-meows`.
 
-`wake-chime-a.mp3` and `wake-chime-b.mp3`: the title screen's wake-up chime
-(music box; celesta), played once as she wakes, sound on only. Generated
-with Runway on Merlin's plan (2026-11-11), then trimmed and levelled with
-ffmpeg. The app plays A; `?chime=b` plays B, for choosing by ear. Delete
-the one not chosen. They are not listed in `sounds.json` (that is her own
-voice).
+`wake-chime.mp3`: the title screen's wake-up chime (a music box), played
+once as she wakes, sound on only. Generated with Runway on Merlin's plan
+(2026-11-11), trimmed and levelled with ffmpeg; Merlin picked it by ear over
+a celesta take. Not listed in `sounds.json` (that is her own voice).

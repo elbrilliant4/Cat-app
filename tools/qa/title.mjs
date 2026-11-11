@@ -47,7 +47,7 @@ await run('already asleep: tiptoe in', '?night=1', PHONE, async page => {
   await through('asleep')(page);
   if (await page.textContent('#mood-text') !== 'Dreaming softly') throw new Error('she woke up');
 });
-for (const q of ['?debug&intro=1&night=0', '?debug&intro=1&night=0&chime=b'])
+for (const q of ['?debug&intro=1&night=0'])
   await run('chime plays with sound on, ' + q, q, PHONE, async page => {
     await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; let v = {}; try { v = JSON.parse(localStorage[k]) || {}; } catch {} v.sound = true; v.sleeping = false; v.updated = Date.now(); localStorage[k] = JSON.stringify(v); });
     await page.reload();
