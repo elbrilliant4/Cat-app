@@ -6,12 +6,16 @@
 // number means the tail really went through something.
 //   node tools/qa/tail.mjs            (ROOM=study, SEC=300, SEED=5, SHOTS=1, OUT=qa-out)
 //   ROOM=kitchen node tools/qa/tail.mjs
+//   TOUR=1 ROOM=kitchen node tools/qa/tail.mjs   (her perches one by one instead:
+//   up each in turn, a while sitting there, then the next; STAY=12 s each)
+// Her body is checked too (the bones and their thickness, as vacuum.mjs
+// does), apart from the tail: her body in the wall on a perch, say.
 // Prints the worst moment per piece of furniture, a log of every overlap
 // deeper than the skin (-.03), and the share of frames with any overlap.
 // A screenshot of each new worst moment goes to OUT/tail-<room>-<n>.png.
 import fs from 'node:fs';
 import {open} from './lib.mjs';
-const ROOM = process.env.ROOM || 'study', SEC = +(process.env.SEC || 300), SEED = +(process.env.SEED || 5), SHOTS = process.env.SHOTS !== '0', OUT = process.env.OUT || 'qa-out';
+const ROOM = process.env.ROOM || 'study', TOUR = !!process.env.TOUR, STAY = +(process.env.STAY || 12), SEC = +(process.env.SEC || 300), SEED = +(process.env.SEED || 5), SHOTS = process.env.SHOTS !== '0', OUT = process.env.OUT || 'qa-out';
 const kitchen = ROOM === 'kitchen';
 fs.mkdirSync(OUT, {recursive: true});
 const {page, look, close} = await open({seed: SEED, kitchen, quiet: false});
@@ -103,8 +107,10 @@ await page.evaluate(kitchen => {
     return out((dx > 0 || dz > 0 ? Math.hypot(dx, dz) : -Math.min(x - x0, x1 - x, z - z0, z1 - z)) - r);
   };
   const B = k.cat.bones, M = k.cat.motion.rig, tip = M.tailTip, P = new V3(), Q = new V3(), H = new V3();
-  const worst = {}, log = [];
-  window.__qa = {solids: solids.concat(bedSolid), worst, log, frames: 0, hitFrames: 0, rootFrames: 0, byAct: {}, measure(t) {
+  const worst = {}, log = [], bodyWorst = {}, bodyLog = [];
+  // Her body: each bone and about how thick she is there (vacuum.mjs's list).
+  const pts = [['hips', .12], ['spine', .13], ['chest', .13], ['neck', .1], ['head', .09], ['jaw', .07], ['earL', .03], ['earR', .03], ['shoulderL', .06], ['shoulderR', .06], ['elbowL', .05], ['elbowR', .05], ['wristL', .04], ['wristR', .04], ['hipL', .07], ['hipR', .07], ['kneeL', .05], ['kneeR', .05], ['hockL', .04], ['hockR', .04]];
+  window.__qa = {solids: solids.concat(bedSolid), worst, log, bodyWorst, bodyLog, frames: 0, hitFrames: 0, rootFrames: 0, bodyFrames: 0, byAct: {}, bodyByAct: {}, measure(t) {
     // (In bed as the app has it: over its cushion, or up off the floor
     // near it, stepping over the rim.)
     const br = k.brain, off = Math.hypot(br.pos.x - bed.position.x, br.pos.z - bed.position.z), inBed = off < G.bedRadius || (!br.perch && br.elevation > .05 && off < G.bedRadius + .6);
@@ -142,6 +148,26 @@ await page.evaluate(kitchen => {
       for (let j = 0; j < 3; j++) { const u = j / 3, r = M.tailR[i] * (1 - u) + M.tailR[i + 1] * u; check('tail' + i + (j ? '+' + j : ''), P.x + (Q.x - P.x) * u, P.y + (Q.y - P.y) * u, P.z + (Q.z - P.z) * u, r); }
     }
     B.tail7.localToWorld(Q.copy(tip)); check('tip', Q.x, Q.y, Q.z, M.tailR[8]);
+    // Her body.
+    let bodyHit = false;
+    const what = br.activity + (br.jump ? ' (jumping)' : '') + (br.perch ? ' on ' + br.perch : '');
+    for (const [n, r] of pts) {
+      B[n].getWorldPosition(P);
+      for (const s of list) {
+        if (sink && s.name === 'counter') continue;
+        const d = toSolid(s, P.x, P.y, P.z, r);
+        if (d >= .3) continue;
+        const w = bodyWorst[s.name];
+        if (!w || d < w.d) bodyWorst[s.name] = {solid: s.name, d, name: n, t, act: what, px: br.pos.x, pz: br.pos.z, x: P.x, y: P.y, z: P.z, s};
+        if (d < -.03) {
+          bodyHit = true;
+          const last = bodyLog[bodyLog.length - 1];
+          if (!last || last.solid !== s.name || t - last.t > 1) bodyLog.push({solid: s.name, name: n, d, t, act: what});
+          else if (d < last.d) Object.assign(last, {d, name: n});
+        }
+      }
+    }
+    if (bodyHit) { this.bodyFrames++; this.bodyByAct[what] = (this.bodyByAct[what] || 0) + 1; }
     if (hit && !rooted) { this.hitFrames++; const a = br.activity + (br.perch ? ' on ' + br.perch : ''); this.byAct[a] = (this.byAct[a] || 0) + 1; }
   }};
 }, kitchen);
@@ -159,8 +185,23 @@ const tick = () => page.evaluate(() => {
   return Object.values(__qa.worst).filter(w => w.d < -.03).map(w => `${w.solid}|${w.d.toFixed(2)}`);
 });
 let seen = new Set(), shots = 0;
-for (let s = 0; s < SEC; s++) {
-  if (s % 20 === 0) await page.evaluate(task => {
+// The tour: each perch in turn (the vacuum, pendant and salmon aside), her
+// own ideas paused so she stays put.
+const tour = TOUR ? await page.evaluate(() => { Object.assign(kitten.brain, {nextIdle: 1e9, nextShow: 1e9, nextBird: 1e9, nextVacuum: 1e9}); return Object.keys(kitten.PERCHES).filter(n => !['vacuum', 'pendant', 'salmon', 'island'].includes(n)); }) : [];
+const total = TOUR ? tour.length * (STAY + 8) : SEC;
+for (let s = 0; s < total; s++) {
+  if (TOUR) {
+    const n = tour[Math.floor(s / (STAY + 8))];
+    if (s % (STAY + 8) === 0) { console.log(`  ${s}s: up to ${n}`); await page.evaluate(n => { const b = kitten.brain; b.mode = 'idle'; kitten.jumpTo(n, null, 400); }, n); }
+    if (s % (STAY + 8) === STAY + 7 && SHOTS) {
+      // (A picture of her sitting there, from the room and from the side.)
+      const [x, y, z] = await page.evaluate(() => { const p = kitten.brain.pos; return [p.x, kitten.brain.elevation + .5, p.z]; });
+      await look({focus: [x, y, z], yaw: .35, pitch: .25, dist: 3.2}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}.png`});
+      await look({focus: [x, y, z], yaw: 1.45, pitch: .15, dist: 3.2}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}-side.png`});
+      const st = await page.evaluate(() => `${kitten.brain.perch || 'floor'} ${kitten.brain.activity} at ${kitten.brain.pos.x.toFixed(2)},${kitten.brain.pos.z.toFixed(2)}`);
+      console.log(`  ${s}s: ${st}  → ${OUT}/perch-${ROOM}-${n}.png`);
+    }
+  } else if (s % 20 === 0) await page.evaluate(task => {
     const k = kitten, b = k.brain;
     if (k.pet.sleeping) { k.act('sleep'); return; } // (wake from the last nap first)
     if (b.mode !== 'idle' || b.jump) return;
@@ -175,7 +216,7 @@ for (let s = 0; s < SEC; s++) {
     // (A picture only when it's a new piece of furniture or much worse.)
     const prev = [...seen].filter(x => x.startsWith(key + '|')).map(x => +x.split('|')[1]);
     seen.add(w);
-    if (!SHOTS || shots >= 8 || (prev.length && Math.min(...prev) - +w.split('|')[1] < .03)) continue;
+    if (!SHOTS || TOUR || shots >= 8 || (prev.length && Math.min(...prev) - +w.split('|')[1] < .03)) continue;
     shots++;
     // (From the open front of the room, looking down at her and her tail.)
     const [x, y, z] = await page.evaluate(k => { const w = __qa.worst[k]; return [w.x, w.y, w.z]; }, key);
@@ -184,8 +225,8 @@ for (let s = 0; s < SEC; s++) {
     console.log(`  ${s}s: ${w}  → ${OUT}/tail-${ROOM}-${shots}.png`);
   }
 }
-const {worst, log, frames, hitFrames, rootFrames, byAct} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, frames: __qa.frames, hitFrames: __qa.hitFrames, rootFrames: __qa.rootFrames, byAct: __qa.byAct}));
-console.log(`\n${ROOM}, ${SEC} s (seed ${SEED}): tail into furniture (deeper than -.03) in ${hitFrames} of ${frames} frames (${(100 * hitFrames / frames).toFixed(1)}%),`);
+const {worst, log, frames, hitFrames, rootFrames, byAct, bodyWorst, bodyLog, bodyFrames, bodyByAct} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, frames: __qa.frames, hitFrames: __qa.hitFrames, rootFrames: __qa.rootFrames, byAct: __qa.byAct, bodyWorst: Object.values(__qa.bodyWorst), bodyLog: __qa.bodyLog, bodyFrames: __qa.bodyFrames, bodyByAct: __qa.bodyByAct}));
+console.log(`\n${ROOM}${TOUR ? ' perch tour' : ''}, ${total} s (seed ${SEED}): tail into furniture (deeper than -.03) in ${hitFrames} of ${frames} frames (${(100 * hitFrames / frames).toFixed(1)}%),`);
 console.log(`  not counting ${rootFrames} frames (${(100 * rootFrames / frames).toFixed(1)}%) with her hips, where the tail starts, inside something (her body's place, not the tail).`);
 console.log('  Those frames by what she was doing: ' + Object.entries(byAct).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([a, n]) => `${a} ${n}`).join(', '));
 console.log('Closest approach of the tail per piece of furniture, metres (negative = into it):');
@@ -197,4 +238,10 @@ for (const w of worst.sort((a, b) => a.d - b.d)) {
 }
 console.log(`\n${log.length} overlap(s):`);
 for (const e of log) console.log(`  ${e.t.toFixed(1).padStart(6)} s  ${e.solid.padEnd(11)} ${e.name.padEnd(8)} ${e.d.toFixed(3)}  ${e.act}${e.perch ? ' on ' + e.perch : ''}`);
+console.log(`\nHer body into furniture (deeper than -.03) in ${bodyFrames} of ${frames} frames (${(100 * bodyFrames / frames).toFixed(1)}%).`);
+console.log('  Those frames by what she was doing: ' + Object.entries(bodyByAct).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([a, n]) => `${a} ${n}`).join(', '));
+console.log('Closest approach of her body per piece of furniture, metres (negative = into it):');
+for (const w of bodyWorst.sort((a, b) => a.d - b.d)) console.log(`  ${w.solid.padEnd(11)} ${w.d.toFixed(3).padStart(7)}  (${w.name} at ${w.t.toFixed(1)} s, ${w.act}, at ${f(w.px, w.pz)}, point ${f(w.x, w.y, w.z)})`);
+console.log(`\n${bodyLog.length} body overlap(s):`);
+for (const e of bodyLog) console.log(`  ${e.t.toFixed(1).padStart(6)} s  ${e.solid.padEnd(11)} ${e.name.padEnd(9)} ${e.d.toFixed(3)}  ${e.act}`);
 await close();
