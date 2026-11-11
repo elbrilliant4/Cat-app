@@ -156,6 +156,9 @@ await page.evaluate(kitchen => {
       B[n].getWorldPosition(P);
       for (const s of list) {
         if (sink && s.name === 'counter') continue;
+        // (Resting on its top counts as clear: sitting, her knee is about 4
+        // cm "into" the plain floor too, the joint's size being a guess.)
+        if (P.y > s.y1 - .02) continue;
         const d = toSolid(s, P.x, P.y, P.z, r);
         if (d >= .3) continue;
         const w = bodyWorst[s.name];

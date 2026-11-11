@@ -66,6 +66,18 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
   window wall) is .78 wide and she is 1.2 long: routes go in and out by
   `GAP_MOUTH`, and at the foot she keeps facing north or the first step
   (`atStepFoot` in app.js). Any turn across the gap puts her in the wall.
+- **Narrow perches** (`narrow: true` in `PERCHES`: the kitchen's wall
+  steps and shelves, the study's sill and mantel): sitting, she's about .85
+  from tail to front paws (hips .6 behind her centre, front paws .26 ahead),
+  so the steps are .95 deep, the shelves .9, and her spot is at the front
+  (paws just on, tail base just off the wall). The sill (.8) and mantel (.71)
+  are too shallow facing out or in: she sits along the mantel (facing the
+  vase) and on the slant on the sill (her head can still turn to the glass
+  for the bird; the head turns at most ~.85 rad on a perch). Landing, she
+  reaches about .7 ahead: onto a narrow perch she turns in the air to its
+  `face` (in `updateCat`, the jump), unless that's over 2.1 rad (the first
+  step from the floor: she lands facing the wall and turns round on it,
+  brushing the wall or the counter's end; not solved).
 - Boarding or stalking the vacuum, `approachVacuum` picks a side where she
   and her landing stay on free floor; off it, `PERCHES.vacuum.base` scores
   both sides, ahead and behind. `randomFloorPoint(pad)` keeps the vacuum's
