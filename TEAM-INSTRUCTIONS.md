@@ -85,6 +85,11 @@ longer, because CI renders it.
 
 ## Instructions for Orion (ChatGPT)
 
+- `SPEC.md` says what Mochi does, who it's for, and what's "Not in v1".
+  The look of the app's screens lives in `DESIGN.md` (once made; see
+  `docs/design-rules.md`). Asset rules, including the $50 budget and
+  licenses: `docs/assets.md`.
+
 - Send references as images, plus a few lines on what to keep, what to
   change, and what must not move. Example: "Keep the kitchen layout; the
   faucet stays reachable."
@@ -100,8 +105,8 @@ longer, because CI renders it.
 
 ## Instructions for Claude (Chad)
 
-Start with `CLAUDE.md`, then the docs in `docs/` (workflow, roadmap, phase
-briefs, architecture, QA tools). One session = one phase. Keep the docs up
+Start with `CLAUDE.md`, then `SPEC.md` and the docs in `docs/` (workflow,
+roadmap, phase briefs, architecture, QA tools, asset and design rules). One session = one phase. Keep the docs up
 to date instead of relying on chat history.
 
 ## How to talk to Merlin (both Claude and ChatGPT)
