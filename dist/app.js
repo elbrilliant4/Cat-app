@@ -612,6 +612,15 @@ function walkTo(point, then = null, run = false, anywhere = false) {
 // Jumping: a crouch and a little wiggle while she sizes it up, then an arc to
 // the new spot and height, and a soft landing.
 const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < place.bedRadius ? place.bedTop : 0;
+// How long a jump takes and how high it arcs: she falls at a cat's pace
+// (gravity for her size), clears the higher end by a little (more over a
+// long gap), and never crosses the floor faster than a sprint.
+const JUMP_G = 32;
+function jumpArc(up, dist) {
+  const clear = .12 + .06 * dist;
+  const dur = Math.max(Math.sqrt(2 * (Math.max(up, 0) + clear) / JUMP_G) + Math.sqrt(2 * (Math.max(-up, 0) + clear) / JUMP_G), dist / 5, .3);
+  return {dur, arc: JUMP_G * dur * dur / 8};
+}
 function leap(to, toY, perch, then = null, out = 0) {
   brain.target = null;
   brain.chainUntil = clockNow + 6;
@@ -619,7 +628,7 @@ function leap(to, toY, perch, then = null, out = 0) {
   glanceAt(new THREE.Vector3(to.x, toY + .3, to.z), 1.2);
   setActivity('prejump', reduceMotion ? .3 : chainNext() ? rand(.5, .9) : .8, () => {
     const up = toY - brain.elevation;
-    brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then, start: clockNow, dur: .5 + Math.abs(up) * .06, arc: .18 + Math.max(0, up) * .22, out};
+    brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then, start: clockNow, ...jumpArc(up, Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z)), out};
     setActivity('jump');
   });
 }
@@ -812,11 +821,12 @@ function updateCat(dt, t) {
   }
   const J = brain.jump;
   if (J) {
-    const k = Math.min(1, (t - J.start) / J.dur), e = k * k * (3 - 2 * k);
-    brain.pos.lerpVectors(J.from, J.to, e);
+    // (A thrown thing's path: steady across, and a plain arc up and down.)
+    const k = Math.min(1, (t - J.start) / J.dur);
+    brain.pos.lerpVectors(J.from, J.to, k);
     // (Between shelves she arcs out past the edge of the one above.)
     if (J.out) brain.pos.z += J.out * Math.sin(Math.PI * k);
-    brain.elevation = J.fromY + (J.toY - J.fromY) * e + 4 * J.arc * k * (1 - k);
+    brain.elevation = J.fromY + (J.toY - J.fromY) * k + 4 * J.arc * k * (1 - k);
     desiredHeading = angleTo(J.from, J.to);
     if (k >= 1) {
       brain.jump = null;
@@ -1057,7 +1067,10 @@ function updateCat(dt, t) {
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
     // (For the new movement: how far through a jump she is, which way, and
     // whether she's riding the vacuum.)
-    air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
+    air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1,
+    // (Her body follows the way she's flying; landing, she sinks and comes back up.)
+    airTilt: J ? clamp(Math.atan2(J.toY - J.fromY + 4 * J.arc * (1 - 2 * clamp((t - J.start) / J.dur, 0, 1)), Math.max(.3, Math.hypot(J.to.x - J.from.x, J.to.z - J.from.z))) * .5, -.5, .55) : 0,
+    squash: a === 'land' ? Math.exp(-7 * (t - brain.actStart)) * motion : 0, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
     // In her bed, her tail stays inside the rim.
     tailBounds: !brain.perch && brain.elevation > .05 && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius ? {x: bed.position.x, z: bed.position.z, r: place.bedRadius} : null,
   });
@@ -2761,7 +2774,7 @@ const SHOTS = [
   // 4. Up on the mantel, slow motion: a paw pats the vase, and it wobbles.
   {at: 4.5, cam(k, p, l) { p.set(.2 + k * .15, 3.3, .5); l.set(4.3, 3.25, .5); return tallScreen() ? 44 : 25; }},
   // 5. She pounces at the camera. Freeze, flash.
-  {at: 6.3, aim: 12, cam(k, p, l) { p.set(1, 1.9, 1); cat.headCenter(l); return 54; }},
+  {at: 6.3, aim: 12, cam(k, p, l) { p.set(1, 2.5, 1); cat.headCenter(l); return 54; }},
 ];
 // What happens when (seconds on the story clock).
 const swatNow = () => setActivity('swat', .45, () => setActivity('sit', 9));
@@ -2776,7 +2789,7 @@ const CUES = [
     $('#title').classList.add('streak');
     // (A running leap: no crouch first.)
     const M = PERCHES.mantel;
-    cine.watch = () => { if (brain.pos.x > 2.7) { cine.watch = null; cineJump(M.spot, M.top, 'mantel', .62, .8); } };
+    cine.watch = () => { if (brain.pos.x > 2.7) { cine.watch = null; cineJump(M.spot, M.top, 'mantel'); } };
   }],
   [3.05, () => $('#title').classList.remove('streak')],
   [4.5, () => {
@@ -2795,15 +2808,15 @@ const CUES = [
     brain.heading = brain.jumpFace = angleTo(brain.pos, to);
     express('excited', 4); glanceAt(camera.position, 2);
     setActivity('prejump', .3, () => {
-      cineJump(to, .3, null, .72, .3);
+      cineJump(to, .3, null);
       // Nearly on the camera: time all but stops, and the screen goes white.
-      cine.watch = () => { const J = brain.jump; if (!J || (clockNow - J.start) / J.dur > .6) { cine.watch = null; timeRate = .05; cine.flashAt = cine.T; $('#title').classList.add('flash'); } };
+      cine.watch = () => { const J = brain.jump; if (!J || (clockNow - J.start) / J.dur > .66) { cine.watch = null; timeRate = .05; cine.flashAt = cine.T; $('#title').classList.add('flash'); } };
     });
   }],
 ];
-function cineJump(to, toY, perch, dur, arc) {
+function cineJump(to, toY, perch) {
   brain.target = null; brain.climbGoal = null;
-  brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then: () => setActivity('sit', 9), start: clockNow, dur, arc, out: 0};
+  brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then: () => setActivity('sit', 9), start: clockNow, ...jumpArc(toY - brain.elevation, Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z)), out: 0};
   setActivity('jump');
 }
 function startCine() {

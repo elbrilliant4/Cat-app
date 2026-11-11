@@ -14,6 +14,10 @@
   preview is a clip.
 
 ## Next
+0. **Phase 12, move like a real cat** (`docs/phases/12-cat-motion.md`):
+   Merlin finds her movement unnatural (run, jumps, vase pat, also in the
+   app) and picked "fix the motion code". Step 1 (jumps) is on the preview
+   branch. Next: step 2, the run. This comes before the music.
 1. Merlin's notes on the clip (shots, pace, look).
 2. Phase 11b, what is left: the music sting from Runway (step 5; 2 or 3
    takes for Merlin to pick by ear; the hit goes on the freeze at about
@@ -33,8 +37,10 @@
   wall tops (black).
 - The olive tree stands at about (4.0, -1.45): keep it out of the mantel
   shots.
+- A side-view clip (`clip.mjs`) takes about 15 min here; for a quick look
+  at a move, take stills through it (see how `title-shots.mjs` steps).
 - In the QA stepper, CSS animations only move when `anims()` is called
   each frame (see `title-clip.mjs`).
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then go on with phase 11b (docs/phases/11-title-cinematic.md): the music sting and the paw-wipe.
+> Read CLAUDE.md and docs/HANDOFF.md, then go on with phase 12 (docs/phases/12-cat-motion.md), step 2: the run.

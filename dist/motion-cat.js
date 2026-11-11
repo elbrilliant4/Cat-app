@@ -339,7 +339,9 @@ export class MotionCat {
       pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph) + tw * .01 * Math.sin(2 * gph - .8), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw - tw)};
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // Air: the body follows the arc (nose up rising, down falling).
-    if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
+    if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
+    // Landing: she sinks on her legs, front first, and comes back up.
+    if (ctl.squash > .01) { pelvis.pos.y -= .045 * ctl.squash; pelvis.pitch -= .1 * ctl.squash; }
     const paws = {};
     for (const k of PAWS) {
       const pw = this.paws[k];
@@ -359,7 +361,13 @@ export class MotionCat {
       } else if (k === 'LF') this.groomPaw.copy(local);
       if (ctl.swat > .02 && k === 'RF') { free = true; local.lerp(new THREE.Vector3(S.mid - .05, .42, S.frontZ + .3), ctl.swat); pitch = lerp(pitch, -.6, ctl.swat); }
       if (P.frontFree && k[1] === 'F') { free = true; local.add(new THREE.Vector3(...P.frontFree)); pitch = -1; }
-      if (air) { local.y += k[1] === 'F' ? .12 : .08; pitch = k[1] === 'F' ? -.3 : -.6; }
+      if (air) {
+        // Pushing off, the hind legs are still stretched out behind; then she
+        // tucks; coming down, the front paws reach for the landing first.
+        const q = ctl.air >= 0 ? ctl.air : .5, push = 1 - smoother(clamp(q / .3, 0, 1)), reach = smoother(clamp((q - .55) / .45, 0, 1));
+        if (k[1] === 'F') { local.y += .12 * (1 - .75 * reach); local.z += .07 * reach; pitch = lerp(-.3, .2, reach); }
+        else { local.y += .08 * (1 - push) * (1 - .5 * reach) - .02 * push; local.z += -.1 * push + .06 * reach; pitch = lerp(lerp(-.6, .5, push), -.25, reach); }
+      }
       if (name === 'drape') { local.y -= k[1] === 'F' ? .34 : .36; local.z += k[1] === 'F' ? .2 : -.16; pitch = k[1] === 'F' ? .7 : 1; }
       paws[k] = {pos: local, pitch, yaw: 0, free};
     }
