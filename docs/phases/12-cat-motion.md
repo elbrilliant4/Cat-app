@@ -61,3 +61,37 @@ clears the higher end by `.12 + .06 * dist`, never faster than 5 units/s
 across); position is linear across and a parabola up; `airTilt` and
 `squash` go to the rig; the paws in the air follow the jump's progress.
 The mantel jump went from 0.67 s to about 0.54 s.
+
+Step 2, the run (2026-11-11), `motion-cat.js`:
+- A dash (`ctl.sprint`: `brain.run` a number from 2.5) gallops from the
+  first bound; before, she trotted up to speed and galloped for about 10%
+  of a dash. Dashes also take off and brake harder (`app.js`).
+- Strides: a steady 2.6 a second that lengthen with speed (`RUN_HZ`), each
+  paw down for about .29 of travel (`RUN_STANCE`). Hind paws a sixth of a
+  stride apart, then the front pair, then all four up (`PHASE_RUN`).
+- Body: `flex` (back rounds as the legs gather, stretches as they reach),
+  `saw` (front end up over the pushing hind legs, hips up over the planted
+  front paws), a small side swing of hips against shoulders (`rock`).
+- Head: `headLevel` in `motion.js`, the neck tips to keep the head at its
+  usual height.
+- Tail: streams out level at a run, follows the hips a beat late
+  (`tailBob`), swings wide in turns (`tailLag`, a little when walking too).
+
+| `stride.mjs` (sprint across the room, 2.6) | before | after |
+|---|---|---|
+| strides a second / length | 4.17 / 0.62 | 2.60 / 1.00 |
+| galloping, share of the run | 60% (28% trot) | 96% |
+| all four paws up | 1% | 14% |
+| head bob | 14.8 cm | 10.5 cm |
+| leg stretched over 2 cm | 0% | 0% |
+
+`gallop.mjs`: stretched worst 4.6 cm → 1.4 cm; both hind paws up 21% → 45%
+(over the old 40% line: the paws are down for a shorter push now and there
+is a moment in the air; they still land a sixth of a stride apart, not
+together). `legs.mjs`: floor walk stretched 0.3% / 3.1 cm → 0% / 1.9 cm.
+
+Speed check: by her jump gravity (32) and hip height (.45) a true gallop
+would start near 6 units/s; the rug is under 3 units across, so the dash
+stays at 2.6 and the rhythm was fixed instead. 3.0 was measured too (legs
+fine, 17% in the air), not switched on. Waiting on Merlin's eye: clip
+`SCENE=sprint FPS=30 node tools/qa/clip.mjs`, old | new.
