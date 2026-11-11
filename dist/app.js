@@ -429,11 +429,12 @@ function studyTailSolids() {
   const home = o => o.userData.studyHome?.p ?? o.position, B = home(bowl), F = home(fountain), S = room.sillTop, T = room.oliveTree.position;
   return [
     // Walls: to the skirting and dado rail (.1 out) up to the rail, the
-    // plaster above it.
+    // plaster above it. (Deep, so a tail swung right through one still
+    // counts as in it and comes back to the room's side.)
     ...[[.1, 0, 1.65], [.02, 1.65, 12]].flatMap(([t, y0, y1]) => [
-      box(W.left - .5, W.right + .5, W.back - .5, W.back + t, y0, y1),
-      box(W.left - .5, W.left + t, W.back, d.z0, y0, y1), box(W.left - .5, W.left + t, d.z1, 8.6, y0, y1),
-      box(W.right - t, W.right + .5, W.back, 8.6, y0, y1),
+      box(W.left - 3, W.right + 3, W.back - 3, W.back + t, y0, y1),
+      box(W.left - 3, W.left + t, W.back, d.z0, y0, y1), box(W.left - 3, W.left + t, d.z1, 8.6, y0, y1),
+      box(W.right - t, W.right + 3, W.back, 8.6, y0, y1),
     ]),
     // Fireplace: the pilasters, the lintel over the opening, the logs and
     // grate, the mantel shelf.

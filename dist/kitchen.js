@@ -976,8 +976,10 @@ export class Kitchen {
           box(I.x0, I.x1, I.z0, I.z1, baseH, I.top),
           box(-5.15, 3.65, K.back, K.counterFront + .06, 0, K.counter, 'counter'), // (from its left end, clear of her first step)
           box(2.84, 3.46, -2.72, -2.52, 0, .34),
-          box(K.left - .5, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right - .05, K.right + .5, K.back, FLOOR.z1 + 1, 0, K.wallH),
-          box(K.left, K.door[0], K.back - .5, K.back + .05, 0, K.wallH), box(K.door[1], K.right, K.back - .5, K.back + .05, 0, K.wallH),
+          // (Walls are deep, so a tail swung right through one still counts
+          // as in it and comes back to the room's side.)
+          box(K.left - 3, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right - .05, K.right + 3, K.back, FLOOR.z1 + 1, 0, K.wallH),
+          box(K.left, K.door[0], K.back - 3, K.back + .05, 0, K.wallH), box(K.door[1], K.right, K.back - 3, K.back + .05, 0, K.wallH),
           {kind: 'rbox', x: K.tent.x, z: K.tent.z, ry: K.tent.ry, hx: 1.32, hz: 1.02, y0: 0, y1: 1.95, tag: 'bed'},
           cyl(3.0, 1.55, .55, 0, .23), cyl(3.0, 1.55, .23, .23, .38), cyl(4.55, 2.6, .37, 0, .16),
         ];
