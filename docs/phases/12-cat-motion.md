@@ -104,5 +104,10 @@ off the floor), `swatReach` (drawn back to right out) and `swatLean`;
 `motion-cat.js` shifts her hips over the left front leg, rolls and turns
 the chest so the right shoulder comes up and forward, slides that shoulder
 blade, and leans the head in. Clip: `SCENE=swat FPS=30 node
-tools/qa/clip.mjs`. In the title the two pats are still .45 s apart, so
+tools/qa/clip.mjs`. Merlin on the first take: arm too stiff, body barely
+moves, paw aims at nothing. Second take: the paw hooks up and over and
+comes down on the thing itself (`ctl.swatAt` = `brain.swatAt`, clamped to
+her reach; else a spot on the floor ahead: `patAt`), the wrist hangs and
+flicks flat as it lands; the lean is about twice as big and the chest and
+head dip more the lower the thing is (`dip`). In the title the two pats are still .45 s apart, so
 the first is cut short: re-time in step 5.

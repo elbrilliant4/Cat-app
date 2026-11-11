@@ -1077,7 +1077,7 @@ function updateCat(dt, t) {
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
     sprint: a === 'walk' && typeof brain.run === 'number' && brain.run >= 2.5,
-    groom: a === 'groom', swat, swatReach, swatLean, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
+    groom: a === 'groom', swat, swatReach, swatLean, swatAt: a === 'swat' ? brain.swatAt : null, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
     // (For the new movement: how far through a jump she is, which way, and
     // whether she's riding the vacuum.)

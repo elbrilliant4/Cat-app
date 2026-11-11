@@ -50,7 +50,7 @@ const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = !OLD && AB.get('track') !
 const STRIDE_K = LONG ? 1.2 : 1, SWAY = +(AB.get('sway') || (OLD ? 1 : .5));
 const CARRY_LOW = +(AB.get('low') || (OLD ? 0 : .05));
 // (A pat's roll of the chest: her right shoulder up.)
-const SWAT_ROLL = +(AB.get('swatroll') || .08);
+const SWAT_ROLL = +(AB.get('swatroll') || .14);
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -134,7 +134,7 @@ export class MotionCat {
     this.phase = 0; this.walkW = 0; this.lastStep = -9;
     this.prev = null; this.vel = new THREE.Vector3(); this.yawRate = 0;
     this.br = 0;
-    this.groomPaw = new THREE.Vector3();
+    this.groomPaw = new THREE.Vector3(); this.patAt = new THREE.Vector3();
   }
 
   // Where a paw belongs now (her own frame), for the pose's current blend.
@@ -362,8 +362,19 @@ export class MotionCat {
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // A pat: her weight goes over the other front leg, the patting shoulder
     // comes up and forward, and she leans in behind the paw.
+    // The paw goes for the thing itself (the vase, the toy, the speck on the
+    // floor) where it's within reach, else a spot on the floor ahead; the
+    // lower the thing, the more her chest and head dip to it.
     const lean = ctl.swatLean || 0, out = lean * Math.max(0, ctl.swatReach || 0);
-    pelvis.pos.x += .025 * lean; pelvis.pos.z += .02 * out; pelvis.roll += SWAT_ROLL * .5 * lean;
+    if (ctl.swat > .02 || lean > 0) {
+      const T = this.patAt.set(S.mid - .06, .07, S.frontZ + .3), hx = this.home0.RF.x;
+      if (ctl.swatAt) {
+        const loc = root.worldToLocal(_m.copy(ctl.swatAt));
+        if (Math.hypot(loc.x, loc.z - S.frontZ) < 1.4) T.set(clamp(loc.x, hx - .1, hx + .22), clamp(loc.y + .03, .05, .5), clamp(loc.z - .04, S.frontZ + .16, S.frontZ + .36));
+      }
+    }
+    const dip = clamp((.5 - this.patAt.y) / .4, 0, 1);
+    pelvis.pos.x += .04 * lean; pelvis.pos.z += .045 * out; pelvis.roll += SWAT_ROLL * .5 * lean; pelvis.pitch -= .05 * out * dip;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
     // Landing: she sinks on her legs, front first, and comes back up.
@@ -385,13 +396,15 @@ export class MotionCat {
         local.copy(this.groomPaw.lerp(mouth.add(_m.set(.01, -.075 + Math.max(0, Math.sin(t * 7)) * .02, -.035)), 1 - Math.exp(-10 * dt)));
         pitch = -1.6;
       } else if (k === 'LF') this.groomPaw.copy(local);
-      // (The pat: the paw comes up bent beside her chest, draws back a
-      // little, then goes out to a point ahead of her nose, opening as it goes.)
+      // (The pat: the paw comes up bent beside her chest, its wrist hanging,
+      // draws back a little, then hooks up and over and comes down on the
+      // thing, the wrist flicking flat as it lands.)
       if (ctl.swat > .02 && k === 'RF') {
-        const r = ctl.swatReach ?? 1, up = _m.copy(local).add(_s.set(.02, .2 + .03 * Math.max(0, -r), .04 + .25 * Math.min(0, r)));
+        const r = ctl.swatReach ?? 1, o = Math.max(0, r), up = _m.copy(local).add(_s.set(.02, .22 + .04 * Math.max(0, -r), .02 + .28 * Math.min(0, r)));
         free = true;
-        local.lerp(up.lerp(_s.set(S.mid - .05, .42, S.frontZ + .3), Math.max(0, r)), ctl.swat);
-        pitch = lerp(pitch, -1 + .55 * Math.max(0, r), ctl.swat);
+        up.lerp(this.patAt, o).y += .1 * Math.sin(Math.PI * o);
+        local.lerp(up, ctl.swat);
+        pitch = lerp(pitch, lerp(-1.35, .15, smoothstep(o, .5, 1)), ctl.swat);
       }
       if (P.frontFree && k[1] === 'F') { free = true; local.add(new THREE.Vector3(...P.frontFree)); pitch = -1; }
       if (air) {
@@ -428,9 +441,9 @@ export class MotionCat {
     this.tailBob = damp(this.tailBob || 0, -rw * (.1 * saw + .06 * flex), 10, dt);
     const state = {
       pelvis,
-      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .17 * flex, roll: c.spineRoll + chestRoll * .5},
-      chest: {yaw: c.chestYaw - rock + .1 * lean + .08 * out, pitch: c.chest - .035 * ww - rw * (.02 + .07 * flex) - .05 * out, roll: chestRoll * .5 + SWAT_ROLL * lean},
-      head: {yaw: head.yaw + c.headYaw, pitch: head.pitch + c.headPitch - .1 * lean - .06 * out, roll: (head.roll || 0) + c.headRoll + SWAT_ROLL * .6 * lean},
+      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .17 * flex - .06 * out * dip, roll: c.spineRoll + chestRoll * .5},
+      chest: {yaw: c.chestYaw - rock + .16 * lean + .14 * out, pitch: c.chest - .035 * ww - rw * (.02 + .07 * flex) - (.04 * lean + .12 * out) * (.4 + .6 * dip), roll: chestRoll * .5 + SWAT_ROLL * lean},
+      head: {yaw: head.yaw + c.headYaw, pitch: head.pitch + c.headPitch - (.08 + .14 * dip) * lean - .08 * out, roll: (head.roll || 0) + c.headRoll + SWAT_ROLL * .6 * lean},
       neckShare: .5 + .25 * rw, headLevel: {y: this.headAvg, w: .9 * rw},
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,

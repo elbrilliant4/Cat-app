@@ -19,19 +19,22 @@ if (SCENE === 'bed') {
 } else if (SCENE === 'shelf') {
   await page.evaluate(() => { kitten.brain.mode = 'idle'; kitten.jumpTo('shelf', () => kitten.setActivity('sit', 1e9), 1e9); });
   await settle(() => kitten.brain.perch === 'shelf' && !kitten.brain.jump);
+} else if (SCENE === 'swat') {
+  // (Playing by herself: up to the ball first; the pats at it are filmed, from her front right.)
+  await page.evaluate(() => { kitten.brain.mode = 'idle'; kitten.startSolo(); });
+  await settle(() => kitten.brain.activity === 'play' && kitten.brain.speed < .05 && Math.hypot(kitten.toy.position.x - kitten.brain.pos.x, kitten.toy.position.z - kitten.brain.pos.z) < .9, 40);
 } else if (SCENE === 'jump') {
   // (At the take-off spot in front of the hearth first.)
   await page.evaluate(() => { kitten.brain.mode = 'idle'; kitten.walkTo(kitten.PERCHES.mantel.base, () => kitten.setActivity('sit', 1e9), false, true); });
   await settle(() => kitten.brain.activity === 'sit');
 }
 if (SCENE === 'sprint') await page.evaluate(() => { const B = kitten.brain; B.mode = 'idle'; B.pos.set(-2.6, 0, .8); B.heading = Math.PI / 2; });
-await step(SCENE === 'sprint' ? 110 : 20);
+await step(SCENE === 'sprint' ? 110 : SCENE === 'swat' ? 0 : 20);
 // Go.
 await page.evaluate(scene => {
-  kitten.brain.mode = 'idle';
+  if (scene !== 'swat') kitten.brain.mode = 'idle';
   if (scene === 'gallop') kitten.dash();
-  // (Three pats sitting on the rug, seen from her front right.)
-  if (scene === 'swat') { const pat = n => kitten.setActivity('swat', kitten.SWAT ?? .45, () => kitten.setActivity('sit', n ? .5 : 1e9, () => pat(n - 1))); kitten.setActivity('sit', .4, () => pat(2)); }
+
   if (scene === 'sprint') { const V = kitten.cat.root.position.constructor, go = (x, then) => kitten.walkTo(new V(x, 0, .8), then, 2.6, true); go(2.6, () => go(-2.6, () => kitten.setActivity('sit', 1e9))); }
   if (scene === 'bed') { const b = kitten.place.bed.position; kitten.walkTo(new kitten.cat.root.position.constructor(b.x, 0, b.z), () => kitten.setActivity('sit', 1e9), false, true); }
   if (scene === 'shelf') kitten.stroll();
