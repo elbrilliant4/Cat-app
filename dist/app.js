@@ -849,7 +849,7 @@ function updateCat(dt, t) {
   // end. There she faces the steps.)
   const atStepFoot = place === kitchen && !brain.perch && !J && Math.hypot(brain.pos.x - PERCHES.step.base.x, brain.pos.z - PERCHES.step.base.z) < .4;
   if (brain.watching && !brain.perch && !J && a === 'sit' && brain.glance && !atStepFoot) { const want = angleTo(brain.pos, brain.glance); if (Math.abs(Math.atan2(Math.sin(want - brain.heading), Math.cos(want - brain.heading))) > .7) desiredHeading = want; }
-  if (atStepFoot && ['sit', 'loaf', 'groom', 'pause', 'land'].includes(a)) desiredHeading = Math.PI;
+  if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) desiredHeading = Math.PI;
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
@@ -1643,7 +1643,7 @@ function vacuumAttack() {
   brain.swatAt = vacAt().clone(); brain.vacStalk = true;
   const go = tries => {
     if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; return; }
-    if (brain.pos.distanceTo(vacAt()) > 2.2) { if (tries < 4) walkTo(nearVacuum(1.5), () => go(tries + 1), 1.0, true); else { brain.vacStalk = false; setActivity('sit'); } return; }
+    if (brain.pos.distanceTo(vacAt()) > 2.2) { if (tries < 4) walkTo(approachVacuum(1.5), () => go(tries + 1), 1.0, true); else { brain.vacStalk = false; setActivity('sit'); } return; }
     // Stalk: low, bottom wiggling, eyes locked on; then the pounce.
     setActivity('stalk', rand(1.2, 2.2), () => {
       if (kitchen.vac.state === 'docked' || brain.mode !== 'idle') { brain.vacStalk = false; setActivity('sit'); return; }
@@ -1678,11 +1678,15 @@ function vacuumAttack() {
 // then from behind or ahead of it, along its way.
 function approachVacuum(dist) {
   const p = vacAt(), h = kitchen.vac.heading, dx = brain.pos.x - p.x, dz = brain.pos.z - p.z, d = Math.max(.01, Math.hypot(dx, dz));
+  let best = null, bestMoved = Infinity;
   for (const [x, z] of [[dx / d, dz / d], [-Math.sin(h), -Math.cos(h)], [Math.sin(h), Math.cos(h)]]) {
     const beyond = new THREE.Vector3(p.x - x * .8, 0, p.z - z * .8), spot = new THREE.Vector3(p.x + x * dist, 0, p.z + z * dist);
-    if (kitchen.clampFloor(beyond.clone()).distanceTo(beyond) < .02 && kitchen.clampFloor(spot.clone()).distanceTo(spot) < .3) return kitchen.clampFloor(spot);
+    const moved = kitchen.clampFloor(beyond.clone()).distanceTo(beyond) + kitchen.clampFloor(spot.clone()).distanceTo(spot);
+    if (moved < .05) return kitchen.clampFloor(spot);
+    if (moved < bestMoved) { bestMoved = moved; best = spot; }
   }
-  return nearVacuum(dist);
+  // (Nowhere clean: the least bad of them.)
+  return kitchen.clampFloor(best);
 }
 function vacuumRide() {
   glanceAt(vacAt().clone().setY(.2), 2); express('curious', 1.2);

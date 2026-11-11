@@ -36,4 +36,46 @@ The vacuum, and Mochi riding it, must never pass through furniture.
 clearance > 0 for the vacuum and her body.
 
 ## Result
-(fill in)
+Measured with the new `tools/qa/vacuum.mjs` (every kitchen solid read off
+the real meshes; the vacuum's disc and every point of her body, the tail
+along its length; 2 seeds x 600 s, screenshots of the worst moments).
+
+**Before (live build 174):** the vacuum itself never went through anything
+in 1200 s (closest: 3.5 cm from the bowl's rim). *She* did, and it was
+never the vacuum's fault:
+
+| what | how deep | where |
+|---|---|---|
+| her tail, hanging off the back of the vacuum | 63 to 67 cm | the counter (sitting on it in the back lane), the dock, the stools, the tent |
+| her tail, walking past | 77 cm | the island's base, the stools' legs, the counter |
+| her head and hips | 12 to 25 cm | the stool legs (walking or landing along the keep-out edge: the legs reach .7 in front of the island, the keep-out was .35 from them) |
+| her body | 40 to 55 cm | the counter, standing at the foot of the wall steps turned across the gap; the island jump base (.3, -1.4) was clamped to the island's edge, her head in it |
+| her hips | 11 to 17 cm | the dock, boarding the vacuum while it still stood on it |
+
+Pictures: `qa-out/before-pics-s5/vacuum-at-{60,98,133}.png` (head in a
+stool leg; tail straight through a stool leg from the vacuum; her back
+half inside the counter drawers).
+
+**What changed**
+- `motion.js` `clearTail(solids)`: the tail keeps out of boxes, cylinders
+  and the tent's turned box (each joint out by the nearest face; lying on
+  top counts as out). The kitchen's list is `tailSolids` in `layout()`,
+  passed per frame by `tailSolids()` in `app.js` (minus the tent while
+  she's in it, the counter while she's in the sink; plus the vacuum).
+- `kitchen.js`: `KEEP_OUT` .65 from the island, 1.35 in front (her head
+  and hips reach .6); `clampFloor` runs its pushes in passes (out of the
+  island's margin could mean into the vacuum's circle and back) and the
+  floor's edge wins last; the vacuum's centre kept in `VAC_FLOOR` /
+  `VAC_FLOOR_RIDE` (route points outside dropped, never clamped onto a
+  thing); riding pad .7 (.45 behind the island, the lane is narrow); the
+  dock an obstacle with her aboard; the tent .4 more room (square); a
+  goal inside a margin or no route = no path, it picks another goal;
+  fountain obstacle .8, bowl .6; island jump base (.3, -1.75); she hops
+  off on the side with room.
+- `app.js`: she doesn't board at the dock (it doesn't wait for her there);
+  she walks up to it (to ride or to stalk) from a side where she and her
+  landing stay on free floor; at the foot of the wall steps she faces the
+  steps.
+
+**After:** (numbers below, filled in from the final runs)
+

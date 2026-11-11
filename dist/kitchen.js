@@ -43,7 +43,7 @@ const VAC_FLOOR = {x0: -5.4, x1: 6.5, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0:
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
 // (The vacuum's moves with it.)
 const VAC = {x: 3.15, z: -2.0, r: .7};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .7}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .8}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
 const VAC_HOME = V(3.15, 0, -2.0);
 // The dock, for the vacuum with her aboard: her rear hangs .8 behind it.
 const DOCK = {x: 3.15, z: -2.62, r: .55};
@@ -965,7 +965,7 @@ export class Kitchen {
           box(K.left - .5, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right - .05, K.right + .5, K.back, FLOOR.z1 + 1, 0, K.wallH),
           box(K.left, K.door[0], K.back - .5, K.back + .05, 0, K.wallH), box(K.door[1], K.right, K.back - .5, K.back + .05, 0, K.wallH),
           {kind: 'rbox', x: K.tent.x, z: K.tent.z, ry: K.tent.ry, hx: 1.32, hz: 1.02, y0: 0, y1: 1.95, tag: 'bed'},
-          cyl(3.0, 1.55, .55, 0, .23), cyl(3.0, 1.55, .23, .23, .38), cyl(4.55, 2.6, .27, 0, .16),
+          cyl(3.0, 1.55, .55, 0, .23), cyl(3.0, 1.55, .23, .23, .38), cyl(4.55, 2.6, .37, 0, .16),
         ];
         for (const x of [-3.0, -1.85]) {
           const z = I.z1 + .45;
@@ -1038,7 +1038,9 @@ export class Kitchen {
     for (let i = 0; i < 30; i++) {
       const v = V(-4.8 + Math.random() * 10.4, 0, -2.1 + Math.random() * 6.2);
       if (v.x > KEEP_OUT.x0 - pad && v.x < KEEP_OUT.x1 + pad && v.z > KEEP_OUT.z0 - pad && v.z < KEEP_OUT.z1 + pad) continue;
-      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || OBSTACLES.some(c => Math.hypot(v.x - c.x, v.z - c.z) < c.r + .3)) continue;
+      // (For the vacuum: clear of each thing by its own margin, as route()
+      // pads it, so a goal never lies inside a padded circle.)
+      if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || OBSTACLES.some(c => Math.hypot(v.x - c.x, v.z - c.z) < c.r + (pad ? pad * .5 + (c === TENT ? .5 : .15) : .3))) continue;
       return v;
     }
     return V(5.5, 0, 3.6);
@@ -1093,7 +1095,12 @@ export class Kitchen {
     // (The tent is square: its corners stick out of its circle, so the
     // vacuum gives it more room. Behind the island the lane is narrow: less
     // margin there, her rear clear of the counter's drawers matters more.)
-    const circles = OBSTACLES.filter(c => c !== VAC).concat(vac, pad && this.vac?.rider ? [DOCK] : []).map(c => pad ? {...c, r: c.r + pad * .5 + (c === TENT ? .4 : 0)} : c).filter(c => !inside(A, c) && !inside(B, c));
+    const padded = OBSTACLES.filter(c => c !== VAC).concat(vac, pad && this.vac?.rider ? [DOCK] : []).map(c => pad ? {...c, r: c.r + pad * .5 + (c === TENT ? .4 : 0)} : c);
+    // (The vacuum's goal inside something's margin: no path, it picks
+    // another; a circle round the goal is dropped below, and it would drive
+    // straight through.)
+    if (pad && padded.some(c => inside(B, c))) return [];
+    const circles = padded.filter(c => !inside(A, c) && !inside(B, c));
     const R = pad ? {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - Math.min(pad, .45), z1: KEEP_OUT.z1 + pad} : KEEP_OUT;
     // (Starting inside that margin, after a swat or backing off say: first
     // straight out of it, by the nearest side, then round as usual.)
