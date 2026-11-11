@@ -94,9 +94,10 @@ await page.evaluate(kitchen => {
   const toSolid = (s, x, y, z, r) => {
     // (Resting on top of a thing counts as clear.)
     if (y < s.y0 - r || y > s.y1 + r - .01) return 9;
-    // (Inside, the shortest way out counts: sideways, or up off its top for
-    // a tail lying on it and sunk in a little.)
-    const out = d => d < 0 ? Math.max(d, y - s.y1 - r) : d;
+    // (Inside, the shortest way out counts: sideways, up off its top for a
+    // tail lying on it and sunk in a little, or down out of its underside: a
+    // tail hanging just under a shelf is only skin-deep in it.)
+    const out = d => d < 0 ? Math.max(d, y - s.y1 - r, s.y0 - r - y) : d;
     if (s.kind === 'cyl') return out(Math.hypot(x - s.cx, z - s.cz) - s.r - r);
     let x0 = s.x0, x1 = s.x1, z0 = s.z0, z1 = s.z1;
     if (s.kind === 'rbox') {
@@ -196,8 +197,8 @@ for (let s = 0; s < total; s++) {
     if (s % (STAY + 8) === STAY + 7 && SHOTS) {
       // (A picture of her sitting there, from the room and from the side.)
       const [x, y, z] = await page.evaluate(() => { const p = kitten.brain.pos; return [p.x, kitten.brain.elevation + .5, p.z]; });
-      await look({focus: [x, y, z], yaw: .35, pitch: .25, dist: 3.2}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}.png`});
-      await look({focus: [x, y, z], yaw: 1.45, pitch: .15, dist: 3.2}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}-side.png`});
+      await look({focus: [x, y, z], yaw: .2, pitch: .12, dist: 2.4}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}.png`});
+      await look({focus: [x, y, z], yaw: .9, pitch: .1, dist: 2.2}); await page.screenshot({path: `${OUT}/perch-${ROOM}-${n}-side.png`});
       const st = await page.evaluate(() => `${kitten.brain.perch || 'floor'} ${kitten.brain.activity} at ${kitten.brain.pos.x.toFixed(2)},${kitten.brain.pos.z.toFixed(2)}`);
       console.log(`  ${s}s: ${st}  → ${OUT}/perch-${ROOM}-${n}.png`);
     }

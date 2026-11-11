@@ -294,10 +294,10 @@ export class Kitchen {
     // in a zig-zag with the counter and the shelves, so she can climb all
     // the way up: floor, step, counter, step, lower shelf, step, top shelf.
     this.steps = [1.15, 3.05, 4.85].map(top => {
-      // (.9 deep, like the shelves: sitting, she's about .8 from tail to
-      // front paws, and sits facing the room.)
-      const st = this.box(.62, .14, .9, -5.6, top - .07, zb + .45, M.walnut, this.group);
-      this.box(.06, .3, .74, -5.6, top - .29, zb + .37, M.walnutDark, this.group, {cast: false});
+      // (.95 deep: sitting, she's about .85 from tail to front paws, and
+      // sits facing the room.)
+      const st = this.box(.62, .14, .95, -5.6, top - .07, zb + .475, M.walnut, this.group);
+      this.box(.06, .3, .78, -5.6, top - .29, zb + .39, M.walnutDark, this.group, {cast: false});
       return st;
     });
     this.step = this.steps[0];
@@ -937,17 +937,17 @@ export class Kitchen {
       windowSpot: at(-5.0, .4),
       // Floor -> stepping perch -> back counter -> lower shelf -> upper
       // shelf, all at the left end, well away from the range. On the steps
-      // and shelves (narrow: .9 deep) she sits at the front, her hips clear
+      // and shelves (narrow: .95 and .9 deep) she sits at the front, her hips clear
       // of the wall and her front paws still on; the lower shelf's spot is
       // clear of the upper shelf's bracket (at x -4.6) over her head.
       // (narrow: she turns in the air to land facing the way she'll sit.)
       perches: {
-        step: {spot: at(-5.6, -3.57), top: this.stepTops[0], base: at(-5.45, -2.45), face: 0, narrow: true},
+        step: {spot: at(-5.6, -3.54), top: this.stepTops[0], base: at(-5.45, -2.45), face: 0, narrow: true},
         counter: {spot: at(-4.65, -3.35), top: K.counter, via: 'step', face: 0, lane: {z: -2.95, x0: -4.9, x1: .1}},
-        stepMid: {spot: at(-5.6, -3.57), top: this.stepTops[1], via: 'counter', face: 0, narrow: true},
-        shelf: {spot: at(-4.3, -3.55), top: K.shelf1, via: 'stepMid', face: 0, narrow: true, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
-        stepTop: {spot: at(-5.6, -3.57), top: this.stepTops[2], via: 'shelf', face: 0, narrow: true},
-        shelfHigh: {spot: at(-4.65, -3.55), top: K.shelf2, via: 'stepTop', face: 0, narrow: true, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
+        stepMid: {spot: at(-5.6, -3.54), top: this.stepTops[1], via: 'counter', face: 0, narrow: true},
+        shelf: {spot: at(-4.3, -3.56), top: K.shelf1, via: 'stepMid', face: 0, narrow: true, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
+        stepTop: {spot: at(-5.6, -3.54), top: this.stepTops[2], via: 'shelf', face: 0, narrow: true},
+        shelfHigh: {spot: at(-4.65, -3.56), top: K.shelf2, via: 'stepTop', face: 0, narrow: true, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
         // Up on the island (from behind it), only for the salmon.
         island: {spot: at(.3, -.2), top: K.island.top, base: at(.3, -1.75), face: 0},
         // Riding the big pendant shade (from the top shelf, a flying leap):
@@ -991,7 +991,7 @@ export class Kitchen {
         ];
         // Her steps up the wall (each block and the bracket under it) and
         // the two steel shelves with their brackets.
-        for (const top of this.stepTops) list.push(box(-5.91, -5.29, K.back, K.back + .9, top - .14, top), box(-5.63, -5.57, K.back, K.back + .74, top - .44, top - .14));
+        for (const top of this.stepTops) list.push(box(-5.91, -5.29, K.back, K.back + .95, top - .14, top), box(-5.63, -5.57, K.back, K.back + .78, top - .44, top - .14));
         const [sx0, sx1] = K.shelfX;
         for (const y of [K.shelf1, K.shelf2]) {
           list.push(box(sx0, sx1, K.back, K.back + K.shelfD, y - .09, y));
