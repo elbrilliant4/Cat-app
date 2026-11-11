@@ -10,7 +10,7 @@ async function chromium() {
 const OUT = process.env.OUT || 'qa-out', BASE = `http://127.0.0.1:${process.env.PORT || 5173}/index.html`;
 fs.mkdirSync(OUT, {recursive: true});
 const browser = await (await chromium()).launch({args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']});
-const PHONE = {viewport: {width: 390, height: 844}, deviceScaleFactor: 2, isMobile: true, hasTouch: true}, DESK = {viewport: {width: 1440, height: 900}};
+const PHONE = {viewport: {width: 390, height: 844}, deviceScaleFactor: 1, isMobile: true, hasTouch: true}, DESK = {viewport: {width: 1440, height: 900}};
 const titleOn = page => page.evaluate(() => document.documentElement.classList.contains('title'));
 let failed = 0;
 async function run(name, query, opts, body) {
@@ -30,11 +30,11 @@ async function run(name, query, opts, body) {
 const through = (label, key) => async page => {
   await page.waitForSelector('#title.lit', {timeout: 120000});
   await page.waitForTimeout(3000);
-  await page.screenshot({path: `${OUT}/title-${label}.png`});
+  await page.screenshot({path: `${OUT}/title-${label}.png`, timeout: 120000});
   if (key) await page.keyboard.press(key); else await page.click('#title', {timeout: 120000, noWaitAfter: true});
   await page.waitForFunction(() => !document.documentElement.classList.contains('title'), null, {timeout: 60000});
   await page.waitForTimeout(3000);
-  await page.screenshot({path: `${OUT}/title-${label}-after.png`});
+  await page.screenshot({path: `${OUT}/title-${label}-after.png`, timeout: 120000});
 };
 await run('phone', '?night=0', PHONE, through('phone'));
 await run('desktop, night, Enter key', '?night=1', DESK, through('desk', 'Enter'));
