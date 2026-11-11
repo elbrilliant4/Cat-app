@@ -53,7 +53,9 @@ const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.co
 // The gap between the counter's end and the window wall, where the wall
 // steps start: in and out by its mouth, straight, never turning inside it
 // (it's narrower than she is long).
-const GAP = {x0: -5.9, x1: -5.05, z0: -2.8, z1: -2.1}, GAP_MOUTH = V(-5.45, 0, -1.85);
+// (The mouth stands a little east and north: turning there toward the gap,
+// her head and hips stay clear of the window wall.)
+const GAP = {x0: -5.9, x1: -5.05, z0: -2.8, z1: -2.1}, GAP_MOUTH = V(-5.15, 0, -1.5);
 
 export class Kitchen {
   constructor(scene, room) {
@@ -947,15 +949,17 @@ export class Kitchen {
         pendant: {get spot() { return kitchen.pendantTop(V(0, 0, 0)).setY(0); }, get top() { return kitchen.pendantTop(V(0, 0, 0)).y; },
           via: 'shelfHigh', face: 0, ride: true, dropTo: {at: at(-3.6, -2.95), top: K.counter, perch: 'counter'}},
         // Riding the robot vacuum: wherever it is; off to one side of it.
-        // (Off on whichever side has the room: by the stools or a wall
-        // she'd land with her head in them.)
+        // (Off to whichever side has the room, or ahead or behind it when
+        // neither has, in the lane behind the island: by the stools or a
+        // wall she'd land with her head in them. Scored by how far the
+        // furniture, walls and counter push the spot; the open front
+        // doesn't count.)
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() {
-          const p = kitchen.vacuum.position, side = V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8);
-          // (Scored by how far the furniture, walls and counter push the
-          // spot; the open front doesn't count.)
+          const p = kitchen.vacuum.position, h = kitchen.vac.heading, side = V(Math.cos(h), 0, -Math.sin(h)).multiplyScalar(.8), ahead = V(Math.sin(h), 0, Math.cos(h)).multiplyScalar(.9);
           const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z); };
-          const a = p.clone().add(side), b = p.clone().sub(side);
-          return kitchen.clampFloor(score(a) <= score(b) ? a : b);
+          let best = null, bs = Infinity;
+          for (const q of [p.clone().add(side), p.clone().sub(side), p.clone().sub(ahead), p.clone().add(ahead)]) { const sc = score(q); if (sc < bs - 1e-6) { bs = sc; best = q; } }
+          return kitchen.clampFloor(best);
         }},
       },
       // What her tail keeps out of (clearTail in motion.js), as it is on
@@ -1037,6 +1041,12 @@ export class Kitchen {
         if (d < c.r) { const k = (c.r + .05) / Math.max(d, 1e-3); v.x = c.x + (d < 1e-3 ? c.r + .05 : dx * k); v.z = c.z + (d < 1e-3 ? 0 : dz * k); }
       }
     }
+    // (Squeezed between the vacuum's circle and the island's margin, the
+    // margin wins: nearer the vacuum is harmless, her head in the island isn't.)
+    if (v.x > R.x0 && v.x < R.x1 && v.z > R.z0 && v.z < R.z1) {
+      const opts = [[R.x0 - v.x, 0], [R.x1 - v.x, 0], [0, R.z0 - v.z], [0, R.z1 - v.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
+      v.x += opts[0][0] * 1.02; v.z += opts[0][1] * 1.02;
+    }
     // (Pushed out of the vacuum's circle by the counter or a wall: the
     // floor's edge wins, she stands a little nearer the vacuum instead.)
     v.x = Math.min(FLOOR.x1, Math.max(FLOOR.x0, v.x)); v.z = Math.min(FLOOR.z1, Math.max(FLOOR.z0, v.z));
@@ -1062,6 +1072,12 @@ export class Kitchen {
     // (A few passes: pushed clear of one thing can mean pushed into another,
     // e.g. between the vacuum and the island.)
     for (let pass = 0; pass < 3; pass++) this.pushOutOnce(v, riding);
+    // (Squeezed between the vacuum and the island's margin, the margin wins.)
+    const R = KEEP_OUT;
+    if (v.x > R.x0 && v.x < R.x1 && v.z > R.z0 && v.z < R.z1) {
+      const opts = [[R.x0 - v.x, 0], [R.x1 - v.x, 0], [0, R.z0 - v.z], [0, R.z1 - v.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
+      v.x += opts[0][0] * 1.01; v.z += opts[0][1] * 1.01;
+    }
     return v;
   }
   pushOutOnce(v, riding) {
