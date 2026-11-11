@@ -1,5 +1,7 @@
 // Stills from the title's zoomies cinematic, at chosen moments on its story
 // clock, to check each shot's framing. Time is stepped by hand.
+// (CSS fades are only stepped at each still, so a still right after the
+// flash is white: use title-clip.mjs to judge the fades.)
 //   node tools/qa/title-shots.mjs      W=390 H=844 NIGHT=0 AT="0.5 0.9 1.6 ..." OUT=qa-out
 import fs from 'node:fs';
 import {open} from './lib.mjs';

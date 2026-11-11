@@ -69,6 +69,7 @@ await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&
   await page.waitForSelector('#title.reveal', {timeout: 60000});
   await page.waitForTimeout(3000);
   const st = await page.evaluate(() => { const b = kitten.brain, v = kitten.room.mantelVase, h = v.userData.home; return {stage: kitten.title.stage, at: Math.hypot(b.pos.x, b.pos.z - .3), y: b.elevation, perch: b.perch, jump: !!b.jump, vase: v.position.distanceTo(h.p) + Math.abs(v.rotation.x) + Math.abs(v.rotation.z), sound: kitten.pet.sound, pet: JSON.stringify(['name', 'bond', 'cuddles', 'sleeping', 'place'].map(k => kitten.pet[k])), ms: kitten.title.fx?.frameMs}; });
+  // (0 here: software 3D is too slow to count. It means something on a real GPU.)
   console.log('  frame time on this machine (ms):', st.ms?.toFixed(0));
   if (st.stage !== 'live' || st.at > .05 || st.y > .05 || st.perch || st.jump) throw new Error('she is not sitting at home: ' + JSON.stringify(st));
   if (st.vase > .001) throw new Error('the vase is not back');
