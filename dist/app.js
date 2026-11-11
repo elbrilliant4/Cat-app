@@ -789,8 +789,9 @@ function updateCat(dt, t) {
     desiredHeading = Math.atan2(dx, dz);
     const facing = Math.abs(Math.atan2(Math.sin(desiredHeading - brain.heading), Math.cos(desiredHeading - brain.heading)));
     // (Running: a trot. A dash or zoomies, 2.6, is flat out: a gallop.)
-    const top = typeof brain.run === 'number' ? brain.run : brain.run ? 2.1 : .65;
-    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * 2.5 + .2) : .15, 5, dt);
+    // (A dash takes off and pulls up harder than a walk or a trot.)
+    const top = typeof brain.run === 'number' ? brain.run : brain.run ? 2.1 : .65, flat = top >= 2.5;
+    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * (flat ? 3.2 : 2.5) + .2) : .15, flat ? 8 : 5, dt);
     if (dist < .06) {
       brain.speed = 0;
       brain.target = null;
@@ -1063,6 +1064,7 @@ function updateCat(dt, t) {
 
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
+    sprint: a === 'walk' && typeof brain.run === 'number' && brain.run >= 2.5,
     groom: a === 'groom', swat, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
     // (For the new movement: how far through a jump she is, which way, and

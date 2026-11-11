@@ -150,6 +150,8 @@ export class MotionRig {
    *   spine: {yaw, pitch, roll}, chest: {yaw, pitch, roll},
    *   head: {yaw, pitch, roll} (in the world: steady while the body moves),
    *   neckShare (how much of the head's turn the neck takes, 0..1),
+   *   headLevel: {y, w} (the neck tips to bring the head a share w of the
+   *     way to height y, so it rides level over a bounding body),
    *   scap: {L: {angle, lift}, R: {...}},
    *   paws: {LF: {pos, pitch, yaw, planted}, ...} (pos: the sole, on the floor when planted),
    *   tail: {lift, curl, side, up, amp, speed}, breathe (-1..1 × depth),
@@ -217,6 +219,18 @@ export class MotionRig {
     const neck = chest.clone().slerp(head, s.neckShare ?? .5);
     this.setTurn('neck', neck, chest);
     this.setTurn('head', head, neck);
+    // (Where the head would ride, measured each frame; then the neck tips
+    // up or down about its base to carry the head toward the asked height.)
+    cat.root.updateMatrixWorld(true);
+    const hy = cat.root.worldToLocal(B.head.getWorldPosition(_v)).y;
+    this.headY0 = hy;
+    if (s.headLevel?.w > 0) {
+      const n = cat.root.worldToLocal(B.neck.getWorldPosition(_v2)), dy = hy - n.y, len = Math.hypot(dy, _v.z - n.z);
+      const a = Math.asin(THREE.MathUtils.clamp(dy / len, -1, 1)), b = Math.asin(THREE.MathUtils.clamp((dy + s.headLevel.w * (s.headLevel.y - hy)) / len, -1, 1));
+      neck.premultiply(_q2.setFromAxisAngle(X, -THREE.MathUtils.clamp(b - a, -.5, .5)));
+      this.setTurn('neck', neck, chest);
+      this.setTurn('head', head, neck);
+    }
     // Shoulder blades: a swing about the side-to-side axis (pivoting near
     // the top), and a lift as the leg below takes weight.
     for (const side of ['L', 'R']) {

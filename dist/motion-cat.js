@@ -27,10 +27,16 @@ const PHASE = {LH: 0, LF: .25, RH: .5, RF: .75}; // four-beat walk
 // pairs move together, left hind with right front. (RF is 1, not 0, so the
 // blends from the walk's .75 and to the gallop's .7 go the short way round.)
 const PHASE_TROT = {LH: 0, RF: 1, RH: .5, LF: .5};
-// Flat out (from 2.2), a gallop: the hind legs push off one after the other
-// (a quarter stride apart, so they don't hop together like a rabbit's), then
-// the front legs land one after the other half a stride later.
-const PHASE_RUN = {LH: 0, RH: .25, LF: .5, RF: .7};
+// Flat out (from 2.2, or from the first step of a dash), a gallop: the hind
+// legs push off one after the other (a sixth of a stride apart, so they
+// don't hop together like a rabbit's), then the front legs land one after
+// the other; after the second front paw leaves, a moment with all four paws
+// off the floor, gathered under her, before the hind paws land again.
+const PHASE_RUN = {LH: 0, RH: .17, LF: .47, RF: .62};
+// A gallop's strides a second at her size (a real cat's 3.5 to 4, slowed for
+// a body about twice as long), and how far a paw travels back under her
+// while it's down.
+const RUN_HZ = 2.6, RUN_STANCE = .29;
 // The walk is set to numbers measured in walking cats (Day & Jayne 2007 and
 // others; docs/phases/07-walk-grace.md): stride 1.2x the old one, hind paws
 // down less of the stride than the front (.57 / .62), carried 5 cm lower
@@ -194,9 +200,14 @@ export class MotionCat {
     // From 1.0 she trots; flat out (a dash, zoomies) she gallops: quick
     // bounds, each paw down for a shorter time. (Quick, not long: a long
     // bound carries her hips past where a planted hind paw can reach.)
-    const trotW = AB.get('trot') === '0' ? 0 : smoother(clamp((speed - .95) / .35, 0, 1)), runW = smoother(clamp((speed - 2.2) / .3, 0, 1));
+    // (A dash is a gallop from the first bound, as a cat's is: she doesn't
+    // trot her way up to it. Bounds of a steady rhythm that lengthen with
+    // her speed, each paw down for a short push.)
+    this.sprintW = damp(this.sprintW || 0, ctl.sprint ? 1 : 0, 8, dt);
+    const trotW = AB.get('trot') === '0' ? 0 : smoother(clamp((speed - .95) / .35, 0, 1)), runW = Math.max(smoother(clamp((speed - 2.2) / .3, 0, 1)), this.sprintW * smoother(clamp((speed - .45) / .5, 0, 1)));
     this.trotW = trotW; this.runW = runW;
-    const stride = lerp(lerp(clamp(.3 + .3 * gait, .36, .8) * STRIDE_K, clamp(.35 + .2 * gait, .6, .78), trotW), clamp(.2 + .2 * gait, .5, .62), runW); // metres-equivalent per cycle at her size
+    const runStride = clamp(gait / RUN_HZ, .5, 1.25), runDuty = clamp(RUN_STANCE / runStride, .24, .4);
+    const stride = lerp(lerp(clamp(.3 + .3 * gait, .36, .8) * STRIDE_K, clamp(.35 + .2 * gait, .6, .78), trotW), runStride, runW); // metres-equivalent per cycle at her size
     const walkDuty = clamp(.64 - .1 * (gait - .62), .42, .66);
     if (walking) this.phase = (this.phase + gait * dt / stride) % 1;
     const cycle = stride / Math.max(gait, .05);
@@ -220,7 +231,7 @@ export class MotionCat {
         // walking step; left as it was, nothing here would finish it, and the
         // paw would stay down and be dragged until she stopped.)
         if (pw.swing && !pw.swing.gait) pw.swing = {gait: true, early: true, from: pw.pos.clone(), t0: t};
-        const duty = lerp(lerp(LONG ? Math.min(walkDuty, front ? .62 : .57) : walkDuty, .45, trotW), front ? .36 : .37, runW);
+        const duty = lerp(lerp(LONG ? Math.min(walkDuty, front ? .62 : .57) : walkDuty, .45, trotW), front ? runDuty - .01 : runDuty, runW);
         const p =((this.phase - lerp(lerp(PHASE[k], PHASE_TROT[k], trotW), PHASE_RUN[k], runW)) % 1 + 1) % 1;
         const inSwing = walking && p >= duty, near = walking && p >= duty - .12; // (its swing, or about to be)
         if (!inSwing) pw.sat = false;
@@ -270,7 +281,7 @@ export class MotionCat {
             const e = smoother(clamp((u - .05) / .9, 0, 1));
             pw.pos.copy(pw.swing.from).lerp(to, e);
             // (Every step clears the floor, even a short one.)
-            const H = (front ? .08 : .075 * HIND_LIFT) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + trotW * .25 + runW * .25);
+            const H = (front ? .08 : .075 * HIND_LIFT) * clamp(pw.swing.from.distanceTo(to) / .5, .7, 1) * (1 + trotW * .25 + runW * .9);
             pw.pos.y = rootPos.y + H * Math.pow(Math.sin(Math.PI * Math.pow(u, .8)), 1.3);
             pw.pitch = front ? -1.1 * Math.sin(Math.PI * clamp(u * 1.25, 0, 1)) * (1 - u) : -.7 * Math.sin(Math.PI * clamp(u * 1.3, 0, 1)) * (1 - u);
             sw[k] = Math.sin(Math.PI * u);
@@ -329,14 +340,23 @@ export class MotionCat {
     // legs gather under her and stretching out as they reach.
     // Trotting, a light bounce with each diagonal pair (twice a stride) and
     // no hip roll or sway.
-    const rw = this.runW || 0, tw = (this.trotW || 0) * (1 - rw), gph = Math.PI * 2 * this.phase;
-    const pelY = c.y - (.02 + CARRY_LOW) * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw - tw) + tw * .012 * Math.sin(2 * gph - .8) + rw * (.035 * Math.sin(gph - .6) - .01);
+    // (Through a gallop stride: `flex` is the back, +1 rounded with all four
+    // legs gathered under her (as the front paws leave), -1 stretched long
+    // (as the hind paws leave and the front ones reach); `saw` is the
+    // see-saw, +1 front end up (hind paws down, pushing), -1 hips up over
+    // the planted front paws. Not in the air or on the vacuum.)
+    this.galW = damp(this.galW || 0, air || riding ? 0 : this.runW || 0, 12, dt);
+    const rw = this.galW, tw = (this.trotW || 0) * (1 - (this.runW || 0)), gph = Math.PI * 2 * this.phase;
+    const flex = Math.cos(gph + .3), saw = Math.sin(gph + .5), rock = rw * .045 * Math.sin(gph - .5);
+    const pelY = c.y - (.02 + CARRY_LOW) * ww - .006 * ((sw.LH || 0) + (sw.RH || 0)) * ww * (1 - rw - tw) + tw * .012 * Math.sin(2 * gph - .8) + rw * (.04 * Math.sin(gph - 1.9) - .005);
     const settled = c.y < this.h0 - .1; // resting on her body (sitting, lying)
     const swayH = .012 * ((sw.RH || 0) - (sw.LH || 0)) * ww * SWAY * (1 - tw);
     // (Reach: a lean forward and a dip of the front, so her mouth finds the food.)
     const reach = ctl.reach || {z: 0, dip: 0};
-    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z), yaw: c.yaw + .03 * SWAY * (1 - tw) * ((sw.RH || 0) - (sw.LH || 0)) * ww + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
-      pitch: c.pitch - reach.dip + rw * .12 * Math.sin(gph) + tw * .01 * Math.sin(2 * gph - .8), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw - tw)};
+    // (Galloping, the hips come forward under her as the back rounds, and
+    // swing a little from side to side against the shoulders.)
+    const pelvis = {pos: new THREE.Vector3(S.hips.x + c.x + swayH, pelY, S.hips.z + c.z + reach.z + rw * .03 * flex), yaw: c.yaw + .03 * SWAY * (1 - tw) * (1 - rw) * ((sw.RH || 0) - (sw.LH || 0)) * ww + rock + (ctl.wiggle || 0) * Math.sin(t * 20) * .14,
+      pitch: c.pitch - reach.dip + rw * (.09 * saw + .1 * flex - .1) + tw * .01 * Math.sin(2 * gph - .8), roll: c.roll + .045 * SWAY * ((sw.RH || 0) - (sw.LH || 0)) * ww * (1 - rw - tw)};
     const chestRoll = .03 * ((sw.RF || 0) - (sw.LF || 0)) * ww;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
@@ -384,15 +404,24 @@ export class MotionCat {
       + (ctl.purr ? Math.sin(t * 55) * .004 : 0);
     const head = ctl.head || {yaw: 0, pitch: 0, roll: 0};
     const tl = ctl.tail || {amp: .25, speed: 1.4};
+    // Her head stays level while the body bounds under it: the neck takes up
+    // most of the rise and fall (the rig aims it at her head's usual height).
+    this.headAvg = damp(this.headAvg ?? rig.headY0 ?? 0, rig.headY0 ?? 0, rw > .05 ? 2.5 : 30, dt);
+    // The tail streams out behind at a run, nearly level; it follows the
+    // hips' rise and fall a beat late, and swings wide of a turn, left
+    // behind (walking too, a little).
+    const stream = Math.max(rw, tw * .35);
+    this.tailLag = damp(this.tailLag || 0, clamp(this.yawRate * .3, -1.3, 1.3) * Math.max(stream, ww * .4), 5, dt);
+    this.tailBob = damp(this.tailBob || 0, -rw * (.1 * saw + .06 * flex), 10, dt);
     const state = {
       pelvis,
-      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .14 * Math.sin(gph), roll: c.spineRoll + chestRoll * .5},
-      chest: {yaw: c.chestYaw, pitch: c.chest - .035 * ww - rw * (.06 + .08 * Math.sin(gph + 1.2)), roll: chestRoll * .5},
+      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .17 * flex, roll: c.spineRoll + chestRoll * .5},
+      chest: {yaw: c.chestYaw - rock, pitch: c.chest - .035 * ww - rw * (.02 + .07 * flex), roll: chestRoll * .5},
       head: {yaw: head.yaw + c.headYaw, pitch: head.pitch + c.headPitch, roll: (head.roll || 0) + c.headRoll},
-      neckShare: .5,
+      neckShare: .5 + .25 * rw, headLevel: {y: this.headAvg, w: .9 * rw},
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,
-      tail: {lift: c.tailLift, curl: c.tailCurl, side: c.tailSide, up: ctl.tailUp || 0, amp: tl.amp, speed: tl.speed,
+      tail: {lift: lerp(c.tailLift, 0, stream) + this.tailBob, curl: lerp(c.tailCurl, .04, stream), side: c.tailSide + this.tailLag, up: ctl.tailUp || 0, amp: tl.amp, speed: tl.speed,
         floor: air ? 0 : c.tailFloor, wrap: 1, radius: c.tailR, bounds: ctl.tailBounds},
       breathe: breath, face: ctl.face, look: ctl.look,
     };
