@@ -845,6 +845,10 @@ function updateCat(dt, t) {
   // On a perch she keeps to the way it faces (it's narrow up there).
   // Watching the bird from the floor: she turns to face it.
   if (brain.watching && !brain.perch && !J && a === 'sit' && brain.glance) { const want = angleTo(brain.pos, brain.glance); if (Math.abs(Math.atan2(Math.sin(want - brain.heading), Math.cos(want - brain.heading))) > .7) desiredHeading = want; }
+  // At the foot of the wall steps, in the gap by the window, she faces the
+  // steps: turned across the gap her hips or nose would be in the wall or
+  // the counter's end.
+  if (place === kitchen && !brain.perch && !J && ['sit', 'loaf', 'groom', 'pause', 'land'].includes(a) && Math.hypot(brain.pos.x - PERCHES.step.base.x, brain.pos.z - PERCHES.step.base.z) < .4) desiredHeading = Math.PI;
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
@@ -1040,6 +1044,7 @@ function updateCat(dt, t) {
     air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
     // In her bed, her tail stays inside the rim.
     tailBounds: !brain.perch && brain.elevation > .05 && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius ? {x: bed.position.x, z: bed.position.z, r: place.bedRadius} : null,
+    tailSolids: tailSolids(),
   });
 
   // Screen anchor above the head for particles, and the face's rough
@@ -1533,6 +1538,17 @@ function drinkFaucet() {
 // The kitchen sink. Her height up on a perch is its top, except down in the
 // basin; she hops in over the front edge and back out the same way.
 function inSink() { return place === kitchen && brain.perch === 'counter' && kitchen.inBasin(brain.pos); }
+// The furniture her tail keeps out of (clearTail in motion.js): the room's
+// list, and in the kitchen the vacuum where it is now; not her bed while
+// she's in it, nor the counter while she sits in the sink.
+function tailSolids() {
+  const list = place.layoutCache?.tailSolids;
+  if (!list) return null;
+  const inBed = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius, sink = inSink();
+  const out = list.filter(s => !(s.tag === 'bed' && inBed) && !(s.tag === 'counter' && sink));
+  if (place === kitchen) { const v = kitchen.vacuum.position; out.push({kind: 'cyl', x: v.x, z: v.z, r: .43, y0: 0, y1: .13}); }
+  return out;
+}
 function perchTop() { return inSink() ? place.layoutCache.sink.y : PERCHES[brain.perch].top; }
 function intoSink(spot, then) {
   const S = place.layoutCache.sink, x = THREE.MathUtils.clamp(spot.x, S.x0, S.x1);
@@ -1593,7 +1609,8 @@ function vacuumLife(t) {
   v.rider = brain.perch === 'vacuum';
   if (brain.vacStalk && brain.activity === 'stalk') brain.swatAt.copy(kitchen.vacuum.position);
   // Coming to ride: once she's close, it politely waits for her.
-  if (brain.vacRide && v.state === 'out' && brain.pos.distanceTo(kitchen.vacuum.position) < 2.4) v.wait = Math.max(v.wait, t + .6);
+  // (Not at its dock, though: boarding there her hips would be in it.)
+  if (brain.vacRide && v.state === 'out' && !kitchen.vacuumNearHome && brain.pos.distanceTo(kitchen.vacuum.position) < 2.4) v.wait = Math.max(v.wait, t + .6);
   if (v.state === 'docked' && !pet.sleeping && !night && t > brain.nextVacuum) {
     brain.nextVacuum = t + rand(150, 260);
     kitchen.startVacuum(t);
@@ -1655,14 +1672,26 @@ function vacuumAttack() {
   };
   go(0);
 }
+// A spot to hop on from: her own side of it, unless landing from there
+// would carry her head into the furniture beyond it (the counter, a wall),
+// then from behind or ahead of it, along its way.
+function approachVacuum(dist) {
+  const p = vacAt(), h = kitchen.vac.heading, dx = brain.pos.x - p.x, dz = brain.pos.z - p.z, d = Math.max(.01, Math.hypot(dx, dz));
+  for (const [x, z] of [[dx / d, dz / d], [-Math.sin(h), -Math.cos(h)], [Math.sin(h), Math.cos(h)]]) {
+    const beyond = new THREE.Vector3(p.x - x * .8, 0, p.z - z * .8);
+    if (kitchen.clampFloor(beyond.clone()).distanceTo(beyond) < .02) return kitchen.clampFloor(new THREE.Vector3(p.x + x * dist, 0, p.z + z * dist));
+  }
+  return nearVacuum(dist);
+}
 function vacuumRide() {
   glanceAt(vacAt().clone().setY(.2), 2); express('curious', 1.2);
   brain.vacRide = true;
-  const go = tries => walkTo(nearVacuum(.95), () => {
+  const go = tries => walkTo(approachVacuum(.95), () => {
     const v = kitchen.vac;
     if (v.state === 'docked' || brain.mode !== 'idle') { brain.vacRide = false; setActivity('sit'); return; }
-    // It moved on: after it (a few times), then give up.
-    if (brain.pos.distanceTo(vacAt()) > 1.4) { if (tries < 5) go(tries + 1); else { brain.vacRide = false; setActivity('sit'); } return; }
+    // It moved on: after it (a few times), then give up. Still at its dock:
+    // she lets it come out first (boarding there, her hips would be in it).
+    if (brain.pos.distanceTo(vacAt()) > 1.4 || kitchen.vacuumNearHome) { if (tries < 5) later(.8, () => go(tries + 1)); else { brain.vacRide = false; setActivity('sit'); } return; }
     brain.vacRide = false;
     // It waits for her (it's polite), and up she hops.
     v.wait = Math.max(v.wait, clockNow + 2.4);

@@ -30,8 +30,14 @@ const K = {
 };
 // Where she may walk: the open floor, keeping clear of the island.
 const FLOOR = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
-// The island and its stools, kept clear (the stools stand in front of it).
-const KEEP_OUT = {x0: K.island.x0 - .55, x1: K.island.x1 + .55, z0: K.island.z0 - .55, z1: K.island.z1 + 1.05};
+// The island and its stools, kept clear (the stools stand in front of it):
+// her centre this far out keeps her head and hips (each about .6 from it)
+// out of the island's base and the stools' legs (which reach .7 in front
+// of the island).
+const KEEP_OUT = {x0: K.island.x0 - .65, x1: K.island.x1 + .65, z0: K.island.z0 - .65, z1: K.island.z1 + 1.35};
+// Where the robot vacuum's centre may go: its body (.43) clear of the walls
+// and the counter; with her aboard, her head and hips (.6 each way) too.
+const VAC_FLOOR = {x0: -5.4, x1: 6.3, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0: -5.3, x1: 6.3, z0: -2.1, z1: 4.3};
 // Round things on the floor she walks round: the fountain, her bowl, the
 // tent (in and out by its doorway only) and the robot vacuum.
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
@@ -420,7 +426,8 @@ export class Kitchen {
     // (Its own body clear of the island and stools: with her aboard, hers too,
     // so it plans again when she hops on or off.)
     if (v.planRider !== v.rider) { v.planRider = v.rider; v.path = null; }
-    if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal, v.rider ? .75 : .45); VAC.r = r; }
+    if (!v.path) { const r = VAC.r; VAC.r = 0; v.path = this.route(p, v.goal, v.rider ? .7 : .45); VAC.r = r; }
+    if (!v.path.length) { v.path = null; v.goal = null; v.wait = t + .5; return; }
     const next = v.path[0], dx = next.x - p.x, dz = next.z - p.z, dist = Math.hypot(dx, dz);
     if (dist < .08) {
       v.path.shift();
@@ -443,14 +450,19 @@ export class Kitchen {
         const now = Math.hypot(cat.pos.x - p.x, cat.pos.z - p.z), next = Math.hypot(cat.pos.x - nx, cat.pos.z - nz);
         if (next < .9 && next < now) { v.path = null; v.wait = t + .8; v.turnTo = v.heading + (Math.random() < .5 ? -1 : 1) * (1.6 + Math.random()); return; }
       }
-      p.x = nx; p.z = nz;
+      p.x = nx; p.z = nz; this.clampVacBox(p);
     }
+  }
+  clampVacBox(p) {
+    const F = this.vac.rider ? VAC_FLOOR_RIDE : VAC_FLOOR;
+    p.x = Math.min(F.x1, Math.max(F.x0, p.x)); p.z = Math.min(F.z1, Math.max(F.z0, p.z));
+    return p;
   }
   // On the floor and out of the island (but not out of its own circle).
   clampVacuum(p) {
-    const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r;
+    const r = VAC.r; VAC.r = 0; this.clampFloor(p); VAC.r = r; this.clampVacBox(p);
     // Its body (and hers, aboard) out of the island and stools too.
-    const pad = this.vac.rider ? .75 : .45, R = {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad};
+    const pad = this.vac.rider ? .7 : .45, R = {x0: KEEP_OUT.x0 - pad, x1: KEEP_OUT.x1 + pad, z0: KEEP_OUT.z0 - pad, z1: KEEP_OUT.z1 + pad};
     if (p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1) {
       const opts = [[R.x0 - p.x, 0], [R.x1 - p.x, 0], [0, R.z0 - p.z], [0, R.z1 - p.z]].sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]));
       if (Math.abs(opts[0][0] + opts[0][1]) < .4) { p.x += opts[0][0]; p.z += opts[0][1]; }
@@ -921,7 +933,7 @@ export class Kitchen {
         stepTop: {spot: at(-5.6, -3.87), top: this.stepTops[2], via: 'shelf', face: 0},
         shelfHigh: {spot: at(-4.65, -3.9), top: K.shelf2, via: 'stepTop', face: 0, lane: {z: K.back + K.shelfD - .17, x0: -4.5, x1: 3.0}},
         // Up on the island (from behind it), only for the salmon.
-        island: {spot: at(.3, -.2), top: K.island.top, base: at(.3, -1.4), face: 0},
+        island: {spot: at(.3, -.2), top: K.island.top, base: at(.3, -1.75), face: 0},
         // Riding the big pendant shade (from the top shelf, a flying leap):
         // wherever it's swung to; she drops down onto the counter below.
         pendant: {get spot() { return kitchen.pendantTop(V(0, 0, 0)).setY(0); }, get top() { return kitchen.pendantTop(V(0, 0, 0)).y; },
@@ -929,6 +941,31 @@ export class Kitchen {
         // Riding the robot vacuum: wherever it is; off to one side of it.
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() { return kitchen.clampFloor(kitchen.vacuum.position.clone().add(V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8))); }},
       },
+      // What her tail keeps out of (clearTail in motion.js), as it is on
+      // the floor: the island (its base pieces and top), the stools (legs,
+      // foot bar, seat), the counter and the range, the dock, the walls
+      // (either side of the doorway), the tent from outside, her fountain
+      // and bowl. The app adds the vacuum where it is.
+      tailSolids: (() => {
+        const box = (x0, x1, z0, z1, y0, y1, tag) => ({kind: 'box', x0, x1, z0, z1, y0, y1, tag});
+        const cyl = (x, z, r, y0, y1) => ({kind: 'cyl', x, z, r, y0, y1});
+        const I = K.island, d = I.z1 - I.z0, baseH = I.top - .2, list = [
+          box(I.x0 + .24, I.x1 - 1.5, I.z0 + .02, I.z0 + .02 + d - .75, 0, baseH), box(I.x1 - 1.5, I.x1, I.z0, I.z1, 0, baseH), box(I.x0, I.x0 + .24, I.z0, I.z1, 0, baseH),
+          box(I.x0, I.x1, I.z0, I.z1, baseH, I.top),
+          box(K.left, .3, K.back, K.counterFront, 0, K.counter, 'counter'), box(2.5, 3.6, K.back, K.counterFront, 0, K.counter, 'counter'),
+          box(2.84, 3.46, -2.72, -2.52, 0, .34),
+          box(K.left - .5, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right, K.right + .5, K.back, FLOOR.z1 + 1, 0, K.wallH),
+          box(K.left, K.door[0], K.back - .5, K.back, 0, K.wallH), box(K.door[1], K.right, K.back - .5, K.back, 0, K.wallH),
+          {kind: 'rbox', x: K.tent.x, z: K.tent.z, ry: K.tent.ry, hx: 1.32, hz: 1.02, y0: 0, y1: 1.95, tag: 'bed'},
+          cyl(3.0, 1.55, .55, 0, .23), cyl(3.0, 1.55, .23, .23, .38), cyl(4.55, 2.6, .27, 0, .16),
+        ];
+        for (const x of [-3.0, -1.85]) {
+          const z = I.z1 + .45;
+          for (const s of [-1, 1]) list.push(box(x + s * .26 - .06, x + s * .26 + .06, z - .25, z + .25, 0, 1.56));
+          list.push(box(x - .28, x + .28, z + .14, z + .18, .53, .57), cyl(x, z, .42, 1.55, 1.69));
+        }
+        return list;
+      })(),
       perchTargets: [['step', this.steps[0]], ['stepMid', this.steps[1]], ['stepTop', this.steps[2]], ['counter', this.counterGroup], ['shelf', this.shelves[0]], ['shelfHigh', this.shelves[1]], ['vacuum', this.vacuum], ['pendant', this.shades[0]], ['salmon', this.foodPlate]],
       // In the tent she lies along it, facing out of the open front.
       // Curled up inside, her back to the closed end (her tail lying along
@@ -989,7 +1026,7 @@ export class Kitchen {
       if (Math.hypot(v.x - t.x, v.z - t.z) < 1.5 || OBSTACLES.some(c => Math.hypot(v.x - c.x, v.z - c.z) < c.r + .3)) continue;
       return v;
     }
-    return V(-1, 0, 3.1);
+    return V(5.5, 0, 3.6);
   }
   // The safety net under every way she moves on the floor (walks, the toy
   // chase, pounces, zoomies): her centre is kept out of the furniture, far
@@ -1051,7 +1088,10 @@ export class Kitchen {
     let path = [B];
     if (!clear(A, B)) {
       const m = .2, nodes = [A, B];
-      if (rectOn) nodes.push(V(R.x0 - m, 0, R.z0 - m), V(R.x1 + m, 0, R.z0 - m), V(R.x1 + m, 0, R.z1 + m), V(R.x0 - m, 0, R.z1 + m));
+      // (The vacuum's corners kept where its centre may go: by the window
+      // the lane is narrow, so with her aboard it turns a little nearer
+      // the island than it would like, rather than her head in the wall.)
+      if (rectOn) nodes.push(...[V(R.x0 - m, 0, R.z0 - m), V(R.x1 + m, 0, R.z0 - m), V(R.x1 + m, 0, R.z1 + m), V(R.x0 - m, 0, R.z1 + m)].map(p => pad ? this.clampVacBox(p) : p));
       for (const c of circles) for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; nodes.push(V(c.x + Math.cos(a) * (c.r + m), 0, c.z + Math.sin(a) * (c.r + m))); }
       const ok = nodes.filter((p, i) => i < 2 || (p.x > FLOOR.x0 - .4 && p.x < FLOOR.x1 + .4 && p.z > FLOOR.z0 - .4 && p.z < FLOOR.z1 + .6 && !circles.some(c => inside(p, c)) && !(rectOn && p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1)));
       // Dijkstra over the points that can see each other.
@@ -1064,6 +1104,9 @@ export class Kitchen {
         for (let v = 0; v < ok.length; v++) if (!done[v]) { const d = dist[u] + ok[u].distanceTo(ok[v]); if (d < dist[v] && clear(ok[u], ok[v])) { dist[v] = d; prev[v] = u; } }
       }
       if (dist[1] < Infinity) { path = []; for (let i = 1; i > 0; i = prev[i]) path.unshift(ok[i]); }
+      // No way round for the vacuum: no path (it picks another goal),
+      // rather than a straight line through the furniture.
+      else if (pad) return [];
     }
     // (Skip any point she's already standing on.)
     const pts = [...pre, ...path, ...post].filter((p, i, all) => !(i && p.distanceTo(all[i - 1]) < .05));
