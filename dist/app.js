@@ -390,10 +390,11 @@ function studyLayout() {
     // where she jumps from and back down to; face: the way she sits there.
     perches: {
       // The window sill, from her bed just below it. It's .8 deep and she's
-      // about .8 long sitting: she sits along it, toward its front, facing
-      // the books (her head turns to the window for the bird).
-      sill: {spot: w.localToWorld(new THREE.Vector3(0, 0, room.sillDepth - .25)).setY(0), top: room.sillTop,
-        base: new THREE.Vector3(room.bed.position.x, 0, room.bed.position.z - .3), face: w.rotation.y + Math.PI / 2, narrow: true},
+      // about .85 long sitting: she sits on the slant, half turned to the
+      // glass and half to the books, so her head can turn to the bird or
+      // the books and stays clear of the glass, her hips on the sill.
+      sill: {spot: w.localToWorld(new THREE.Vector3(-.1, 0, room.sillDepth - .3)).setY(0), top: room.sillTop,
+        base: new THREE.Vector3(room.bed.position.x, 0, room.bed.position.z - .3), face: w.rotation.y + 2.2, narrow: true},
       chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
         base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
       // The mantel shelf (.71 deep), along it in the middle, facing the
