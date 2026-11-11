@@ -31,8 +31,10 @@ function solidDepth(s, p, r, n) {
   if (s.kind === 'cyl') {
     const dx = p.x - s.x, dz = p.z - s.z, d = Math.hypot(dx, dz), side = s.r + r - d;
     if (side <= 0) return 0;
+    // (Up only when it's nearly on top already: a tail against the side
+    // of a thing bends round it, it doesn't climb it.)
     const up = s.y1 + r - p.y;
-    if (up < side) { n.set(0, 1, 0); return up; }
+    if (up < side && up < .06 + r) { n.set(0, 1, 0); return up; }
     if (d < 1e-6) n.set(0, 0, -1); else n.set(dx / d, 0, dz / d);
     return side;
   }
@@ -42,9 +44,10 @@ function solidDepth(s, p, r, n) {
     x = c * dx - sn * dz; z = sn * dx + c * dz; x0 = -s.hx; x1 = s.hx; z0 = -s.hz; z1 = s.hz;
   }
   if (x < x0 - r || x > x1 + r || z < z0 - r || z > z1 + r) return 0;
-  const faces = [[x - (x0 - r), -1, 0, 0], [(x1 + r) - x, 1, 0, 0], [z - (z0 - r), 0, 0, -1], [(z1 + r) - z, 0, 0, 1], [(s.y1 + r) - p.y, 0, 1, 0]];
+  const up = (s.y1 + r) - p.y, faces = [[x - (x0 - r), -1, 0, 0], [(x1 + r) - x, 1, 0, 0], [z - (z0 - r), 0, 0, -1], [(z1 + r) - z, 0, 0, 1]];
   let f = faces[0];
   for (const g of faces) if (g[0] < f[0]) f = g;
+  if (up < f[0] && up < .06 + r) f = [up, 0, 1, 0];
   n.set(f[1], f[2], f[3]);
   if (s.kind === 'rbox') { const c = Math.cos(s.ry), sn = Math.sin(s.ry); n.set(c * f[1] + sn * f[3], f[2], -sn * f[1] + c * f[3]); }
   return f[0];
@@ -432,8 +435,17 @@ export class MotionRig {
         for (const sd of solids) { const d = solidDepth(sd, end, r, n); if (d > depth) { depth = d; best.copy(n); } }
         if (depth <= .002) break;
         bone.getWorldPosition(a);
-        _v.subVectors(end, a).normalize();
+        const L = _v.subVectors(end, a).length(); _v.normalize();
         _v2.copy(end).addScaledVector(best, depth).sub(a).normalize();
+        // Pointing straight into the face, a turn toward the way out does
+        // nothing (it's along the bone): it bends up along the face instead,
+        // enough that its reach into the thing is gone.
+        if (_v.dot(best) < -.7) {
+          const th = Math.acos(clamp(1 - depth / Math.max(L, 1e-3), 0, 1)), b = _v2.copy(Y).addScaledVector(_v, -_v.dot(Y));
+          if (b.lengthSq() < 1e-6) b.crossVectors(_v, X);
+          b.normalize();
+          _v2.copy(_v).multiplyScalar(Math.cos(th)).addScaledVector(b, Math.sin(th)).normalize();
+        }
         const turn = _q.setFromUnitVectors(_v, _v2);
         const wq = bone.getWorldQuaternion(new THREE.Quaternion());
         const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());

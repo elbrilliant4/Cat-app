@@ -29,7 +29,9 @@ const K = {
   tent: {x: 4.75, z: .75, ry: -.45},
 };
 // Where she may walk: the open floor, keeping clear of the island.
-const FLOOR = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
+// (Her centre .6 from the window wall and the counter: her head turned
+// to look at something reaches that far.)
+const FLOOR = {x0: -5.25, x1: 6.3, z0: -2.15, z1: 4.3};
 // The island and its stools, kept clear (the stools stand in front of it):
 // her centre this far out keeps her head and hips (each about .6 from it)
 // out of the island's base and the stools' legs (which reach .7 in front
@@ -43,7 +45,7 @@ const VAC_FLOOR = {x0: -5.4, x1: 6.5, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0:
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
 // (The vacuum's moves with it.)
 const VAC = {x: 3.15, z: -2.0, r: .7};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .8}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .9}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
 const VAC_HOME = V(3.15, 0, -2.0);
 // The dock, for the vacuum with her aboard: her rear hangs .8 behind it.
 const DOCK = {x: 3.15, z: -2.62, r: .55};
@@ -914,7 +916,7 @@ export class Kitchen {
     t.updateMatrixWorld(true);
     const at = (x, z) => V(x, 0, z);
     return {
-      home: at(-1.0, 3.1), toyHome: V(.2, .13, 3.3),
+      home: at(-1.0, 3.5), toyHome: V(.2, .13, 3.5),
       bowl: {p: at(4.55, 2.6), ry: -.5}, fountain: {p: at(3.0, 1.55), ry: .3},
       sunSpot: at(-4.7, 2.6),
       // On the island, by the salmon (facing it).

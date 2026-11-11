@@ -87,7 +87,7 @@ await page.evaluate(() => {
   };
   // Her centre past the walking floor (kitchen.js FLOOR) while on it: who
   // sent her there.
-  const FL = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
+  const FL = {x0: -5.25, x1: 6.3, z0: -2.15, z1: 4.3};
   window.__qa = {solids, worst, log, off: [], rideSec: 0, floorSec: 0, frames: 0, measure(t) {
     const v = K.vacuum.position, br = k.brain, riding = br.perch === 'vacuum', floor = !br.perch && br.elevation < .05 && !br.jump;
     this.frames++;

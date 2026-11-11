@@ -849,7 +849,10 @@ function updateCat(dt, t) {
   // end. There she faces the steps.)
   const atStepFoot = place === kitchen && !brain.perch && !J && Math.hypot(brain.pos.x - PERCHES.step.base.x, brain.pos.z - PERCHES.step.base.z) < .4;
   if (brain.watching && !brain.perch && !J && a === 'sit' && brain.glance && !atStepFoot) { const want = angleTo(brain.pos, brain.glance); if (Math.abs(Math.atan2(Math.sin(want - brain.heading), Math.cos(want - brain.heading))) > .7) desiredHeading = want; }
-  if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) desiredHeading = Math.PI;
+  // (Facing the first step itself, a touch west of south: from facing out
+  // of the gap, the shorter turn is then the one that keeps her hips out
+  // of the window wall.)
+  if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) desiredHeading = angleTo(brain.pos, PERCHES.step.spot);
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
