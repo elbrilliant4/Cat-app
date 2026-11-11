@@ -966,7 +966,8 @@ export class Kitchen {
       // the floor: the island (its base pieces and top), the stools (legs,
       // foot bar, seat), the counter and the range, the dock, the walls
       // (either side of the doorway), the tent from outside, her fountain
-      // and bowl. The app adds the vacuum where it is.
+      // and bowl, her wall steps and the shelves. The app adds the vacuum
+      // where it is.
       tailSolids: (() => {
         const box = (x0, x1, z0, z1, y0, y1, tag) => ({kind: 'box', x0, x1, z0, z1, y0, y1, tag});
         const cyl = (x, z, r, y0, y1) => ({kind: 'cyl', x, z, r, y0, y1});
@@ -980,6 +981,14 @@ export class Kitchen {
           {kind: 'rbox', x: K.tent.x, z: K.tent.z, ry: K.tent.ry, hx: 1.32, hz: 1.02, y0: 0, y1: 1.95, tag: 'bed'},
           cyl(3.0, 1.55, .55, 0, .23), cyl(3.0, 1.55, .23, .23, .38), cyl(4.55, 2.6, .37, 0, .16),
         ];
+        // Her steps up the wall (each block and the bracket under it) and
+        // the two steel shelves with their brackets.
+        for (const top of this.stepTops) list.push(box(-5.91, -5.29, K.back, K.back + .66, top - .14, top), box(-5.63, -5.57, K.back, K.back + .52, top - .44, top - .14));
+        const [sx0, sx1] = K.shelfX;
+        for (const y of [K.shelf1, K.shelf2]) {
+          list.push(box(sx0, sx1, K.back, K.back + K.shelfD, y - .09, y));
+          for (const bx of [sx0 + .6, (sx0 + sx1) / 2, sx1 - .6]) list.push(box(bx - .02, bx + .02, K.back, K.back + K.shelfD - .08, y - .37, y - .09));
+        }
         for (const x of [-3.0, -1.85]) {
           const z = I.z1 + .45;
           for (const s of [-1, 1]) list.push(box(x + s * .26 - .06, x + s * .26 + .06, z - .25, z + .25, 0, 1.56));

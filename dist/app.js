@@ -1594,11 +1594,14 @@ function drinkFaucet() {
 function inSink() { return place === kitchen && brain.perch === 'counter' && kitchen.inBasin(brain.pos); }
 // The furniture her tail keeps out of (clearTail in motion.js): the room's
 // list, and in the kitchen the vacuum where it is now; not her bed while
-// she's in it, nor the counter while she sits in the sink.
+// she's in it (or stepping over its rim), nor the counter while she sits in the sink.
 function tailSolids() {
   const list = place.layoutCache?.tailSolids;
   if (!list) return null;
-  const inBed = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius, sink = inSink();
+  // (In her bed: her centre over its cushion, or up off the floor near it,
+  // stepping in or out over the rim.)
+  const off = Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z), sink = inSink();
+  const inBed = off < place.bedRadius || (!brain.perch && brain.elevation > .05 && off < place.bedRadius + .6);
   const out = list.filter(s => !(s.tag === 'bed' && inBed) && !(s.tag === 'counter' && sink));
   if (place === kitchen) { const v = kitchen.vacuum.position; out.push({kind: 'cyl', x: v.x, z: v.z, r: .43, y0: 0, y1: .13}); }
   return out;

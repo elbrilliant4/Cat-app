@@ -90,7 +90,9 @@ await page.evaluate(kitchen => {
   const B = k.cat.bones, M = k.cat.motion.rig, tip = M.tailTip, P = new V3(), Q = new V3();
   const worst = {}, log = [];
   window.__qa = {solids: solids.concat(bedSolid), worst, log, frames: 0, hitFrames: 0, measure(t) {
-    const br = k.brain, inBed = Math.hypot(br.pos.x - bed.position.x, br.pos.z - bed.position.z) < (kitchen ? 1.2 : G.bedRadius);
+    // (In bed as the app has it: over its cushion, or up off the floor
+    // near it, stepping over the rim.)
+    const br = k.brain, off = Math.hypot(br.pos.x - bed.position.x, br.pos.z - bed.position.z), inBed = off < G.bedRadius || (!br.perch && br.elevation > .05 && off < G.bedRadius + .6);
     // (In the sink she's inside the counter's outline: its basin isn't a mesh box.)
     const sink = kitchen && k.inSink?.();
     const list = inBed ? solids : solids.concat(bedSolid);
@@ -153,8 +155,9 @@ for (let s = 0; s < SEC; s++) {
     seen.add(w);
     if (!SHOTS || shots >= 8 || (prev.length && Math.min(...prev) - +w.split('|')[1] < .03)) continue;
     shots++;
-    const [x, z] = await page.evaluate(k => { const w = __qa.worst[k]; return [w.x, w.z]; }, key);
-    await look({focus: [x, .3, z], yaw: .5, pitch: .55, dist: 2.2});
+    // (From the open front of the room, looking down at her and her tail.)
+    const [x, y, z] = await page.evaluate(k => { const w = __qa.worst[k]; return [w.x, w.y, w.z]; }, key);
+    await look({focus: [x, y, z], yaw: 0, pitch: .7, dist: 2.6});
     await page.screenshot({path: `${OUT}/tail-${ROOM}-${shots}.png`});
     console.log(`  ${s}s: ${w}  → ${OUT}/tail-${ROOM}-${shots}.png`);
   }
