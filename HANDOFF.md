@@ -42,6 +42,6 @@ window steps is entered by its mouth. Numbers and leftovers:
 - Screenshots in the QA nudge the clock a frame; same AT list = same run.
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md. Phase 02 is on preview waiting for
+> Read CLAUDE.md and HANDOFF.md. Phase 02 is on preview waiting for
 > Merlin. If Merlin says Go live, do that; otherwise do phase 03 for the
 > study (docs/phases/03-tail-collision.md).
