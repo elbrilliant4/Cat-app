@@ -95,3 +95,34 @@ an on/off switch in the app (do it with phase 08, app screens).
   `title-clip.mjs` (`document.getAnimations()`).
 - Runway: about 1470 credits left (2026-11-11). Meshy and Gemini are
   reachable from the cloud session without keys.
+
+## Result so far (2026-11-11, on the preview branch, not live)
+Built: steps 1, 2, 3 and 7, plus the name treatment from step 4.
+- **Enter gate**: "Enter with sound" (turns sound on in the save) and
+  "Enter without sound" (save untouched).
+- **The sequence, 7.6 s** (shot starts on the story clock): 0 face asleep,
+  eyes snap open at 0.72; 1.3 gallop across the rug; 3.05 running leap to
+  the mantel; 4.5 two pats at the vase, slow motion (rate 0.28) from 5.25
+  to 6.05, the vase rocks and stays up; 6.3 pounce at the lens, freeze and
+  white flash at about 7.2; her name slams in at about 7.5. Then the
+  living title: she sits on the rug and looks about, "Tap to start".
+- **Graphics** (`dist/title-fx.js`): bloom, vignette, grain, sun shafts,
+  dust; film bars and speed lines in CSS. Only while the title is up.
+- **Skip**: a tap (or Enter, Space, Escape) at any moment goes to her name.
+- **How often**: full the first launch of the day, short after;
+  `?intro=full` / `?intro=short` force one. Reduced motion or put to bed:
+  always the short one.
+- "The shelf" is the mantel (that is where the vase is).
+
+Not built yet: the music sting (step 5; the sequence is silent), the
+paw-wipe (step 6; it still shrinks to the card), a generated ornament for
+the name, depth blur.
+
+Not measured: speed on a real phone. This machine draws by software, so
+its frame time says nothing about a phone. In place of a measurement the
+picture steps itself down when frames run over 40 ms (pixel ratio 1, then
+no bloom). Needs one look on Merlin's phone.
+
+Timing note for step 5: the hit is the freeze at about 7.2 s after Enter;
+the name lands about 0.35 s later. Cut the music to those, or move the
+`CUES` times to the music.

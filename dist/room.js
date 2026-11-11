@@ -1160,10 +1160,17 @@ export class Room {
     this.vaseFall = {start: t, x: v.position.x, y: v.position.y, z: v.position.z};
     return true;
   }
+  // (The title sequence: a pat sets it rocking, but it stays up.)
+  wobbleVase(t) { if (!this.vaseFall) this.vaseWobble = t; }
+  resetVase() { const v = this.mantelVase; v.position.copy(v.userData.home.p); v.rotation.copy(v.userData.home.r); this.vaseFall = this.vaseWobble = null; }
   updateVase(t) {
-    const f = this.vaseFall;
+    const f = this.vaseFall, v = this.mantelVase;
+    if (!f && this.vaseWobble != null) {
+      const k = t - this.vaseWobble, a = Math.exp(-3.2 * k);
+      if (k > 2) this.resetVase(); else v.rotation.set(Math.sin(k * 23) * .07 * a, 0, Math.sin(k * 19) * .42 * a);
+    }
     if (!f) return;
-    const v = this.mantelVase, k = t - f.start, lying = .24;
+    const k = t - f.start, lying = .24;
     if (k < .45) { v.position.z = f.z + k / .45 * .32; v.rotation.x = Math.sin(k * 32) * .1 * k / .45; }
     else if (!f.landed) {
       const fall = Math.sqrt((f.y - lying) / 4.9), q = Math.min(k - .45, fall);

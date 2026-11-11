@@ -7,6 +7,7 @@ import {MotionCat} from './motion-cat.js';
 import {Room} from './room.js';
 import {Kitchen} from './kitchen.js';
 import {Sounds} from './sound.js';
+import {TitleFx} from './title-fx.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp} = THREE.MathUtils;
@@ -14,9 +15,16 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // The title screen (index.html decides before the first paint: on, unless
-// ?intro=0 or ?debug): she is asleep in her room until a tap wakes her.
+// ?intro=0 or ?debug). Once a day the zoomies cinematic plays (after one
+// "Enter" tap), then her name over the room; the other times she is asleep
+// in her room until a tap wakes her. See the "Title screen" block below.
 const titleRoot = document.documentElement;
 let titleOn = titleRoot.classList.contains('title'), titleLeaving = false, titleFlip = false;
+// Where the title is: load, gate (the Enter buttons), cine (the sequence),
+// live (her name, "Tap to start") or still (asleep, "Tap to wake her").
+let titleStage = 'load', cine = null, titleFx = null;
+// (The sequence's slow motion: the game clock runs at this rate.)
+let timeRate = 1, clockLag = 0;
 const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
 const TITLE_CHIME = 'wake-chime.mp3';
 function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = false); }
@@ -2631,6 +2639,7 @@ function resize() {
   // stretched to fit; it is redrawn at its real size once it gets there.)
   if (titleFlip) return;
   renderer?.setSize(w, h);
+  titleFx?.setSize(w, h);
   if (titleOn && !titleLeaving) titleView();
   if (view.mode === 'room') CAMERA_VIEWS.room();
 }
@@ -2640,48 +2649,234 @@ CAMERA_VIEWS.room();
 view.focus.copy(view.goal.focus);
 
 // ---------------------------------------------------------------------------
-// Title screen: her name over the real room, where she sleeps. A tap wakes
-// her (unless she was put to bed: then you tiptoe in), the camera glides out
-// to the room and the screen shrinks to its card.
+// Title screen. Two kinds:
+//   full   the first launch of the day: one "Enter" tap (so sound may play),
+//          the zoomies cinematic (about 8 s: SHOTS and CUES below), then her
+//          name over the room and "Tap to start". A tap skips the sequence
+//          at any moment.
+//   still  the other launches, reduced motion, or she was put to bed: she
+//          sleeps under her name; a tap wakes her (or you tiptoe in).
+// Either way the camera then glides out to the room and the screen shrinks
+// to its card. ?intro=full and ?intro=short force one.
 // ---------------------------------------------------------------------------
+const TITLE_DAY = 'pocket-kitten-title-day', introParam = new URLSearchParams(location.search).get('intro');
+const titleToday = () => { try { return storage.getItem(TITLE_DAY) === new Date().toDateString(); } catch { return false; } };
+const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short' && (introParam === 'full' || !titleToday());
+let titleLiveAt = 0;
 function titleView() {
-  lookAtSpot(bed.position, {dist: TITLE_CAM.dist, pitch: TITLE_CAM.pitch, y: TITLE_CAM.y});
+  if (titleStage === 'live') {
+    // Her sitting on the rug, the window and its light behind her.
+    Object.assign(view.goal, {yaw: .42, pitch: .1, dist: tallScreen() ? 4.6 : 3.8});
+    view.goal.focus.set(HOME.x, tallScreen() ? 1.35 : .85, HOME.z);
+    setCamMode('spot');
+  } else lookAtSpot(bed.position, {dist: TITLE_CAM.dist, pitch: TITLE_CAM.pitch, y: TITLE_CAM.y});
   view.titleYaw = view.goal.yaw;
+}
+function titleSnap() {
+  view.focus.copy(view.goal.focus);
+  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
 }
 if (titleOn) {
   titleView();
-  view.focus.copy(view.goal.focus);
-  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
+  titleSnap();
   document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = true);
   const el = $('#title');
+  if (titleFull) el.classList.add('full');
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'contextmenu']) el.addEventListener(ev, e => e.stopPropagation());
-  el.addEventListener('click', leaveTitle);
+  el.addEventListener('click', titleTap);
+  // "Enter with sound" turns sound on for good; without, the save is left as it is.
+  $('#enter-sound').onclick = e => { e.stopPropagation(); pet.sound = true; sounds.setEnabled(true); refresh(); save(); startCine(); };
+  $('#enter-mute').onclick = e => { e.stopPropagation(); startCine(); };
+  document.addEventListener('keydown', e => { if (titleStage === 'cine' && !e.repeat && ['Escape', 'Enter', ' '].includes(e.key)) { e.preventDefault(); titleTap(); } });
+}
+function titleTap() {
+  if (titleStage === 'cine') { if (cine.T > .4) endCine(true); }
+  else if (titleStage === 'live') { if (clockNow - titleLiveAt > .7) leaveTitle(); }
+  else if (titleStage === 'still') leaveTitle();
+}
+// The title's own picture (title-fx.js): glow, sun shafts, dust. Only while
+// the title is up; without it the plain renderer draws.
+function startTitleFx() {
+  if (!renderer || titleFx) return;
+  const w = room.windowGroup;
+  try {
+    titleFx = new TitleFx(renderer, scene, camera, {parent: room.group, night, mobile: matchMedia('(pointer: coarse)').matches, patch: room.sunPatch,
+      win: {x: w.position.x, z: w.position.z + .06, w: 2.3, y0: room.glassBottom, y1: room.glassBottom + room.glassH}});
+    titleFx.fixed = manual;
+  } catch (e) { console.warn('Title effects unavailable:', e); titleFx = null; }
 }
 function titleReady() {
   const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  $('#title-load').hidden = true;
+  startTitleFx();
+  if (titleFull) {
+    titleStage = 'gate';
+    $('#title').classList.add('gate');
+    $('#title-gate').hidden = false;
+    $('#enter-sound').focus({preventScroll: true});
+    return;
+  }
+  titleStage = 'still';
   $('#title-sub').textContent = 'is fast asleep';
   $('#title-go').textContent = pet.sleeping ? (fine ? 'Click to tiptoe in' : 'Tap to tiptoe in') : (fine ? 'Click to wake her' : 'Tap to wake her');
-  $('#title-load').hidden = true;
   $('#title-go').hidden = false;
   $('#title').classList.add('lit');
   $('#title-go').focus({preventScroll: true});
   brain.nextZ = clockNow + 1.2;
 }
-// (Instead of idleLife while the title is up: she only dreams.)
+// (Instead of idleLife while the title is up: asleep she only dreams; after
+// the sequence she sits and looks about.)
 function titleLife(t) {
-  if (titleLeaving) return;
+  if (titleFx && titleFx.night !== night) titleFx.setNight(night);
+  if (titleLeaving || titleStage === 'cine') return;
   if (!reduceMotion) view.goal.yaw = view.titleYaw + Math.sin(t * .22) * .09;
-  if (t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
+  if (titleStage === 'live') {
+    if (t < brain.nextIdle) return;
+    brain.nextIdle = t + rand(2.4, 4.2);
+    const r = Math.random();
+    if (r < .5) glanceAt(new THREE.Vector3(rand(-3, 3), rand(.4, 2.6), rand(-2.5, 3)), rand(1.2, 2.2));
+    else if (r < .7) slowBlink(); else if (r < .85) twitchEar(); else glanceAt(camera.position, 2);
+  } else if (titleStage === 'still' && t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
 }
+
+// --- The zoomies cinematic -------------------------------------------------
+// A story clock (cine.T, in real seconds) runs the shots: each is a camera
+// placement plus things she can already do, set off by direct calls.
+// Slow motion is the game clock running slow (timeRate).
+const cineTo = new THREE.Vector3(), cineLook = new THREE.Vector3();
+// The shots: when each starts, and its camera (k: seconds into the shot;
+// fills the camera's place p and what it looks at l; returns the lens angle).
+const SHOTS = [
+  // 1. Close on her face, asleep in her bed. Her eyes snap open.
+  {at: 0, cam(k, p, l) {
+    cat.headCenter(l);
+    const a = brain.heading + .5, d = (k < .72 ? lerp(1.9, 1.75, k / .72) : 1.5) * (tallScreen() ? 1.5 : 1);
+    p.set(l.x + Math.sin(a) * d, l.y + .2, l.z + Math.cos(a) * d);
+    return 30;
+  }},
+  // 2. Low on the floor: she gallops across the rug, past the camera.
+  {at: 1.3, aim: 14, cam(k, p, l) { p.set(.6, .25, 4.6); l.set(brain.pos.x + .2, .55, brain.pos.z); return tallScreen() ? 46 : 38; }},
+  // 3. She leaps to the mantel; the camera whips up after her.
+  {at: 3.05, aim: 9, cam(k, p, l) { p.set(.3, .9, 3.4); l.set(brain.pos.x, brain.elevation + .55, brain.pos.z); return 48; }},
+  // 4. Up on the mantel, slow motion: a paw pats the vase, and it wobbles.
+  {at: 4.5, cam(k, p, l) { p.set(.2 + k * .15, 3.3, .5); l.set(4.3, 3.25, .5); return tallScreen() ? 44 : 25; }},
+  // 5. She pounces at the camera. Freeze, flash.
+  {at: 6.3, aim: 12, cam(k, p, l) { p.set(1, 1.9, 1); cat.headCenter(l); return 54; }},
+];
+// What happens when (seconds on the story clock).
+const swatNow = () => setActivity('swat', .45, () => setActivity('sit', 9));
+const CUES = [
+  [.72, () => { express('surprised', .5); Object.assign(brain.face, {open: 1, pupil: .35}); twitchEar(0, 1.5); twitchEar(1, 1.5); }],
+  // (Up on her feet before the cut, so the gallop starts in full stride.)
+  [1, () => { express('excited', 8); setActivity('poise', 2); }],
+  [1.3, () => {
+    Object.assign(brain, {heading: 1.4, elevation: 0, speed: 2.9, run: 2.9, target: new THREE.Vector3(3.5, 0, .92), faceAt: null});
+    brain.pos.set(-3.3, 0, -.3);
+    setActivity('walk', 9);
+    $('#title').classList.add('streak');
+    // (A running leap: no crouch first.)
+    const M = PERCHES.mantel;
+    cine.watch = () => { if (brain.pos.x > 2.7) { cine.watch = null; cineJump(M.spot, M.top, 'mantel', .62, .8); } };
+  }],
+  [3.05, () => $('#title').classList.remove('streak')],
+  [4.5, () => {
+    cine.hold = angleTo(brain.pos, cine.vase);
+    brain.swatAt = cine.vase.clone().setY(cine.vase.y + .3);
+    glanceAt(brain.swatAt, 3); express('curious', 3); setActivity('sit', 9);
+  }],
+  [4.7, swatNow],
+  [5.15, swatNow],
+  [5.25, () => { timeRate = .28; }],
+  [5.6, () => { room.wobbleVase(clockNow); express('surprised', 2); }],
+  [6.05, () => { timeRate = 1; }],
+  [6.3, () => {
+    const to = new THREE.Vector3(1.25, 0, 1);
+    timeRate = 1; cine.hold = null;
+    brain.heading = brain.jumpFace = angleTo(brain.pos, to);
+    express('excited', 4); glanceAt(camera.position, 2);
+    setActivity('prejump', .3, () => {
+      cineJump(to, .3, null, .72, .3);
+      // Nearly on the camera: time all but stops, and the screen goes white.
+      cine.watch = () => { const J = brain.jump; if (!J || (clockNow - J.start) / J.dur > .6) { cine.watch = null; timeRate = .05; cine.flashAt = cine.T; $('#title').classList.add('flash'); } };
+    });
+  }],
+];
+function cineJump(to, toY, perch, dur, arc) {
+  brain.target = null; brain.climbGoal = null;
+  brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then: () => setActivity('sit', 9), start: clockNow, dur, arc, out: 0};
+  setActivity('jump');
+}
+function startCine() {
+  if (titleStage !== 'gate') return;
+  titleStage = 'cine';
+  try { storage.setItem(TITLE_DAY, new Date().toDateString()); } catch {}
+  const el = $('#title');
+  el.classList.remove('gate');
+  el.classList.add('cine', 'lit');
+  $('#title-gate').hidden = true;
+  cine = {T: 0, shot: -1, cue: 0, cut: true, look: new THREE.Vector3(), watch: null, hold: null, flashAt: null, vase: room.vaseWorld(new THREE.Vector3())};
+  brain.nextBlink = clockNow + 30;
+}
+// (Before she moves each frame: the clock, the cues, and the cut to the next shot.)
+function cineStep(real) {
+  cine.T += real;
+  while (cine && cine.cue < CUES.length && cine.T >= CUES[cine.cue][0]) CUES[cine.cue++][1]();
+  if (!cine) return;
+  while (cine.shot < SHOTS.length - 1 && cine.T >= SHOTS[cine.shot + 1].at) { cine.shot++; cine.cut = true; }
+  cine.watch?.();
+  if (cine.hold != null) brain.heading = cine.hold;
+  if ((cine.flashAt != null && cine.T > cine.flashAt + .32) || cine.T > 9.5) endCine();
+}
+function cineCamera(real) {
+  const s = SHOTS[Math.max(0, cine.shot)], fov = s.cam(cine.T - s.at, cineTo, cineLook);
+  camera.position.copy(cineTo);
+  if (cine.cut || !s.aim) cine.look.copy(cineLook); else for (const k of ['x', 'y', 'z']) cine.look[k] = damp(cine.look[k], cineLook[k], s.aim, real);
+  cine.cut = false;
+  if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  camera.lookAt(cine.look);
+}
+// The end of the sequence (or a tap part-way): the room is tidy again, she
+// lands on the rug and sits, and her name comes in.
+function endCine(skipped = false) {
+  if (!cine) return;
+  cine = null; timeRate = 1;
+  room.resetVase();
+  Object.assign(brain, {jump: null, perch: null, pounce: null, target: null, speed: 0, climbGoal: null, swatAt: null, glance: null, glanceUntil: 0, stuck: null, overrideUntil: 0});
+  titleStage = 'live'; titleLiveAt = clockNow;
+  resize();
+  titleSnap();
+  brain.pos.copy(HOME); brain.elevation = skipped ? 0 : .5; brain.heading = view.goal.yaw - .3;
+  setActivity('land', .3, () => setActivity('sit'));
+  express('joy', 2.4);
+  Object.assign(brain, {tailUpUntil: clockNow + 3, nextIdle: clockNow + 3.2, nextBlink: clockNow + 1.6});
+  const el = $('#title'), fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  el.classList.remove('cine', 'streak', 'flash');
+  el.classList.add('reveal');
+  $('#title-sub').textContent = 'a little life to love';
+  $('#title-go').textContent = fine ? 'Click to start' : 'Tap to start';
+  $('#title-go').hidden = false;
+  $('#title-go').focus({preventScroll: true});
+  // A burst of sparkles from her name.
+  const box = $('#title-sparks');
+  box.textContent = '';
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement('i'), a = rand(0, Math.PI * 2), d = rand(70, 200);
+    s.style.cssText = `--dx:${(Math.cos(a) * d * 1.15).toFixed(0)}px;--dy:${(Math.sin(a) * d * .7).toFixed(0)}px;--s:${rand(.5, 1.4).toFixed(2)};animation-delay:${rand(.08, .4).toFixed(2)}s`;
+    box.append(s);
+  }
+}
+
 function leaveTitle() {
   if (!titleOn || !ready || titleLeaving) return;
   titleLeaving = true;
+  const live = titleStage === 'live';
   $('#title').classList.add('out');
   // A short music-box chime as she wakes (sound on only).
-  if (!pet.sleeping) sounds.play(TITLE_CHIME, .5).then(ok => { if (params.has('debug')) window.kitten.chimed = ok; });
+  if (!live && !pet.sleeping) sounds.play(TITLE_CHIME, .5).then(ok => { if (params.has('debug')) window.kitten.chimed = ok; });
   // (Her own ideas wait until she has said hello.)
   brain.nextIdle = clockNow + 9; brain.nextShow = clockNow + 14; brain.nextBird = clockNow + 14;
-  if (!pet.sleeping) {
+  if (live) later(.5, () => greet(true));
+  else if (!pet.sleeping) {
     setActivity('stretch', 2.2, () => walkTo(HOME, () => { setActivity('sit'); greet(true); }));
     later(.3, yawn);
   }
@@ -2713,6 +2908,8 @@ function endTitle() {
   if (!titleOn) return;
   titleFlip = false;
   titleOff();
+  titleStage = 'off';
+  titleFx?.dispose(); titleFx = null;
   const hadFocus = $('#title').contains(document.activeElement);
   $('#title').remove();
   if (hadFocus) $('[data-cam="room"]')?.focus({preventScroll: true});
@@ -2839,11 +3036,14 @@ function updateRoom(dt, t) {
 let last = performance.now();
 function frame(now) {
   if (!renderer) return;
-  const dt = Math.min(.1, (now - last) / 1000);
+  const real = Math.min(.1, (now - last) / 1000), dt = real * timeRate;
   last = now;
-  clockNow = now / 1000;
+  // (In the title sequence's slow motion the game clock falls behind.)
+  clockLag += real - dt;
+  clockNow = now / 1000 - clockLag;
   const t = clockNow;
   runTimers(t);
+  if (cine) cineStep(real);
   if (brain.mode === 'brush' && t > brain.modeUntil) finishMode();
   // A meal or a drink that somehow never finishes mustn't lock the buttons.
   if ((brain.mode === 'feed' || brain.mode === 'drink') && t - brain.modeStart > 30) { finishMode(); setActivity('sit'); }
@@ -2853,13 +3053,14 @@ function frame(now) {
   if (ready) updateCat(dt, t);
   // (While the title shrinks, the picture's shape follows its box every frame.)
   if (titleFlip) { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); }
-  updateCamera(dt);
+  if (cine) cineCamera(real); else updateCamera(dt);
   updateRoom(dt, t);
   if (ready) {
     if (titleOn) titleLife(t); else idleLife(t);
     placeSpeech();
   }
-  if (!skipDraw) renderer.render(scene, camera);
+  if (skipDraw) return;
+  if (titleFx) titleFx.render(dt, t); else renderer.render(scene, camera);
 }
 let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 
@@ -2869,7 +3070,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
