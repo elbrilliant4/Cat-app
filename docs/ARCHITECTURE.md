@@ -76,7 +76,7 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
   joint inside a solid turns its bone to bring it out by the nearest face
   (lying on top counts as out). The solids come per frame from
   `tailSolids()` in `app.js`: the room layout's `tailSolids` list (the
-  kitchen's is in `layout()`; the study has none yet) minus her bed while
+  kitchen's is in `layout()`, the study's in `studyTailSolids()`) minus her bed while
   she's in it and the counter while she sits in the sink, plus the vacuum
   where it is. Shapes: `box`, `cyl`, `rbox` (turned box, the tent).
 - The motion rig resets the jaw and ears each frame (otherwise rotations pile up).

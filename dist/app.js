@@ -405,7 +405,54 @@ function studyLayout() {
     // front) and out of the tall furniture: [x, z, radius, height].
     camBox: {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]},
     camSolids: [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]],
+    tailSolids: studyTailSolids(),
   };
+}
+// What her tail keeps out of in the study (clearTail in motion.js), from the
+// furniture as built in room.js: the walls (either side of the doorway), the
+// fireplace (its surround, the logs, the mantel shelf), the window sill and
+// what stands on it, the armchair (base, seat, back, arms, pillow), the side
+// table, the plant pots, her bowl and fountain (where they stand in here),
+// and her bed (from outside; not while she's in it).
+function studyTailSolids() {
+  const W = room.walls, d = room.door, f = room.fireplace, w = room.windowGroup, c = room.chair, bd = room.bed;
+  const box = (x0, x1, z0, z1, y0, y1, tag) => ({kind: 'box', x0, x1, z0, z1, y0, y1, tag});
+  const cyl = (x, z, r, y0, y1, tag) => ({kind: 'cyl', x, z, r, y0, y1, tag});
+  // A box in a squared-up group's own frame (the fireplace, the window).
+  const lbox = (g, x0, x1, z0, z1, y0, y1) => {
+    const a = g.localToWorld(new THREE.Vector3(x0, 0, z0)), b = g.localToWorld(new THREE.Vector3(x1, 0, z1));
+    return box(Math.min(a.x, b.x), Math.max(a.x, b.x), Math.min(a.z, b.z), Math.max(a.z, b.z), y0, y1);
+  };
+  // A box in the armchair's frame (it stands turned).
+  const cbox = (x, z, hx, hz, y0, y1) => { const p = c.localToWorld(new THREE.Vector3(x, 0, z)); return {kind: 'rbox', x: p.x, z: p.z, ry: c.rotation.y, hx, hz, y0, y1}; };
+  // (Her bowl and fountain go with her to the kitchen: where they stand here.)
+  const home = o => o.userData.studyHome?.p ?? o.position, B = home(bowl), F = home(fountain), S = room.sillTop, T = room.oliveTree.position;
+  return [
+    // Walls, to the skirting and dado rail (.1 out).
+    box(W.left - .5, W.right + .5, W.back - .5, W.back + .1, 0, 12),
+    box(W.left - .5, W.left + .1, W.back, d.z0, 0, 12), box(W.left - .5, W.left + .1, d.z1, 8.6, 0, 12),
+    box(W.right - .1, W.right + .5, W.back, 8.6, 0, 12),
+    // Fireplace: the pilasters, the lintel over the opening, the logs and
+    // grate, the mantel shelf.
+    lbox(f, -1.5, -.75, 0, .51, 0, 2.5), lbox(f, .75, 1.5, 0, .51, 0, 2.5), lbox(f, -.83, .83, 0, .51, 1.3, 2.5),
+    lbox(f, -.5, .5, 0, .45, 0, .56), lbox(f, -1.7, 1.7, 0, .71, 2.5, room.mantelTop),
+    // The window sill, its brackets, the pitcher of sprigs and the books.
+    lbox(w, -1.45, 1.45, 0, .8, S - .1, S), lbox(w, -1.09, -1.01, 0, .68, S - .42, S - .1), lbox(w, 1.01, 1.09, 0, .68, S - .42, S - .1),
+    cyl(w.position.x - .75, w.position.z + .22, .17, S, S + .45), lbox(w, .37, .87, .03, .37, S, S + .3),
+    // The armchair: base and legs, seat, back and its roll, the arms, the
+    // pillow in the back corner.
+    cbox(0, 0, 1.06, .94, 0, .85), cbox(0, .14, .71, .71, .77, room.chairSeatTop), cbox(0, -.74, 1.06, .27, 0, 2.22),
+    cbox(-.9, .07, .23, .86, 0, 1.63), cbox(.9, .07, .23, .86, 0, 1.63), cbox(-.25, -.42, .48, .25, 1.0, 1.9),
+    // The side table: legs, shelf, top.
+    ...[[-.42, -.42], [.42, -.42], [-.42, .42], [.42, .42]].map(([x, z]) => cyl(.55 + x, -2.85 + z, .065, 0, 1.15)),
+    box(.1, 1.0, -3.3, -2.4, .3, .34), box(.02, 1.08, -3.38, -2.32, 1.11, 1.39),
+    // The olive tree (pot and trunk) and the ivy pot.
+    cyl(T.x, T.z, .46, 0, .8), cyl(T.x, T.z, .08, .8, 2.35), cyl(-4.0, -2.85, .34, 0, .64),
+    // Her bowl and fountain.
+    cyl(B.x, B.z, .28, 0, .16), cyl(F.x, F.z, .45, 0, .23), cyl(F.x, F.z, .2, .23, .38),
+    // Her bed, its rim.
+    cyl(bd.position.x, bd.position.z, room.bedR + .02, 0, .45, 'bed'),
+  ];
 }
 // The study and the kitchen are joined: the doorway in the study's left wall
 // is the opening in the kitchen's back wall. The room she's in stands at the
