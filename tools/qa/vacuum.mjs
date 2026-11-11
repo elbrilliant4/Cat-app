@@ -50,7 +50,9 @@ await page.evaluate(() => {
     if (mx.y - mn.y < .03 || mn.y > 1.3 || mx.y < .02) return;
     if (mx.x < -6.1 || mn.x > 7.1 || mn.z > 4.6 || mx.z < -4.3) return;
     const c = {x: (mn.x + mx.x) / 2, z: (mn.z + mx.z) / 2};
-    const round = /Cylinder|Lathe|Circle|Torus|Sphere|Dodecahedron/.test(m.geometry.type);
+    // (Round things stand upright: a cylinder lying on its side, the
+    // stools' foot bar, is a box.)
+    const w = mx.x - mn.x, d = mx.z - mn.z, round = /Cylinder|Lathe|Circle|Torus|Sphere|Dodecahedron/.test(m.geometry.type) && Math.min(w, d) > .7 * Math.max(w, d);
     solids.push({name: nameOf(m, c, {x0: mn.x, x1: mx.x, z0: mn.z, z1: mx.z}), kind: round ? 'cyl' : 'box', x0: mn.x, x1: mx.x, y0: mn.y, y1: mx.y, z0: mn.z, z1: mx.z, cx: c.x, cz: c.z, r: Math.max(mx.x - mn.x, mx.z - mn.z) / 2});
   });
   // The tent: its footprint, poles to poles (she goes in by the door, so

@@ -1678,8 +1678,8 @@ function vacuumAttack() {
 function approachVacuum(dist) {
   const p = vacAt(), h = kitchen.vac.heading, dx = brain.pos.x - p.x, dz = brain.pos.z - p.z, d = Math.max(.01, Math.hypot(dx, dz));
   for (const [x, z] of [[dx / d, dz / d], [-Math.sin(h), -Math.cos(h)], [Math.sin(h), Math.cos(h)]]) {
-    const beyond = new THREE.Vector3(p.x - x * .8, 0, p.z - z * .8);
-    if (kitchen.clampFloor(beyond.clone()).distanceTo(beyond) < .02) return kitchen.clampFloor(new THREE.Vector3(p.x + x * dist, 0, p.z + z * dist));
+    const beyond = new THREE.Vector3(p.x - x * .8, 0, p.z - z * .8), spot = new THREE.Vector3(p.x + x * dist, 0, p.z + z * dist);
+    if (kitchen.clampFloor(beyond.clone()).distanceTo(beyond) < .02 && kitchen.clampFloor(spot.clone()).distanceTo(spot) < .3) return kitchen.clampFloor(spot);
   }
   return nearVacuum(dist);
 }

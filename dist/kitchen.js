@@ -37,13 +37,13 @@ const FLOOR = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
 const KEEP_OUT = {x0: K.island.x0 - .65, x1: K.island.x1 + .65, z0: K.island.z0 - .65, z1: K.island.z1 + 1.35};
 // Where the robot vacuum's centre may go: its body (.43) clear of the walls
 // and the counter; with her aboard, her head and hips (.6 each way) too.
-const VAC_FLOOR = {x0: -5.4, x1: 6.3, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0: -5.3, x1: 6.3, z0: -2.1, z1: 4.3};
+const VAC_FLOOR = {x0: -5.4, x1: 6.5, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0: -5.3, x1: 6.3, z0: -2.05, z1: 4.3};
 // Round things on the floor she walks round: the fountain, her bowl, the
 // tent (in and out by its doorway only) and the robot vacuum.
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
 // (The vacuum's moves with it.)
 const VAC = {x: 3.15, z: -2.0, r: .7};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .7}, {x: 4.55, z: 2.6, r: .55}, TENT, VAC];
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .7}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
 const VAC_HOME = V(3.15, 0, -2.0);
 const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.cos(K.tent.ry) * 1.95);
 
@@ -939,7 +939,13 @@ export class Kitchen {
         pendant: {get spot() { return kitchen.pendantTop(V(0, 0, 0)).setY(0); }, get top() { return kitchen.pendantTop(V(0, 0, 0)).y; },
           via: 'shelfHigh', face: 0, ride: true, dropTo: {at: at(-3.6, -2.95), top: K.counter, perch: 'counter'}},
         // Riding the robot vacuum: wherever it is; off to one side of it.
-        vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() { return kitchen.clampFloor(kitchen.vacuum.position.clone().add(V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8))); }},
+        // (Off on whichever side has the room: by the stools or a wall
+        // she'd land with her head in them.)
+        vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() {
+          const p = kitchen.vacuum.position, side = V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8);
+          const a = p.clone().add(side), b = p.clone().sub(side), ca = kitchen.clampFloor(a.clone()), cb = kitchen.clampFloor(b.clone());
+          return ca.distanceTo(a) <= cb.distanceTo(b) ? ca : cb;
+        }},
       },
       // What her tail keeps out of (clearTail in motion.js), as it is on
       // the floor: the island (its base pieces and top), the stools (legs,
@@ -952,7 +958,7 @@ export class Kitchen {
         const I = K.island, d = I.z1 - I.z0, baseH = I.top - .2, list = [
           box(I.x0 + .24, I.x1 - 1.5, I.z0 + .02, I.z0 + .02 + d - .75, 0, baseH), box(I.x1 - 1.5, I.x1, I.z0, I.z1, 0, baseH), box(I.x0, I.x0 + .24, I.z0, I.z1, 0, baseH),
           box(I.x0, I.x1, I.z0, I.z1, baseH, I.top),
-          box(K.left, .3, K.back, K.counterFront, 0, K.counter, 'counter'), box(2.5, 3.6, K.back, K.counterFront, 0, K.counter, 'counter'),
+          box(K.left, 3.6, K.back, K.counterFront, 0, K.counter, 'counter'),
           box(2.84, 3.46, -2.72, -2.52, 0, .34),
           box(K.left - .5, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right, K.right + .5, K.back, FLOOR.z1 + 1, 0, K.wallH),
           box(K.left, K.door[0], K.back - .5, K.back, 0, K.wallH), box(K.door[1], K.right, K.back - .5, K.back, 0, K.wallH),
@@ -1016,6 +1022,9 @@ export class Kitchen {
       const dx = v.x - c.x, dz = v.z - c.z, d = Math.hypot(dx, dz);
       if (d < c.r) { const k = (c.r + .05) / Math.max(d, 1e-3); v.x = c.x + (d < 1e-3 ? c.r + .05 : dx * k); v.z = c.z + (d < 1e-3 ? 0 : dz * k); }
     }
+    // (Pushed out of the vacuum's circle by the counter or a wall: the
+    // floor's edge wins, she stands a little nearer the vacuum instead.)
+    v.x = Math.min(FLOOR.x1, Math.max(FLOOR.x0, v.x)); v.z = Math.min(FLOOR.z1, Math.max(FLOOR.z0, v.z));
     return v;
   }
   randomFloorPoint(pad = 0) {
@@ -1093,7 +1102,12 @@ export class Kitchen {
       // the island than it would like, rather than her head in the wall.)
       if (rectOn) nodes.push(...[V(R.x0 - m, 0, R.z0 - m), V(R.x1 + m, 0, R.z0 - m), V(R.x1 + m, 0, R.z1 + m), V(R.x0 - m, 0, R.z1 + m)].map(p => pad ? this.clampVacBox(p) : p));
       for (const c of circles) for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; nodes.push(V(c.x + Math.cos(a) * (c.r + m), 0, c.z + Math.sin(a) * (c.r + m))); }
-      const ok = nodes.filter((p, i) => i < 2 || (p.x > FLOOR.x0 - .4 && p.x < FLOOR.x1 + .4 && p.z > FLOOR.z0 - .4 && p.z < FLOOR.z1 + .6 && !circles.some(c => inside(p, c)) && !(rectOn && p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1)));
+      // (Points past the floor's edge: her centre a little way, her body
+      // is narrow sideways; the open front freely; the vacuum only within
+      // its own box, else it would drive its body into the wall, or be
+      // held short of a point and never get there.)
+      const F = pad ? (this.vac.rider ? VAC_FLOOR_RIDE : VAC_FLOOR) : {x0: FLOOR.x0 - .15, x1: FLOOR.x1 + .15, z0: FLOOR.z0 - .15, z1: FLOOR.z1 + .6};
+      const ok = nodes.filter((p, i) => i < 2 || (p.x >= F.x0 && p.x <= F.x1 && p.z >= F.z0 && p.z <= F.z1 && !circles.some(c => inside(p, c)) && !(rectOn && p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1)));
       // Dijkstra over the points that can see each other.
       const dist = ok.map((_, i) => i ? Infinity : 0), prev = ok.map(() => -1), done = ok.map(() => false);
       for (;;) {
