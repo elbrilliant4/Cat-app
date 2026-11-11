@@ -47,14 +47,14 @@ await page.evaluate(kitchen => {
     // a plane), nor anything she can't reach (over 3 m up).
     // (The rug and the hearth slab are lain on, not run into: under 8 cm.)
     if (mx.y < .08 || mx.y - mn.y < .03 || mn.y > 6 || /Ring|Circle/.test(m.geometry.type)) return;
-    // A flat panel standing up (the walls are these) is a solid .3 deep
-    // behind its face; other panels (glows, flames, the floor) don't count.
+    // A flat panel standing up (the walls are these) is a solid 3 m deep
+    // behind its face (so whatever went right through still counts); other panels (glows, flames, the floor) don't count.
     if (/Plane/.test(m.geometry.type)) {
       if (m.material?.blending === 2 || m.material?.transparent || !m.material?.depthWrite) return;
       const n = new V3(0, 0, 1).applyQuaternion(m.getWorldQuaternion(new m.quaternion.constructor()));
       if (Math.abs(n.y) > .1 || Math.max(mx.x - mn.x, mx.z - mn.z) < .4) return;
-      if (Math.abs(n.x) > .99) { if (n.x > 0) mn.x -= .3; else mx.x += .3; }
-      else if (Math.abs(n.z) > .99) { if (n.z > 0) mn.z -= .3; else mx.z += .3; }
+      if (Math.abs(n.x) > .99) { if (n.x > 0) mn.x -= 3; else mx.x += 3; }
+      else if (Math.abs(n.z) > .99) { if (n.z > 0) mn.z -= 3; else mx.z += 3; }
       else return;
       solids.push({name: nameOf(m, {x: (mn.x + mx.x) / 2, z: (mn.z + mx.z) / 2}), kind: 'box', x0: mn.x, x1: mx.x, y0: mn.y, y1: mx.y, z0: mn.z, z1: mx.z});
       return;
