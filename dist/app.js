@@ -2702,6 +2702,8 @@ function shrinkTitle() {
   let anim;
   try { anim = stage.animate([from, to], {duration: 900, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards'}); } catch { return endTitle(); }
   titleFlip = true;
+  // (The picture scales with its box; resize() gives it its real size back after.)
+  if (renderer) renderer.domElement.style.width = renderer.domElement.style.height = '100%';
   const done = () => { anim.cancel(); endTitle(); };
   anim.onfinish = done; anim.oncancel = () => { if (titleOn) endTitle(); };
   // (A tab put in the background mustn't leave it stuck part-way.)
@@ -2849,6 +2851,8 @@ function frame(now) {
   if (ready && brain.activity === 'catnap') pet.energy = Math.min(100, pet.energy + dt / 60);
   updatePlay(dt, t);
   if (ready) updateCat(dt, t);
+  // (While the title shrinks, the picture's shape follows its box every frame.)
+  if (titleFlip) { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); }
   updateCamera(dt);
   updateRoom(dt, t);
   if (ready) {
