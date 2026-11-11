@@ -844,11 +844,12 @@ function updateCat(dt, t) {
   if (a === 'swat' && brain.swatAt) desiredHeading = angleTo(brain.pos, brain.swatAt);
   // On a perch she keeps to the way it faces (it's narrow up there).
   // Watching the bird from the floor: she turns to face it.
-  if (brain.watching && !brain.perch && !J && a === 'sit' && brain.glance) { const want = angleTo(brain.pos, brain.glance); if (Math.abs(Math.atan2(Math.sin(want - brain.heading), Math.cos(want - brain.heading))) > .7) desiredHeading = want; }
-  // At the foot of the wall steps, in the gap by the window, she faces the
-  // steps: turned across the gap her hips or nose would be in the wall or
-  // the counter's end.
-  if (place === kitchen && !brain.perch && !J && ['sit', 'loaf', 'groom', 'pause', 'land'].includes(a) && Math.hypot(brain.pos.x - PERCHES.step.base.x, brain.pos.z - PERCHES.step.base.z) < .4) desiredHeading = Math.PI;
+  // (Not at the foot of the wall steps, in the gap by the window: turned
+  // across the gap her hips or nose would be in the wall or the counter's
+  // end. There she faces the steps.)
+  const atStepFoot = place === kitchen && !brain.perch && !J && Math.hypot(brain.pos.x - PERCHES.step.base.x, brain.pos.z - PERCHES.step.base.z) < .4;
+  if (brain.watching && !brain.perch && !J && a === 'sit' && brain.glance && !atStepFoot) { const want = angleTo(brain.pos, brain.glance); if (Math.abs(Math.atan2(Math.sin(want - brain.heading), Math.cos(want - brain.heading))) > .7) desiredHeading = want; }
+  if (atStepFoot && ['sit', 'loaf', 'groom', 'pause', 'land'].includes(a)) desiredHeading = Math.PI;
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;

@@ -60,7 +60,8 @@ await page.evaluate(() => {
   const T = {x: K.bed.position.x, z: K.bed.position.z, ry: K.bed.rotation.y};
   // Signed distance from a point to a solid (negative = inside), minus a radius.
   const toSolid = (s, x, y, z, r) => {
-    if (y < s.y0 - r || y > s.y1 + r) return 9;
+    // (Resting on top of a thing counts as clear.)
+    if (y < s.y0 - r || y > s.y1 + r - .01) return 9;
     let d;
     if (s.kind === 'cyl') d = Math.hypot(x - s.cx, z - s.cz) - s.r;
     else { const dx = Math.max(s.x0 - x, 0, x - s.x1), dz = Math.max(s.z0 - z, 0, z - s.z1); d = dx > 0 || dz > 0 ? Math.hypot(dx, dz) : -Math.min(x - s.x0, s.x1 - x, z - s.z0, s.z1 - z); }
@@ -84,9 +85,15 @@ await page.evaluate(() => {
     for (const s of solids) { const d = toSolid(s, x, y, z, r); if (d < .5) note(kind, s.name, name, d, t); }
     if (tent) { const d = toTent(x, y, z, r); if (d < .5) note(kind, 'tent', name, d, t); }
   };
-  window.__qa = {solids, worst, log, rideSec: 0, floorSec: 0, frames: 0, measure(t) {
+  // Her centre past the walking floor (kitchen.js FLOOR) while on it: who
+  // sent her there.
+  const FL = {x0: -5.3, x1: 6.3, z0: -2.3, z1: 4.3};
+  window.__qa = {solids, worst, log, off: [], rideSec: 0, floorSec: 0, frames: 0, measure(t) {
     const v = K.vacuum.position, br = k.brain, riding = br.perch === 'vacuum', floor = !br.perch && br.elevation < .05 && !br.jump;
     this.frames++;
+    if (floor && (br.pos.x < FL.x0 - .03 || br.pos.x > FL.x1 + .03 || br.pos.z < FL.z0 - .03 || br.pos.z > FL.z1 + .03) && (!this.off.length || t - this.off[this.off.length - 1].t > 1)) {
+      const tg = br.target; this.off.push({t, act: br.activity, mode: br.mode, x: br.pos.x, z: br.pos.z, tx: tg?.x, tz: tg?.z});
+    }
     // The vacuum: a disc, r .43, .12 high (the dock is its home: not counted).
     if (K.vac.state !== 'docked') {
       for (const s of solids) { if (s.name === 'dock') continue; const d = toSolid(s, v.x, .06, v.z, .43); if (d < .5) note(riding ? 'vacuum riding' : 'vacuum', s.name, 'disc', d, t); }
@@ -138,7 +145,7 @@ for (let s = 0; s < SEC; s++) {
     console.log(`  ${s}s: ${w}  → ${OUT}/vacuum-${kind.replace(' ', '-')}-${shots[kind]}.png`);
   }
 }
-const {worst, log, rideSec, floorSec, frames} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, rideSec: __qa.rideSec, floorSec: __qa.floorSec, frames: __qa.frames}));
+const {worst, log, off, rideSec, floorSec, frames} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, off: __qa.off, rideSec: __qa.rideSec, floorSec: __qa.floorSec, frames: __qa.frames}));
 console.log(`\n${SEC} s (seed ${SEED}): riding ${rideSec.toFixed(0)} s, on the floor ${floorSec.toFixed(0)} s. Closest approach in metres (negative = went through):`);
 for (const kind of ['vacuum', 'vacuum riding', 'body riding', 'tail riding', 'body floor', 'tail floor']) {
   const ws = worst.filter(w => w.kind === kind).sort((a, b) => a.d - b.d);
@@ -148,4 +155,6 @@ for (const kind of ['vacuum', 'vacuum riding', 'body riding', 'tail riding', 'bo
 }
 console.log(`\n${log.length} overlap(s):`);
 for (const e of log) console.log(`  ${e.t.toFixed(1).padStart(6)} s  ${e.kind.padEnd(13)} ${e.solid.padEnd(10)} ${e.name.padEnd(8)} ${e.d.toFixed(3)}`);
+console.log(`\n${off.length} moment(s) past the walking floor's edge (her centre, on the floor):`);
+for (const e of off) console.log(`  ${e.t.toFixed(1).padStart(6)} s  ${e.act} (${e.mode}) at ${e.x.toFixed(2)},${e.z.toFixed(2)}${e.tx != null ? ` going to ${e.tx.toFixed(2)},${e.tz.toFixed(2)}` : ''}`);
 await close();

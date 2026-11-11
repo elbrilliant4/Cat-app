@@ -6,8 +6,8 @@ One phase per session (see `WORKFLOW.md`). Briefs are in `docs/phases/`.
 | # | Phase | Status | Notes |
 |---|---|---|---|
 | 01 | [Leg drag](phases/01-leg-drag.md) | preview | Three causes fixed (stuck step when setting off, bed step-up, gallop reach). Left: a short front-leg stretch sitting down on perches, one high-shelf turn. |
-| 02 | [Vacuum "Vision"](phases/02-vacuum-vision.md) | todo | The vacuum, or she riding it, passing through furniture. |
-| 03 | [Tail through furniture](phases/03-tail-collision.md) | todo | Tail passes through things (bed and tent partly fixed). |
+| 02 | [Vacuum "Vision"](phases/02-vacuum-vision.md) | preview | Measured: the vacuum itself never went through anything; she did (tail off the vacuum into the counter, stools, dock; head and hips into the stool legs; body in the counter at two spots). Her tail now keeps out of the kitchen furniture (`clearTail`), the keep-out and the vacuum's lanes are sized for her body. See the brief for numbers. |
+| 03 | [Tail through furniture](phases/03-tail-collision.md) | doing | The kitchen is done in phase 02 (`clearTail` with the kitchen's solids). Left: the study's furniture list (`tailSolids` in `studyLayout`), `tools/qa/tail.mjs` for both rooms. |
 | 04 | Miso, the second cat | blocked | Waiting for Merlin's Meshy .glb (blue British Shorthair kitten). Then: the cats play together; later, adopt more cats by levelling up. |
 | 05 | Dog visit at the French doors | blocked | Code ready behind `?dog`; needs a proper (Meshy) dog model. |
 | 06 | Christmas tree mischief | todo (December) | Mochi climbs and bats at the tree. |
