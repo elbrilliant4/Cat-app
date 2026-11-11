@@ -35,7 +35,8 @@ Start a new session with something like:
    New asset → `CREDITS.md`.
 10. **Report to Merlin**: push notification, then a few lines: what was
    wrong, what changed, before/after evidence, what the reviewer caught,
-   preview link, and that it needs his "Go live".
+   preview link, then a picker: "Go live" / "Not yet, I'll look first" /
+   "Change something".
 11. **Cleanup check** (phase done): see `CLAUDE.md`, "Spec and phases".
 
 ## Definition of done

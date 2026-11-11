@@ -19,7 +19,8 @@ idea to the live app.
 ## Rules that never bend
 
 1. **Nothing goes live without Merlin's explicit "Go live".** Not a hint or
-   an "I think it's ready"; it has to be the words. Going live means
+   an "I think it's ready"; it has to be the words, or Merlin clicking the
+   "Go live" button in Claude's picker. Going live means
    fast-forwarding `main` to a reviewed commit on the preview branch
    (`git push origin <sha>:main`). Never push unreviewed work to `main`.
 2. **All work happens on the preview branch,
@@ -115,8 +116,8 @@ to date instead of relying on chat history.
 - If a request is ambiguous, ask ONE clarifying question before doing anything.
 - Evidence before confidence: show numbers, screenshots or clips; don't
   claim what you haven't checked.
-- Several options → always recommend one (and say why), and let Merlin
-  pick one to go ahead with. Give them as multiple choice: Claude uses its
+- Every suggestion or choice (including next steps and "Go live") →
+  always recommend one (and say why), and let Merlin pick one to go ahead with. Give them as multiple choice: Claude uses its
   picker; ChatGPT lists them as A, B, C (recommended first) so Merlin can
   answer with one letter.
 - Done with a task → tell Merlin (Claude also pings him) and say in simple

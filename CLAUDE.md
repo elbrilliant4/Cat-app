@@ -6,7 +6,8 @@ kitchen. What it does and for whom: `SPEC.md`.
 ## Hard rules
 - Work only on branch `claude/expressive-cat-modern-ui-65z6r5`. GitHub Pages
   publishes it at /preview/. No other branches, no Vercel.
-- Nothing goes live without Merlin saying "Go live". Live = `git push origin
+- Nothing goes live without Merlin's "Go live" (typed, or clicking the "Go
+  live" button). Live = `git push origin
   <reviewed sha>:main`, check the Deploy workflow, add a row to `MILESTONES.md`.
 - This repo only. Never touch Netlify.
 - Blocked by a tool or permission → stop and tell Merlin; don't work around it.
@@ -16,8 +17,10 @@ kitchen. What it does and for whom: `SPEC.md`.
 - Status updates: extremely concise, fragments fine. Explanations: plain,
   full sentences. Simple words, no jargon.
 - Request ambiguous → ask ONE clarifying question before doing anything.
-- Several options → always as a picker (AskUserQuestion), recommended first
-  with a one-line why. Picking one means: go do it.
+- Every suggestion and choice is clickable: a picker (AskUserQuestion),
+  never plain text. Recommended first, with a one-line why. Picking one
+  means: go do it. This includes next steps at the end of a report and
+  every "go live" or merge decision.
 - Challenge Merlin. If a plan is bad, say so and why, give a better option,
   and name the biggest risk he isn't seeing. Don't argue small stuff. Once
   he decides after hearing you out, build it his way.
@@ -59,8 +62,10 @@ Couldn't check → say "not verified" and why.
 - Phase or big feature done → a separate reviewer subagent checks the diff
   for bugs, broken behaviour and anything off-spec, without seeing how it
   was written. Fix what it finds; tell Merlin in 2 or 3 lines what it caught.
-- Ready for review → push notification: which change, and that it needs his
-  "Go live". Can't notify → put that at the very top of the message.
+- Ready for review → push notification (which change, needs his "Go live"),
+  then a picker: "Go live" (recommended, if the evidence holds), "Not yet,
+  I'll look first", "Change something". Can't notify → put it at the very
+  top of the message.
 - After going live: one line on how to undo it (roll `main` back to the
   previous `MILESTONES.md` commit; that's a force push, so ask first).
 
