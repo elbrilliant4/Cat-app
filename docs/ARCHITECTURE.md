@@ -31,7 +31,9 @@ and footer are `inert`. `leaveTitle()` (tap, click, Enter): she stretches
 and walks home (or stays asleep if she was put to bed), the camera glides to
 the room view (`view.glideUntil`), `shrinkTitle()` animates the stage down
 to its card (the picture is only stretched meanwhile: `titleFlip`), then
-`endTitle()` puts everything back. No sound or art of its own.
+`endTitle()` puts everything back. One sound of its own: a wake-up chime
+(`sounds.play`, `assets/sounds/wake-chime-a.mp3`; `?chime=b` plays the other
+take), sound on only. No art of its own.
 
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.

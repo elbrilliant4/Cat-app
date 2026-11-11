@@ -47,6 +47,16 @@ await run('already asleep: tiptoe in', '?night=1', PHONE, async page => {
   await through('asleep')(page);
   if (await page.textContent('#mood-text') !== 'Dreaming softly') throw new Error('she woke up');
 });
+for (const q of ['?debug&intro=1&night=0', '?debug&intro=1&night=0&chime=b'])
+  await run('chime plays with sound on, ' + q, q, PHONE, async page => {
+    await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; let v = {}; try { v = JSON.parse(localStorage[k]) || {}; } catch {} v.sound = true; v.sleeping = false; v.updated = Date.now(); localStorage[k] = JSON.stringify(v); });
+    await page.reload();
+    await page.waitForSelector('#title.lit', {timeout: 120000});
+    await page.click('#title', {timeout: 120000, noWaitAfter: true});
+    await page.waitForFunction(() => window.kitten.chimed !== undefined, null, {timeout: 60000});
+    if (!await page.evaluate(() => window.kitten.chimed)) throw new Error('chime did not play');
+    await page.waitForFunction(() => !document.documentElement.classList.contains('title'), null, {timeout: 60000});
+  });
 for (const q of ['?intro=0', '?debug'])
   await run('no title with ' + q, q, PHONE, async page => { await page.waitForSelector('#loading.done', {state: 'attached', timeout: 120000}); if (await page.isVisible('#title')) throw new Error('title shown'); });
 await browser.close();
