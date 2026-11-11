@@ -58,6 +58,19 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
 - `KEEP_OUT` (her centre) is .65 from the island's faces and 1.35 in
   front of it: her head and hips reach about .6 from her centre, the stool
   legs .7 in front of the island. Shrink it and she walks through the stools.
+  `FLOOR` is .6 from the counter and the window wall for the same reason.
+  `clampFloor` and `pushOut` run the island's margin and the circles a few
+  times and end with the margin (squeezed between it and the vacuum's
+  circle, the margin wins), `clampFloor` then the floor's edge.
+- The gap at the foot of the wall steps (between the counter's end and the
+  window wall) is .78 wide and she is 1.2 long: routes go in and out by
+  `GAP_MOUTH`, and at the foot she keeps facing north or the first step
+  (`atStepFoot` in app.js). Any turn across the gap puts her in the wall.
+- Boarding or stalking the vacuum, `approachVacuum` picks a side where she
+  and her landing stay on free floor; off it, `PERCHES.vacuum.base` scores
+  both sides, ahead and behind. `randomFloorPoint(pad)` keeps the vacuum's
+  goals outside each obstacle's padded circle: `route()` drops a circle
+  that holds the goal, and would drive straight through it.
 - **Her tail keeps out of furniture** in `MotionRig.clearTail(solids)`
   (`motion.js`), run after the tail is posed and laid on the floor: each
   joint inside a solid turns its bone to bring it out by the nearest face

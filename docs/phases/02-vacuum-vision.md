@@ -77,5 +77,44 @@ half inside the counter drawers).
   landing stay on free floor; at the foot of the wall steps she faces the
   steps.
 
-**After:** (numbers below, filled in from the final runs)
+**After (`f027528`, 7 passes, each measured with 2 x 600 s):**
+
+| | before (s5 / s7) | after (s5 / s7) |
+|---|---|---|
+| overlaps logged | 2005 / 1625 | 74 / 199 |
+| vacuum alone, closest | +.05 / +.04 | +.17 / +.15 |
+| vacuum with her riding, closest | +.05 / +.05 | +.15 / +.15 |
+| her body riding, worst | -.20 / -.17 | +.16 / -.00 |
+| her tail riding, worst | -.63 / -.67 | -.06 / -.08 |
+| her body on the floor, worst | -.40 / -.25 | -.14 / -.12 |
+| her tail on the floor, worst | -.77 / -.56 | -.04 / -.06 |
+
+The vacuum never touches anything. The tail's worst is fur-deep (its
+radius is .04 to .08). Pictures: `qa-out/vision-evidence/`.
+
+**Left (small, documented, not fixed):**
+- Her ear or jaw 8 to 15 cm into the counter's front, the island's end or
+  a stool leg when she turns her head to look at something while walking
+  right along it (the keep-out is sized for her body, not a head turned
+  90 degrees; widening it closes the vacuum's lanes).
+- The tail's base (`tail0`) is set by her hips: when she lands on the
+  vacuum .25 behind its centre by the counter, 8 cm of it is in the
+  drawer fronts for a moment.
+- Walls, the counter and the gap by the window steps are checked in the
+  kitchen only. The study has no `tailSolids` yet (phase 03).
+
+**What each pass found** (for the next person: measure, don't guess)
+1. Tail through everything; head and hips in the stool legs; body in the
+   counter at the step foot and the island jump base.
+2. The counter between x .3 and 2.5 missing from the solid list; the spot
+   to hop on from pushed past the floor's edge by the vacuum's circle.
+3. A route point east of the tent clamped onto the tent (25 cm in).
+4. A bigger tent margin made the padded circle bigger than the goal
+   picker's exclusion: goal inside, circle dropped, straight through the
+   tent (99 cm).
+5. A tail bone pointing straight into a face can't be turned out (the
+   push is along the bone): it bends up along the face instead.
+6. The bend's temp vector was overwritten before use (tail worse again).
+7. The island's margin lost to the vacuum's circle when both applied; off
+   the vacuum ahead or behind when neither side has room; the gap mouth.
 
