@@ -5,7 +5,7 @@ bought. Rules: `docs/assets.md`. Merlin: keep your receipts for anything bought.
 
 | Asset | File | Source | License | Bought? | Price | Store account |
 |---|---|---|---|---|---|---|
-| Mochi (ragdoll kitten model) | `dist/assets/mochi-ragdoll.glb`, `models/mochi-ragdoll-meshy.glb`, `models/kitten-original-meshy.glb` | Made by Merlin with Meshy | **(Merlin?)** Meshy plan used, and its terms for web use | **(Merlin?)** | **(Merlin?)** | **(Merlin?)** |
+| Mochi (ragdoll kitten model) | `dist/assets/mochi-ragdoll.glb`, `models/mochi-ragdoll-meshy.glb`, `models/kitten-original-meshy.glb` | Made by Merlin with Meshy | CC BY 4.0 (the app's footer credits Meshy this way) | **(Merlin?)** | **(Merlin?)** | **(Merlin?)** |
 | three.js | `dist/vendor/` | three.js authors | MIT (`dist/vendor/LICENSE.txt`) | No | Free | none |
 | Cat purr recordings | `dist/assets/sounds/purr-*.wav` | Kerzoven, via OpenGameArt.org (opengameart.org/content/cat-purr-meow) | CC0 | No | Free | none |
 | Meows | made in code (`dist/meows.js`) | Ours | none | No | none | none |

@@ -15,7 +15,7 @@ If DESIGN.md doesn't exist yet:
 If the taste skill (by Senlin, the one that analyzes a website from a URL) isn't in .claude/skills/taste/, get it from https://github.com/senlindesign/taste-skill and save it there so it stays with the project. If you can't download it, ask me for the skill file. If it can't open a browser, ask me to install a browser tool (like Playwright) with buttons, recommended option first.
 
 Saved in .claude/skills/taste/ on 2026-11-11 (where it came from: SOURCE.md there). How we run it for Mochi:
-- It needs the Playwright MCP server, which isn't set up yet. Ask me with buttons before adding it (it's a connector).
+- It needs the Playwright MCP server. It's set up for this repo in .mcp.json (2026-11-11), pinned to 0.0.80 because that version uses the same Chromium the cloud container already has. Claude Code may ask Merlin to approve it once. Tested: it opened the app, took a screenshot and ran the extractor.
 - When it asks for an export target, pick "Skip". Its "Claude Code" option appends to CLAUDE.md, which must stay lean; DESIGN.md is where the look goes.
 - It writes {site}.md and {site}.json into the folder it runs in: move them to docs/design/.
 - Cloud sessions may not reach every website (the network has an allow list). If a site is blocked, tell me which one; don't work around it.

@@ -7,3 +7,8 @@ License: the README says MIT, but the repo has no LICENSE file.
 
 For Mochi: see docs/design-rules.md for how we run it (output to
 docs/design/, export target "Skip").
+
+Our one change: removed the `;` after the last `}` of references/extract.js.
+With it, Playwright MCP 0.0.80's browser_evaluate fails ("Unexpected token
+';'"); without it the extractor returns colors, fonts and the rest (tested on
+the app, 2026-11-11).
