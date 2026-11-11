@@ -78,16 +78,19 @@ await page.evaluate(kitchen => {
   const toSolid = (s, x, y, z, r) => {
     // (Resting on top of a thing counts as clear.)
     if (y < s.y0 - r || y > s.y1 + r - .01) return 9;
-    if (s.kind === 'cyl') return Math.hypot(x - s.cx, z - s.cz) - s.r - r;
+    // (Inside, the shortest way out counts: sideways, or up off its top for
+    // a tail lying on it and sunk in a little.)
+    const out = d => d < 0 ? Math.max(d, y - s.y1 - r) : d;
+    if (s.kind === 'cyl') return out(Math.hypot(x - s.cx, z - s.cz) - s.r - r);
     let x0 = s.x0, x1 = s.x1, z0 = s.z0, z1 = s.z1;
     if (s.kind === 'rbox') {
       const dx = x - s.x, dz = z - s.z, c = Math.cos(s.ry), sn = Math.sin(s.ry);
       x = c * dx - sn * dz; z = sn * dx + c * dz; x0 = -s.hx; x1 = s.hx; z0 = -s.hz; z1 = s.hz;
     }
     const dx = Math.max(x0 - x, 0, x - x1), dz = Math.max(z0 - z, 0, z - z1);
-    return (dx > 0 || dz > 0 ? Math.hypot(dx, dz) : -Math.min(x - x0, x1 - x, z - z0, z1 - z)) - r;
+    return out((dx > 0 || dz > 0 ? Math.hypot(dx, dz) : -Math.min(x - x0, x1 - x, z - z0, z1 - z)) - r);
   };
-  const B = k.cat.bones, M = k.cat.motion.rig, tip = M.tailTip, P = new V3(), Q = new V3();
+  const B = k.cat.bones, M = k.cat.motion.rig, tip = M.tailTip, P = new V3(), Q = new V3(), H = new V3();
   const worst = {}, log = [];
   window.__qa = {solids: solids.concat(bedSolid), worst, log, frames: 0, hitFrames: 0, measure(t) {
     // (In bed as the app has it: over its cushion, or up off the floor
@@ -104,7 +107,7 @@ await page.evaluate(kitchen => {
         const d = toSolid(s, x, y, z, r);
         if (d >= .3) continue;
         const w = worst[s.name];
-        if (!w || d < w.d) worst[s.name] = {solid: s.name, d, name, t, act: br.activity, perch: br.perch || '', mode: br.mode, px: br.pos.x, pz: br.pos.z, x, y, z};
+        if (!w || d < w.d) { B.hips.getWorldPosition(H); worst[s.name] = {solid: s.name, d, name, t, act: br.activity, perch: br.perch || '', mode: br.mode, px: br.pos.x, pz: br.pos.z, x, y, z, hx: H.x, hy: H.y, hz: H.z, s}; }
         if (d < -.03) {
           hit = true;
           const last = log[log.length - 1];
@@ -165,7 +168,12 @@ for (let s = 0; s < SEC; s++) {
 const {worst, log, frames, hitFrames} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, frames: __qa.frames, hitFrames: __qa.hitFrames}));
 console.log(`\n${ROOM}, ${SEC} s (seed ${SEED}): tail into furniture (deeper than -.03) in ${hitFrames} of ${frames} frames (${(100 * hitFrames / frames).toFixed(1)}%).`);
 console.log('Closest approach of the tail per piece of furniture, metres (negative = into it):');
-for (const w of worst.sort((a, b) => a.d - b.d)) console.log(`  ${w.solid.padEnd(11)} ${w.d.toFixed(3).padStart(7)}  (${w.name} at ${w.t.toFixed(1)} s, she ${w.act} (${w.mode})${w.perch ? ' on ' + w.perch : ''} at ${w.px.toFixed(2)},${w.pz.toFixed(2)})`);
+const f = (...a) => a.map(v => v.toFixed(2)).join(',');
+for (const w of worst.sort((a, b) => a.d - b.d)) {
+  console.log(`  ${w.solid.padEnd(11)} ${w.d.toFixed(3).padStart(7)}  (${w.name} at ${w.t.toFixed(1)} s, she ${w.act} (${w.mode})${w.perch ? ' on ' + w.perch : ''} at ${f(w.px, w.pz)})`);
+  // (Where: the tail point, her hips, and the solid it went into.)
+  if (w.d < -.03) { const s = w.s; console.log(`               point ${f(w.x, w.y, w.z)}, hips ${f(w.hx, w.hy, w.hz)}, in ${s.kind} ` + (s.kind === 'box' ? `x ${f(s.x0, s.x1)} z ${f(s.z0, s.z1)}` : `at ${f(s.x ?? s.cx, s.z ?? s.cz)}`) + ` y ${f(s.y0, s.y1)}`); }
+}
 console.log(`\n${log.length} overlap(s):`);
 for (const e of log) console.log(`  ${e.t.toFixed(1).padStart(6)} s  ${e.solid.padEnd(11)} ${e.name.padEnd(8)} ${e.d.toFixed(3)}  ${e.act}${e.perch ? ' on ' + e.perch : ''}`);
 await close();
