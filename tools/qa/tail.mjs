@@ -33,7 +33,7 @@ await page.evaluate(kitchen => {
   };
   // Her bed (or the tent) is measured as one shape below, and only while
   // she's out of it; the vacuum moves about (vacuum.mjs checks it).
-  const skip = new Set(); for (const g of [G.bed, k.cat.root, G.vacuum, G.dog?.g].filter(Boolean)) g.traverse(o => skip.add(o));
+  const skip = new Set(); for (const g of [G.bed, k.cat.root, G.vacuum, G.dog?.g, G.mantelVase].filter(Boolean)) g.traverse(o => skip.add(o));
   const shown = m => { for (let p = m; p; p = p.parent) if (!p.visible && p !== G.group) return false; return true; };
   const solids = [];
   G.group.updateMatrixWorld(true);
@@ -104,13 +104,20 @@ await page.evaluate(kitchen => {
   };
   const B = k.cat.bones, M = k.cat.motion.rig, tip = M.tailTip, P = new V3(), Q = new V3(), H = new V3();
   const worst = {}, log = [];
-  window.__qa = {solids: solids.concat(bedSolid), worst, log, frames: 0, hitFrames: 0, measure(t) {
+  window.__qa = {solids: solids.concat(bedSolid), worst, log, frames: 0, hitFrames: 0, rootFrames: 0, measure(t) {
     // (In bed as the app has it: over its cushion, or up off the floor
     // near it, stepping over the rim.)
     const br = k.brain, off = Math.hypot(br.pos.x - bed.position.x, br.pos.z - bed.position.z), inBed = off < G.bedRadius || (!br.perch && br.elevation > .05 && off < G.bedRadius + .6);
     // (In the sink she's inside the counter's outline: its basin isn't a mesh box.)
     const sink = kitchen && k.inSink?.();
-    const list = inBed ? solids : solids.concat(bedSolid);
+    const list = inBed ? solids.slice() : solids.concat(bedSolid);
+    // (The mantel vase where it is now, standing or knocked down.)
+    if (G.mantelVase) { G.mantelVase.updateMatrixWorld(true); const vb = new k.cat.root.position.constructor(); G.mantelVase.getWorldPosition(vb); list.push(G.vaseFall ? {name: 'vase', kind: 'cyl', cx: vb.x, cz: vb.z, r: .14, y0: 0, y1: .3} : {name: 'vase', kind: 'cyl', cx: vb.x, cz: vb.z, r: .25, y0: vb.y, y1: vb.y + .7}); }
+    // Her hips (where the tail starts) inside something: her body is
+    // there, the tail can't be clear of it (counted apart).
+    B.tail0.getWorldPosition(P);
+    const rooted = list.some(s => toSolid(s, P.x, P.y, P.z, 0) < -.03);
+    if (rooted) this.rootFrames++;
     this.frames++;
     let hit = false;
     const check = (name, x, y, z, r) => {
@@ -135,7 +142,7 @@ await page.evaluate(kitchen => {
       for (let j = 0; j < 3; j++) { const u = j / 3, r = M.tailR[i] * (1 - u) + M.tailR[i + 1] * u; check('tail' + i + (j ? '+' + j : ''), P.x + (Q.x - P.x) * u, P.y + (Q.y - P.y) * u, P.z + (Q.z - P.z) * u, r); }
     }
     B.tail7.localToWorld(Q.copy(tip)); check('tip', Q.x, Q.y, Q.z, M.tailR[8]);
-    if (hit) this.hitFrames++;
+    if (hit && !rooted) this.hitFrames++;
   }};
 }, kitchen);
 const solids = await page.evaluate(() => __qa.solids.map(s => `${s.name} ${s.kind} ` + (s.kind === 'rbox' ? `at ${s.x.toFixed(2)},${s.z.toFixed(2)} ±${s.hx.toFixed(2)},${s.hz.toFixed(2)} turned ${s.ry.toFixed(2)}` : s.kind === 'cyl' ? `at ${s.cx.toFixed(2)},${s.cz.toFixed(2)} r ${s.r.toFixed(2)}` : `x ${s.x0.toFixed(2)}..${s.x1.toFixed(2)} z ${s.z0.toFixed(2)}..${s.z1.toFixed(2)}`) + ` y ${s.y0.toFixed(2)}..${s.y1.toFixed(2)}`));
@@ -177,8 +184,9 @@ for (let s = 0; s < SEC; s++) {
     console.log(`  ${s}s: ${w}  → ${OUT}/tail-${ROOM}-${shots}.png`);
   }
 }
-const {worst, log, frames, hitFrames} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, frames: __qa.frames, hitFrames: __qa.hitFrames}));
-console.log(`\n${ROOM}, ${SEC} s (seed ${SEED}): tail into furniture (deeper than -.03) in ${hitFrames} of ${frames} frames (${(100 * hitFrames / frames).toFixed(1)}%).`);
+const {worst, log, frames, hitFrames, rootFrames} = await page.evaluate(() => ({worst: Object.values(__qa.worst), log: __qa.log, frames: __qa.frames, hitFrames: __qa.hitFrames, rootFrames: __qa.rootFrames}));
+console.log(`\n${ROOM}, ${SEC} s (seed ${SEED}): tail into furniture (deeper than -.03) in ${hitFrames} of ${frames} frames (${(100 * hitFrames / frames).toFixed(1)}%),`);
+console.log(`  not counting ${rootFrames} frames (${(100 * rootFrames / frames).toFixed(1)}%) with her hips, where the tail starts, inside something (her body's place, not the tail).`);
 console.log('Closest approach of the tail per piece of furniture, metres (negative = into it):');
 const f = (...a) => a.map(v => v.toFixed(2)).join(',');
 for (const w of worst.sort((a, b) => a.d - b.d)) {

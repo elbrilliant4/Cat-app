@@ -1599,6 +1599,7 @@ function inSink() { return place === kitchen && brain.perch === 'counter' && kit
 // The furniture her tail keeps out of (clearTail in motion.js): the room's
 // list, and in the kitchen the vacuum where it is now; not her bed while
 // she's in it (or stepping over its rim), nor the counter while she sits in the sink.
+const _tailVase = new THREE.Vector3();
 function tailSolids() {
   const list = place.layoutCache?.tailSolids;
   if (!list) return null;
@@ -1608,6 +1609,8 @@ function tailSolids() {
   const inBed = off < place.bedRadius || (!brain.perch && brain.elevation > .05 && off < place.bedRadius + .6);
   const out = list.filter(s => !(s.tag === 'bed' && inBed) && !(s.tag === 'counter' && sink));
   if (place === kitchen) { const v = kitchen.vacuum.position; out.push({kind: 'cyl', x: v.x, z: v.z, r: .43, y0: 0, y1: .13}); }
+  // (The vase on the mantel, while it stands there: she can knock it off.)
+  if (place === room && !room.vaseFall) { const v = room.vaseWorld(_tailVase); out.push({kind: 'cyl', x: v.x, z: v.z, r: .26, y0: room.mantelTop, y1: room.mantelTop + .7}); }
   return out;
 }
 function perchTop() { return inSink() ? place.layoutCache.sink.y : PERCHES[brain.perch].top; }
