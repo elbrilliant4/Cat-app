@@ -16,9 +16,10 @@
 ## Next
 0. **Phase 12, move like a real cat** (`docs/phases/12-cat-motion.md`):
    Merlin finds her movement unnatural (run, jumps, vase pat, also in the
-   app) and picked "fix the motion code". Steps 1 (jumps) and 2 (the run) are on the
-   preview branch; Merlin has not judged either yet (frame sheets for the
-   jumps, an old | new sprint clip for the run). Next: step 3, the swat.
+   app) and picked "fix the motion code". Steps 1 (jumps), 2 (the run) and 3 (the
+   swat) are on the preview branch. Merlin said yes to the run; he has not
+   judged the jumps (frame sheets) or the swat (old | new clip) yet. Next:
+   step 4, the in-betweens.
    This comes before the music.
 1. Merlin's notes on the clip (shots, pace, look).
 2. Phase 11b, what is left: the music sting from Runway (step 5; 2 or 3
@@ -45,4 +46,4 @@
   each frame (see `title-clip.mjs`).
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then go on with phase 12 (docs/phases/12-cat-motion.md), step 3: the swat.
+> Read CLAUDE.md and docs/HANDOFF.md, then go on with phase 12 (docs/phases/12-cat-motion.md), step 4: the in-betweens.

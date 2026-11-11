@@ -93,5 +93,16 @@ together). `legs.mjs`: floor walk stretched 0.3% / 3.1 cm → 0% / 1.9 cm.
 Speed check: by her jump gravity (32) and hip height (.45) a true gallop
 would start near 6 units/s; the rug is under 3 units across, so the dash
 stays at 2.6 and the rhythm was fixed instead. 3.0 was measured too (legs
-fine, 17% in the air), not switched on. Waiting on Merlin's eye: clip
-`SCENE=sprint FPS=30 node tools/qa/clip.mjs`, old | new.
+fine, 17% in the air), not switched on. Merlin saw the old | new clip
+(`SCENE=sprint FPS=30 node tools/qa/clip.mjs`) and said the run is good.
+
+Step 3, the swat (2026-11-11): a pat now takes `SWAT` = .62 s (was .45):
+the paw comes up bent beside her chest and draws back, goes out fast (it
+still hits at .22 s, so the vase, book and toy timings hold), comes half
+way back, a second quick tap, then home slowly. `app.js` sends `swat` (paw
+off the floor), `swatReach` (drawn back to right out) and `swatLean`;
+`motion-cat.js` shifts her hips over the left front leg, rolls and turns
+the chest so the right shoulder comes up and forward, slides that shoulder
+blade, and leans the head in. Clip: `SCENE=swat FPS=30 node
+tools/qa/clip.mjs`. In the title the two pats are still .45 s apart, so
+the first is cut short: re-time in step 5.

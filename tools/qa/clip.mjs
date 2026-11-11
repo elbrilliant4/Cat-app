@@ -1,6 +1,6 @@
 // Short clip of her legs, the camera following from the side, for checking
 // by eye. Writes OUT (default qa-out/<scene>.mp4; needs ffmpeg).
-//   SCENE=walk|turn|run|gallop|sprint|bed|shelf|jump node tools/qa/clip.mjs     (SEED=777, SEC=6, FPS=20)
+//   SCENE=walk|turn|run|gallop|sprint|swat|bed|shelf|jump node tools/qa/clip.mjs     (SEED=777, SEC=6, FPS=20)
 // (sprint: flat out across the room and back, seen from the side; a gallop
 // strides 3 or 4 times a second, so film it at FPS=30 or more.)
 // Old build vs new: run it from each checkout, then put the two side by side:
@@ -30,6 +30,8 @@ await step(SCENE === 'sprint' ? 110 : 20);
 await page.evaluate(scene => {
   kitten.brain.mode = 'idle';
   if (scene === 'gallop') kitten.dash();
+  // (Three pats sitting on the rug, seen from her front right.)
+  if (scene === 'swat') { const pat = n => kitten.setActivity('swat', kitten.SWAT ?? .45, () => kitten.setActivity('sit', n ? .5 : 1e9, () => pat(n - 1))); kitten.setActivity('sit', .4, () => pat(2)); }
   if (scene === 'sprint') { const V = kitten.cat.root.position.constructor, go = (x, then) => kitten.walkTo(new V(x, 0, .8), then, 2.6, true); go(2.6, () => go(-2.6, () => kitten.setActivity('sit', 1e9))); }
   if (scene === 'bed') { const b = kitten.place.bed.position; kitten.walkTo(new kitten.cat.root.position.constructor(b.x, 0, b.z), () => kitten.setActivity('sit', 1e9), false, true); }
   if (scene === 'shelf') kitten.stroll();
@@ -46,6 +48,7 @@ for (let i = 0; i < SEC * FPS; i++) {
   await page.evaluate(scene => {
     const w = kitten.view, B = kitten.brain, r = kitten.cat.root;
     w.mode = 'free';
+    if (scene === 'swat') { for (const o of [w, w.goal]) { o.focus.set(r.position.x, .45, r.position.z); Object.assign(o, {yaw: B.heading - 1.0, pitch: .12, dist: 2.6}); } w.cut = 0; w.lift = 0; return; }
     if (scene === 'sprint') { for (const o of [w, w.goal]) { o.focus.set(r.position.x, .05, r.position.z); Object.assign(o, {yaw: 0, pitch: .04, dist: 3.6}); } w.cut = 0; w.lift = 0; return; }
     if (scene === 'jump') { for (const o of [w, w.goal]) { o.focus.set(3.3, 1.75, .8); Object.assign(o, {yaw: 0, pitch: .05, dist: 9.5}); } w.cut = 0; w.lift = 0; return; }
     for (const o of [w, w.goal]) { o.focus.set(r.position.x, r.position.y + .2, r.position.z); Object.assign(o, {yaw: B.heading + Math.PI / 2 + .3, pitch: .08, dist: 3.2}); }

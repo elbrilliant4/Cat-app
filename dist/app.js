@@ -10,7 +10,7 @@ import {Sounds} from './sound.js';
 import {TitleFx} from './title-fx.js';
 
 const $ = s => document.querySelector(s);
-const {damp, clamp, lerp} = THREE.MathUtils;
+const {damp, clamp, lerp, smoothstep} = THREE.MathUtils;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -771,6 +771,10 @@ function dampAngle(a, b, rate, dt) {
   return a + d * (1 - Math.exp(-rate * dt));
 }
 
+// A pat with a paw takes this long: drawn back, out fast (it hits at .22 s),
+// half way back, a second quick tap, then home more slowly.
+const SWAT = .62;
+
 function updateCat(dt, t) {
   // --- Activity flow -------------------------------------------------------
   if (t > brain.actUntil) {
@@ -1045,8 +1049,16 @@ function updateCat(dt, t) {
   if (a === 'pause') { pose = 'crouch'; tail = {amp: .3, speed: 3}; }
   // Draped over the pendant shade like a scarf: legs and tail dangling.
   if (brain.perch === 'pendant' && !J && !['prejump', 'land', 'swat'].includes(a)) { pose = 'drape'; tail = {amp: .15, speed: .8}; }
-  let swat = 0;
-  if (a === 'swat') { const q = (t - brain.actStart) / .45; swat = Math.max(0, Math.sin(Math.min(q, 1) * Math.PI)) * motion; tail = {amp: .5, speed: 4}; }
+  // (swat: how far the paw is off the floor; reach: from drawn back, below
+  // 0, to right out, 1; lean: how much her weight, shoulder and head join in.)
+  let swat = 0, swatReach = 0, swatLean = 0;
+  if (a === 'swat') {
+    const q = clamp((t - brain.actStart) / SWAT, 0, 1), ss = (a, b) => smoothstep(q, a, b);
+    swat = ss(0, .15) * (1 - ss(.82, 1)) * motion;
+    swatReach = q < .18 ? -.25 * ss(0, .18) : q < .355 ? -.25 + 1.25 * (1 - Math.pow(1 - (q - .18) / .175, 3)) : q < .52 ? 1 - .55 * ss(.355, .52) : q < .64 ? .45 + .45 * ss(.52, .64) : .9 * (1 - ss(.64, .97));
+    swatLean = ss(0, .3) * (1 - ss(.72, 1)) * motion;
+    tail = {amp: .5, speed: 4};
+  }
   // A bird at the window: quick tail flicks.
   if (brain.watching) tail = {amp: .45, speed: 6};
   if (brain.dogWatch) tail = {amp: .7, speed: 7};
@@ -1065,7 +1077,7 @@ function updateCat(dt, t) {
   cat.update(dt, t, {
     pose, poseRate, walk, wiggle: wiggle * motion, lift: lift * motion, knead, purr: knead && pet.sound,
     sprint: a === 'walk' && typeof brain.run === 'number' && brain.run >= 2.5,
-    groom: a === 'groom', swat, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
+    groom: a === 'groom', swat, swatReach, swatLean, head: brain.head, reach: brain.reach, look: brain.look, face, tail,
     tailUp: t < brain.tailUpUntil && !['sleep', 'belly', 'loaf'].includes(a) ? 1 : 0,
     // (For the new movement: how far through a jump she is, which way, and
     // whether she's riding the vacuum.)
@@ -1251,7 +1263,7 @@ function dogLife(t) {
     if (kitchen.dogPawing && t > (brain.dogSwatAt || 0) && brain.activity === 'sit') {
       brain.dogSwatAt = t + rand(1.2, 2);
       brain.swatAt = at.clone().setY(0); brain.swatSoft = true;
-      setActivity('swat', .45, () => setActivity('sit', 6));
+      setActivity('swat', SWAT, () => setActivity('sit', 6));
     }
   }
 }
@@ -1294,7 +1306,7 @@ function shadowPounce() {
     const dx = spot.x - brain.pos.x, dz = spot.z - brain.pos.z, dd = Math.max(.01, Math.hypot(dx, dz)), reach = Math.max(0, dd - .35);
     brain.pounce = {start: clockNow, from: brain.pos.clone(), to: onRug(new THREE.Vector3(brain.pos.x + dx / dd * reach, 0, brain.pos.z + dz / dd * reach)), caught: false, at: () => spot, onHit: () => {
       brain.swatAt = spot.clone(); brain.swatSoft = true;
-      setActivity('swat', .45, () => setActivity('pause', 1.1, () => {
+      setActivity('swat', SWAT, () => setActivity('pause', 1.1, () => {
         glanceAt(new THREE.Vector3(rand(-2, 2), rand(.2, 1.5), rand(-1, 2)), 1.2);
         if (Math.random() < .35) say(pick(['Got it.', '…where did it go?', 'I definitely got it.']), 2000);
         setActivity('sit', rand(2, 4));
@@ -1317,7 +1329,7 @@ function dockHunt() {
       const dx = light.x - brain.pos.x, dz = light.z - brain.pos.z, dd = Math.max(.01, Math.hypot(dx, dz)), reach = Math.max(0, dd - .55);
       brain.pounce = {start: clockNow, from: brain.pos.clone(), to: kitchen.clampFloor(new THREE.Vector3(brain.pos.x + dx / dd * reach, 0, brain.pos.z + dz / dd * reach)), caught: false, at: () => light, onHit: () => {
         brain.swatAt = light.clone().setY(0); brain.swatSoft = true;
-        setActivity('swat', .45, () => setActivity('swat', .45, () => setActivity('pause', 1.2, () => setActivity('sit', rand(2, 4)))));
+        setActivity('swat', SWAT, () => setActivity('swat', SWAT, () => setActivity('pause', 1.2, () => setActivity('sit', rand(2, 4)))));
         later(.8, () => { meow('chirp', 'idle'); if (Math.random() < .5) say(pick(['It blinked at me.', 'Stay. Asleep.', 'I see you, little light.']), 2200); });
       }};
       setActivity('pause', 1.6);
@@ -1346,7 +1358,7 @@ function pendantLife() {
   if (choice === 'bat') {
     const s = kitchen.shades[1].getWorldPosition(new THREE.Vector3());
     glanceAt(s, 1.2); brain.swatAt = s.clone().setY(0);
-    later(.6, () => { if (brain.perch === 'pendant') { setActivity('swat', .45, () => setActivity('sit')); kitchen.bumpPendant(rand(-.2, .2), rand(-.2, .2), rand(-.4, .4)); } });
+    later(.6, () => { if (brain.perch === 'pendant') { setActivity('swat', SWAT, () => setActivity('sit')); kitchen.bumpPendant(rand(-.2, .2), rand(-.2, .2), rand(-.4, .4)); } });
   }
   if (choice === 'meow') { meow(pick(['mew', 'chirp']), 'idle'); if (Math.random() < .5) say(pick(['I live here now.', 'Wheee.', 'Look at me!', 'This is fine.']), 2200); }
 }
@@ -1392,7 +1404,7 @@ function knockVase() {
   [0, 1, 2.1].forEach((d, i) => setTimeout(() => {
     if (brain.perch !== 'mantel' || brain.jump) return;
     brain.swatAt = vase;
-    setActivity('swat', .45, () => setActivity('sit'));
+    setActivity('swat', SWAT, () => setActivity('sit'));
     if (i === 2) setTimeout(() => {
       if (!room.knockVase(clockNow)) return;
       later(1.05, () => onLand('cup'));
@@ -1415,7 +1427,7 @@ function knockBook() {
   pats.forEach((d, i) => setTimeout(() => {
     if (brain.perch !== 'sill' || brain.jump) return;
     brain.swatAt = book;
-    setActivity('swat', .45, () => setActivity('sit'));
+    setActivity('swat', SWAT, () => setActivity('sit'));
     if (i === pats.length - 1) setTimeout(() => {
       if (!room.knockBook(clockNow)) return;
       later(.9, () => onLand('book'));
@@ -1451,7 +1463,7 @@ function knockThing(item, pats = 1 + Math.floor(Math.random() * 3)) {
   const pat = i => {
     if (!still()) return;
     brain.swatAt = at();
-    setActivity('swat', .45);
+    setActivity('swat', SWAT);
     later(.22, () => {
       if (!still()) return;
       if (kitchen.nudgeCup(obj, clockNow) === 'fell') {
@@ -1679,7 +1691,7 @@ function vacuumAttack() {
           return;
         }
         brain.swatAt = vacAt().clone(); brain.swatSoft = false;
-        setActivity('swat', .45, () => setActivity('pause', 1.2, () => setActivity('sit')));
+        setActivity('swat', SWAT, () => setActivity('pause', 1.2, () => setActivity('sit')));
         kitchen.hitVacuum(clockNow, brain.pos);
         express('excited', 2);
         later(.7, () => { glanceAt(vacAt().clone().setY(.2), 1.5); meow(pick(['meow', 'chirp']), 'reply'); if (Math.random() < .5) say(pick(['Got it!', 'And stay out.', 'Intruder!', 'Who’s the boss now?']), 2200); });
@@ -2057,7 +2069,7 @@ function updatePlay(dt, t) {
       express('curious', 1.2);
       setActivity('stalk', 1.4, () => {
         brain.swatAt = toy.position.clone();
-        setActivity('swat', .45, () => setActivity('pause', .9, () => {
+        setActivity('swat', SWAT, () => setActivity('pause', .9, () => {
           if (brain.mode !== 'solo') return;
           const ddx = toy.position.x - brain.pos.x, ddz = toy.position.z - brain.pos.z, dd = Math.max(.01, Math.hypot(ddx, ddz));
           brain.pounce = {start: clockNow, from: brain.pos.clone(), to: onRug(new THREE.Vector3(toy.position.x - ddx / dd * .5, 0, toy.position.z - ddz / dd * .5)), caught: false};
@@ -2072,7 +2084,7 @@ function updatePlay(dt, t) {
     brain.stalked = false;
     if (Math.random() < .7) {
       brain.swatAt = toy.position.clone();
-      setActivity('swat', .45, () => setActivity('play'));
+      setActivity('swat', SWAT, () => setActivity('play'));
       brain.swatHit = t + .22;
     } else {
       brain.pounce = {start: t, from: brain.pos.clone(), to: onRug(new THREE.Vector3(toy.position.x - dx / dist * .5, 0, toy.position.z - dz / dist * .5)), caught: false};
@@ -2779,7 +2791,7 @@ const SHOTS = [
   {at: 6.3, aim: 12, cam(k, p, l) { p.set(1, 2.5, 1); cat.headCenter(l); return 54; }},
 ];
 // What happens when (seconds on the story clock).
-const swatNow = () => setActivity('swat', .45, () => setActivity('sit', 9));
+const swatNow = () => setActivity('swat', SWAT, () => setActivity('sit', 9));
 const CUES = [
   [.72, () => { express('surprised', .5); Object.assign(brain.face, {open: 1, pupil: .35}); twitchEar(0, 1.5); twitchEar(1, 1.5); }],
   // (Up on her feet before the cut, so the gallop starts in full stride.)
@@ -3085,7 +3097,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
