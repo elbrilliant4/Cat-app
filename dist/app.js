@@ -389,15 +389,17 @@ function studyLayout() {
     // Places she jumps up to. spot: where she sits; top: its height; base:
     // where she jumps from and back down to; face: the way she sits there.
     perches: {
-      // The window sill, from her bed just below it.
-      sill: {spot: w.localToWorld(new THREE.Vector3(-.05, 0, room.sillDepth * .5)).setY(0), top: room.sillTop,
-        base: new THREE.Vector3(room.bed.position.x, 0, room.bed.position.z - .3), face: Math.PI},
+      // The window sill, from her bed just below it. It's .8 deep and she's
+      // about .8 long sitting: she sits along it, toward its front, facing
+      // the books (her head turns to the window for the bird).
+      sill: {spot: w.localToWorld(new THREE.Vector3(0, 0, room.sillDepth - .25)).setY(0), top: room.sillTop,
+        base: new THREE.Vector3(room.bed.position.x, 0, room.bed.position.z - .3), face: w.rotation.y + Math.PI / 2, narrow: true},
       chair: {spot: c.localToWorld(new THREE.Vector3(0, 0, .3)).setY(0), top: room.chairSeatTop,
         base: c.localToWorld(new THREE.Vector3(0, 0, 1.45)).setY(0), face: c.rotation.y},
-      // The mantel shelf, beside the vase, facing the room; she takes off
-      // from the floor just in front of the hearth.
-      mantel: {spot: f.localToWorld(new THREE.Vector3(-.3, 0, .36)).setY(0), top: room.mantelTop,
-        base: f.localToWorld(new THREE.Vector3(-.3, 0, 1.5)).setY(0), face: -Math.PI / 2},
+      // The mantel shelf (.71 deep), along it in the middle, facing the
+      // vase; she takes off from the floor just in front of the hearth.
+      mantel: {spot: f.localToWorld(new THREE.Vector3(-.15, 0, .36)).setY(0), top: room.mantelTop,
+        base: f.localToWorld(new THREE.Vector3(-.3, 0, 1.5)).setY(0), face: f.rotation.y - Math.PI / 2, narrow: true},
     },
     perchTargets: [['sill', room.windowGroup], ['chair', room.chair], ['mantel', room.fireplace]],
     limits: {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]},
@@ -850,6 +852,11 @@ function updateCat(dt, t) {
     if (J.out) brain.pos.z += J.out * Math.sin(Math.PI * k);
     brain.elevation = J.fromY + (J.toY - J.fromY) * e + 4 * J.arc * k * (1 - k);
     desiredHeading = angleTo(J.from, J.to);
+    // Onto a narrow perch she turns in the air, landing the way she'll sit
+    // (a quarter turn or so; not right round): landing as she took off,
+    // her head would be in the wall behind it.
+    const NP = J.perch && PERCHES[J.perch];
+    if (NP?.narrow && k > .4) { const d = Math.atan2(Math.sin(NP.face - desiredHeading), Math.cos(NP.face - desiredHeading)); if (Math.abs(d) < 2.1) desiredHeading = NP.face; }
     if (k >= 1) {
       brain.jump = null;
       brain.perch = J.perch;
