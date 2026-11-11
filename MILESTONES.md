@@ -15,6 +15,7 @@ brings that version's app back.
 | Live build 171 | `70ade23` | Walks like a cat (set to measured cat numbers: longer slower steps, lower, narrow track, no stutter-step), a trot for every run, gallop only at a dash or zoomies, hind legs no longer hop together. |
 | Live build 174 | `97f11c8` | Halloween stored away out of October (a room left in it wakes up as Thanksgiving). |
 | Live build 190 | `43fdbf8` | Vision: her tail and body kept out of the kitchen furniture, the vacuum's lanes and keep-out sized for her, boarding and leaving the vacuum from a side with room. Also the new working rules (CLAUDE.md, SPEC.md, asset and design rules, taste skill and its browser connector). |
+| Live build 192 | `f91155a` | Docs only: every suggestion, merge and go-live is a clickable choice. Mochi unchanged from build 190. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
