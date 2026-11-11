@@ -1,35 +1,30 @@
-# Handoff — 2026-11-10
+# Handoff — 2026-11-11
 
 ## State
-- Live: build 161 = `70ade23`: the cat walk (measured numbers, no
-  stutter-step), a trot for every run, gallop only at a dash or zoomies.
-  Merlin: "much much better than before".
-- Preview branch (`66395d2`), not live: Halloween stored away out of
-  October (`?decor=halloween` shows it; a room left in it wakes up as
-  Thanksgiving). Waiting on Merlin's "Go live".
+- Live: build 161 = `70ade23` (unchanged).
+- Preview branch `claude/expressive-cat-modern-ui-65z6r5` (recreated today)
+  and session branch `claude/gallant-johnson-bh11wf`, same commits, not
+  live: the title screen, step 1 ("Tap to wake her", wake chime A), plus
+  Halloween stored away (from before). Waiting on Merlin's "Go live".
+- GitHub Actions has 0 runs on this repo (workflows listed, never run), so
+  `/preview/` does not update. Only Merlin can check the repo's Actions
+  settings. Until then the preview is a clip: `tools/qa/title-clip.mjs`.
 
-## Next (Merlin's order, 2026-11-10)
-1. Phase 02, Vision (`docs/phases/02-vacuum-vision.md`): she, the vacuum,
-   or her tail (phase 03) passing through furniture. Reproduce with
-   `tools/qa/vacuum.mjs` extended to every obstacle and her body points.
-2. Christmas decor: waiting on Orion's image (decor.js; different files
-   from Vision, can run as a second session).
-3. Miso, the second cat: waiting on Merlin's Meshy .glb.
-4. Phase 08 (app screens), 09 (small test group). Merlin wants a
-   commercial-quality app.
+## Next (Merlin's order, 2026-11-11)
+1. **Phase 11b, the zoomies cinematic** (`docs/phases/11-title-cinematic.md`):
+   Merlin finds the title too simple and wants it "exciting like Star
+   Rail". The plan, shot list and risks are in the brief. He allows Runway
+   and Meshy credits.
+2. Then as before: phase 02 Vision, Christmas decor (Orion's image), Miso
+   (Merlin's .glb), phase 08, 09.
 
 ## Gotchas
-- Merlin judges in the live preview, not recordings: ship an A/B behind a
-  URL flag so both are live links. Walk flags left in `motion-cat.js`
-  (`?walk=old`, `?gait=old`, `?low=0`, `?track=wide`, `?sway=1`,
-  `?hindlift=`, `?trot=0`); remove once nobody needs them.
-- QA: `gait-chart.mjs` (footfall chart, `RUN=2.1`), `legs.mjs` (steps at
-  20 fps: a "worst" on a fast change of speed is ~3x the app's), 2
-  browsers at a time; a leg run ~6 min, a clip ~10 min.
-- Papers: pmc.ncbi.nlm.nih.gov, journals.plos.org, www.originalwisdom.com
-  are allowed in the Default environment; fetch with curl (WebFetch's
-  resolver can't see them). Numbers are in the phase 07 brief.
-- `pkill -f`/`pgrep -f` match your own shell line: use exact names.
+- Merlin judges by eye and ear: send clips and sound files, offer choices
+  as a picker.
+- The title QA needs `npm run dev` running; a worker restart kills it.
+- A title run takes about 8 min, a clip about 5 min (software WebGL).
+- Older gotchas (walk flags, papers, `pkill`) are in git history of this
+  file (`97f11c8`).
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then do phase 02 (docs/phases/02-vacuum-vision.md).
+> Read CLAUDE.md and docs/HANDOFF.md, then do phase 11b (docs/phases/11-title-cinematic.md).
