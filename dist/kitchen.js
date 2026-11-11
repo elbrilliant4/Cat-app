@@ -45,11 +45,15 @@ const VAC_FLOOR = {x0: -5.4, x1: 6.5, z0: -2.25, z1: 4.3}, VAC_FLOOR_RIDE = {x0:
 const TENT = {x: K.tent.x, z: K.tent.z, r: 1.55};
 // (The vacuum's moves with it.)
 const VAC = {x: 3.15, z: -2.0, r: .7};
-const OBSTACLES = [{x: 3.0, z: 1.55, r: .9}, {x: 4.55, z: 2.6, r: .6}, TENT, VAC];
+const OBSTACLES = [{x: 3.0, z: 1.55, r: .9}, {x: 4.55, z: 2.6, r: .7}, TENT, VAC];
 const VAC_HOME = V(3.15, 0, -2.0);
 // The dock, for the vacuum with her aboard: her rear hangs .8 behind it.
 const DOCK = {x: 3.15, z: -2.62, r: .55};
 const TENT_DOOR = V(K.tent.x + Math.sin(K.tent.ry) * 1.95, 0, K.tent.z + Math.cos(K.tent.ry) * 1.95);
+// The gap between the counter's end and the window wall, where the wall
+// steps start: in and out by its mouth, straight, never turning inside it
+// (it's narrower than she is long).
+const GAP = {x0: -5.9, x1: -5.05, z0: -2.8, z1: -2.1}, GAP_MOUTH = V(-5.45, 0, -1.85);
 
 export class Kitchen {
   constructor(scene, room) {
@@ -947,8 +951,11 @@ export class Kitchen {
         // she'd land with her head in them.)
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() {
           const p = kitchen.vacuum.position, side = V(Math.cos(kitchen.vac.heading), 0, -Math.sin(kitchen.vac.heading)).multiplyScalar(.8);
-          const a = p.clone().add(side), b = p.clone().sub(side), da = kitchen.pushOut(a.clone()).distanceTo(a), db = kitchen.pushOut(b.clone()).distanceTo(b);
-          return kitchen.clampFloor(da <= db ? a : b);
+          // (Scored by how far the furniture, walls and counter push the
+          // spot; the open front doesn't count.)
+          const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z); };
+          const a = p.clone().add(side), b = p.clone().sub(side);
+          return kitchen.clampFloor(score(a) <= score(b) ? a : b);
         }},
       },
       // What her tail keeps out of (clearTail in motion.js), as it is on
@@ -1090,6 +1097,9 @@ export class Kitchen {
     const pre = [], post = [];
     if (inside(to, TENT)) { B = TENT_DOOR; post.push(to); }
     if (inside(from, TENT)) { A = TENT_DOOR; pre.push(TENT_DOOR); }
+    const inGap = p => p.x > GAP.x0 && p.x < GAP.x1 && p.z > GAP.z0 && p.z < GAP.z1;
+    if (!pad && inGap(to)) { B = GAP_MOUTH; post.push(to); }
+    if (!pad && inGap(from)) { A = GAP_MOUTH; pre.push(GAP_MOUTH); }
     // The vacuum where it is now: its full size when it's docked (it won't
     // move), a little smaller when it's out (it moves on, and backs off if
     // she meets it), so she isn't sent the long way round the room.

@@ -426,7 +426,7 @@ export class MotionRig {
   // thickness) has its bone turn to bring it out by the nearest face, the
   // rest of the tail following; lying on top of a thing counts as out.
   clearTail(solids) {
-    const B = this.B, a = new THREE.Vector3(), end = new THREE.Vector3(), n = new THREE.Vector3(), best = new THREE.Vector3();
+    const B = this.B, a = new THREE.Vector3(), end = new THREE.Vector3(), n = new THREE.Vector3(), best = new THREE.Vector3(), bend = new THREE.Vector3();
     for (let i = 0; i < 8; i++) {
       const bone = B['tail' + i], r = this.tailR[i + 1] + .01;
       for (let pass = 0; pass < 3; pass++) {
@@ -441,10 +441,11 @@ export class MotionRig {
         // nothing (it's along the bone): it bends up along the face instead,
         // enough that its reach into the thing is gone.
         if (_v.dot(best) < -.7) {
-          const th = Math.acos(clamp(1 - depth / Math.max(L, 1e-3), 0, 1)), b = _v2.copy(Y).addScaledVector(_v, -_v.dot(Y));
-          if (b.lengthSq() < 1e-6) b.crossVectors(_v, X);
-          b.normalize();
-          _v2.copy(_v).multiplyScalar(Math.cos(th)).addScaledVector(b, Math.sin(th)).normalize();
+          const th = Math.acos(clamp(1 - depth / Math.max(L, 1e-3), 0, 1));
+          bend.copy(Y).addScaledVector(_v, -_v.dot(Y));
+          if (bend.lengthSq() < 1e-6) bend.crossVectors(_v, X);
+          bend.normalize();
+          _v2.copy(_v).multiplyScalar(Math.cos(th)).addScaledVector(bend, Math.sin(th)).normalize();
         }
         const turn = _q.setFromUnitVectors(_v, _v2);
         const wq = bone.getWorldQuaternion(new THREE.Quaternion());

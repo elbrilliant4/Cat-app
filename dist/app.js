@@ -852,7 +852,10 @@ function updateCat(dt, t) {
   // (Facing the first step itself, a touch west of south: from facing out
   // of the gap, the shorter turn is then the one that keeps her hips out
   // of the window wall.)
-  if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) desiredHeading = angleTo(brain.pos, PERCHES.step.spot);
+  // (The gap is .78 wide and she is 1.2 long: facing north already, she
+  // stays so (hips in the gap); else she faces the first step. Any turn
+  // across sweeps her into the wall or the counter's end.)
+  if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) { const hs = Math.atan2(Math.sin(brain.heading), Math.cos(brain.heading)); desiredHeading = Math.abs(hs) < 1.57 ? 0 : angleTo(brain.pos, PERCHES.step.spot); }
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
   else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
