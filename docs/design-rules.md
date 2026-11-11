@@ -12,7 +12,13 @@ If DESIGN.md doesn't exist yet:
 5. Show me a short summary and one sample page before using it everywhere.
 
 ### Getting the taste skill
-If the taste skill (by Senlin, the one that analyzes a website from a URL) isn't in .claude/skills/taste/, get it from PASTE_LINK_HERE and save it there so it stays with the project. If you can't download it, ask me for the skill file. If it can't open a browser, ask me to install a browser tool (like Playwright) with buttons, recommended option first.
+If the taste skill (by Senlin, the one that analyzes a website from a URL) isn't in .claude/skills/taste/, get it from https://github.com/senlindesign/taste-skill and save it there so it stays with the project. If you can't download it, ask me for the skill file. If it can't open a browser, ask me to install a browser tool (like Playwright) with buttons, recommended option first.
+
+Saved in .claude/skills/taste/ on 2026-11-11 (where it came from: SOURCE.md there). How we run it for Mochi:
+- It needs the Playwright MCP server, which isn't set up yet. Ask me with buttons before adding it (it's a connector).
+- When it asks for an export target, pick "Skip". Its "Claude Code" option appends to CLAUDE.md, which must stay lean; DESIGN.md is where the look goes.
+- It writes {site}.md and {site}.json into the folder it runs in: move them to docs/design/.
+- Cloud sessions may not reach every website (the network has an allow list). If a site is blocked, tell me which one; don't work around it.
 
 ## 2. Using DESIGN.md
 - The analyzed sites are inspiration, not something to copy. Keep the feel, layout ideas, and spacing.
