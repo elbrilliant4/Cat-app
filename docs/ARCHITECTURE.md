@@ -21,6 +21,18 @@ preview branch.
 | `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
 | `sound.js`, `meows.js` | Short sounds and meows (no ambient loops). |
 
+## Title screen (app.js, "Title screen" block; markup `#title`; styles at the end of style.css)
+A script in the head of `index.html` puts the class `title` on `<html>`
+before the first paint: on at every launch, off with `?intro=0` or `?debug`
+(the QA tools), forced with `?intro=1`. While `titleOn`: the stage is full
+screen, she sleeps on the study bed whatever the save says (`pet.sleeping`
+is not changed), `titleLife` runs instead of `idleLife`, the header, panel
+and footer are `inert`. `leaveTitle()` (tap, click, Enter): she stretches
+and walks home (or stays asleep if she was put to bed), the camera glides to
+the room view (`view.glideUntil`), `shrinkTitle()` animates the stage down
+to its card (the picture is only stretched meanwhile: `titleFlip`), then
+`endTitle()` puts everything back. No sound or art of its own.
+
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 

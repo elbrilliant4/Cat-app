@@ -13,6 +13,12 @@ const {damp, clamp, lerp} = THREE.MathUtils;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The title screen (index.html decides before the first paint: on, unless
+// ?intro=0 or ?debug): she is asleep in her room until a tap wakes her.
+const titleRoot = document.documentElement;
+let titleOn = titleRoot.classList.contains('title'), titleLeaving = false, titleFlip = false;
+const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
+function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = false); }
 const motion = reduceMotion ? 0.35 : 1;
 
 // ---------------------------------------------------------------------------
@@ -283,6 +289,7 @@ try {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.prepend(renderer.domElement);
 } catch (e) {
+  titleOff();
   $('#loading strong').textContent = 'Your browser couldn’t open the 3D room.';
   $('#load-progress').textContent = 'Try a browser with WebGL enabled.';
   console.error(e);
@@ -506,6 +513,8 @@ function buildKitchen() {
   applyKitchenDecor(kitchen, room.decor);
   return kitchen;
 }
+// (The title screen opens on her bed in the study.)
+if (titleOn) pet.place = 'room';
 if (pet.place === 'kitchen') buildKitchen();
 usePlace(pet.place === 'kitchen' ? kitchen : room);
 function onRug(v) {
@@ -522,6 +531,7 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
   const pct = Math.round(p.loaded / p.total * 100);
   $('#load-fill').style.width = pct + '%';
   $('#load-progress').textContent = pct < 100 ? pct + '% · bringing your kitten home' : 'Fluffing the fur…';
+  if (titleOn) { $('#title-fill').style.width = pct + '%'; $('#title-progress').textContent = pct < 100 ? pct + '% · bringing your kitten home' : 'Fluffing the fur…'; }
 }).then(() => {
   if (!CLASSIC_MOTION) { const motion = new MotionCat(cat); cat.update = (dt, t, ctl) => motion.update(dt, t, ctl); cat.motion = motion; }
   ready = true;
@@ -530,8 +540,9 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
-  greet(true);
+  if (titleOn) titleReady(); else greet(true);
 }).catch(e => {
+  titleOff();
   $('#loading strong').textContent = 'Your kitten couldn’t load.';
   $('#load-progress').textContent = 'Please reload to try again.';
   console.error(e);
@@ -558,7 +569,7 @@ const brain = {
   petTimes: [],
   perch: null, perchUntil: 0, jump: null, jumpFace: 0, nextVacuum: 1e9, vacReactAt: 0, vacStalk: false, vacRide: false, nextBird: 12, birdSeen: false, nextKnock: 0, swatHit: 0,
 };
-if (pet.sleeping) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
+if (pet.sleeping || titleOn) { brain.activity = 'sleep'; brain.pos.copy(CUSHION_SPOT); brain.heading = .6; }
 
 function express(name, seconds) { brain.override = name; brain.overrideUntil = clockNow + seconds; }
 function hop() { if (!reduceMotion) brain.hopAt = clockNow; }
@@ -2072,7 +2083,7 @@ function updatePlay(dt, t) {
 const view = {
   focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
   goal: {focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7},
-  mode: 'room', lastDrag: -10, zoomedAt: -100,
+  mode: 'room', lastDrag: -10, zoomedAt: -100, glideUntil: -1, titleYaw: 0,
 };
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.13);
@@ -2571,7 +2582,7 @@ let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   advance(pet); refresh(); save();
   if (document.hidden) hiddenAt = Date.now();
-  else if (Date.now() - hiddenAt > 45000) greet();
+  else if (!titleOn && Date.now() - hiddenAt > 45000) greet();
 });
 window.addEventListener('pagehide', save);
 setInterval(() => { advance(pet); refresh(); save(); }, 15000);
@@ -2615,13 +2626,95 @@ function resize() {
   camera.aspect = w / h;
   camera.fov = w / h < .9 ? 46 : 40;
   camera.updateProjectionMatrix();
+  // (While the title screen shrinks to the room's card the picture is only
+  // stretched to fit; it is redrawn at its real size once it gets there.)
+  if (titleFlip) return;
   renderer?.setSize(w, h);
+  if (titleOn && !titleLeaving) titleView();
   if (view.mode === 'room') CAMERA_VIEWS.room();
 }
 new ResizeObserver(resize).observe(host);
 resize();
 CAMERA_VIEWS.room();
 view.focus.copy(view.goal.focus);
+
+// ---------------------------------------------------------------------------
+// Title screen: her name over the real room, where she sleeps. A tap wakes
+// her (unless she was put to bed: then you tiptoe in), the camera glides out
+// to the room and the screen shrinks to its card.
+// ---------------------------------------------------------------------------
+function titleView() {
+  lookAtSpot(bed.position, {dist: TITLE_CAM.dist, pitch: TITLE_CAM.pitch, y: TITLE_CAM.y});
+  view.titleYaw = view.goal.yaw;
+}
+if (titleOn) {
+  titleView();
+  view.focus.copy(view.goal.focus);
+  Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist});
+  document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = true);
+  const el = $('#title');
+  for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'contextmenu']) el.addEventListener(ev, e => e.stopPropagation());
+  el.addEventListener('click', leaveTitle);
+}
+function titleReady() {
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  $('#title-sub').textContent = 'is fast asleep';
+  $('#title-go').textContent = pet.sleeping ? (fine ? 'Click to tiptoe in' : 'Tap to tiptoe in') : (fine ? 'Click to wake her' : 'Tap to wake her');
+  $('#title-load').hidden = true;
+  $('#title-go').hidden = false;
+  $('#title').classList.add('lit');
+  $('#title-go').focus({preventScroll: true});
+  brain.nextZ = clockNow + 1.2;
+}
+// (Instead of idleLife while the title is up: she only dreams.)
+function titleLife(t) {
+  if (titleLeaving) return;
+  if (!reduceMotion) view.goal.yaw = view.titleYaw + Math.sin(t * .22) * .09;
+  if (t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
+}
+function leaveTitle() {
+  if (!titleOn || !ready || titleLeaving) return;
+  titleLeaving = true;
+  $('#title').classList.add('out');
+  // (Her own ideas wait until she has said hello.)
+  brain.nextIdle = clockNow + 9; brain.nextShow = clockNow + 14; brain.nextBird = clockNow + 14;
+  if (!pet.sleeping) {
+    setActivity('stretch', 2.2, () => walkTo(HOME, () => { setActivity('sit'); greet(true); }));
+    later(.3, yawn);
+  }
+  if (reduceMotion) return later(.4, endTitle);
+  view.glideUntil = clockNow + 3.4;
+  later(.5, () => CAMERA_VIEWS.room());
+  later(1.5, shrinkTitle);
+}
+function shrinkTitle() {
+  const stage = $('.stage');
+  // Where the room's card sits once the title is gone.
+  titleRoot.classList.remove('title');
+  const r = stage.getBoundingClientRect();
+  titleRoot.classList.add('title', 'title-out');
+  if (!stage.animate || r.width < 10) return endTitle();
+  const from = {top: '0px', left: '0px', width: innerWidth + 'px', height: innerHeight + 'px', borderRadius: '0px'};
+  const to = {top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px', borderRadius: getComputedStyle(titleRoot).getPropertyValue('--radius').trim() || '28px'};
+  let anim;
+  try { anim = stage.animate([from, to], {duration: 900, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards'}); } catch { return endTitle(); }
+  titleFlip = true;
+  const done = () => { anim.cancel(); endTitle(); };
+  anim.onfinish = done; anim.oncancel = () => { if (titleOn) endTitle(); };
+  // (A tab put in the background mustn't leave it stuck part-way.)
+  setTimeout(() => { if (titleOn) done(); }, 1600);
+}
+function endTitle() {
+  if (!titleOn) return;
+  titleFlip = false;
+  titleOff();
+  const hadFocus = $('#title').contains(document.activeElement);
+  $('#title').remove();
+  if (hadFocus) $('[data-cam="room"]')?.focus({preventScroll: true});
+  resize();
+  CAMERA_VIEWS.room();
+  if (pet.sleeping) greet(true);
+}
 Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
 
 function updateCamera(dt) {
@@ -2640,13 +2733,15 @@ function updateCamera(dt) {
     // Your own zoom wins for a while after you pinch or scroll.
     if (clockNow - view.zoomedAt > 8) distGoal = Math.max(g.dist, fitDistance(frame.radius));
   }
-  const r = following ? 2.2 : 5;
+  // (Leaving the title screen, the camera glides out slowly.)
+  const slow = clockNow < view.glideUntil ? .22 : 1;
+  const r = (following ? 2.2 : 5) * slow;
   view.focus.x = damp(view.focus.x, g.focus.x, r, dt);
   view.focus.y = damp(view.focus.y, g.focus.y, r, dt);
   view.focus.z = damp(view.focus.z, g.focus.z, r, dt);
-  view.yaw = damp(view.yaw, g.yaw, 8, dt);
-  view.pitch = damp(view.pitch, g.pitch, 8, dt);
-  view.dist = damp(view.dist, distGoal, following && distGoal > g.dist ? 1.6 : 7, dt);
+  view.yaw = damp(view.yaw, g.yaw, 8 * slow, dt);
+  view.pitch = damp(view.pitch, g.pitch, 8 * slow, dt);
+  view.dist = damp(view.dist, distGoal, (following && distGoal > g.dist ? 1.6 : 7) * slow, dt);
   camOffset.set(Math.sin(view.yaw) * Math.cos(view.pitch), Math.sin(view.pitch), Math.cos(view.yaw) * Math.cos(view.pitch));
   // Spring arm: if the camera would leave the room, shorten the arm instead.
   let d = view.dist;
@@ -2754,7 +2849,7 @@ function frame(now) {
   updateCamera(dt);
   updateRoom(dt, t);
   if (ready) {
-    idleLife(t);
+    if (titleOn) titleLife(t); else idleLife(t);
     placeSpeech();
   }
   if (!skipDraw) renderer.render(scene, camera);

@@ -12,6 +12,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=portrait">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="stylesheet" href="./style.css">
+<script>/* Title screen: on at every launch, unless ?intro=0 (or ?debug without ?intro=1). Decided before the first paint. */
+(function(){var q=new URLSearchParams(location.search),i=q.get('intro');if(i==='1'||(i!=='0'&&!q.has('debug')))document.documentElement.classList.add('title');})();</script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body>
@@ -70,6 +72,17 @@
           <strong>Your kitten is settling in…</strong>
           <div class="load-bar"><i id="load-fill"></i></div>
           <span id="load-progress">Opening its little world</span>
+        </div>
+        <div id="title">
+          <div class="title-top">
+            <p class="title-kicker">pocket kitten</p>
+            <h2 class="title-name pet-name-slot">Mochi</h2>
+            <p class="title-sub" id="title-sub">is coming home</p>
+          </div>
+          <div class="title-bottom">
+            <div class="title-load" id="title-load" role="status"><div class="load-bar"><i id="title-fill"></i></div><span id="title-progress">Opening her little world</span></div>
+            <button class="title-go" id="title-go" hidden>Tap to wake her</button>
+          </div>
         </div>
         <div class="float-layer" id="float-layer" aria-hidden="true"></div>
         <div class="speech" id="speech" role="status" aria-live="polite"><span id="speech-text"></span></div>

@@ -12,6 +12,7 @@ measures, and takes screenshots. Slow: a few minutes per script.
 | `ab-walk.mjs` | Controlled walk clip for an A/B: empty floor, straight walk at walking speed, fixed side camera, starts at the top of a stride, 60 fps. `FLAGS` (e.g. `&hindlift=0.8`), `SEC`, `OUT`; writes `OUT.json` (phase, paw heights per frame). Blank frames are retaken; `ONLY=44,52` re-takes just those frames. Same seed: A and B match frame for frame except the change. | phase and position identical between A and B |
 | `gait-chart.mjs` | Footfall chart of a straight walk (`RUN=1` a run): which paws are down through the stride, cadence, stretch, track width, body bob and sway. `FLAGS`, `SEED`. | walk: LH 0, LF .25, RH .5, RF .75 touch-downs, no `e` (catch-up) steps mid-stride, stretch under 2cm |
 | `season.mjs` | Seasonal decor: Halloween picked under `?decor=halloween`, then back without the flag out of season. | out of season: room `thanksgiving`, Halloween not offered; no page errors |
+| `title.mjs` | Title screen: appears, a tap (or Enter) leaves it, the app is left usable; already asleep (tiptoe in), reduced motion, `?intro=0`, `?debug`. Needs `npm run dev` running. Screenshots to `OUT`. | every line `PASS` |
 | `vacuum.mjs` | Robot vacuum, alone and with her riding: closest approach to the island/stools box. `SEC`, `SEED`. | all values > 0 (never inside) |
 
 Run: `node tools/qa/<script>.mjs`. Uses `playwright` if installed,
