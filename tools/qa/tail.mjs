@@ -20,7 +20,7 @@ await page.evaluate(kitchen => {
   const k = kitten, G = kitchen ? k.kitchen : k.room, V3 = k.cat.root.position.constructor;
   // Names by what a mesh belongs to, or else by the nearest known spot.
   const groups = kitchen
-    ? [[G.island, 'island'], [G.counterGroup, 'counter'], [k.room.bowl, 'bowl'], [k.room.fountain, 'fountain'], ...G.walls.map(g => [g, 'wall'])]
+    ? [[G.island, 'island'], [G.counterGroup, 'counter'], [k.room.bowl, 'bowl'], [k.room.fountain, 'fountain'], ...G.walls.map(g => [g, 'wall']), ...G.steps.map(g => [g, 'step']), ...G.shelves.map(g => [g, 'shelf'])]
     : [[G.chair, 'chair'], [G.fireplace, 'fireplace'], [G.windowGroup, 'window'], [G.oliveTree, 'olive tree'], [k.room.bowl, 'bowl'], [k.room.fountain, 'fountain'], ...G.wallGroups.map(g => [g, 'wall'])];
   const anchors = kitchen
     ? [['stool L', -3.0, 2.4], ['stool R', -1.85, 2.4], ['dock', 3.15, -2.62]]
@@ -46,7 +46,19 @@ await page.evaluate(kitchen => {
     // panels standing up (pictures, the firebox's brick, the window glass:
     // a plane), nor anything she can't reach (over 3 m up).
     // (The rug and the hearth slab are lain on, not run into: under 8 cm.)
-    if (mx.y < .08 || mx.y - mn.y < .03 || mn.y > 3 || /Plane|Ring|Circle/.test(m.geometry.type)) return;
+    if (mx.y < .08 || mx.y - mn.y < .03 || mn.y > 6 || /Ring|Circle/.test(m.geometry.type)) return;
+    // A flat panel standing up (the walls are these) is a solid .3 deep
+    // behind its face; other panels (glows, flames, the floor) don't count.
+    if (/Plane/.test(m.geometry.type)) {
+      if (m.material?.blending === 2 || m.material?.transparent || !m.material?.depthWrite) return;
+      const n = new V3(0, 0, 1).applyQuaternion(m.getWorldQuaternion(new m.quaternion.constructor()));
+      if (Math.abs(n.y) > .1 || Math.max(mx.x - mn.x, mx.z - mn.z) < .4) return;
+      if (Math.abs(n.x) > .99) { if (n.x > 0) mn.x -= .3; else mx.x += .3; }
+      else if (Math.abs(n.z) > .99) { if (n.z > 0) mn.z -= .3; else mx.z += .3; }
+      else return;
+      solids.push({name: nameOf(m, {x: (mn.x + mx.x) / 2, z: (mn.z + mx.z) / 2}), kind: 'box', x0: mn.x, x1: mx.x, y0: mn.y, y1: mx.y, z0: mn.z, z1: mx.z});
+      return;
+    }
     if (Math.min(mx.x - mn.x, mx.z - mn.z) < .015) return;
     const c = {x: (mn.x + mx.x) / 2, z: (mn.z + mx.z) / 2};
     // Upright round things (pots, the bowl, legs) are cylinders. Anything

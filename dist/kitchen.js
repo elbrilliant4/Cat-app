@@ -974,7 +974,7 @@ export class Kitchen {
         const I = K.island, d = I.z1 - I.z0, baseH = I.top - .2, list = [
           box(I.x0 + .24, I.x1 - 1.5, I.z0 + .02, I.z0 + .02 + d - .75, 0, baseH), box(I.x1 - 1.5, I.x1, I.z0, I.z1, 0, baseH), box(I.x0, I.x0 + .24, I.z0, I.z1, 0, baseH),
           box(I.x0, I.x1, I.z0, I.z1, baseH, I.top),
-          box(K.left, 3.6, K.back, K.counterFront, 0, K.counter, 'counter'),
+          box(-5.15, 3.65, K.back, K.counterFront + .06, 0, K.counter, 'counter'), // (from its left end, clear of her first step)
           box(2.84, 3.46, -2.72, -2.52, 0, .34),
           box(K.left - .5, K.left + .12, K.back, FLOOR.z1 + 1, 0, K.wallH), box(K.right - .05, K.right + .5, K.back, FLOOR.z1 + 1, 0, K.wallH),
           box(K.left, K.door[0], K.back - .5, K.back + .05, 0, K.wallH), box(K.door[1], K.right, K.back - .5, K.back + .05, 0, K.wallH),

@@ -34,7 +34,9 @@ function solidDepth(s, p, r, n) {
     // (Up only when it's nearly on top already: a tail against the side
     // of a thing bends round it, it doesn't climb it.)
     const up = s.y1 + r - p.y;
-    if (up < side && up < .06 + r) { n.set(0, 1, 0); return up; }
+    // (A low round thing with climb set, her bed's rim, is gone over from
+    // anywhere the top is the nearer way out.)
+    if (up < side && (up < .06 + r || s.climb)) { n.set(0, 1, 0); return up; }
     if (d < 1e-6) n.set(0, 0, -1); else n.set(dx / d, 0, dz / d);
     return side;
   }

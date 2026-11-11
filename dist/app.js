@@ -428,10 +428,13 @@ function studyTailSolids() {
   // (Her bowl and fountain go with her to the kitchen: where they stand here.)
   const home = o => o.userData.studyHome?.p ?? o.position, B = home(bowl), F = home(fountain), S = room.sillTop, T = room.oliveTree.position;
   return [
-    // Walls, to the skirting and dado rail (.1 out).
-    box(W.left - .5, W.right + .5, W.back - .5, W.back + .1, 0, 12),
-    box(W.left - .5, W.left + .1, W.back, d.z0, 0, 12), box(W.left - .5, W.left + .1, d.z1, 8.6, 0, 12),
-    box(W.right - .1, W.right + .5, W.back, 8.6, 0, 12),
+    // Walls: to the skirting and dado rail (.1 out) up to the rail, the
+    // plaster above it.
+    ...[[.1, 0, 1.65], [.02, 1.65, 12]].flatMap(([t, y0, y1]) => [
+      box(W.left - .5, W.right + .5, W.back - .5, W.back + t, y0, y1),
+      box(W.left - .5, W.left + t, W.back, d.z0, y0, y1), box(W.left - .5, W.left + t, d.z1, 8.6, y0, y1),
+      box(W.right - t, W.right + .5, W.back, 8.6, y0, y1),
+    ]),
     // Fireplace: the pilasters, the lintel over the opening, the logs and
     // grate, the mantel shelf.
     lbox(f, -1.5, -.75, 0, .51, 0, 2.5), lbox(f, .75, 1.5, 0, .51, 0, 2.5), lbox(f, -.83, .83, 0, .51, 1.3, 2.5),
@@ -451,7 +454,8 @@ function studyTailSolids() {
     // Her bowl and fountain.
     cyl(B.x, B.z, .28, 0, .16), cyl(F.x, F.z, .45, 0, .23), cyl(F.x, F.z, .2, .23, .38),
     // Her bed, its rim.
-    cyl(bd.position.x, bd.position.z, room.bedR + .02, 0, .45, 'bed'),
+    // (climb: a tail trailing into it goes up over the rim, not sideways.)
+    {...cyl(bd.position.x, bd.position.z, room.bedR + .02, 0, .45, 'bed'), climb: true},
   ];
 }
 // The study and the kitchen are joined: the doorway in the study's left wall
