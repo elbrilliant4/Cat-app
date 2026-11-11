@@ -1,4 +1,4 @@
-# Mochi — spec
+# Mochi: spec
 
 Drafted 2026-11-11 from the current app and docs. Merlin: fill the gaps
 marked **(Merlin?)** and check "Not in v1".

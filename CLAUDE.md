@@ -1,4 +1,4 @@
-# Mochi (Cat-app) — start here
+# Mochi (Cat-app): start here
 
 A three.js virtual-pet web app: Mochi, a ragdoll kitten, in a study and a
 kitchen. What it does and for whom: `SPEC.md`.
