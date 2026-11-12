@@ -63,10 +63,10 @@ line('tap the floor, she comes', Math.hypot(p1[0] - SPOT[0], p1[1] - SPOT[2]) < 
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80);
 const G = [0.4, 0, 1.2]; [x0, y0] = await screenOf(G);
 await page.mouse.move(x0, y0); await page.mouse.down();
-for (let i = 1; i <= 8; i++) { await page.mouse.move(x0 - i * 15, y0 - i * 10); await step(1); }
+for (let i = 1; i <= 8; i++) { await page.mouse.move(x0 - i * 15, y0 - i * 3); await step(1); }
 await page.waitForTimeout(150); await page.mouse.up(); await step(30);
 const [gx, gy] = await screenOf(G), h1 = await state();
-const off = Math.hypot(gx - (x0 - 120), gy - (y0 - 80));
+const off = Math.hypot(gx - (x0 - 120), gy - (y0 - 24));
 await step(160); const h2 = await state(); await shot('4c-dragged-room');
 line('drag moves about the room', off < 30 && Math.hypot(h2.focus[0] - h1.focus[0], h2.focus[2] - h1.focus[2]) < .05, `the floor point ended ${off.toFixed(0)} px from the finger; 8 s later the view had drifted ${Math.hypot(h2.focus[0] - h1.focus[0], h2.focus[2] - h1.focus[2]).toFixed(2)} m by itself`);
 

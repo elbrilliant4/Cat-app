@@ -2432,13 +2432,17 @@ function grabPan(x0, y0, x1, y1) {
   // (Above the horizon there is no floor to hold: slide by the finger's travel instead.)
   if (!a || !b) { pan(x1 - x0, y1 - y0); return; }
   let dx = a.x - b.x, dz = a.z - b.z;
-  const len = Math.hypot(dx, dz);
-  if (len > 2) { dx *= 2 / len; dz *= 2 / len; }
+  // (Far floor, seen at a low angle, races under a finger: never more than
+  // about twice what a plain slide would do.)
+  const len = Math.hypot(dx, dz), most = Math.hypot(x1 - x0, y1 - y0) * view.shown * .0032;
+  if (len > most) { dx *= most / len; dz *= most / len; }
+  const gx = view.goal.focus.x, gz = view.goal.focus.z;
   view.goal.focus.x += dx; view.goal.focus.z += dz;
-  view.focus.x += dx; view.focus.z += dz;
   view.lastDrag = clockNow;
   setCamMode('free');
   clampGoal();
+  // (The picture moves at once, and stops with the view at the room's edge.)
+  view.focus.x += view.goal.focus.x - gx; view.focus.z += view.goal.focus.z - gz;
 }
 function pan(dx, dy) {
   const k = view.goal.dist * .0016, yaw = view.goal.yaw;
