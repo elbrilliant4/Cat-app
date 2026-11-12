@@ -139,7 +139,7 @@ const onHer = Math.hypot(herAt[0] - 195, herAt[1] - 400) < 60;
 line('pinch in from the room goes where the fingers are', onHer ? r1.mode === 'follow' : r1.mode === 'free' && r1.dist < r0.dist * .7, `fingers ${onHer ? 'on her' : 'on the floor'}: ${r0.mode} at ${r0.dist.toFixed(1)} m to ${r1.mode} at ${r1.dist.toFixed(1)} m`);
 // (Pinching in on her from the whole room: her view. She is set in the open
 // middle first: earlier checks walked her about, maybe under the care bar.)
-await page.evaluate(() => { kitten.brain.pos.set(0, 0, .3); kitten.cat.root.position.set(0, 0, .3); kitten.brain.mode = 'idle'; });
+await page.evaluate(() => { kitten.brain.perch = null; kitten.brain.jump = null; kitten.brain.pos.set(0, 0, .3); kitten.cat.root.position.set(0, 0, .3); kitten.brain.mode = 'idle'; });
 // (Long enough for the view to finish gliding back from wherever it was.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(240);
 { const [hx, hy] = await screenOf(await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .2; return p.toArray(); }));
