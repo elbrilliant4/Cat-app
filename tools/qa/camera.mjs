@@ -141,4 +141,9 @@ await touch('touchEnd', []); await step(30);
 const t1 = await state();
 line('twist turns the view', Math.abs(t1.yaw) > .25 && Math.abs(t1.dist - 7) < .5, `turned ${(t1.yaw * 57.3).toFixed(0)}° for a 34° twist; distance ${t1.dist.toFixed(2)} m`);
 
+// 10. Watch (the room fills the screen): the whole room, with her in the picture, not a wall.
+await page.evaluate(() => document.querySelector('#watch-btn').click()); await page.waitForTimeout(400); await step(80);
+const w = await state(); const wc = await screenOf(await page.evaluate(() => kitten.cat.root.position.toArray())); await shot('10-watch');
+const vh = await page.evaluate(() => innerHeight);
+line('watch shows the room', w.mode === 'room' && w.dist > 8 && w.focus[1] < 3.5 && wc[1] > vh * .2 && wc[1] < vh * .9, `camera ${w.dist.toFixed(1)} m back, looking at height ${w.focus[1]} m; she is ${(wc[1] / vh * 100).toFixed(0)}% of the way down the screen`);
 await close();

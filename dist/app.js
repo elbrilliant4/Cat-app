@@ -2591,7 +2591,9 @@ function roomFrame() {
       // Shift the picture by the middle of the allowed range. (Moving the
       // camera right moves the picture left, and up moves it down.)
       f.addScaledVector(camRight, -(lo + hi) / 2 * .9 * d * tanH);
-      f.y -= (B - y0) * .9 * d * tanV / Math.cos(pitch);
+      // (On a tall screen the spare height is shared above and below, so
+      // the room sits in the middle and not under a screenful of wall.)
+      f.y -= (B + Math.max(0, (T - B) - (y1 - y0)) / 2 - y0) * .9 * d * tanV / Math.cos(pitch);
     }
     return fits;
   };
