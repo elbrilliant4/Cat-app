@@ -530,7 +530,8 @@ export class RealCat {
         case 'armLow': d.set(0, -1, -.15); return [F.armLow + F.feather * .6 * back, .85];
         case 'haunch': {
           // Britches: the long fur down the back of the thighs.
-          const br = back * (1 - st(p.z, -.3, -.12));
+          // (Below the root of her tail only: long fur round the root itself stood out as a shaggy collar.)
+          const br = back * (1 - st(p.z, -.3, -.12)) * (1 - st(p.y, .0, .12));
           d.set(0, -1, -.4); return [F.haunch + (F.britches - F.haunch) * br, .7 - .15 * br];
         }
         case 'shin': d.set(0, -1, -.3); return [F.shin + (F.britches * .7 - F.shin) * back, .7];
@@ -649,6 +650,11 @@ export class RealCat {
           // (Short fur, her face and paws: nearly round, as it was.)
           float furLong = vFurLen < 0.024 ? 1.6 : furStretch;
           vec3 furG = (vBind + furDn * dot(vBind, furDn) * (1.0 / furLong - 1.0)) * furDensity;
+          // From further off the hairs gather into locks, each still a pixel
+          // or two wide: cells smaller than a pixel are noise (the "static"
+          // at the app's usual distance, and it flickers as she moves).
+          vec3 furFw = fwidth(furG);
+          furG /= exp2(max(0.0, ceil(log2(max(max(furFw.x, furFw.y), furFw.z) * 0.85))));
           vec3 furCell = floor(furG);
           float furSeed = furHash3(furCell);
           vec3 furF = fract(furG) - 0.5 - (vec3(furHash3(furCell + 7.1), furHash3(furCell + 3.3), furHash3(furCell + 5.7)) - 0.5) * 0.4;
@@ -682,7 +688,7 @@ export class RealCat {
           diffuseColor.rgb += (diffuseColor.rgb * 0.7 + vec3(0.035, 0.022, 0.013)) * furRim;
           #include <lights_physical_fragment>`);
     };
-    m.customProgramCacheKey = () => long ? 'mochi-fur-long4' : 'mochi-fur';
+    m.customProgramCacheKey = () => long ? 'mochi-fur-long6' : 'mochi-fur';
     this.furUniforms = u;
     const fur = new THREE.SkinnedMesh(g, m);
     fur.frustumCulled = false;

@@ -99,8 +99,13 @@ silky fur with a flowing shape. Four causes, each fixed at its source:
 Not used: alpha to coverage for soft hair edges. The canvas is see-through
 to the page, and where a faded wall was behind her the fur came out white.
 Pictures: `tail-closeup.png`, `tail-sit-and-body.jpg`, `walk-normal.mp4`.
-Not checked: how the 9-layer version looks on a real phone; the outline
-still shows some single dots close up.
+5. **Grain at the app's usual distance.** There each hair cell was smaller
+   than a pixel: noise, and it flickers. The cells now double in size until
+   they are about a pixel across (`fwidth` of the cell grid), so from further
+   off hairs gather into locks. Britches no longer run up round the tail's
+   root (a shaggy collar from behind).
+Not checked: how the 9-layer version looks on a real phone. From directly
+behind, the fur round the tail's root is still a dark ring.
 
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
