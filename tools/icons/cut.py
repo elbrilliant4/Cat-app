@@ -5,12 +5,14 @@ import sys, numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
 src, out = sys.argv[1], sys.argv[2]
-names = ['bowl','heart','drop','bolt','sparkle','paw','moon','yarn','brush']
+# usage: cut.py sheet.png outdir [names,comma,separated] [grid]
+names = sys.argv[3].split(',') if len(sys.argv) > 3 else ['bowl','heart','drop','bolt','sparkle','paw','moon','yarn','brush']
+G = int(sys.argv[4]) if len(sys.argv) > 4 else 3
 im = np.asarray(Image.open(src).convert('RGB')).astype(np.float32) / 255
 H, W, _ = im.shape
 for i, name in enumerate(names):
-    r, c = divmod(i, 3)
-    cell = im[r*H//3:(r+1)*H//3, c*W//3:(c+1)*W//3]
+    r, c = divmod(i, G)
+    cell = im[r*H//G:(r+1)*H//G, c*W//G:(c+1)*W//G]
     a_raw = np.clip((1 - cell.min(axis=2)) / 1.0, 0, 1)          # how far from white
     near = a_raw < 0.10                                           # background-ish
     lab, _ = ndimage.label(near)

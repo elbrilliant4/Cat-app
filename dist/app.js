@@ -163,7 +163,7 @@ function refresh() {
   }
   shownLevel = lv.level;
   $('#sleep-label').textContent = pet.sleeping ? 'Wake' : 'Rest';
-  $('#sleep-icon').setAttribute('href', pet.sleeping ? '#i-sun' : '#i-bed');
+  { const src = `assets/icons/clay/${pet.sleeping ? 'sun' : 'moon'}.webp`; if (!$('#sleep-icon').src.endsWith(src)) $('#sleep-icon').src = src; }
   document.body.classList.toggle('night', night);
   document.querySelector('meta[name=theme-color]').content = night ? '#1c1612' : '#f7f1ea';
   $('#daynight').innerHTML = icon(night ? 'i-sun' : 'i-moon');

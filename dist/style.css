@@ -197,9 +197,12 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .dock button { position: relative; border: 0; background: transparent; border-radius: 19px; padding: 8px 12px 7px; min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 750; color: var(--ink-2); transition: transform .4s var(--spring), background .25s, color .25s; }
 .dock-icon { width: 42px; height: 42px; border-radius: 15px; display: grid; place-items: center; font-size: 21px; color: var(--tint); background: color-mix(in srgb, var(--tint) 15%, transparent); transition: transform .45s var(--spring), background .3s, color .3s, box-shadow .3s; }
 .dock button:hover { color: var(--ink); }
-.dock button:hover .dock-icon { transform: translateY(-3px) scale(1.06); background: var(--tint); color: #fff; box-shadow: 0 10px 20px -8px var(--tint); }
+.dock button:hover .dock-icon { transform: translateY(-3px) scale(1.06); background: color-mix(in srgb, var(--tint) 26%, transparent); }
 .dock button:active { transform: scale(.9); }
-.dock button.active .dock-icon { background: var(--tint); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint) 25%, transparent); }
+.dock button.active .dock-icon { background: color-mix(in srgb, var(--tint) 34%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 55%, transparent); }
+.dock-icon img { width: 112%; height: 112%; margin: -6%; filter: drop-shadow(0 4px 5px rgba(74, 46, 25, .22)); pointer-events: none; user-select: none; -webkit-user-drag: none; transition: transform .45s var(--spring); }
+.dock button:active .dock-icon img, .dock button.active .dock-icon img { transform: scale(1.08) rotate(-4deg); }
+.dock button[aria-disabled="true"] .dock-icon img { filter: grayscale(.5); }
 .dock button[aria-disabled="true"] { opacity: .45; }
 .dock button[aria-disabled="true"] .dock-icon { transform: none; box-shadow: none; background: color-mix(in srgb, var(--tint) 12%, transparent); color: var(--tint); }
 

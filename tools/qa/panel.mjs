@@ -25,6 +25,7 @@ await page.evaluate(() => { kitten.refresh(); kitten.renderJournal && kitten.ren
 await page.waitForTimeout(1500);
 const panel = await page.$('.panel');
 await panel.screenshot({path: `${OUT}/panel${night ? '-night' : ''}.png`});
+await (await page.$('.dock')).screenshot({path: `${OUT}/dock${night ? '-night' : ''}.png`});
 const errs = await page.evaluate(() => window.__errors || []);
 console.log('saved', `${OUT}/panel${night ? '-night' : ''}.png`, errs.length ? errs : '');
 await close();
