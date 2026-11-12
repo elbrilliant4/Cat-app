@@ -27,9 +27,16 @@
 5. Christmas for the study and the tree (phase 06), Miso, phases 08, 09.
 
 ## Gotchas
-- After the merge, `tools/qa/vacuum.mjs` and `legs.mjs` have not been
-  rerun on the joined code (phase 12 changed the motion, phase 02 the
-  kitchen floor): run both before anything goes live.
+- Joined code measured 2026-11-12 (`vacuum.mjs` SEED 1 and 2, 600 s,
+  classic look; Christmas adds nothing on the floor). The vacuum never
+  touches anything. Her body does: 328 and 133 overlaps (phase 02 ended
+  at 74 and 199, seeds not recorded, so not a like-for-like number).
+  Worst: sitting with her hips 25 cm into the food bowl (seed 1, 107 s),
+  an ear 24 cm into the counter walking at -3.07,-2.12 (seed 2, 32 s),
+  jaw 11 cm into the island. Not yet known whether the merge caused it:
+  run the same two seeds on `main` (`43fdbf8`) to compare before live.
+  `legs.mjs`: worst 7 cm, a front leg sitting on the chair and mantel (the
+  known leftover from phase 01).
 - QA stills: the look picker redresses the room 120 ms after the tap, on
   real time; wait before stepping (see `look.mjs`).
 - Merlin judges by eye and ear: send pictures, clips and sound files.
