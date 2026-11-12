@@ -20,7 +20,7 @@ export const DECORS = {
   // they're offered, `then` what a room dressed in one changes to.)
   halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat', months: [10], then: 'thanksgiving'},
   // (Christmas dresses the kitchen; the study keeps its classic plaid,
-  // leather and greenery, which is what shows through the doorway.)
+  // leather and greenery, with pine and a lantern on the mantel.)
   christmas: {name: 'Christmas at the Beach House', note: 'Pine garland, velvet bows and fairy lights', months: [12], then: 'classic'},
 };
 // A look that's offered now (`force`: a decor named in the page's address,
@@ -48,7 +48,7 @@ export function applyDecor(room, name) {
   };
   const O = room.decorOriginal;
   for (const g of Object.values(room.decorProps || {})) g.forEach(o => o.visible = false);
-  room.candleLight = null; room.pumpkinGlow = null; room.pumpkinHalos = null; room.altToy = null;
+  room.candleLight = null; room.candleFlame = null; room.pumpkinGlow = null; room.pumpkinHalos = null; room.altToy = null;
   if (name === 'classic' || name === 'christmas') {
     if (M.piping) M.piping.color.set('#6b7040');
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
@@ -57,6 +57,16 @@ export function applyDecor(room, name) {
     for (const m of [M.rug, M.plaidBed, M.plaidThrow]) m.normalMap = null;
     room.view = {...O.view};
     room.sillSprigs.visible = true;
+    // Christmas in the study (what shows through the kitchen's doorway in
+    // Orion's pictures): pine in a little vase and a brass lantern on the
+    // mantel, at the end away from her seat and the big vase, and the
+    // armchair's cushion in green plaid.
+    if (name === 'christmas') {
+      M.pillow.map = O.bedMap;
+      (room.decorProps ??= {}).christmas ??= buildStudyChristmas(room);
+      room.decorProps.christmas.forEach(o => o.visible = true);
+      room.candleLight = room.xmasCandle; room.candleFlame = room.xmasFlame;
+    }
   } else {
     // Thanksgiving and Halloween share the autumn room: oatmeal rug, flax
     // bed, knit throw, the sill runner, oak branches and the brass lantern.
@@ -626,9 +636,9 @@ const glowHalo = (inner, outer) => new THREE.SpriteMaterial({map: canvasTexture(
 }), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0});
 
 // A brass lantern with a candle, standing on the back counter.
-function brassLantern(kitchen, g, x, z) {
-  const M = kitchen.materials, mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
-  const lantern = new THREE.Group(); lantern.position.set(x, COUNTER_TOP, z); lantern.scale.setScalar(1.45); g.add(lantern);
+function brassLantern(kitchen, g, x, z, y = COUNTER_TOP) {
+  const M = {brass: kitchen.materials.brass || (kitchen.materials.brass = new THREE.MeshStandardMaterial({color: '#b58a3c', metalness: .85, roughness: .3}))}, mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  const lantern = new THREE.Group(); lantern.position.set(x, y, z); lantern.scale.setScalar(1.45); g.add(lantern);
   mesh(roundedBox(.2, .03, .2, .01), M.brass, lantern).position.y = .015;
   for (const [x, z] of [[-.085, -.085], [.085, -.085], [-.085, .085], [.085, .085]]) mesh(new THREE.BoxGeometry(.016, .3, .016), M.brass, lantern).position.set(x, .18, z);
   mesh(new THREE.BoxGeometry(.17, .28, .17), new THREE.MeshStandardMaterial({color: '#fff6e0', transparent: true, opacity: .18, roughness: .05, depthWrite: false}), lantern, {cast: false}).position.y = .18;
@@ -901,13 +911,34 @@ function velvetBow(kitchen, parent, mat, size = .3, tail = 1.6) {
   return bow;
 }
 
+const pineTexture = room => room.pineTex ??= canvasTexture(512, 512, drawPineSprig);
+
+function buildStudyChristmas(room) {
+  const f = room.fireplace, y = room.mantelTop, g = new THREE.Group(), r = rng(301);
+  f.add(g);
+  const pine = new THREE.MeshStandardMaterial({map: pineTexture(room), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
+  const stoneware = new THREE.MeshStandardMaterial({color: '#efe7d6', roughness: .7});
+  const at = new THREE.Vector3(.62, y, .26);
+  room.mesh(lathe([[0, 0], [.09, 0], [.14, .1], [.13, .22], [.07, .3], [.08, .34], [0, .34]], 24), stoneware, g).position.copy(at);
+  const berry = new THREE.MeshStandardMaterial({color: '#8c1c22', roughness: .5});
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + r() * .5, tilt = i < 3 ? .1 + r() * .2 : .5 + r() * .45, len = .42 + r() * .3;
+    const dir = new THREE.Vector3(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.abs(Math.sin(a)) * Math.sin(tilt) * .8);
+    const from = at.clone().setY(y + .33), mid = from.clone().addScaledVector(dir, len * .55), end = from.clone().addScaledVector(dir, len); end.y -= len * .2;
+    pineAlong(g, pine, [from, mid, end], {count: 13, size: .3, spread: .6, jitter: .02, seed: 311 + i});
+    if (i % 2) room.mesh(new THREE.SphereGeometry(.028, 10, 8), berry, g, {cast: false}).position.copy(mid).add(new THREE.Vector3(0, .05, .05));
+  }
+  const {halo, flame} = brassLantern(room, g, 1.08, .28, y);
+  room.xmasCandle = halo; room.xmasFlame = flame;
+  return [g];
+}
+
 function kitchenChristmas(kitchen, T) {
   const g = kitchenPart(kitchen), M = kitchen.materials;
   const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const BACK = -4.2, S2 = 5.5, SHELF_FRONT = -3.3;
-  T.pine ??= canvasTexture(512, 512, drawPineSprig);
-  const pine = new THREE.MeshStandardMaterial({map: T.pine, alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
+  const pine = new THREE.MeshStandardMaterial({map: pineTexture(kitchen.room), alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
   const velvet = new THREE.MeshStandardMaterial({color: '#7c1426', roughness: .95, side: THREE.DoubleSide});
   const lights = []; // where the fairy lights sit
 
@@ -1049,7 +1080,8 @@ function kitchenChristmas(kitchen, T) {
   const dappleMat = new THREE.MeshBasicMaterial({map: dapple, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
   const sunFloor = mesh(new THREE.PlaneGeometry(12.6, 8.4), dappleMat, g, {cast: false, receive: false});
   sunFloor.rotation.x = -Math.PI / 2; sunFloor.position.set(.4, .022, .3);
-  const sunWall = mesh(new THREE.PlaneGeometry(8.4, 6.5), dappleMat, g, {cast: false, receive: false});
+  const wallMat = dappleMat.clone(); wallMat.map = dapple;
+  const sunWall = mesh(new THREE.PlaneGeometry(8.4, 6.5), wallMat, g, {cast: false, receive: false});
   sunWall.rotation.y = -Math.PI / 2; sunWall.position.set(6.97, 3.6, .2);
   // In the evening, pools of lamplight on the floor and the island.
   const poolTex = canvasTexture(64, 64, (c, w, h) => {
@@ -1070,7 +1102,7 @@ function kitchenChristmas(kitchen, T) {
     glowMat.opacity += ((night ? .95 : .3) - glowMat.opacity) * k; glowSize += ((night ? .5 : .28) - glowSize) * k; glowMat.size = glowSize * twinkle;
     washMat.opacity += ((night ? .3 : 0) - washMat.opacity) * k;
     stripMat.opacity += ((night ? 1 : 0) - stripMat.opacity) * k;
-    dappleMat.opacity += ((night ? 0 : .42) - dappleMat.opacity) * k;
+    dappleMat.opacity += ((night ? 0 : .42) - dappleMat.opacity) * k; wallMat.opacity = dappleMat.opacity * .45;
     poolMat.opacity += ((night ? .34 : 0) - poolMat.opacity) * k;
   };
   return g;

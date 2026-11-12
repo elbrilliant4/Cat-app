@@ -52,7 +52,9 @@ the phone's browser and can be added to the home screen.
   runner with clementines and walnuts, the lantern with baubles, and in
   the evening the lights and the glow under the shelves come up; she naps
   on the top shelf by the garland; her routes stay open
-  (`tools/qa/vacuum.mjs`). The study keeps its classic look.
+  (`tools/qa/vacuum.mjs`). The study keeps its classic look, with pine
+  and a brass lantern on the mantel and a plaid cushion on the armchair
+  (seen through the doorway).
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
   volume for her and the room.
@@ -75,8 +77,7 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 ## Later
 - Miso, the second cat (blue British Shorthair), and the cats playing together.
 - Adopting more cats by levelling up.
-- Christmas tree mischief (phase 06, December). Christmas decor for the
-  study (mantel greenery, to match Orion's picture through the doorway).
+- Christmas tree mischief (phase 06, December).
 - The dog visit at the French doors.
 - Friendly app screens (phase 08): "real app ready".
 - Sharing with the 1000-member group after the test group.
