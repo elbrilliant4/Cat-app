@@ -9,7 +9,10 @@ const {page, step, look, close} = await open({seed: 3});
 const mouth = () => page.evaluate(() => { const k = kitten, V = k.camera.position.constructor, m = k.cat.bones.jaw.localToWorld(new V(0, -.015, .14)), e = k.brain.eatAt;
   const bowl = k.room.bowl.position, f = k.room.fountain.position;
   return {a: k.brain.activity, m: m.toArray(), toBowl: Math.hypot(m.x - bowl.x, m.z - bowl.z), toFountain: Math.hypot(m.x - f.x, m.z - f.z), toTarget: e ? Math.hypot(m.x - e.x, m.z - e.z) : null}; });
+// ONLY=salmon,faucet: just those checks (each from its own start, so one can't upset the next).
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 async function check(name, start, activity, report) {
+  if (ONLY && !ONLY.includes(name)) return;
   await page.evaluate(start);
   for (let i = 0; i < 400; i++) {
     await step(5);

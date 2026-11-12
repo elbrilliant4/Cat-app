@@ -802,7 +802,10 @@ function updateCat(dt, t) {
     // (She eases right down as she arrives, and the last of her speed dies
     // away over a couple of centimetres below: stopping dead from a walk or a
     // run is a jolt through her whole body.)
-    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * (flat ? 3.2 : 2.5) + .06) : .15, flat ? 8 : 5, dt);
+    // (Slowed over the last few centimetres before the spot she used to stop
+    // dead at, 6 cm short, so she ends where she always did: the reach of
+    // her mouth to bowls and the salmon was set there.)
+    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, Math.max(0, dist - .05) * (flat ? 3.2 : 2.5) + .05) : .15, flat ? 8 : 5, dt);
     if (dist < .06) {
       brain.target = null;
       brain.stuck = null;

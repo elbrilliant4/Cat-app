@@ -83,7 +83,29 @@ within the `docs/QA.md` targets; the first Mochi's numbers unchanged.
      landing over the last eighth. Head 1790 to about 580 m/s2, hips 820 to
      about 390. The rig also lets the floor's lift go with a spring
      (`motion.js`).
-- Not done: what is left of the jump's jolt (find the frame with `OUT`),
-  the 230 rad/s2 head turn as she sits down, her run's stop, eat and reach
-  checks after the softer stop (`tools/qa/eat-reach.mjs`), frame rate on a
-  phone, poses, behaviour list.
+- **Second round, from the frame data (`OUT=` of `smooth.mjs`):**
+  4. Every turn started at full pace in one frame (her hips whipped
+     sideways turning round on the mantel): turns now gather pace and ease
+     off (`TURN_ACC`, 40 rad/s2, `app.js`).
+  5. Landing, the floor contact came a frame late (her speed read as
+     walking) and her body popped up 5 cm: contact holds for .6 s after any
+     time in the air, and her body stays above her root's level in the air
+     (`bodyFloor`, `motion.js`, `motion-cat.js`).
+  6. The landing dip was applied all at once (her head dropped 16 cm in one
+     frame): eased in over .07 s. The landing's last eighth became a sixth,
+     down to 15% of her speed.
+  7. Stopping: she slows over the last centimetres before her old stopping
+     spot (6 cm short of the target), so reach is as before.
+- **Numbers now** (worst change of speed, m/s2; both cats alike): jump 225
+  (was 1790), walk and sit down 25 to 40, stop after a run 36 (first Mochi;
+  was 86). Body's worst change of turning in a jump: about 140 to 290
+  rad/s2 (was 1990). Reach (`eat-reach.mjs`): bowl .10, fountain .35,
+  salmon .09, faucet .02 (run with `ONLY=` each: run in one go, the faucet
+  check moves her while the salmon one is still playing out and fails).
+  Walk chart of the first Mochi unchanged.
+- Not done: the 73 m/s2 at the head at a full run on the long-haired Mochi
+  (frames 551-552 of the trip: her sideways speed drops to zero in a frame,
+  probably the furniture push-out as she passes something), the 250 rad/s2
+  head turn as the first Mochi sits down, what the 225 in a jump is (the
+  push-off is 165 for six frames by design), frame rate on a phone, poses,
+  the behaviour list, `legs.mjs` and `vacuum.mjs` after these changes.
