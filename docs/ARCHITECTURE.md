@@ -96,6 +96,23 @@ title. Re-place them if `HOME`, the live title's camera or her size changes.
 Sounds: the wake-up chime in the still title (`sounds.play`,
 `assets/sounds/wake-chime.mp3`, sound on only). The sequence has no music yet.
 
+## Phone sheet (phase 08; app.js "The sheet" block, end of style.css)
+- Under 720 px wide (`sheetMQ`): the stage is fixed full screen, the top bar
+  is hidden and its `.top-actions` are moved into `.hud-left` (under her
+  name), the `footer` is moved into the panel. `sheetLayout()` moves them
+  back when the width grows past 720 px.
+- The `.panel` (`#sheet`) is fixed at the bottom with two stops: resting,
+  `translateY(100% - --peek)`, and open, `body.sheet-open`. `--peek-px` is
+  measured by `sheetPeek()` (bottom of `.panel .needs` + 14 px; a
+  ResizeObserver re-measures) and also places the dock and play meter.
+- `roomFrame()` frames the room above the dock whenever `sheetMQ` matches.
+- Drags: on the resting sheet anywhere, on the open sheet only from the
+  grip or the "needs" heading (its content scrolls with `touch-action:
+  pan-y`). The sheet is outside the camera's element, so its touches never
+  reach the room. A capture-phase click handler swallows the click after a
+  drag and opens the resting sheet on a tap that isn't on a button.
+- Checks: `tools/qa/sheet.mjs` (phone), `tools/qa/panel.mjs` (tablet).
+
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 

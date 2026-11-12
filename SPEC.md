@@ -71,6 +71,17 @@ the phone's browser and can be added to the home screen.
   Merlin changed his mind on a generated film (2026-11-12, evening): a
   13 s Runway film, "Mochi and the yarn ball", is cut and waiting for his
   pick of music; it is NOT in the app yet (`HANDOFF.md`).
+- **The screen on a phone** (preview, phase 08; Merlin 2026-11-12 picked
+  the pull-up sheet over swipe cards and needs-on-the-room). Done when: on
+  a phone the room fills the screen and never scrolls; a sheet at the bottom
+  shows what she needs most with its button and the other four needs; a
+  swipe up (or a tap) opens it to friendship, moments and the care guide; a
+  swipe down or a tap on the room closes it. Tablets and computers keep the
+  side panel. Brief: docs/phases/08-app-sheet.md.
+- **Care panel look** (live, builds 284 and 294). The need that wants her
+  most is a big coloured card with its button; the rest fill like glasses;
+  glossy icons on the needs, dock, moments and guide (made with Meshy, then
+  Runway).
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.
