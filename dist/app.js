@@ -2561,6 +2561,11 @@ function zoomBy(f, at) {
     const from = Math.min(g.dist, view.shown, 8.5);
     setCamMode(at && !nearHer ? 'free' : 'follow');
     g.dist = from; view.zoomHeld = true; view.push = 0;
+  } else if (view.mode === 'free' && f < 1 && nearHer && ready) {
+    // (A view of your own: pinching in on her goes to her.)
+    g.dist = Math.min(g.dist, view.shown);
+    setCamMode('follow');
+    view.zoomHeld = true;
   } else if (view.mode === 'follow' && aim && !nearHer) {
     g.dist = Math.min(view.mode === 'follow' && !view.zoomHeld ? view.auto : g.dist, view.shown);
     setCamMode('free');
