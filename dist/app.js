@@ -2418,20 +2418,25 @@ function clampGoal() {
 // would shorten the camera's arm against the room stops there, like a map
 // stops at its edge. (Turning away from a wall is always fine.)
 const turnOff = new THREE.Vector3();
-function armAt(yaw) {
+// (Following her, the camera may stand further back than your zoom: measure that.)
+const armWant = () => Math.max(view.goal.dist, view.mode === 'follow' ? view.auto : 0);
+function armAt(yaw, want) {
   const g = view.goal;
   turnOff.set(Math.sin(yaw) * Math.cos(g.pitch), Math.sin(g.pitch), Math.cos(yaw) * Math.cos(g.pitch));
-  return boxArm(g.focus, turnOff, g.dist);
+  return boxArm(g.focus, turnOff, want);
 }
 function turnBy(da) {
   if (!da) return;
-  const g = view.goal, was = armAt(g.yaw), now = armAt(g.yaw + da);
-  if (now < g.dist - .05 && now < was - 1e-3) return;
+  const g = view.goal, want = armWant();
+  // (Already pressed against a wall, say she walked into a corner: turning
+  // is free, so the view can never get stuck.)
+  if (armAt(g.yaw, want) >= want - .05 && armAt(g.yaw + da, want) < want - .05) return;
   g.yaw += da;
 }
-// How far the view tilts down at a distance: far out it looks down over the
-// room, close in it is down at her level (the way a pet game frames it).
-const tiltFor = d => .1 + .55 * clamp(Math.log(Math.max(d, 1.1) / 1.1) / Math.log(9 / 1.1), 0, 1) ** 1.4;
+// How the tilt changes with distance: the last few metres in drop the view
+// to her level (the way a pet game frames her); further out it holds.
+// (Used as a change, so each view keeps its own angle.)
+const tiltFor = d => .12 + .16 * smoothstep(d, 1.1, 3.2);
 function orbit(dx, dy) {
   turnBy(-dx * .008);
   view.goal.pitch += dy * .006;
@@ -2519,7 +2524,7 @@ function zoomBy(f, at) {
     view.push -= Math.log(f);
     if (f >= 1 || view.push < .06 || !ready) return;
     const from = Math.min(g.dist, view.shown, 8.5);
-    setCamMode(aim && !nearHer ? 'free' : 'follow');
+    setCamMode(at && !nearHer ? 'free' : 'follow');
     g.dist = from; view.zoomHeld = true; view.push = 0;
   } else if (view.mode === 'follow' && aim && !nearHer) {
     g.dist = Math.min(view.mode === 'follow' && !view.zoomHeld ? view.auto : g.dist, view.shown);
