@@ -54,8 +54,15 @@ strands and whiskers as real geometry, no skeleton). Meshy's Remesh made a
 `mochi-study.html?model=mochi-longhair-b.glb`. Side by side with the rigged
 model: `compare-merlin-model.jpg` (his on top). His: warmer cream closer to
 the sheet, squarer stance. At phone size its strands collapse into flat
-shards and it has no normal map; the face is flatter. Not rigged. Waiting
-for Merlin's pick.
+shards and it has no normal map; the face is flatter. Not rigged.
+
+**Merlin's pick: the rigged model, warmed up.** Its coat colour is shifted
+toward his model's warm cream by `tools/mochi-longhair/warm.py` (run on
+Meshy's 90,000 triangle file, then `pack.py`); blaze, muzzle and paws stay
+near white, eyes and nose untouched. Picture, three rows (his, before,
+warmed): `compare-warmed.jpg`. Only `dist/assets/mochi-longhair-hq.glb`
+is warmed; the 300,000 triangle copy in `models/` is as Meshy made it.
+Meshy's license: Merlin says it allows a public site.
 
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
