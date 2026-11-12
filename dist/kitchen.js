@@ -281,10 +281,12 @@ export class Kitchen {
     // end: a crock of wooden spoons, a little olive in a pot, bottles, and a
     // brass mushroom lamp at the right.
     const crock = new THREE.Group(); crock.position.set(2.95, C, -3.75); g.add(crock);
+    this.crock = crock; // (a seasonal look may swap it for its own jar)
     this.mesh(lathe([[0, 0], [.17, 0], [.18, .38], [.16, .4], [0, .4]], 20), M.cream, crock);
     for (let i = 0; i < 4; i++) { const s = this.mesh(new THREE.CylinderGeometry(.015, .02, .75, 6), M.walnut, crock); s.position.set((i - 1.5) * .05, .55, (i % 2) * .05); s.rotation.z = (i - 1.5) * .12; }
-    const pot = this.mesh(lathe([[0, 0], [.14, 0], [.18, .25], [0, .25]], 20), M.clay, g); pot.position.set(-.55, C, -3.85);
-    this.room.sprigs(g, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a', leaf: M.leaf});
+    const olive = this.counterOlive = new THREE.Group(); g.add(olive); // (likewise: Christmas stands a pine here)
+    const pot = this.mesh(lathe([[0, 0], [.14, 0], [.18, .25], [0, .25]], 20), M.clay, olive); pot.position.set(-.55, C, -3.85);
+    this.room.sprigs(olive, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a', leaf: M.leaf});
     for (const [x, h, c] of [[2.65, .55, '#3e4a2c'], [2.75, .45, '#7a4a1e']]) this.mesh(lathe([[0, 0], [.07, 0], [.07, h * .7], [.03, h * .85], [.03, h], [0, h]], 14), new THREE.MeshStandardMaterial({color: c, roughness: .2}), g).position.set(x, C, -4.0);
     const lampG = new THREE.Group(); lampG.position.set(3.35, C, -3.9); g.add(lampG);
     this.mesh(lathe([[0, 0], [.13, 0], [.1, .05], [.03, .1], [.03, .55], [0, .55]], 16), M.brass, lampG);

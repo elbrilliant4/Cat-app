@@ -612,7 +612,19 @@ export function applyKitchenDecor(kitchen, name) {
   if (christmas) parts.christmas ??= kitchenChristmas(kitchen, T);
   for (const [part, g] of Object.entries(parts)) g.visible = part === 'shared' ? autumn : part === name;
   kitchen.orchid.visible = name === 'classic';
+  // Christmas swaps a few of the kitchen's own pieces: the hanging lamps
+  // turn to alabaster on brass arms, and its utensil jar and potted pine
+  // stand where the crock and the olive do.
+  if (kitchen.crock) kitchen.crock.visible = !christmas;
+  if (kitchen.counterOlive) kitchen.counterOlive.visible = !christmas;
+  const X = kitchen.xmasLamps;
+  if (X) {
+    kitchen.shades.forEach(sh => sh.material = christmas ? X.alabaster : kitchen.materials.shade);
+    X.arms.forEach(m => m.material = christmas ? kitchen.materials.brass : kitchen.materials.iron);
+    X.fittings.forEach(o => o.visible = christmas);
+  }
   if (kitchen.ghostCushion) kitchen.ghostCushion.visible = name === 'halloween';
+  if (kitchen.xmasCushion) kitchen.xmasCushion.visible = christmas;
   // Christmas warms the room itself: the plaster and the stone floor take
   // on the pictures' honey tone (and give it back for the other looks).
   const KM = kitchen.materials;
@@ -839,6 +851,65 @@ function drawPineSprig(g, w, h) {
   twig(w * .5, h * .99, 0, h * .92, w * .2);
   twig(w * .5, h * .78, -.62, h * .5, w * .16); twig(w * .5, h * .68, .58, h * .52, w * .16);
   twig(w * .5, h * .5, -.5, h * .36, w * .13); twig(w * .5, h * .42, .55, h * .34, w * .13);
+}
+
+// Alabaster: creamy stone with soft honey clouds and a few wandering veins
+// (it wraps round a lamp shade, so the left and right edges meet).
+function drawAlabaster(g, w, h) {
+  const r = rng(131);
+  g.fillStyle = '#f3e4c8'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 90; i++) {
+    const x = r() * w, y = r() * h, rad = 20 + r() * 70, warm = r() < .6;
+    for (const dx of [-w, 0, w]) {
+      const grd = g.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
+      grd.addColorStop(0, warm ? `rgba(214,160,92,${.1 + r() * .14})` : `rgba(255,250,236,${.2 + r() * .2})`); grd.addColorStop(1, 'rgba(230,190,130,0)');
+      g.fillStyle = grd; g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
+    }
+  }
+  g.lineCap = 'round';
+  for (let i = 0; i < 16; i++) {
+    let x = r() * w, y = r() * h, a = r() * Math.PI * 2;
+    g.strokeStyle = `rgba(150,96,48,${.12 + r() * .2})`; g.lineWidth = .8 + r() * 2.2;
+    for (const dx of [-w, 0, w]) {
+      const rr = rng(500 + i); let px = x + dx, py = y, pa = a;
+      g.beginPath(); g.moveTo(px, py);
+      for (let k = 0; k < 26; k++) { pa += (rr() - .5) * .9; px += Math.cos(pa) * 11; py += Math.sin(pa) * 7; g.lineTo(px, py); }
+      g.stroke();
+    }
+  }
+}
+
+// A round mat of braided jute, coiled from the middle out.
+function drawWovenMat(g, w, h) {
+  const r = rng(151), cx = w / 2, cy = h / 2, R = w / 2;
+  g.fillStyle = '#b99a66'; g.fillRect(0, 0, w, h);
+  const tones = ['#cdb07c', '#c2a36e', '#d6bd8c', '#b8975f'], band = R / 17;
+  for (let k = 17; k >= 1; k--) {
+    const rad = k * band - band / 2;
+    g.strokeStyle = tones[k % tones.length]; g.lineWidth = band * .9;
+    g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI * 2); g.stroke();
+    // (The braid: short slanted strands along each coil, and a dark seam between coils.)
+    const n = Math.round(rad * Math.PI * 2 / (band * .55));
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2, slant = (k % 2 ? 1 : -1) * .5;
+      const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad, ca = Math.cos(a + slant), sa = Math.sin(a + slant);
+      g.strokeStyle = r() < .5 ? 'rgba(110,84,46,.4)' : 'rgba(240,226,190,.4)'; g.lineWidth = band * .13;
+      g.beginPath(); g.moveTo(x - ca * band * .36, y - sa * band * .36); g.lineTo(x + ca * band * .36, y + sa * band * .36); g.stroke();
+    }
+    g.strokeStyle = 'rgba(80,58,30,.5)'; g.lineWidth = band * .09;
+    g.beginPath(); g.arc(cx, cy, k * band, 0, Math.PI * 2); g.stroke();
+  }
+}
+
+// Pale oak for chopping boards: long grain, a few darker streaks.
+function drawBoardWood(g, w, h) {
+  const r = rng(171);
+  g.fillStyle = '#b98a57'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 70; i++) {
+    const x = r() * w;
+    g.strokeStyle = r() < .5 ? `rgba(120,78,40,${.1 + r() * .22})` : `rgba(226,188,134,${.1 + r() * .2})`; g.lineWidth = .6 + r() * 2.4;
+    g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + (r() - .5) * 10, h * .3, x + (r() - .5) * 10, h * .7, x + (r() - .5) * 6, h); g.stroke();
+  }
 }
 
 // Pine sprigs along a path: flat cards of the sprig, each rooted on the path
@@ -1094,6 +1165,105 @@ function kitchenChristmas(kitchen, T) {
     const pool = mesh(new THREE.PlaneGeometry(sx, sz), poolMat, g, {cast: false, receive: false});
     pool.rotation.x = -Math.PI / 2; pool.position.set(x, y, z);
   }
+
+  // The three hanging lamps: alabaster shades lit from inside, on brass
+  // arms. Their shape and place stay (she rides the big one): the stone,
+  // a brass band round each, and a warm halo in the evening are what change.
+  const alabTex = canvasTexture(512, 256, drawAlabaster);
+  const alabaster = new THREE.MeshStandardMaterial({map: alabTex, emissive: '#ffb563', emissiveMap: alabTex, emissiveIntensity: .4, roughness: .4, side: THREE.DoubleSide});
+  const lampHalo = glowHalo('rgba(255,205,135,.9)', 'rgba(255,165,80,.3)');
+  const fittings = [], arms = [];
+  kitchen.mobile.traverse(o => { if (o.isMesh && o.material === M.iron) arms.push(o); });
+  const bandGeo = new THREE.TorusGeometry(.497, .016, 8, 48); bandGeo.rotateX(Math.PI / 2);
+  kitchen.shades.forEach((sh, i) => {
+    const band = mesh(bandGeo, M.brass, sh, {cast: false}); band.scale.y = 2.2; band.position.y = .02; fittings.push(band);
+    // (A brass cap where the rod meets the stone; not on the big one, whose top is her seat.)
+    if (i) { const cap = mesh(new THREE.SphereGeometry(.09, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.brass, sh, {cast: false}); cap.scale.y = 1.6; cap.position.y = .47; fittings.push(cap); }
+    const halo = new THREE.Sprite(lampHalo); halo.scale.set(2.5, 5.2, 1); sh.add(halo); fittings.push(halo);
+  });
+  kitchen.xmasLamps = {alabaster, arms, fittings};
+
+  // Her corner: a round woven mat under the tent and a smaller one under
+  // the fountain, a green mat under her bowl, and a plaid cushion propped
+  // in the back of the tent. The mats lie flat on the floor (nothing to
+  // walk round, nothing for the vacuum to meet).
+  const weave = canvasTexture(512, 512, drawWovenMat);
+  const matMat = new THREE.MeshStandardMaterial({map: weave, roughness: 1});
+  for (const [x, z, rad, y, turn] of [[4.75, .75, 1.78, .006, .3], [3.0, 1.55, .82, .011, 1.1]]) {
+    const m = mesh(new THREE.CircleGeometry(rad, 56), matMat, g, {cast: false});
+    m.rotation.set(-Math.PI / 2, 0, turn); m.position.set(x, y, z);
+  }
+  const greenMat = mesh(roundedBox(1.2, .84, .01, .1), new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (c, w, h) => {
+    drawLinen(c, w, h, {base: '#4d6a48', dark: .12, seed: 83});
+    c.strokeStyle = 'rgba(226,214,186,.55)'; c.lineWidth = w * .012; c.strokeRect(w * .06, h * .08, w * .88, h * .84);
+  }), roughness: 1}), g, {cast: false});
+  greenMat.rotation.set(-Math.PI / 2, 0, -.5); greenMat.position.set(4.55, .016, 2.6);
+  const plaid = new THREE.MeshStandardMaterial({map: kitchen.room.decorOriginal?.bedMap ?? kitchen.room.materials.plaidBed.map, roughness: .95});
+  const cushion = mesh(pillowGeometry(.68, .66, .3), plaid, kitchen.bed);
+  kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#2b3a2a', roughness: .85}), cushion, {cast: false});
+  // (Where the Halloween ghost cushion sits: checked clear of the canvas and of her tail asleep.)
+  cushion.position.set(-.3, kitchen.bedTop + .3, -.62); cushion.rotation.set(-.12, .12, 0);
+  kitchen.xmasCushion = cushion;
+
+  // The shelves, dressed a little more like the pictures, all at the back
+  // (her lane along the front stays clear), away from where she lands and
+  // naps, and beside (never in place of) the things she pats off.
+  const S1 = 4.1, SZ = BACK + .33;
+  const boardWood = new THREE.MeshStandardMaterial({map: canvasTexture(128, 256, drawBoardWood), roughness: .55});
+  const paleWood = new THREE.MeshStandardMaterial({map: boardWood.map, color: '#f1dcbb', roughness: .6});
+  // Lower shelf, the open stretch over the sink: two boards leaning on the
+  // wall, a stack of bowls, and a few books by the glasses.
+  const tall = mesh(roundedBox(.44, .78, .045, .03), boardWood, g); tall.position.set(-1.5, S1 + .385, BACK + .1); tall.rotation.x = -.12;
+  const roundB = new THREE.Group(); roundB.position.set(-1.12, S1, BACK + .2); roundB.rotation.set(-.14, 0, .05); g.add(roundB);
+  const disc = mesh(new THREE.CylinderGeometry(.25, .25, .04, 40), paleWood, roundB); disc.rotation.x = Math.PI / 2; disc.position.y = .25;
+  mesh(roundedBox(.08, .2, .038, .02), paleWood, roundB).position.y = .57;
+  const bowlOf = (rad, mat, parent) => mesh(lathe([[0, 0], [rad * .5, 0], [rad, rad * .55], [rad * .95, rad * .56], [rad * .45, rad * .05], [0, rad * .05]], 24), mat, parent);
+  const sage = new THREE.MeshStandardMaterial({color: '#93a487', roughness: .5});
+  [[.21, M.cream], [.195, M.ivory], [.18, sage]].forEach(([rad, mat], i) => bowlOf(rad, mat, g).position.set(-.5, S1 + i * .05, SZ));
+  [['#6e1f26', .46], ['#2f4a36', .5], ['#e6dcc6', .42]].forEach(([c, hgt], i) => {
+    const b = mesh(new THREE.BoxGeometry(.075, hgt, .32), new THREE.MeshStandardMaterial({color: c, roughness: .8}), g); b.position.set(.93 + i * .082, S1 + hgt / 2, SZ - .02);
+    if (i === 2) { b.rotation.z = -.16; b.position.x += .05; b.position.y -= .01; }
+  });
+  // Top shelf: books lying flat with a little bowl on them, between the
+  // cobalt vessel and the plates; a framed pine print by the books.
+  [['#2f4a36', .4], ['#cdbb98', .36], ['#6e1f26', .33]].forEach(([c, wid], i) => {
+    const b = mesh(new THREE.BoxGeometry(wid, .065, .28), new THREE.MeshStandardMaterial({color: c, roughness: .8}), g); b.position.set(-1.12 + i * .012, S2 + .0325 + i * .066, SZ + .02); b.rotation.y = (i - 1) * .09;
+  });
+  bowlOf(.12, M.brass, g).position.set(-1.1, S2 + .2, SZ + .02);
+  const print = new THREE.Group(); print.position.set(2.14, S2, BACK + .34); print.rotation.x = -.1; g.add(print);
+  const pw = .44, ph = .6;
+  mesh(roundedBox(pw, ph, .04, .01), paleWood, print).position.y = ph / 2;
+  mesh(new THREE.PlaneGeometry(pw * .84, ph * .87), new THREE.MeshStandardMaterial({map: canvasTexture(256, 340, (c, w, h) => {
+    drawPineSprig(c, w, h);
+    c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#f4eddd'; c.fillRect(0, 0, w, h);
+    c.globalCompositeOperation = 'source-over'; c.strokeStyle = 'rgba(120,100,70,.35)'; c.lineWidth = 2; c.strokeRect(w * .07, h * .06, w * .86, h * .88);
+  }), roughness: .9}), print, {cast: false}).position.set(0, ph / 2, .022);
+
+  // On the counter: a stoneware jar of utensils where the crock stands, and
+  // a little pine in a clay pot where the olive does (both put away for
+  // Christmas; see applyKitchenDecor).
+  const jar = new THREE.Group(); jar.position.set(2.95, COUNTER_TOP, -3.75); jar.scale.setScalar(1.12); g.add(jar);
+  mesh(lathe([[0, 0], [.15, 0], [.185, .05], [.185, .34], [.165, .39], [.175, .42], [.16, .42], [.15, .39], [0, .39]], 28), stoneware, jar);
+  mesh(new THREE.CylinderGeometry(.187, .187, .035, 28, 1, true), sage, jar, {cast: false}).position.y = .27;
+  const utensil = (lean, turn, len, head) => {
+    const u = new THREE.Group(); u.position.y = .1; u.rotation.set(0, turn, 0); jar.add(u);
+    const stick = new THREE.Group(); stick.rotation.z = lean; u.add(stick);
+    mesh(new THREE.CylinderGeometry(.013, .017, len, 8), head === 'whisk' || head === 'ladle' ? M.brass : paleWood, stick).position.y = len / 2;
+    if (head === 'spoon') { const h = mesh(new THREE.SphereGeometry(.06, 14, 10), paleWood, stick); h.scale.set(1, 1.5, .35); h.position.y = len + .06; }
+    if (head === 'spatula') mesh(roundedBox(.11, .17, .014, .02), boardWood, stick).position.y = len + .07;
+    if (head === 'ladle') { const h = mesh(new THREE.SphereGeometry(.07, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.brass, stick); h.position.set(.05, len + .03, 0); h.rotation.z = -.5; }
+    if (head === 'whisk') for (let k = 0; k < 4; k++) { const loop = mesh(new THREE.TorusGeometry(.05, .005, 5, 18), M.brass, stick, {cast: false}); loop.scale.y = 2; loop.position.y = len + .09; loop.rotation.y = k * Math.PI / 4; }
+  };
+  utensil(.2, 0, .62, 'spoon'); utensil(.16, 1.4, .7, 'spatula'); utensil(.14, 2.9, .56, 'whisk'); utensil(.18, 4.3, .66, 'spoon'); utensil(.1, 5.4, .6, 'ladle');
+  const tree = new THREE.Group(); tree.position.set(-.55, COUNTER_TOP, -3.85); g.add(tree);
+  mesh(lathe([[0, 0], [.14, 0], [.19, .26], [.205, .27], [.2, .3], [0, .3]], 24), M.clay, tree);
+  mesh(new THREE.CylinderGeometry(.175, .175, .02, 20), new THREE.MeshStandardMaterial({color: '#3a2a1c', roughness: 1}), tree, {cast: false}).position.y = .285;
+  mesh(new THREE.CylinderGeometry(.014, .022, .95, 6), twigMat, tree, {cast: false}).position.y = .3 + .475;
+  for (let k = 0; k < 6; k++) {
+    const n = 7 - k, y = .44 + k * .125, len = .3 - k * .042;
+    for (let j = 0; j < n; j++) { const a = (j + (k % 2) * .5) / n * Math.PI * 2 + r() * .3; bough(tree, V(0, y, 0), V(Math.cos(a), -.12, Math.sin(a)).normalize(), len * (.85 + r() * .3), 401 + k * 9 + j, .2, .22); }
+  }
+  bough(tree, V(0, 1.12, 0), V(.03, 1, .02).normalize(), .24, 499, .18, 0);
   let glowSize = .28;
 
   kitchen.updateChristmas = (dt, t, night) => {
@@ -1104,6 +1274,8 @@ function kitchenChristmas(kitchen, T) {
     stripMat.opacity += ((night ? 1 : 0) - stripMat.opacity) * k;
     dappleMat.opacity += ((night ? 0 : .42) - dappleMat.opacity) * k; wallMat.opacity = dappleMat.opacity * .45;
     poolMat.opacity += ((night ? .34 : 0) - poolMat.opacity) * k;
+    alabaster.emissiveIntensity += ((night ? 1.7 : .4) - alabaster.emissiveIntensity) * k;
+    lampHalo.opacity += ((night ? .5 : 0) - lampHalo.opacity) * k;
   };
   return g;
 }
