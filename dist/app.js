@@ -1052,7 +1052,8 @@ function updateCat(dt, t) {
   if (a === 'beg') { pose = 'beg'; tail = {amp: .4, speed: 2}; }
   if (brain.mode === 'brush') { pose = 'loaf'; tail = {amp: .5, speed: 1}; }
   if ((brain.mode === 'play' || brain.mode === 'solo') && a === 'play') { pose = 'crouch'; tail = {amp: .6, speed: 4}; }
-  if (a === 'catnap') { pose = 'sleep'; tail = {amp: .05, speed: .5}; }
+  // (Her nap in the garland on the top shelf: curled up, her face to the room.)
+  if (a === 'catnap') { pose = brain.napFace != null && brain.perch === 'shelfHigh' ? 'curl' : 'sleep'; tail = {amp: .05, speed: .5}; }
   if (a === 'prejump') { pose = 'crouch'; poseRate = 9; const w = (t - brain.actStart) / Math.max(.3, brain.actUntil - brain.actStart); wiggle = w > .45 ? .5 : 0; tail = {amp: .5, speed: 4}; }
   if (a === 'jump') { const k = J ? (t - J.start) / J.dur : 1; pose = k < .7 ? 'leap' : 'crouch'; poseRate = 14; tail = {amp: .1, speed: 1}; }
   if (a === 'land') { pose = 'crouch'; poseRate = 10; }
@@ -1513,15 +1514,18 @@ function tapCups(pats) {
 // against the garland.
 function garlandNap() {
   if (place !== kitchen || brain.mode !== 'idle') return false;
-  const lane = PERCHES.shelfHigh.lane, spot = new THREE.Vector3(.95, 0, lane.z - .12);
+  const lane = PERCHES.shelfHigh.lane, spot = new THREE.Vector3(.95, 0, lane.z - .18);
   const settle = () => {
     if (brain.perch !== 'shelfHigh' || brain.mode !== 'idle') return;
     brain.perchUntil = Math.max(brain.perchUntil, clockNow + 40);
-    walkPath((Math.abs(brain.pos.z - lane.z) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, lane.z)]).concat([spot]), () => {
-      // (Lying along the shelf, the way she came: no turning round asleep.)
-      const face = Math.sin(brain.heading) >= 0 ? Math.PI / 2 : -Math.PI / 2;
-      setActivity('catnap', rand(16, 26), () => setActivity('sit', rand(2, 4)));
-      brain.napFace = face;
+    // (She comes to the spot from its left, walking toward the books, and
+    // curls up as she arrives: her back to the garland, her face to the
+    // room. From further along the shelf she goes past it first, so there's
+    // no turning round asleep.)
+    const lead = brain.pos.x > spot.x - .3 ? [new THREE.Vector3(spot.x - .6, 0, lane.z)] : Math.abs(brain.pos.z - lane.z) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, lane.z)];
+    walkPath(lead.concat([spot]), () => {
+      setActivity('catnap', rand(16, 26), () => { brain.napFace = null; setActivity('sit', rand(2, 4)); });
+      brain.napFace = Math.PI / 2;
     });
   };
   if (brain.perch === 'shelfHigh') settle(); else jumpTo('shelfHigh', settle, rand(45, 60));
