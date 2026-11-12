@@ -7,11 +7,12 @@
 // grooming, eating, kneading, pouncing and rolling over.
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {buildSkeleton, computeWeights, computeWeights2, syncHelpers, BONES, BONES2, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
+import {useModel, buildSkeleton, computeWeights, computeWeights2, syncHelpers, BONES, BONES2, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
 import {sculptFace, MOUTH, fade} from './face-sculpt.js';
 
 const {damp, clamp} = THREE.MathUtils;
 const MODEL_SCALE = 0.86;
+const MODEL_SCALE_LONGHAIR = 0.95; // her bones come out the first Mochi's size
 
 // Face presets: real-cat expressions. open = upper lids, happy = lower lids
 // push up (a contented squint), pupil = 0 narrow slit .. 1 round and wide.
@@ -73,6 +74,7 @@ uniform vec2 eyeLook;
 uniform float eyeSparkle;
 uniform float mouthOpen;
 uniform float tongueOut;
+uniform float retouchOn; // the first Mochi's face only
 uniform vec3 lidRing[32]; // 16 directions around each eye: right eye, then left
 uniform vec3 lidMid[2];   // each lid's overall colour
 uniform vec3 lidDark;
@@ -193,7 +195,7 @@ vec4 drawEye(vec3 p, vec3 c, float side) {
 }
 
 vec3 paintFace(vec3 base) {
-  base = retouch(base, vBind);
+  if (retouchOn > 0.5) base = retouch(base, vBind);
   vec4 a = drawEye(vBind, eyeR, -1.0);
   base = mix(base, a.rgb, a.a);
   vec4 b = drawEye(vBind, eyeL, 1.0);
@@ -220,8 +222,11 @@ float furHash(vec2 p) {
 
 export class RealCat {
   // opts.rig: 2 for the motion trial's rig (shoulder blades, new weights).
+  // opts.model: 'longhair' for the long-haired candidate (docs/mochi-longhair).
   constructor(opts = {}) {
     this.opts = opts;
+    this.longhair = opts.model === 'longhair';
+    if (opts.model) useModel(opts.model);
     this.root = new THREE.Group();
     this.model = new THREE.Group();
     this.root.add(this.model);
@@ -233,7 +238,7 @@ export class RealCat {
       eyeR: {value: FACE.eyeR.clone()}, eyeL: {value: FACE.eyeL.clone()}, eyeRadius: {value: FACE.eyeRadius.clone()},
       mouthPos: {value: FACE.mouth.clone()},
       eyeOpen: {value: .9}, eyeHappy: {value: 0}, eyePupil: {value: .4}, eyeLook: {value: new THREE.Vector2()},
-      eyeSparkle: {value: .5}, mouthOpen: {value: 0}, tongueOut: {value: 0},
+      eyeSparkle: {value: .5}, mouthOpen: {value: 0}, tongueOut: {value: 0}, retouchOn: {value: this.longhair ? 0 : 1},
       lidRing: {value: Array.from({length: 32}, () => new THREE.Color(0.25, 0.16, 0.12))},
       lidMid: {value: [new THREE.Color(0.25, 0.16, 0.12), new THREE.Color(0.25, 0.16, 0.12)]},
       lidDark: {value: new THREE.Color(0.12, 0.07, 0.045)},
@@ -267,14 +272,21 @@ export class RealCat {
     const sampleUV = (u, v) => { const k = texelAt(u, v); return [toLin(px[k]), toLin(px[k + 1]), toLin(px[k + 2])]; };
 
     // Real mouth, rounded eyeballs, and no whisker clumps (face-sculpt.js).
-    const geometry = sculptFace(src.geometry, sampleUV);
+    // (The long-haired model keeps its face as made, for now: no cut mouth.)
+    let geometry;
+    if (this.longhair) {
+      geometry = src.geometry.clone();
+      const n = geometry.attributes.position.count;
+      geometry.setAttribute('facePatch', new THREE.BufferAttribute(new Float32Array(n), 1));
+      geometry.setAttribute('patchColor', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    } else geometry = sculptFace(src.geometry, sampleUV);
     const uv = geometry.attributes.uv, pos = geometry.attributes.position;
     const texel = i => texelAt(uv.getX(i), uv.getY(i));
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };
     const v2 = this.opts.rig === 2;
     const {weld, names} = v2 ? computeWeights2(geometry) : computeWeights(geometry, bright);
     this.rigSource = {bright}; // (for rig-check.html)
-    this.weightMouth(geometry, names);
+    if (!this.longhair) this.weightMouth(geometry, names);
     this.sampleLidRing(pos, texel, px);
     this.furLengths(geometry, weld);
 
@@ -287,10 +299,11 @@ export class RealCat {
     skinned.add(root);
     this.model.add(skinned);
     // Line the model up: body axis along +z, standing on y = 0, scaled for the room.
-    this.model.scale.setScalar(MODEL_SCALE);
+    const MS = this.longhair ? MODEL_SCALE_LONGHAIR : MODEL_SCALE;
+    this.model.scale.setScalar(MS);
     const yaw = Math.atan2(BONES.chest[1].x - BONES.hips[1].x, BONES.chest[1].z - BONES.hips[1].z);
     this.model.rotation.y = -yaw;
-    const centre = new THREE.Vector3(MIDLINE_X + .06, GROUND_Y, -0.1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -yaw).multiplyScalar(MODEL_SCALE);
+    const centre = (this.longhair ? new THREE.Vector3(0, GROUND_Y, .04) : new THREE.Vector3(MIDLINE_X + .06, GROUND_Y, -0.1)).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -yaw).multiplyScalar(MS);
     this.model.position.set(-centre.x, -centre.y, -centre.z);
     this.model.updateMatrixWorld(true);
     const skeleton = new THREE.Skeleton(list);
@@ -310,7 +323,7 @@ export class RealCat {
     aim('shoulderR', BONES.wristR[2], new THREE.Vector3(-0.01, -1, 0.12));
     aim('shoulderL', BONES.wristL[2], new THREE.Vector3(0.01, -1, 0.12));
     // The sculpted head looks slightly upward; level it.
-    this.rest.head = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.22, 0, 0));
+    this.rest.head = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.longhair ? 0 : 0.22, 0, 0));
     this.tailRest = [];
     for (let i = 0; i < 8; i++) {
       const a = BONES['tail' + i][1], b = i < 7 ? BONES['tail' + (i + 1)][1] : BONES.tail7[2];
@@ -356,8 +369,7 @@ export class RealCat {
     collider('spine', .32, 0, 0, 0, 1, 1, 1.2);
     collider('hips', .3, 0, 0, -.05);
 
-    this.addWhiskers(bones);
-    this.addMouthInterior(bones);
+    if (!this.longhair) { this.addWhiskers(bones); this.addMouthInterior(bones); }
     this.neck = bones.neck;
     this.head = bones.head;
     this.ready = true;

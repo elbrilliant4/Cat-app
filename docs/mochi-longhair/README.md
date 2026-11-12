@@ -22,8 +22,8 @@ Nothing here is live or on preview.
   model. Midline x = 0, ground y = -0.62, facing +z, her left is +x.
 
 ## Missing (not substituted)
-- **A skeleton and skin weights.** Meshy's rigging refused her ("not a
-  humanoid"), no charge. They have to come from our own rig code.
+- **A skeleton and skin weights in the file.** Meshy's rigging refused her
+  ("not a humanoid"), no charge. Ours are worked out in code at load.
 - **Real fur.** The coat is carved into the surface and painted; no hair
   cards, no direction or length maps. Our shell fur has to go on top.
 - **Eyes.** Painted on the surface: no eyeball, no lids, nothing to blink.
@@ -33,25 +33,40 @@ Nothing here is live or on preview.
 - **Poses.** One standing pose, tail up. Sitting, loafing, sleeping all have
   to come from the rig.
 
-## Next (one step at a time, each shown under neutral light first)
-1. Make `cat-rig.js` and `real-cat.js` take a model profile instead of the
-   old model's numbers: bone table, face points, ground, midline, scale,
-   rest fixes (none needed: she stands straight), `sculptFace` off, fur
-   lengths by region. `computeWeights2` is full of the old model's
-   distances (leg tops at y -.2, `TAIL_CUT`, `reachOf`): check each on her.
-   Her fur is thick: weights by distance to bone will pull belly fur with
-   the legs, look at `heat:` views in `rig-check.html`.
-2. Show her in `rig-check.html` (`?model=longhair`): stand, sit, loaf, sleep.
-3. Fur shells with longer lengths (ruff, britches, plume), eyes and lids in
-   the skin shader at `FACE_LONGHAIR`, then mouth and whiskers.
-4. Only then the app behind a flag (`?mochi=longhair`), room light,
+## Rigged (2026-11-12)
+She takes the app's own skeleton now, behind a switch; the first Mochi is
+untouched. `new RealCat({rig: 2, model: 'longhair'})` calls
+`useModel('longhair')` in `cat-rig.js`, which swaps the bone tables, face
+points, ground, midline and the weights' landmarks (`T`) in place (one model
+per page). See her: `rig-check.html?rig=2&model=longhair`, then in the
+console `check.pose('sit')`, `check.view('front34')`. Picture:
+`rigged-poses.jpg`. For her, `real-cat.js` skips the face sculpt, the cut
+mouth, the whiskers and the face retouch; the eye shader draws her eyes at
+`FACE_LONGHAIR`.
+
+Two things her build needed: leg skin goes to the nearest leg (her legs
+stand close together), and a narrower midline limit (`T.mid`).
+
+Known faults, not fixed yet:
+- Sitting is low and sloped: the haunches don't tuck under. `POSES.sit` was
+  tuned for the first Mochi's leg lengths; her legs are shorter under the fur.
+- Crouch kicks a hind leg back.
+- The fur shells still use the first Mochi's regions (`furLengths`), so the
+  fur is hidden in these pictures.
+- Contact points and petting colliders are the first Mochi's sizes.
+
+## Next (each shown under neutral light first)
+1. Poses on her proportions: sit, crouch, then walk in `motion-trial.html`.
+2. Fur shells with her regions and longer lengths (ruff, britches, plume);
+   eyes and lids tuned at `FACE_LONGHAIR`; then mouth and whiskers.
+3. Only then the app behind a flag (`?mochi=longhair`), room light,
    breathing, blinking, ears, tail. Then Merlin and Eagle compare.
 
 ## Open questions for Merlin
 - **Which branch this goes to.** `main` and the preview branch
   (`claude/expressive-cat-modern-ui-65z6r5`) have each moved on without the
   other (16 and 13 commits). This work sits on
-  `claude/mochi-cat-upgrade-pu4l2c`, cut from `main`. The rig work in step 1
-  touches files the preview branch has changed (motion).
+  `claude/mochi-cat-upgrade-pu4l2c`, cut from `main`, with the preview branch merged in
+  (Merlin's choice, 2026-11-12). Neither `main` nor preview has the other's work yet.
 - The Meshy plan's license for a public site (CREDITS.md).
 - `TEAM-INSTRUCTIONS.md` still says Mochi stays on her original model.

@@ -9,8 +9,8 @@ import * as THREE from 'three';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-export const GROUND_Y = -0.628;
-export const MIDLINE_X = -0.313;
+export let GROUND_Y = -0.628;
+export let MIDLINE_X = -0.313;
 
 // name: [parent, position, end (for leaves / weighting)]
 export const BONES = {
@@ -280,8 +280,35 @@ export const FACE_LONGHAIR = {
   nose: V(0, 0.24, 0.941),
 };
 
-const TAIL_CUT = 0.11;
-const FRONT_LIMIT = -0.05, HIND_LIMIT = -0.2; // z: front-leg bones only ahead of this, hind-leg bones only behind // radius round the first tail segment that separates the tail from the body
+// Where the parts of the model are, for the weights (the first Mochi's own
+// numbers; useModel swaps them): tailCut: radius round the first tail segment
+// that separates the tail from the body; front, hind (z): front-leg bones only
+// ahead of this, hind-leg bones only behind; the tops of the legs (y); the
+// jaw's box; the ears above earY and behind earZ; head and neck ahead of headZ;
+// mid: how far a leg's bones reach across the midline, and where they are at
+// full strength (her legs stand closer together than the first Mochi's).
+const T = {tailCut: 0.11, front: -0.05, hind: -0.2, legTopF: -0.2, legTopH: -0.24, jaw: [0.72, 0.17, 0.305, 0.14], earY: 0.47, earZ: 0.78, headZ: 0.25, mid: [.02, .05]};
+const inJaw = p => p.z > T.jaw[0] && p.y > T.jaw[1] && p.y < T.jaw[2] && Math.abs(p.x - MIDLINE_X) < T.jaw[3];
+const T_LONGHAIR = {tailCut: 0.17, front: 0.22, hind: -0.02, legTopF: -0.3, legTopH: -0.3, jaw: [0.8, 0.14, 0.225, 0.09], earY: 0.4, earZ: 0.84, headZ: 0.48, mid: [.008, .015]};
+
+/**
+ * Switches every table in this file to another model's measurements, in
+ * place, before a RealCat is built ('longhair': the long-haired candidate).
+ * One model per page: the tables are shared.
+ */
+export function useModel(name) {
+  if (name !== 'longhair' || BONES2 === useModel.done) return;
+  useModel.done = BONES2;
+  for (const table of [BONES, BONES2]) { for (const k of Object.keys(table)) delete table[k]; Object.assign(table, BONES_LONGHAIR); }
+  for (const k of ['scapulaR', 'scapulaL', 'thighR', 'thighL']) delete BONES[k];
+  BONES.shoulderR = ['chest', BONES_LONGHAIR.shoulderR[1]]; BONES.shoulderL = ['chest', BONES_LONGHAIR.shoulderL[1]];
+  for (const k of ['eyeR', 'eyeL', 'eyeRadius', 'mouth', 'nose']) FACE[k].copy(FACE_LONGHAIR[k]);
+  Object.assign(LEGS.R, {axis: [-0.085, 0.49]}); Object.assign(LEGS.L, {axis: [0.085, 0.49]});
+  Object.assign(LEGS.HR, {axis: [-0.1, -0.27]}); Object.assign(LEGS.HL, {axis: [0.1, -0.27]});
+  Object.assign(T, T_LONGHAIR);
+  GROUND_Y = GROUND_Y_LONGHAIR; MIDLINE_X = 0;
+}
+ // z: front-leg bones only ahead of this, hind-leg bones only behind // radius round the first tail segment that separates the tail from the body
 const fall = (d, r0, r1) => 1 - THREE.MathUtils.smoothstep(d, r0, r1);
 
 export function computeWeights2(geometry, {smooth = 300} = {}) {
@@ -326,7 +353,7 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i) continue;
     const p = P(i);
-    if (segDist(p, r0, r1) < TAIL_CUT) region[i] = 2;
+    if (segDist(p, r0, r1) < T.tailCut) region[i] = 2;
     const d = p.distanceTo(tailEnd);
     if (d < best) { best = d; tip = i; }
   }
@@ -337,9 +364,11 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i || region[i]) continue;
     const p = P(i);
+    // (The nearest leg: legs that stand close together are within reach of each other.)
+    let nearest = 0.15;
     for (const [r, leg] of Object.entries(LEG_REGIONS)) {
-      const top = leg.bones[0].startsWith('shoulder') ? -0.2 : -0.24;
-      if (p.y < top && Math.hypot(p.x - leg.axis[0], p.z - leg.axis[1]) < 0.15) region[i] = +r;
+      const top = leg.bones[0].startsWith('shoulder') ? T.legTopF : T.legTopH, d = Math.hypot(p.x - leg.axis[0], p.z - leg.axis[1]);
+      if (p.y < top && d < nearest) { nearest = d; region[i] = +r; }
     }
   }
   const legOf = n => /R$/.test(n) && /^(scapula|shoulder|elbow|wrist)/.test(n) ? 3 : /L$/.test(n) && /^(scapula|shoulder|elbow|wrist)/.test(n) ? 4 : /R$/.test(n) && /^(hip|knee|hock)/.test(n) ? 5 : /L$/.test(n) && /^(hip|knee|hock)/.test(n) ? 6 : 0;
@@ -428,7 +457,7 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     for (let b = 0; b < NB; b++) {
       const n = names[b];
       if (!allow[b][reg] || !reachOf[n]) continue;
-      if (legOf(n) && (n.endsWith('R') ? side > .02 : side < -.02)) continue;
+      if (legOf(n) && (n.endsWith('R') ? side > T.mid[0] : side < -T.mid[0])) continue;
       const d = segDist(p, segs[b][0], segs[b][1]);
       let f = fall(d, ...reachOf[n]);
       // The upper leg bones stop at the top of the leg (the back stays on the spine);
@@ -437,9 +466,9 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
       if (/^(shoulder|elbow|wrist)/.test(n)) f *= fall(p.y - BONES2[n][1].y, .0, .06);
       // Shoulder blades sit on the sides of the chest, not across the back or under the chest.
       if (n.startsWith('scapula')) f *= fall(Math.abs(p.x - BONES2[n][1].x), .1, .2);
-      if (n === 'jaw') f *= +(p.z > 0.72 && p.y < 0.305 && p.y > 0.17 && Math.abs(p.x - MIDLINE_X) < 0.14);
-      if (n === 'earR' || n === 'earL') f *= +(p.y > 0.47 && p.z < 0.78);
-      if (n === 'head' || n === 'neck') f *= +(p.z > 0.25);
+      if (n === 'jaw') f *= +(inJaw(p));
+      if (n === 'earR' || n === 'earL') f *= +(p.y > T.earY && p.z < T.earZ);
+      if (n === 'head' || n === 'neck') f *= +(p.z > T.headZ);
       if (f <= 0) continue;
       W[row + b] = f / Math.pow(d + 0.02, 2);
     }
@@ -472,7 +501,7 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     for (let b = 0; b < NB; b++) {
       const n = names[b];
       if (!(allow[b][reg] || (nearRoot && (n === 'tail0' || n === 'tail1'))) || !reachOf[n]) continue;
-      if (legOf(n) && (n.endsWith('R') ? side > .02 : side < -.02)) continue;
+      if (legOf(n) && (n.endsWith('R') ? side > T.mid[0] : side < -T.mid[0])) continue;
       ok.push(b);
       if (reg === 0 && n.startsWith('tail')) continue; // (only ever blended in, never the body's own bone)
       // Nearest bone: the plain distance, except a leg bone only counts
@@ -480,8 +509,8 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
       let d = segDist(p, segs[b][0], segs[b][1]);
       if (/^(hip|knee|hock|shoulder|elbow|wrist)[RL]$/.test(n) && p.y > BONES2[n][1].y + (n.startsWith('hip') ? .1 : .02)) d += .3;
       if (n.startsWith('scapula') && Math.abs(p.x - BONES2[n][1].x) > .14) d += .3;
-      if (n === 'jaw' && !(p.z > 0.72 && p.y < 0.305 && p.y > 0.17 && Math.abs(p.x - MIDLINE_X) < 0.14)) d += .3;
-      if ((n === 'earR' || n === 'earL') && !(p.y > 0.47 && p.z < 0.78)) d += .3;
+      if (n === 'jaw' && !(inJaw(p))) d += .3;
+      if ((n === 'earR' || n === 'earL') && !(p.y > T.earY && p.z < T.earZ)) d += .3;
       if (d < nd) { nd = d; nb = b; }
     }
     // (The root ring reads the tail's fixed weights as its far boundary.)
@@ -518,8 +547,8 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     for (let b = 0; b < NB; b++) {
       const L = legOf(names[b]);
       if (!L || !W[i * NB + b]) { s += W[i * NB + b]; continue; }
-      let k = L <= 4 ? THREE.MathUtils.smoothstep(z, FRONT_LIMIT - .12, FRONT_LIMIT + .06) : 1 - THREE.MathUtils.smoothstep(z, HIND_LIMIT - .06, HIND_LIMIT + .12);
-      k *= THREE.MathUtils.smoothstep(names[b].endsWith('R') ? -side : side, -.02, .05);
+      let k = L <= 4 ? THREE.MathUtils.smoothstep(z, T.front - .12, T.front + .06) : 1 - THREE.MathUtils.smoothstep(z, T.hind - .06, T.hind + .12);
+      k *= THREE.MathUtils.smoothstep(names[b].endsWith('R') ? -side : side, -T.mid[0], T.mid[1]);
       W[i * NB + b] *= k; s += W[i * NB + b];
     }
     if (s > 0) for (let b = 0; b < NB; b++) W[i * NB + b] /= s;
@@ -530,7 +559,7 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i) continue;
     const y = pos.getY(i), mid = Math.abs(pos.getX(i) - MIDLINE_X);
-    const k = THREE.MathUtils.smoothstep(y, .47, .52) * THREE.MathUtils.smoothstep(mid, .04, .09) * +(pos.getZ(i) < .78);
+    const k = THREE.MathUtils.smoothstep(y, T.earY, T.earY + .05) * THREE.MathUtils.smoothstep(mid, .04, .09) * +(pos.getZ(i) < T.earZ);
     for (const e of [ix.earR, ix.earL]) {
       const w = W[i * NB + e];
       if (w > 0) { W[i * NB + e] = w * k; W[i * NB + ix.head] += w * (1 - k); }

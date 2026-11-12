@@ -39,8 +39,10 @@ const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, .05, 50
 // ?rig=2: the motion trial's rig (shoulder blades, repaired weights).
 const RIG = +new URLSearchParams(location.search).get('rig') || 1;
 const DEF = RIG === 2 ? BONES2 : BONES;
-const cat = new RealCat({rig: RIG});
-await cat.load('./assets/mochi-ragdoll.glb');
+// ?model=longhair: the long-haired candidate (rig 2 only).
+const LONGHAIR = new URLSearchParams(location.search).get('model') === 'longhair';
+const cat = new RealCat(LONGHAIR ? {rig: 2, model: 'longhair'} : {rig: RIG});
+await cat.load(LONGHAIR ? './assets/mochi-longhair.glb' : './assets/mochi-ragdoll.glb');
 scene.add(cat.root);
 cat.fur.visible = false;
 const B = cat.bones, skinned = cat.skinned, geo = skinned.geometry;
