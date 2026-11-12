@@ -17,6 +17,7 @@ brings that version's app back.
 | Live build 190 | `43fdbf8` | Vision: her tail and body kept out of the kitchen furniture, the vacuum's lanes and keep-out sized for her, boarding and leaving the vacuum from a side with room. Also the new working rules (CLAUDE.md, SPEC.md, asset and design rules, taste skill and its browser connector). |
 | Live build 192 | `f91155a` | Docs only: every suggestion, merge and go-live is a clickable choice. Mochi unchanged from build 190. |
 | Live build 203 | `795e591` | Phase 03: her tail kept out of the study's furniture (walls, fireplace, sill, armchair, side table, pots, bowl, fountain, bed rim, mantel vase) and the kitchen's wall steps and shelves; new tail check `tools/qa/tail.mjs`. |
+| Live build 212 | `261ff9f` | Phase 06: her body kept out of the wall on narrow perches (deeper kitchen steps, spots at the front, mantel sat along, sill on the slant, a turn in the air to land); the tail check now measures her body and tours the perches. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
