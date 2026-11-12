@@ -49,6 +49,26 @@ heading. Slow motion: `timeRate` slows the game clock (`clockLag` in
 tap: `titleTap`) tidies: vase home (`room.resetVase`), she is put at `HOME`,
 lens and camera back, name in (`.reveal`).
 
+**The film** (`startOpening`, `filmOK`, `startFilm`, `endFilm`, `stopFilm`):
+after Enter, `filmOK()` (full title, day, `room.decor === 'classic'`,
+`LONGHAIR`, `tallScreen()`, not `?film=0`) picks stage `film` instead of
+`cine`. `<video id="title-film">` (in `.title-fx`) gets its `src` only then;
+it is muted unless `pet.sound`. Under it the room is already the film's last
+picture (she sits at `HOME`, toys placed with no wait), so `endFilm()` (the
+end, a tap, or a key) only drops the `film`/`rolling` classes (CSS fades the
+video out) and calls `enterLive(true, false)`, the same way into `live` that
+`endCine` uses. No `playing` event within 3 s, an error or a refused
+`play()`: back to `gate` and `startCine()`. Class `soft` turns off the white
+flash. The test browser has no mp4: `tools/qa/title.mjs` serves
+`fixtures/mochi-opening.webm` in its place.
+
+**First steps** (`pet.taught = {ball, pet}`, `teachStep`, `learned`): made at
+load (a save with bond, cuddles or journal entries counts as taught).
+`refresh()` puts the step's text in `#scene-hint` with class `teach`.
+`startPlay` learns `ball`, `touchCat` learns `pet`. The room ball is
+tappable for good: `hitsToy()` (the ray passes within .26 of it) in
+`endGesture` calls `act('play')`.
+
 `leaveTitle()` (tap, click, Enter): from `still` she stretches and walks
 home (or stays asleep); from `live` she greets you. The camera glides to
 the room view (`view.glideUntil`), `shrinkTitle()` animates the stage down

@@ -206,6 +206,10 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 /* Under the scene, never over it (it used to cross Mochi near the floor). */
 .scene-hint { margin: 0; padding: 9px 16px 11px; text-align: center; font-size: 12px; font-weight: 650; color: var(--muted); pointer-events: none; transition: opacity .5s; }
 .night .scene-hint { color: #c9b29a; }
+/* A first step being taught ("Tap the pink ball"): it stands out and breathes. */
+.scene-hint.teach { font-size: 14px; font-weight: 800; color: var(--accent); animation: teach-pulse 1.8s ease-in-out infinite; }
+@keyframes teach-pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .scene-hint.teach { animation: none; } }
 
 .play-meter { position: absolute; z-index: 4; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 99px; background: var(--card-solid); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 750; white-space: nowrap; animation: pop .5s var(--spring); }
 .play-meter div { width: 120px; height: 7px; border-radius: 9px; background: var(--line); overflow: hidden; }
@@ -457,6 +461,14 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='400' stroke='%23fff' stroke-linecap='round'%3E%3Cpath d='M20 22h210M330 61h260M90 104h150M380 139h200M10 183h120M250 224h330M60 262h190M400 301h180M150 342h260M470 378h150' stroke-width='2' opacity='.5'/%3E%3Cpath d='M300 12h120M40 78h70M500 96h110M200 160h90M30 240h100M330 268h60M120 310h80M20 370h140' stroke-width='1' opacity='.35'/%3E%3C/svg%3E") 0 0 / 640px 400px; }
 #title.streak .title-streaks { opacity: .8; animation: title-streak .32s linear infinite; }
 .title-flash { background: #fff; opacity: 0; }
+/* The opening film: over the room, then it fades into it (no white flash). */
+.title-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; transition: opacity .6s var(--ease); }
+#title.rolling .title-film { opacity: 1; transition-duration: .25s; }
+.title #title.film { background: none; cursor: pointer; }
+#title.film .title-logo { visibility: hidden; }
+.film-skip { position: absolute; left: 0; right: 0; bottom: calc(3.4vh + env(safe-area-inset-bottom)); pointer-events: none; font-size: 10px; font-weight: 700; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; color: rgba(255, 240, 225, .7); text-shadow: 0 1px 8px rgba(20, 10, 4, .7); opacity: 0; transition: opacity .4s; }
+#title.rolling .film-skip { opacity: 1; transition-delay: .8s; }
+#title.soft.reveal .title-flash { animation: none; }
 #title.flash .title-flash { animation: title-flash-in .16s ease-out forwards; }
 #title.reveal .title-flash { animation: title-flash-out .9s ease-out forwards; }
 /* Her name: slams in, a warm gradient, a shine that sweeps across. */

@@ -44,7 +44,7 @@ const tapOut = async page => {
   // (A tap in the first moment after her name comes in doesn't count: tap again.)
   for (let i = 0; i < 40 && await titleOn(page); i++) { await page.click('#title', {timeout: 120000, noWaitAfter: true}).catch(() => {}); await page.waitForTimeout(1500); }
 };
-await run('full: Enter, the sequence, her name, tap; then short the same day', '?night=0', PHONE, async page => {
+await run('full: Enter, the sequence, her name, tap; then short the same day', '?night=0&film=0', PHONE, async page => {
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.screenshot({path: `${OUT}/title-gate.png`, timeout: 120000});
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
@@ -59,7 +59,7 @@ await run('full: Enter, the sequence, her name, tap; then short the same day', '
   if (await page.evaluate(() => document.getElementById('title').classList.contains('full'))) throw new Error('full again the same day');
   await through('second')(page);
 });
-await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&night=0', PHONE, async page => {
+await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&night=0&film=0', PHONE, async page => {
   await page.waitForSelector('#title.gate', {timeout: 120000});
   const before = await page.evaluate(() => JSON.stringify(['name', 'bond', 'cuddles', 'sleeping', 'place'].map(k => kitten.pet[k])));
   await page.click('#enter-sound', {timeout: 120000, noWaitAfter: true});
@@ -85,6 +85,99 @@ await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&
   await tapOut(page);
   if (await page.evaluate(() => !!kitten.title.toys)) throw new Error('toys left out');
   if (await page.evaluate(() => !!kitten.title.fx || kitten.camera.fov > 47)) throw new Error('title picture left on');
+});
+// The opening film (by day, plain study, long-haired Mochi, upright screen).
+// (This browser cannot play the real mp4: it is handed a WebM copy.)
+const FILM = new URL('../../fixtures/mochi-opening.webm', import.meta.url).pathname;
+const withFilm = page => page.route('**/mochi-opening.mp4', r => r.fulfill({path: FILM, contentType: 'video/webm'}));
+const stage = page => page.evaluate(() => kitten.title.stage);
+const liveOK = async page => {
+  await page.waitForSelector('#title.reveal', {timeout: 120000});
+  await page.waitForFunction(() => kitten.title.toys?.filter(o => o.visible && o.scale.x > .9).length === 3, null, {timeout: 120000}).catch(() => { throw new Error('her three toys are not out'); });
+  await page.waitForTimeout(1500);
+  const st = await page.evaluate(() => { const b = kitten.brain, f = document.getElementById('title-film'), i = document.querySelector('.title-logo'); return {stage: kitten.title.stage, at: Math.hypot(b.pos.x, b.pos.z - .3), a: b.activity, film: +getComputedStyle(f).opacity, src: f.getAttribute('src'), logo: getComputedStyle(i).visibility, go: document.getElementById('title-go').textContent, name: kitten.pet.name}; });
+  if (st.stage !== 'live' || st.at > .05) throw new Error('she is not sitting at home: ' + JSON.stringify(st));
+  if (st.film > .02 || st.src) throw new Error('the film is still up: ' + JSON.stringify(st));
+  if (st.logo !== 'visible' || st.go !== 'Play with ' + st.name) throw new Error('title not shown: ' + JSON.stringify(st));
+};
+const toyXY = page => page.evaluate(() => { const v = kitten.toy.position.clone().project(kitten.camera), r = kitten.renderer.domElement.getBoundingClientRect(); return {x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height}; });
+await run('film: plays after Enter, a tap skips, then the first steps (ball, stroke) once', '?debug&intro=full&night=0', PHONE, async page => {
+  await withFilm(page);
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.film.rolling', {timeout: 60000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
+  await page.waitForTimeout(2500);
+  await page.screenshot({path: `${OUT}/film-playing.png`, timeout: 120000});
+  if (await page.evaluate(() => !document.getElementById('title-film').muted)) throw new Error('film has sound after Enter without sound');
+  await page.click('#title', {timeout: 120000, noWaitAfter: true});
+  await liveOK(page);
+  await page.screenshot({path: `${OUT}/film-into-title.png`, timeout: 120000});
+  await tapOut(page);
+  await page.waitForTimeout(5000);
+  const hint = () => page.evaluate(() => { const h = document.getElementById('scene-hint'); return {t: h.textContent, teach: h.classList.contains('teach'), step: kitten.teach, mode: kitten.brain.mode}; });
+  let h = await hint();
+  if (!h.teach || !/Tap the pink ball/.test(h.t)) throw new Error('no ball prompt: ' + JSON.stringify(h));
+  await page.screenshot({path: `${OUT}/first-step-ball.png`, timeout: 120000});
+  const at = await toyXY(page);
+  await page.mouse.click(at.x, at.y);
+  await page.waitForFunction(() => kitten.brain.mode === 'play', null, {timeout: 20000}).catch(() => { throw new Error('a tap on the ball did not start play (tapped ' + JSON.stringify(at) + ')'); });
+  h = await hint();
+  if (h.teach || h.step !== 'pet') throw new Error('during play: ' + JSON.stringify(h));
+  await page.evaluate(() => kitten.endPlay(true));
+  await page.waitForTimeout(500);
+  await page.evaluate(() => kitten.refresh());
+  h = await hint();
+  if (!h.teach || !/give .* a stroke/.test(h.t)) throw new Error('no stroke prompt: ' + JSON.stringify(h));
+  await page.screenshot({path: `${OUT}/first-step-stroke.png`, timeout: 120000});
+  await page.evaluate(() => kitten.touchCat('head'));
+  h = await hint();
+  if (h.teach || h.step) throw new Error('prompt left after a stroke: ' + JSON.stringify(h));
+  await page.goto(BASE + '?debug');
+  await page.waitForSelector('#loading.done', {state: 'attached', timeout: 120000});
+  await page.waitForTimeout(1500);
+  h = await hint();
+  if (h.teach || h.step) throw new Error('prompt came back after a reload: ' + JSON.stringify(h));
+});
+await run('film: with sound, plays to its end and fades into the title', '?debug&intro=full&night=0', PHONE, async page => {
+  await withFilm(page);
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  await page.click('#enter-sound', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.film.rolling', {timeout: 60000});
+  if (await page.evaluate(() => document.getElementById('title-film').muted)) throw new Error('film is muted after Enter with sound');
+  await page.waitForFunction(() => kitten.title.stage === 'live', null, {timeout: 600000});
+  await liveOK(page);
+  await tapOut(page);
+});
+await run('film file missing: the sequence plays instead', '?debug&intro=full&night=0', PHONE, async page => {
+  await page.route('**/mochi-opening.mp4', r => r.abort());
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.cine', {timeout: 60000}).catch(async () => { throw new Error('no sequence, stage ' + await stage(page)); });
+  if (await page.evaluate(() => document.getElementById('title').classList.contains('film'))) throw new Error('film class left on');
+  await page.waitForFunction(() => kitten.title.cine?.T > 1, null, {timeout: 600000});
+  await page.click('#title', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.reveal', {timeout: 60000});
+  await tapOut(page);
+});
+for (const [name, q, opts] of [['night', '?debug&intro=full&night=1', PHONE], ['the Christmas look', '?debug&intro=full&night=0&decor=christmas', PHONE], ['the first Mochi', '?debug&intro=full&night=0&mochi=first', PHONE], ['a wide screen', '?debug&intro=full&night=0', DESK]])
+  await run('no film in ' + name + ': the sequence', q, opts, async page => {
+    await withFilm(page);
+    await page.waitForSelector('#title.gate', {timeout: 120000});
+    await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+    await page.waitForTimeout(800);
+    if (await stage(page) !== 'cine') throw new Error('stage is ' + await stage(page));
+    await page.waitForFunction(() => kitten.title.cine?.T > 1, null, {timeout: 600000});
+    await page.click('#title', {timeout: 120000, noWaitAfter: true});
+    await page.waitForSelector('#title.reveal', {timeout: 60000});
+    await tapOut(page);
+  });
+await run('a save from before: no first steps', '?debug', PHONE, async page => {
+  await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; if (!localStorage[k]) localStorage[k] = JSON.stringify({v: 2, name: 'Mochi', bond: 12, cuddles: 3, updated: Date.now()}); });
+  await page.reload();
+  await page.waitForSelector('#loading.done', {state: 'attached', timeout: 120000});
+  await page.waitForTimeout(1500);
+  const h = await page.evaluate(() => ({teach: document.getElementById('scene-hint').classList.contains('teach'), step: kitten.teach}));
+  if (h.teach || h.step) throw new Error('an old save is being taught: ' + JSON.stringify(h));
 });
 await run('phone, short', '?night=0&intro=short', PHONE, through('phone'));
 await run('desktop, night, Enter key, short', '?night=1&intro=short', DESK, through('desk', 'Enter'));
