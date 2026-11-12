@@ -1,6 +1,7 @@
 // Short clip of her legs, the camera following from the side, for checking
 // by eye. Writes OUT (default qa-out/<scene>.mp4; needs ffmpeg).
 //   SCENE=walk|turn|run|gallop|sprint|swat|bed|shelf|jump node tools/qa/clip.mjs     (SEED=777, SEC=6, FPS=20)
+// FLAGS: extra page flags, e.g. FLAGS='&mochi=longhair' for the long-haired Mochi.
 // (sprint: flat out across the room and back, seen from the side; a gallop
 // strides 3 or 4 times a second, so film it at FPS=30 or more.)
 // Old build vs new: run it from each checkout, then put the two side by side:
@@ -10,7 +11,7 @@ import fs from 'node:fs'; import path from 'node:path'; import {execFileSync} fr
 const SCENE = process.env.SCENE || 'gallop', SEC = +(process.env.SEC || 6), FPS = +(process.env.FPS || 20);
 const OUT = path.resolve(process.env.OUT || `qa-out/${SCENE}.mp4`), DIR = OUT + '.frames';
 fs.rmSync(DIR, {recursive: true, force: true}); fs.mkdirSync(DIR, {recursive: true});
-const {page, step, close} = await open({seed: +(process.env.SEED || 777), width: 480, height: 360, kitchen: SCENE === 'shelf'});
+const {page, step, close} = await open({seed: +(process.env.SEED || 777), width: 480, height: 360, kitchen: SCENE === 'shelf', flags: process.env.FLAGS || ''});
 const settle = async (until, n = 60) => { for (let i = 0; i < n; i++) { await step(10); if (await page.evaluate(until)) return; } };
 // Set the scene up (not recorded).
 if (SCENE === 'bed') {

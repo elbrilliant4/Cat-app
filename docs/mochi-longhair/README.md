@@ -64,6 +64,14 @@ warmed): `compare-warmed.jpg`. Only `dist/assets/mochi-longhair-hq.glb`
 is warmed; the 300,000 triangle copy in `models/` is as Meshy made it.
 Meshy's license: Merlin says it allows a public site.
 
+## In the app, behind a switch (2026-11-12)
+Merlin asked to see her move before the fur was done. `?mochi=longhair` on
+the app's address loads her in place of the first Mochi (`LONGHAIR` in
+`app.js`); without it nothing changes. She walks, sits and uses the rooms
+with the existing movement code. Clip: `walk-in-room.mp4`
+(`SCENE=walk FLAGS='&mochi=longhair&intro=0' node tools/qa/clip.mjs`).
+Her fur shells there still use the first Mochi's regions and lengths.
+
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
   ("not a humanoid"), no charge. Ours are worked out in code at load.

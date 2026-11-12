@@ -375,7 +375,9 @@ brushRig.add(brushTool);
 // default; ?motion=classic brings back the earlier animation for comparison
 // or as a quick rollback.
 const CLASSIC_MOTION = new URLSearchParams(location.search).get('motion') === 'classic';
-const cat = new RealCat(CLASSIC_MOTION ? {} : {rig: 2});
+// ?mochi=longhair: the long-haired Mochi (docs/mochi-longhair), to try her in the rooms.
+const LONGHAIR = new URLSearchParams(location.search).get('mochi') === 'longhair';
+const cat = new RealCat(LONGHAIR ? {rig: 2, model: 'longhair'} : CLASSIC_MOTION ? {} : {rig: 2});
 scene.add(cat.root);
 cat.root.add(brushRig);
 
@@ -535,7 +537,7 @@ function onRug(v) {
 const randomRugPoint = () => place !== room ? place.randomFloorPoint() : onRug(new THREE.Vector3(rand(-1.4, 1.4), 0, rand(-.7, 1.2)));
 
 let ready = false;
-cat.load('./assets/mochi-ragdoll.glb', p => {
+cat.load(LONGHAIR ? './assets/mochi-longhair-hq.glb' : './assets/mochi-ragdoll.glb', p => {
   if (!p.total) return;
   const pct = Math.round(p.loaded / p.total * 100);
   $('#load-fill').style.width = pct + '%';
