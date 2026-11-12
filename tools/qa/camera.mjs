@@ -133,11 +133,13 @@ const [ccx] = await screenOf(cc); await shot('7c-pinched-in-from-room');
 const herAt = await screenOf(await page.evaluate(() => kitten.cat.root.position.toArray()));
 const onHer = Math.hypot(herAt[0] - 195, herAt[1] - 400) < 60;
 line('pinch in from the room goes where the fingers are', onHer ? r1.mode === 'follow' : r1.mode === 'free' && r1.dist < r0.dist * .7, `fingers ${onHer ? 'on her' : 'on the floor'}: ${r0.mode} at ${r0.dist.toFixed(1)} m to ${r1.mode} at ${r1.dist.toFixed(1)} m`);
-// (Pinching in on her from the whole room: her view.)
+// (Pinching in on her from the whole room: her view. She is set in the open
+// middle first: earlier checks walked her about, maybe under the care bar.)
+await page.evaluate(() => { kitten.brain.pos.set(0, 0, .3); kitten.cat.root.position.set(0, 0, .3); kitten.brain.mode = 'idle'; });
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80);
 { const [hx, hy] = await screenOf(await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .2; return p.toArray(); }));
   await touch('touchStart', [[hx - 40, hy], [hx + 40, hy]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[hx - 40 - i * 9, hy], [hx + 40 + i * 9, hy]]); await step(2); } await touch('touchEnd', []); await step(60);
-  const rh = await state(); line('pinch in on her goes to her', rh.mode === 'follow', `mode ${rh.mode} at ${rh.dist.toFixed(1)} m`); }
+  const rh = await state(); line('pinch in on her goes to her', rh.mode === 'follow', `fingers at ${hx.toFixed(0)}, ${hy.toFixed(0)}: mode ${rh.mode} at ${rh.dist.toFixed(1)} m`); }
 await pinchBy(130, 30); await pinchBy(130, 30); const r2 = await state();
 line('pinch out gives the room back', r2.mode === 'room', `mode ${r2.mode} at ${r2.dist.toFixed(1)} m`);
 await look(HOME); await step(2);
