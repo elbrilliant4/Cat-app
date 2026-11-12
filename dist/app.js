@@ -184,7 +184,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap ${perchHint()} to invite her · double tap to zoom` : `Stroke ${pet.name} to pet · click ${perchHint()} to invite her up · drag to look around · scroll to zoom · double click for a closer look`;
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the floor to call her · pinch to come closer` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to look around · scroll to come closer`;
 }
 
 function showDeltas(before) {
@@ -1906,6 +1906,78 @@ function finishMode() {
   refresh();
 }
 
+// How she takes a touch, by where it lands. Her chin is the favourite; the
+// tail and paws are not for touching (dislikeTouch).
+const PET_ZONES = {
+  head: {face: 'joy', rub: 1.8, tail: 2.5, hearts: 5, lines: ['Right behind the ears. Perfect.', 'More of that, please.', 'You have excellent petting skills.', 'I like it here. Especially with you.']},
+  chin: {face: 'love', rub: 1.2, tail: 2, hearts: 7, lines: ['Chin scratches. Yes. There.', 'Mmm… a little to the left.', 'That is the spot. Remember it.', 'Purrrr…']},
+  back: {face: 'joy', rub: .5, tail: 4.5, hearts: 4, lines: ['All the way down to the tail, please.', 'Long strokes. Lovely.', 'Purrrr…', 'Keep going.']},
+};
+// Which part of her a point on her coat belongs to: the nearest of a few
+// points on her skeleton. (By bone name, so a new model with the same rig
+// keeps its spots.)
+const ZONE_BONES = [['head', 'earL'], ['head', 'earR'], ['back', 'neck'], ['back', 'chest'], ['back', 'spine'], ['back', 'hips'], ['back', 'tail0'],
+  ['tail', 'tail2'], ['tail', 'tail3'], ['tail', 'tail4'], ['tail', 'tail5'], ['tail', 'tail6'], ['tail', 'tail7'],
+  ['paws', 'wristL'], ['paws', 'wristR'], ['paws', 'hockL'], ['paws', 'hockR']];
+const zonePt = new THREE.Vector3();
+function zoneAt(point) {
+  let best = 'back', d = Infinity;
+  const near = (zone, p, k = 1) => { const x = p.distanceTo(point) * k; if (x < d) { d = x; best = zone; } };
+  near('head', cat.headTop(zonePt));
+  near('head', cat.head.localToWorld(zonePt.set(0, .2, .2)));
+  near('head', cat.head.localToWorld(zonePt.set(0, .12, .26)));
+  near('chin', cat.head.localToWorld(zonePt.set(0, -.05, .16)));
+  for (const [zone, bone] of ZONE_BONES) if (cat.bones[bone]) near(zone, cat.bones[bone].getWorldPosition(zonePt), zone === 'paws' ? 1.25 : 1);
+  return best;
+}
+// A touch on her, wherever it lands.
+let lastDislike = -10, dislikes = [];
+function touchCat(zone, opts = {}) {
+  if (!ready) return;
+  if ((zone === 'tail' || zone === 'paws') && brain.activity !== 'belly') { dislikeTouch(zone); return; }
+  // (Care only counts every so often, but she always feels the hand.)
+  if (!pet.sleeping && clockNow - lastPet < .9) { brain.strokeUntil = clockNow + .6; burst('heart', 1, opts.at || headScreen); return; }
+  act('pet', {...opts, zone});
+}
+// The tail and the paws: ears flick, a look, a word. Keep at it and she
+// moves away from your hand.
+function dislikeTouch(zone) {
+  if (pet.sleeping) { twitchEar(undefined, .8); return; }
+  if (clockNow - lastDislike < 1.4) return;
+  lastDislike = clockNow;
+  brain.strokeUntil = 0;
+  brain.content = Math.max(0, (brain.content || 0) - .25);
+  express(zone === 'tail' ? 'grumpy' : 'surprised', zone === 'tail' ? 1.6 : .8);
+  twitchEar(0, 1.4); twitchEar(1, 1.4);
+  glanceAt(camera.position, 1.8);
+  say(pick(zone === 'tail' ? ['Not the tail.', 'Excuse me. That is my tail.', '*tail flick*'] : ['My toes!', 'Those are my beans. Mine.', 'Paws are private.']), 2200);
+  dislikes = dislikes.filter(x => clockNow - x < 10).concat(clockNow);
+  if (dislikes.length >= 3 && brain.mode === 'idle' && !brain.perch && !brain.jump && ['sit', 'loaf', 'stand', 'walk'].includes(brain.activity)) {
+    dislikes = [];
+    const away = tmpV.subVectors(brain.pos, camera.position).setY(0).normalize().multiplyScalar(1.1).add(brain.pos);
+    walkTo(away, () => { setActivity('sit'); glanceAt(camera.position, 2); });
+  }
+}
+// A tap on the floor calls her over. She comes unless she is busy or asleep.
+function callTo(x, y) {
+  if (!ready || brain.mode === 'play') return;
+  setPointer({clientX: x, clientY: y});
+  const hit = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(groundPlane, hit) || hit.x < LIMITS.x[0] || hit.x > LIMITS.x[1] || hit.z < LIMITS.z[0] || hit.z > LIMITS.z[1]) return;
+  const r = host.getBoundingClientRect();
+  pawAt(x - r.left, y - r.top);
+  if (pet.sleeping) { twitchEar(undefined, .6); return; }
+  if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
+  const to = onRug(hit.setY(0));
+  if (Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z) < .4 && !brain.perch) { glanceAt(camera.position, 2); slowBlink(); return; }
+  brain.mode = 'idle';
+  brain.nextIdle = clockNow + 9;
+  glanceAt(to.clone().setY(.2), 1.2);
+  later(.3, () => meow('chirp', 'idle'));
+  brain.tailUpUntil = clockNow + 4;
+  walkTo(to, () => { setActivity('sit'); glanceAt(camera.position, 2.4); later(.8, slowBlink); }, Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z) > 2.6);
+}
+
 let lastPet = -10;
 function act(a, opts = {}) {
   advance(pet);
@@ -1983,20 +2055,31 @@ function act(a, opts = {}) {
     lastPet = t;
     // Stop wandering to enjoy the attention.
     if (brain.mode === 'idle' && brain.activity === 'walk') { brain.target = null; brain.after = null; setActivity('sit'); }
-    brain.petTimes = brain.petTimes.filter(x => t - x < 12).concat(t);
-    const rollOver = brain.petTimes.length >= 3 && ['sit', 'loaf'].includes(brain.activity) && brain.mode === 'idle';
+    // Contentment builds with every welcome touch (her chin most of all)
+    // and fades when she is left alone. Full, she may roll over for you,
+    // or just blink slowly: she decides.
+    const zone = brain.activity === 'belly' && !['head', 'chin'].includes(opts.zone) ? 'belly' : opts.zone || 'head';
+    brain.content = Math.max(0, (brain.content || 0) - (t - (brain.contentAt ?? t)) * .04) + ({chin: .3, head: .22, belly: .1}[zone] ?? .16);
+    brain.contentAt = t;
+    const full = brain.content >= 1 && ['sit', 'loaf'].includes(brain.activity) && brain.mode === 'idle';
+    const rollOver = full && Math.random() < .6;
+    if (full) { brain.content = rollOver ? 0 : .5; if (!rollOver) later(.6, slowBlink); }
     if (rollOver) {
-      brain.petTimes = [];
       setActivity('belly', 5, () => { setActivity('sit'); hop(); });
       say(pick(['Belly rubs?! Just this once…', 'You may pet the floof.', 'Purrrr… I trust you.']), 3200);
       burst('heart', 7);
+    } else if (zone === 'belly') {
+      // The belly: with a good friend, bliss. Otherwise it is a trap.
+      if (pet.bond >= 40) { express('love', 2.2); burst('heart', 6, opts.at || headScreen); if (!opts.quiet) say(pick(['Only you get to do this.', 'Softest spot. Be gentle.', 'Purrrr…']), 2800); }
+      else { express('excited', 1.4); hop(); burst('sparkle', 3, opts.at || headScreen); if (!opts.quiet) say(pick(['Got your hand!', '*bunny kicks*', 'It was a trap. It is always a trap.']), 2600); }
     } else {
-      express(opts.stroke ? 'bliss' : pet.bond >= 100 && Math.random() < .4 ? 'love' : 'joy', 2.2);
-      brain.rubUntil = t + (opts.stroke ? 1.2 : 1.8);
-      brain.tailUpUntil = t + 2.5;
-      if (!opts.stroke && brain.activity !== 'belly') hop();
-      burst('heart', opts.stroke ? 3 : 5, opts.at || headScreen);
-      if (!opts.quiet) say(pick(['I like it here. Especially with you.', 'More of that, please.', 'You have excellent petting skills.', 'Purrrr…', 'Right behind the ears. Perfect.']), 3000);
+      const Z = PET_ZONES[zone] || PET_ZONES.head;
+      express(zone === 'chin' ? 'love' : opts.stroke ? 'bliss' : pet.bond >= 100 && Math.random() < .4 ? 'love' : Z.face, 2.2);
+      brain.rubUntil = t + (opts.stroke ? Z.rub * .7 : Z.rub);
+      brain.tailUpUntil = t + Z.tail;
+      if (!opts.stroke && zone === 'head') hop();
+      burst('heart', opts.stroke ? Math.ceil(Z.hearts / 2) : Z.hearts, opts.at || headScreen);
+      if (!opts.quiet) say(pick(Z.lines), 3000);
     }
     brain.kneadUntil = t + 2.4;
     purr(2.2);
@@ -2178,9 +2261,11 @@ function updatePlay(dt, t) {
 // ---------------------------------------------------------------------------
 // Camera: an orbit around a focus point. Everything is eased toward `goal`.
 //   one finger / left mouse  orbit (glides on after a flick)
-//   pinch / wheel            zoom, towards the fingers or the pointer
-//   two fingers / right drag pan; two fingers twisting turn the view
-//   double tap               her: a close-up that follows; the room: closer to that spot
+//   pinch / wheel            closer or further, always about her: her face, all
+//                            of her, the whole room (which settles back after a look round)
+//   two fingers twisting     turn the view;  right drag (mouse): slide it, a view of your own
+//   tap                      her: a pat, by where it lands; the floor: she comes
+//   double tap on her        a close-up that follows
 //   buttons                  whole room, follow Mochi, food, water, bed
 const view = {
   focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
@@ -2189,7 +2274,7 @@ const view = {
   // zoomHeld: you chose the zoom, so following her leaves it alone. fling: the
   // turn still running after a flick. shown: how far the camera really is
   // (walls and furniture can hold it closer than `dist`).
-  zoomHeld: false, fling: null, shown: 7, auto: 7, far: 0, farY: 0,
+  zoomHeld: false, fling: null, shown: 7, auto: 7, far: 0, farY: 0, push: 0, home: null,
 };
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.13);
@@ -2208,7 +2293,8 @@ function setPointer(e) {
   ray.setFromCamera(pointer, camera);
   return r;
 }
-function hitsCat() { return ready && ray.intersectObjects(cat.meshes, false).length > 0; }
+function catHit() { return ready ? ray.intersectObjects(cat.meshes, false)[0] || null : null; }
+function hitsCat() { return !!catHit(); }
 function hitsFountain() { return ready && ray.intersectObjects(room.clickables, false).length > 0; }
 // Which perch (if any) is under the pointer: the window and its sill, the
 // chair, or the fireplace and its mantel.
@@ -2285,6 +2371,8 @@ function clampGoal() {
   view.farY = Math.max(LIMITS.y[1], Math.min(view.farY, g.focus.y));
   g.dist = clamp(g.dist, LIMITS.dist[0], view.far);
   g.pitch = clamp(g.pitch, ...LIMITS.pitch);
+  // (The whole-room view only looks a little way round, and comes back.)
+  if (view.mode === 'room' && view.home) g.yaw = clamp(g.yaw, view.home.yaw - 1.1, view.home.yaw + 1.1);
   g.focus.x = clamp(g.focus.x, ...LIMITS.x);
   g.focus.y = clamp(g.focus.y, LIMITS.y[0], view.farY);
   g.focus.z = clamp(g.focus.z, ...LIMITS.z);
@@ -2293,7 +2381,6 @@ function orbit(dx, dy) {
   view.goal.yaw -= dx * .008;
   view.goal.pitch += dy * .006;
   view.lastDrag = clockNow;
-  if (view.mode === 'room' || view.mode === 'spot') setCamMode('free');
   clampGoal();
 }
 function pan(dx, dy) {
@@ -2334,6 +2421,18 @@ function pointUnder(x, y) {
 // never leaves a stretch of pinching that does nothing.
 function zoomBy(f, at) {
   const g = view.goal;
+  // One line in and out, always about her: her face, all of her, the whole
+  // room. From the whole room, pinching in goes to her; from her, pinching
+  // out far enough gives the whole room back.
+  if (clockNow - view.zoomedAt > .5) view.push = 0;
+  if (view.mode === 'room') {
+    view.zoomedAt = clockNow;
+    view.push -= Math.log(f);
+    if (f >= 1 || view.push < .06 || !ready) return;
+    const from = Math.min(g.dist, view.shown, 8.5);
+    setCamMode('follow');
+    g.dist = from; view.zoomHeld = true; view.push = 0;
+  }
   // (Following her with the zoom left to the camera: start from what it chose.)
   // Squeezed against a wall, nearer than the nearest zoom: nothing closer to go to.
   if (f < 1 && view.shown < LIMITS.dist[0] && view.shown < view.dist - .02) { g.dist = LIMITS.dist[0]; view.zoomedAt = clockNow; return; }
@@ -2344,6 +2443,10 @@ function zoomBy(f, at) {
   if (f < 1 && held && view.shown < g.dist) { view.dist = view.shown; view.cut = 0; }
   const reach = Math.max(from, boxArm(view.focus, camOffset, LIMITS.dist[1]));
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
+  if (view.mode === 'follow' && f > 1) {
+    if (to < from * f - 1e-3) view.push += Math.log(f);
+    if (to > 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
+  }
   const k = to / from;
   g.dist = to;
   view.lastDrag = view.zoomedAt = clockNow;
@@ -2357,26 +2460,13 @@ function zoomBy(f, at) {
   }
   clampGoal();
 }
-// A double tap. On her: a close-up that follows her. On the room: closer to
-// that spot; already close, back out to the whole room.
-function doubleTap(x, y, onCat) {
-  if (onCat) {
-    // (Already following her: quick pats stay pats.)
-    if (view.mode === 'follow') return;
-    CAMERA_VIEWS.follow();
-    view.goal.dist = clamp(fitDistance(framing(false).radius) * .5, LIMITS.dist[0], 6);
-    view.zoomHeld = true;
-    return;
-  }
-  if (view.mode !== 'room' && view.goal.dist < 2.8) { CAMERA_VIEWS.room(); return; }
-  const p = pointUnder(x, y);
-  if (!p) return;
-  p.y = Math.max(p.y, .3);
-  view.goal.focus.copy(p);
-  view.goal.dist = Math.max(LIMITS.dist[0], Math.min(view.goal.dist, view.shown) * .5);
-  setCamMode('free');
+// A double tap on her: a close-up that follows her.
+function doubleTap() {
+  // (Already following her: quick pats stay pats.)
+  if (view.mode === 'follow') return;
+  CAMERA_VIEWS.follow();
+  view.goal.dist = clamp(fitDistance(framing(false).radius) * .5, LIMITS.dist[0], 6);
   view.zoomHeld = true;
-  clampGoal();
 }
 
 // Ready-made views. Tall (phone) screens stand back a little further.
@@ -2487,6 +2577,7 @@ const CAMERA_VIEWS = {
     Object.assign(view.goal, {yaw: fit.yaw, pitch: fit.pitch, dist: fit.dist});
     view.goal.focus.copy(fit.focus);
     view.far = fit.dist; view.farY = fit.focus.y;
+    view.home = {yaw: fit.yaw, pitch: fit.pitch};
     setCamMode('room');
   },
   follow() {
@@ -2523,10 +2614,10 @@ host.addEventListener('pointerdown', e => {
   if (touches.size > 2) return;
   const r = trackPointer(e);
   const panning = e.button === 2 || e.shiftKey;
-  const onCat = !panning && brain.mode !== 'play' && hitsCat();
+  const on = !panning && brain.mode !== 'play' ? catHit() : null, onCat = !!on;
   const onFountain = !panning && !onCat && brain.mode !== 'play' && hitsFountain();
   const onPerch = !panning && !onCat && !onFountain && brain.mode !== 'play' ? perchAt() : null;
-  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, onPerch, panning, stroke: 0, rect: r, t0: e.timeStamp, lastT: e.timeStamp, vx: 0, vy: 0, turning: false};
+  gesture = {x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false, onCat, onFountain, onPerch, panning, stroke: 0, rect: r, t0: e.timeStamp, lastT: e.timeStamp, vx: 0, vy: 0, turning: false, zone: on ? zoneAt(on.point) : null, zoneT: e.timeStamp, petAt: -10, off: false};
   if (onCat) host.classList.add('stroking');
 });
 host.addEventListener('pointermove', e => {
@@ -2536,8 +2627,8 @@ host.addEventListener('pointermove', e => {
     const [p1, p2] = [...touches.values()];
     const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d, {x: mx, y: my});
-    // (Following her, the camera keeps following: the pinch only zooms and turns.)
-    if (view.mode !== 'follow') pan(mx - pinch.mx, my - pinch.my);
+    // (Only a view you moved yourself slides about: otherwise the pinch zooms and turns.)
+    if (view.mode === 'free') pan(mx - pinch.mx, my - pinch.my);
     // Twisting the two fingers turns the view (once it is clearly a twist,
     // so a plain pinch stays straight).
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -2546,7 +2637,7 @@ host.addEventListener('pointermove', e => {
     let twist = pinch.twist;
     if (d > 60) {
       if (Math.abs(twist) < .14) { twist += da; da = Math.abs(twist) < .14 ? 0 : twist - Math.sign(twist) * .14; }
-      if (da) { view.goal.yaw += da; view.lastDrag = clockNow; }
+      if (da) { view.goal.yaw += da; view.lastDrag = clockNow; clampGoal(); }
     }
     pinch = {d, mx, my, a, twist};
     return;
@@ -2560,12 +2651,19 @@ host.addEventListener('pointermove', e => {
   const sx = e.clientX - gesture.lastX, sy = e.clientY - gesture.lastY;
   if (Math.abs(dx) + Math.abs(dy) > 8) gesture.moved = true;
   if (gesture.onCat) {
+    // Stroking: she feels the hand all the way along, and knows where it is.
     const step = Math.hypot(sx, sy);
-    gesture.stroke += step;
-    if (!pet.sleeping && step > 1) brain.strokeUntil = clockNow + .5;
-    if (gesture.stroke > 240) {
-      gesture.stroke = 0;
-      act('pet', {stroke: true, quiet: clockNow - lastPet < 6, at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
+    if (step > 1) {
+      if (e.timeStamp - gesture.zoneT > 120) { const h = catHit(); gesture.zoneT = e.timeStamp; gesture.off = !h; if (h) gesture.zone = zoneAt(h.point); }
+      const at = {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top};
+      if (!gesture.off) {
+        gesture.stroke += step;
+        if (['tail', 'paws'].includes(gesture.zone) && brain.activity !== 'belly') { if (gesture.stroke > 40) touchCat(gesture.zone, {at}); }
+        else {
+          if (!pet.sleeping) brain.strokeUntil = clockNow + .5;
+          if (gesture.stroke > 70 && clockNow - gesture.petAt > .45) { gesture.stroke = 0; gesture.petAt = clockNow; touchCat(gesture.zone, {stroke: true, quiet: clockNow - lastPet < 6, at}); }
+        }
+      }
     }
   } else if (gesture.panning) {
     pan(sx, sy);
@@ -2594,11 +2692,11 @@ function endGesture(e) {
     if (rest && brain.mode !== 'play') gesture = {x: rest.x, y: rest.y, lastX: rest.x, lastY: rest.y, moved: true, stroke: 0, rect: host.getBoundingClientRect(), t0: e.timeStamp, lastT: e.timeStamp, vx: 0, vy: 0, turning: false};
     return;
   }
-  if (gesture && !gesture.moved && brain.mode !== 'play' && !gesture.panning && !gesture.onFountain && !gesture.onPerch && e.type === 'pointerup') {
+  if (gesture && !gesture.moved && gesture.onCat) {
     // Two quick taps in one place.
     if (lastTap && e.timeStamp - lastTap.t < 340 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 34) {
       lastTap = null;
-      doubleTap(e.clientX, e.clientY, gesture.onCat);
+      doubleTap();
       gesture = null;
       host.classList.remove('stroking', 'dragging');
       return;
@@ -2612,7 +2710,9 @@ function endGesture(e) {
     else act('drink');
   }
   if (gesture && !gesture.moved && gesture.onPerch) { pawAt(e.clientX - gesture.rect.left, e.clientY - gesture.rect.top); invite(gesture.onPerch); }
-  if (gesture && !gesture.moved && gesture.onCat) act('pet', {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
+  if (gesture && !gesture.moved && gesture.onCat) touchCat(gesture.zone, {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
+  // A tap on the bare floor calls her there.
+  if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && e.timeStamp - gesture.t0 < 400) callTo(e.clientX, e.clientY);
   gesture = null;
   host.classList.remove('stroking', 'dragging');
 }
@@ -3146,6 +3246,11 @@ function updateCamera(dt) {
     clampGoal();
   }
   const g = view.goal, following = view.mode === 'follow' && ready;
+  // The whole-room view settles back a moment after you let go.
+  if (view.mode === 'room' && view.home && !gesture && !pinch && !view.fling && clockNow - view.lastDrag > 1.8) {
+    g.yaw = damp(g.yaw, view.home.yaw, 2.2, dt);
+    g.pitch = damp(g.pitch, view.home.pitch, 2.2, dt);
+  }
   let distGoal = g.dist;
   if (following) {
     // Keep Mochi (and, while playing, the toy) comfortably in frame. The
@@ -3297,7 +3402,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

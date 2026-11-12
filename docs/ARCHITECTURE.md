@@ -69,14 +69,23 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 
 **Camera** (app.js, "Input"): an orbit round `view.focus`; everything eases
-towards `view.goal`. `view.shown` is how far the camera really is (walls,
-`boxArm`, and furniture hold it closer than `view.dist`); `zoomBy(f, at)`
-always starts from it and keeps the room point under `at` (`pointUnder`:
-her, the floor, else the focus depth) in place. `view.zoomHeld` = the
-player chose the zoom, so follow leaves it (and looks at her face when
-closer than her whole body); any view button clears it. `view.fling` = the
-glide after a flick. Touch times come from `e.timeStamp` (the QA freezes
-`performance.now`).
+towards `view.goal`. The player never has to steer it: `zoomBy` is one line
+in and out about her (`room` → pinch in → `follow`; far out → `room`), the
+`room` view lets you look round (`view.home` ± 1.1) and settles back, and
+only a mouse right-drag makes a view of your own (`free`, where zoom goes to
+the pointer, `pointUnder`). `view.shown` is how far the camera really is
+(walls, `boxArm`, and furniture hold it closer than `view.dist`); zoom
+starts from it. `view.zoomHeld` = the player chose the zoom, so follow
+leaves it (and looks at her face when closer than her whole body).
+`view.fling` = the glide after a flick. Touch times come from `e.timeStamp`
+(the QA freezes `performance.now`).
+
+**Touch** (app.js, above `act`): the pointer hits invisible spheres on her
+bones (`real-cat.js`, "colliders"; tail and paws included). `zoneAt(point)`
+names the part (head, chin, back, tail, paws) by the nearest skeleton point,
+`touchCat(zone)` sends welcome touches to `act('pet', {zone})` (`PET_ZONES`,
+`brain.content` builds towards a roll-over) and tail or paws to
+`dislikeTouch`. `callTo(x, y)`: a tap on the floor, she walks there.
 
 `updateCat` order: idle and night choices (`idleLife`, `nightLife`) →
 movement toward `brain.target` (heading, turn caps) → eyes, head, gaze →
