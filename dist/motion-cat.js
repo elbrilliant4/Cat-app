@@ -50,7 +50,7 @@ const HIND_LIFT = +(AB.get('hindlift') || 1), NARROW = !OLD && AB.get('track') !
 const STRIDE_K = LONG ? 1.2 : 1, SWAY = +(AB.get('sway') || (OLD ? 1 : .5));
 const CARRY_LOW = +(AB.get('low') || (OLD ? 0 : .05));
 // (A pat's roll of the chest: her right shoulder up.)
-const SWAT_ROLL = +(AB.get('swatroll') || .14);
+const SWAT_ROLL = +(AB.get('swatroll') || .2);
 
 // Pose targets, relative to her standing stance (pelvis offsets in her own
 // frame; paw places relative to the standing ones; angles in radians).
@@ -370,11 +370,11 @@ export class MotionCat {
       const T = this.patAt.set(S.mid - .06, .07, S.frontZ + .3), hx = this.home0.RF.x;
       if (ctl.swatAt) {
         const loc = root.worldToLocal(_m.copy(ctl.swatAt));
-        if (Math.hypot(loc.x, loc.z - S.frontZ) < 1.4) T.set(clamp(loc.x, hx - .1, hx + .22), clamp(loc.y + .03, .05, .5), clamp(loc.z - .04, S.frontZ + .16, S.frontZ + .36));
+        if (Math.hypot(loc.x, loc.z - S.frontZ) < 1.4) T.set(clamp(loc.x, hx - .1, hx + .22), clamp(loc.y + .03, .05, .5), clamp(loc.z - .04, S.frontZ + .16, S.frontZ + .43));
       }
     }
     const dip = clamp((.5 - this.patAt.y) / .4, 0, 1);
-    pelvis.pos.x += .04 * lean; pelvis.pos.z += .045 * out; pelvis.roll += SWAT_ROLL * .5 * lean; pelvis.pitch -= .05 * out * dip;
+    pelvis.pos.x += .06 * lean; pelvis.pos.z += .075 * out - .02 * lean * (1 - Math.max(0, ctl.swatReach || 0)); pelvis.roll += SWAT_ROLL * .5 * lean; pelvis.pitch -= .09 * out * dip;
     // Air: the body follows the arc (nose up rising, down falling).
     if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
     // Landing: she sinks on her legs, front first, and comes back up.
@@ -400,9 +400,9 @@ export class MotionCat {
       // draws back a little, then hooks up and over and comes down on the
       // thing, the wrist flicking flat as it lands.)
       if (ctl.swat > .02 && k === 'RF') {
-        const r = ctl.swatReach ?? 1, o = Math.max(0, r), up = _m.copy(local).add(_s.set(.02, .22 + .04 * Math.max(0, -r), .02 + .28 * Math.min(0, r)));
+        const r = ctl.swatReach ?? 1, o = Math.max(0, r), up = _m.copy(local).add(_s.set(.02, .28 + .05 * Math.max(0, -r), .02 + .4 * Math.min(0, r)));
         free = true;
-        up.lerp(this.patAt, o).y += .1 * Math.sin(Math.PI * o);
+        up.lerp(this.patAt, o).y += .16 * Math.sin(Math.PI * o);
         local.lerp(up, ctl.swat);
         pitch = lerp(pitch, lerp(-1.35, .15, smoothstep(o, .5, 1)), ctl.swat);
       }
@@ -441,9 +441,9 @@ export class MotionCat {
     this.tailBob = damp(this.tailBob || 0, -rw * (.1 * saw + .06 * flex), 10, dt);
     const state = {
       pelvis,
-      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .17 * flex - .06 * out * dip, roll: c.spineRoll + chestRoll * .5},
-      chest: {yaw: c.chestYaw - rock + .16 * lean + .14 * out, pitch: c.chest - .035 * ww - rw * (.02 + .07 * flex) - (.04 * lean + .12 * out) * (.4 + .6 * dip), roll: chestRoll * .5 + SWAT_ROLL * lean},
-      head: {yaw: head.yaw + c.headYaw, pitch: head.pitch + c.headPitch - (.08 + .14 * dip) * lean - .08 * out, roll: (head.roll || 0) + c.headRoll + SWAT_ROLL * .6 * lean},
+      spine: {yaw: c.spineYaw - .5 * pelvis.yaw * ww + .02 * ((sw.LF || 0) - (sw.RF || 0)) * ww - (ctl.wiggle || 0) * Math.sin(t * 20) * .08, pitch: c.spine - rw * .17 * flex - .1 * out * dip, roll: c.spineRoll + chestRoll * .5},
+      chest: {yaw: c.chestYaw - rock + .22 * lean + .2 * out, pitch: c.chest - .035 * ww - rw * (.02 + .07 * flex) - (.06 * lean + .2 * out) * (.4 + .6 * dip), roll: chestRoll * .5 + SWAT_ROLL * lean},
+      head: {yaw: head.yaw + c.headYaw, pitch: head.pitch + c.headPitch - (.1 + .2 * dip) * lean - .12 * out, roll: (head.roll || 0) + c.headRoll + SWAT_ROLL * .6 * lean},
       neckShare: .5 + .25 * rw, headLevel: {y: this.headAvg, w: .9 * rw},
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,
