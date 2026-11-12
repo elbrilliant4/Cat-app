@@ -2189,7 +2189,7 @@ const view = {
   // zoomHeld: you chose the zoom, so following her leaves it alone. fling: the
   // turn still running after a flick. shown: how far the camera really is
   // (walls and furniture can hold it closer than `dist`).
-  zoomHeld: false, fling: null, shown: 7,
+  zoomHeld: false, fling: null, shown: 7, auto: 7, far: 0, farY: 0,
 };
 const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.13);
@@ -2198,6 +2198,10 @@ let gesture = null;
 const touches = new Map();
 let pinch = null;
 
+function seedPinch() {
+  const [p1, p2] = [...touches.values()];
+  pinch = {d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2, a: Math.atan2(p2.y - p1.y, p2.x - p1.x), twist: 0};
+}
 function setPointer(e) {
   const r = host.getBoundingClientRect();
   pointer.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
@@ -2275,10 +2279,14 @@ function setCamMode(mode) {
 }
 function clampGoal() {
   const g = view.goal;
-  g.dist = clamp(g.dist, ...LIMITS.dist);
+  // (The whole-room view may stand further back and look higher than the
+  // limits: that room is kept until you have come in from it.)
+  view.far = Math.max(LIMITS.dist[1], Math.min(view.far, g.dist));
+  view.farY = Math.max(LIMITS.y[1], Math.min(view.farY, g.focus.y));
+  g.dist = clamp(g.dist, LIMITS.dist[0], view.far);
   g.pitch = clamp(g.pitch, ...LIMITS.pitch);
   g.focus.x = clamp(g.focus.x, ...LIMITS.x);
-  g.focus.y = clamp(g.focus.y, ...LIMITS.y);
+  g.focus.y = clamp(g.focus.y, LIMITS.y[0], view.farY);
   g.focus.z = clamp(g.focus.z, ...LIMITS.z);
 }
 function orbit(dx, dy) {
@@ -2327,9 +2335,13 @@ function pointUnder(x, y) {
 function zoomBy(f, at) {
   const g = view.goal;
   // (Following her with the zoom left to the camera: start from what it chose.)
-  const base = view.mode === 'follow' && !view.zoomHeld ? view.shown : g.dist;
-  const from = f < 1 ? Math.min(base, view.shown) : base;
-  if (f < 1 && view.shown < view.dist) { view.dist = view.shown; view.cut = 0; }
+  // Squeezed against a wall, nearer than the nearest zoom: nothing closer to go to.
+  if (f < 1 && view.shown < LIMITS.dist[0] && view.shown < view.dist - .02) { g.dist = LIMITS.dist[0]; view.zoomedAt = clockNow; return; }
+  const base = view.mode === 'follow' && !view.zoomHeld ? view.auto : g.dist;
+  // Held closer by a wall or furniture (not just still gliding to a view).
+  const held = view.shown < view.dist - .02 && view.shown >= LIMITS.dist[0];
+  const from = Math.max(LIMITS.dist[0], f < 1 && held ? Math.min(base, view.shown) : base);
+  if (f < 1 && held && view.shown < g.dist) { view.dist = view.shown; view.cut = 0; }
   const reach = Math.max(from, boxArm(view.focus, camOffset, LIMITS.dist[1]));
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
   const k = to / from;
@@ -2343,24 +2355,23 @@ function zoomBy(f, at) {
       if (view.mode !== 'free') { setCamMode('free'); view.zoomHeld = true; }
     }
   }
-  // (The whole-room view may stand further back than the zoom limit.)
-  clampGoal(); g.dist = to;
+  clampGoal();
 }
 // A double tap. On her: a close-up that follows her. On the room: closer to
 // that spot; already close, back out to the whole room.
 function doubleTap(x, y, onCat) {
   if (onCat) {
+    // (Already following her: quick pats stay pats.)
+    if (view.mode === 'follow') return;
     CAMERA_VIEWS.follow();
     view.goal.dist = clamp(fitDistance(framing(false).radius) * .5, LIMITS.dist[0], 6);
     view.zoomHeld = true;
     return;
   }
   if (view.mode !== 'room' && view.goal.dist < 2.8) { CAMERA_VIEWS.room(); return; }
-  const hit = new THREE.Vector3();
-  setPointer({clientX: x, clientY: y});
-  const floor = ray.ray.intersectPlane(groundPlane, hit) && hit.distanceTo(camera.position) < 30;
-  const p = floor ? hit.setY(.3) : pointUnder(x, y);
+  const p = pointUnder(x, y);
   if (!p) return;
+  p.y = Math.max(p.y, .3);
   view.goal.focus.copy(p);
   view.goal.dist = Math.max(LIMITS.dist[0], Math.min(view.goal.dist, view.shown) * .5);
   setCamMode('free');
@@ -2475,6 +2486,7 @@ const CAMERA_VIEWS = {
     const fit = roomFrame();
     Object.assign(view.goal, {yaw: fit.yaw, pitch: fit.pitch, dist: fit.dist});
     view.goal.focus.copy(fit.focus);
+    view.far = fit.dist; view.farY = fit.focus.y;
     setCamMode('room');
   },
   follow() {
@@ -2504,8 +2516,7 @@ host.addEventListener('pointerdown', e => {
     // A second finger: switch from stroking/orbiting to pinch and pan.
     gesture = null;
     host.classList.remove('stroking', 'dragging');
-    const [p1, p2] = [...touches.values()];
-    pinch = {d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2, a: Math.atan2(p2.y - p1.y, p2.x - p1.x), twist: 0};
+    seedPinch();
     lastTap = null;
     return;
   }
@@ -2525,7 +2536,8 @@ host.addEventListener('pointermove', e => {
     const [p1, p2] = [...touches.values()];
     const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d, {x: mx, y: my});
-    pan(mx - pinch.mx, my - pinch.my);
+    // (Following her, the camera keeps following: the pinch only zooms and turns.)
+    if (view.mode !== 'follow') pan(mx - pinch.mx, my - pinch.my);
     // Twisting the two fingers turns the view (once it is clearly a twist,
     // so a plain pinch stays straight).
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -2573,6 +2585,8 @@ host.addEventListener('pointermove', e => {
 let lastTap = null;
 function endGesture(e) {
   touches.delete(e.pointerId);
+  // (One of three fingers lifted: start again from the two that are left.)
+  if (pinch && touches.size >= 2) { seedPinch(); return; }
   if (touches.size < 2 && pinch) {
     pinch = null;
     // One finger left down after a pinch: it carries on turning the view.
@@ -3150,6 +3164,7 @@ function updateCamera(dt) {
     // Your own zoom stays until you pick a view again. (While playing it
     // only wins for a while: the toy has to stay in the picture.)
     if (playing ? clockNow - view.zoomedAt > 8 : !view.zoomHeld) distGoal = Math.max(g.dist, fit);
+    view.auto = distGoal;
   }
   // (Leaving the title screen, the camera glides out slowly.)
   const slow = clockNow < view.glideUntil ? .22 : 1;

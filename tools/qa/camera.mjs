@@ -41,6 +41,12 @@ await wheel(6, -120); await step(30);
 const f1 = await state(); await step(260); const f2 = await state(); await shot('3-follow-close');
 line('follow keeps zoom', Math.abs(f2.dist - f1.dist) < .15 && f2.mode === 'follow', `${f1.dist.toFixed(2)} m after zooming in, ${f2.dist.toFixed(2)} m 13 s later (${f2.mode})`);
 
+// 3b. Squeezed against a wall, closer than the nearest zoom: zooming in leaves the view where it is.
+await look({focus: [-3.9, .5, 0], yaw: -1.57, pitch: .3, dist: 3}); await step(10);
+await page.mouse.move(box.x + box.w * .3, box.y + box.h * .3);
+await wheel(3, -120); await step(10); const q = await page.evaluate(() => kitten.view.goal.focus.toArray());
+line('zoom when squeezed', Math.hypot(q[0] + 3.9, q[1] - .5, q[2]) < .3, `focus now [${q.map(x => x.toFixed(2))}] (was [-3.9, .5, 0])`);
+
 // 4. Double tap on the floor: closer, on that spot. Again when close: the room.
 await look(HOME); await step(2);
 [x0, y0] = await screenOf([-1.2, 0, 1.2]);
@@ -76,6 +82,16 @@ for (let i = 1; i <= 10; i++) { await touch('touchMove', [[x0 - 30 - i * 8, y0],
 await touch('touchEnd', []); await step(30);
 [x1, y1] = await screenOf(P); const s1 = await state(); await shot('7-pinch');
 line('pinch at the fingers', Math.hypot(x1 - x0, y1 - y0) < 30 && s1.dist < s0.dist * .6, `spot moved ${Math.hypot(x1 - x0, y1 - y0).toFixed(0)} px while pinching ${s0.dist.toFixed(1)} m to ${s1.dist.toFixed(1)} m`);
+// (Pinching while following her keeps following; from the whole-room view a small pinch is a small move.)
+await page.evaluate(() => document.querySelector('[data-cam="follow"]').click()); await step(60);
+await touch('touchStart', [[150, 400], [240, 400]]);
+for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 4, 400], [240 + i * 4, 400 + i]]); await step(2); }
+await touch('touchEnd', []); await step(10); const pf = await state();
+line('pinch while following', pf.mode === 'follow', `mode ${pf.mode}, ${pf.dist.toFixed(2)} m`);
+await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const r0 = await state();
+await touch('touchStart', [[150, 400], [240, 400]]); await touch('touchMove', [[149, 400], [242, 400]]); await step(2);
+await touch('touchEnd', []); await step(40); const r1 = await state();
+line('small pinch from the room view', Math.abs(r1.dist - r0.dist) < 1 && Math.abs(r1.focus[1] - r0.focus[1]) < .3, `${r0.dist.toFixed(1)} m to ${r1.dist.toFixed(1)} m, height ${r0.focus[1]} to ${r1.focus[1]}`);
 await look(HOME); await step(2);
 const mx = box.x + box.w / 2, my = box.y + box.h / 2, R = 90;
 const pair = a => [[mx - Math.cos(a) * R, my - Math.sin(a) * R], [mx + Math.cos(a) * R, my + Math.sin(a) * R]];
