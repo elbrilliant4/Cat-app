@@ -12,6 +12,7 @@
 // close with the actual sound.
 
 import {meowV1, meowV1Envelope} from './meows.js';
+import {pick} from './util.js';
 
 // Peak gain of her meow: the original tone, brought up to sit level with the
 // purr (it was about 8 dB quieter as first written).
@@ -185,7 +186,6 @@ export class Sounds {
 }
 
 const clock = () => performance.now() / 1000;
-const pick = list => list[Math.floor(Math.random() * list.length)];
 
 // Loudness envelope of a recording, 0..1 at ENV_RATE samples per second.
 const ENV_RATE = 60;

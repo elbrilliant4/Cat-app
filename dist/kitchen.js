@@ -14,10 +14,10 @@
 // as separate objects with their home positions, apart from the room itself.
 // Same scale as the study: about 2.4 scene units per metre.
 import * as THREE from 'three';
+import {rand} from './util.js';
 import {Room, MOONLIGHT, DAYLIGHT, rng, canvasTexture, drawNoise, drawLinen, drawWood, roundedBox, lathe} from './room.js';
 
 const {damp} = THREE.MathUtils;
-const rand = (a, b) => a + Math.random() * (b - a);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // The plan. Back wall at z = -4.2, window wall at x = -6, right wall at x = 7,
@@ -76,12 +76,7 @@ export class Kitchen {
   startBird(t, kind) { return Room.prototype.startBird.call(this, t, kind); }
   birdWorld(v) { return Room.prototype.birdWorld.call(this, v); }
 
-  mesh(geo, material, parent = this.group, {cast = true, receive = true} = {}) {
-    const m = new THREE.Mesh(geo, material);
-    m.castShadow = cast; m.receiveShadow = receive;
-    parent.add(m);
-    return m;
-  }
+  mesh(geo, material, parent = this.group, opts) { return Room.prototype.mesh.call(this, geo, material, parent, opts); }
   box(w, h, d, x, y, z, material, parent = this.group, opts) {
     const m = this.mesh(new THREE.BoxGeometry(w, h, d), material, parent, opts);
     m.position.set(x, y, z);
@@ -1302,7 +1297,7 @@ function drawLimestone(g, w, h) {
 // with a web of fine brown and gold veins along the joins, a soft shadow at
 // each fragment's edge, and the odd darker fragment. (Cells around scattered
 // points, wobbled so the joins wander; it tiles.)
-export function drawBreccia(g, w, h) {
+function drawBreccia(g, w, h) {
   // Breccia: rounded stone fragments of many sizes and tones (mostly cream,
   // some beige and taupe, a few grey and darker mineral patches) set in a
   // softer sandy matrix, with fine golden veins along only some of the joins.

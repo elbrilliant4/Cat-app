@@ -1,6 +1,6 @@
-# Pocket Kitten — full Codex handoff
+# Mochi (Pocket Kitten)
 
-The complete virtual-pet app created on October 5, 2026, using your uploaded Meshy cat. Read **CODEX-HANDOFF.md** first.
+The virtual-pet app first built on October 5, 2026, from the uploaded Meshy cat. Start with **CLAUDE.md** (rules, docs list) and `SPEC.md`.
 
 This is the new companion app, not a merged copy of the separate earlier paper-bag project.
 
@@ -35,7 +35,7 @@ npm run check
 - `server.mjs`: dependency-free preview server.
 - `.openai/hosting.json`: existing hosted Site identity/configuration.
 - `SOURCE-SNAPSHOT.json`: source provenance and model checksum.
-- `CODEX-HANDOFF.md`: status, limitations and next priorities.
+- `docs/history/CODEX-HANDOFF.md`: the original October 5 handoff (history only; current state is in the docs/ folder).
 
 ## Publishing
 

@@ -113,4 +113,10 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
 `goTo('kitchen' | 'room')`, `stroll`, `stealSalmon`, `drinkFaucet`,
 `vacuumRide`, `vacuumAttack`, `ridePendant`, `nightLife`, `setNight(bool)`,
 `knockItem`, `tapCups`, and others (see the end of app.js).
-URL flags: `?debug`, `?frames`, `?night=0/1`, `?dog`, `?motion=classic`.
+URL flags: `?debug`, `?frames`, `?night=0/1`, `?dog`, `?motion=classic`,
+`?decor=<name>`, `?roomview=full` (app.js), walk A/B flags `?walk=old`,
+`?gait=old`, `?low=`, `?track=wide`, `?sway=`, `?hindlift=`, `?trot=0`
+(top of motion-cat.js). Extra pages: `rig-check.html?rig`,
+`idle.html?record` (the review pack), `motion-trial.html` (`?cat`, `?view`,
+`?marks`, `?paused`, `?capture`), `review-stage.html` (`?expr`, `?view`,
+`?light`).

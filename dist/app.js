@@ -7,11 +7,10 @@ import {MotionCat} from './motion-cat.js';
 import {Room} from './room.js';
 import {Kitchen} from './kitchen.js';
 import {Sounds} from './sound.js';
+import {rand, pick} from './util.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp} = THREE.MathUtils;
-const rand = (a, b) => a + Math.random() * (b - a);
-const pick = list => list[Math.floor(Math.random() * list.length)];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const motion = reduceMotion ? 0.35 : 1;
 
