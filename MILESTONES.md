@@ -15,6 +15,7 @@ brings that version's app back.
 | Live build 171 | `70ade23` | Walks like a cat (set to measured cat numbers: longer slower steps, lower, narrow track, no stutter-step), a trot for every run, gallop only at a dash or zoomies, hind legs no longer hop together. |
 | Live build 174 | `97f11c8` | Halloween stored away out of October (a room left in it wakes up as Thanksgiving). |
 | Live build 267 | `1aba265` | Looking around and touching her: one finger drags the room like a map and circles her up close, two fingers pinch, turn and tilt, double tap looks closer, a floor tap calls her; she reacts to where she's touched (chin loved, tail and paws not, belly a trap until friends). |
+| Live build 284 | `0c2ec70` | The panel under the room redesigned (layout A): the need that wants her most is a big card with its button, the rest fill like glasses; glossy icons made with Meshy and Runway; a pink friendship card; moments grouped by day. Also carries the other session's camera and film-note commits up to `0c2ec70`. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
