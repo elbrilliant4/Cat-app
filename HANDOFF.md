@@ -1,3 +1,31 @@
+# Handoff: 2026-11-12 (night), third cut of the opening film
+
+## Next step
+Third cut, after ChatGPT's review (Merlin pasted it, 22:00 UTC): 8.5 s, four
+shots. Merlin approved "Render it", music A, tutorial "Add now", film on the
+first launch of every day (as SPEC says). Files: `sources/title/film-v3/`.
+- Shot 1 wake: kept from the second cut (task 1512e762, cut 1.0-3.0).
+- Shot 2 spots the ball (over her shoulder), task e0675dc2, key picture
+  67e501e9 (`k2.webp`). Use about 1.0 s.
+- Shot 3 crouch and short pounce, task 0b5eefc6 (4 s), key picture 4b40b5d4
+  (`k3.webp`). Use about 2.5 s.
+- Shot 4 nudges the ball to the viewer, sits, waits: task ff8063f9 (4 s),
+  DONE and good (`shot4.mp4`). Starts on 638c4681 (`k4s.webp`), ends on
+  285df482 (`kE.webp`), which was made from a clean still of the real living
+  title (`real-room.webp`, Runway upload asset 5a749de0). Use the last 3.0 s.
+- Shots 2 and 3 were stuck at 98% at Runway for over 11 minutes when this
+  was written. Check them with get_task before paying for a new take.
+- Then: cut (ffmpeg, as before), lay music A, send Merlin the film and a new
+  side-by-side of the last frame against `real-room.webp`. Not in the app.
+- After his OK on the cut: plan (big change, plan mode) for the film in the
+  app PLUS the new "Tap the ball" first step: after the film the room is
+  live, a short "Tap the ball" prompt, the first tap makes Mochi react at
+  once, petting and care are taught after. Not in SPEC.md yet: add it with a
+  "Done when" line when the plan is agreed; show the plan to Lettuce.
+- Runway credits: 1,406 left (132 for the three shots, 16 for key pictures).
+- Still owed, Merlin said "Later": true-speed clip of the living title.
+
+---
 # Handoff: 2026-11-12 (late), camera and touch live
 
 ## Next step
