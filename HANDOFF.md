@@ -14,10 +14,16 @@
   `DECOR=christmas node tools/qa/look.mjs`.
 
 ## Next, in order (Merlin's picks, 2026-11-12)
-A. Compare overlaps with `main`: same runs (`SEC=600 SEED=1` and `SEED=2
-   SHOTS=0 node tools/qa/vacuum.mjs`) on `origin/main`, against the joined
-   numbers under Gotchas. Was running when this was written; if the logs
-   are gone, rerun. Then fix what the join broke, or note it was there.
+A. Overlaps, compared with `main` (done 2026-11-12, same runs on
+   `origin/main` `43fdbf8`): main has 99 and 224 overlaps, the joined
+   branch 328 and 133 (323 against 461 in total). Main's worst are the same
+   size: an ear 28 cm into the counter walking at -5.40,-2.41 (seed 2,
+   525 s), her head 15 cm into the window wall, jaw 8 cm into the island.
+   So this was mostly there before the join. New on the joined branch
+   only: sitting with her hips 25 cm into the food bowl (seed 1, 107 s, she
+   at 4.06,3.12). Left to do: look at that one case, and decide with Merlin
+   whether the rest (heads and ears turned into the counter and window
+   wall) is a phase 02 leftover to fix before live.
 B. Christmas details Merlin asked for, from Orion's pictures (all four):
    1. Mochi curled up asleep in the garland (a curled sleep pose; motion
       work, phase 12 is paused for the new model, so ask how far to go).
