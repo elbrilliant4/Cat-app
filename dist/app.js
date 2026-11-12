@@ -1512,7 +1512,7 @@ function tapCups(pats) {
 // against the garland.
 function garlandNap() {
   if (place !== kitchen || brain.mode !== 'idle') return false;
-  const lane = PERCHES.shelfHigh.lane, spot = new THREE.Vector3(.95, 0, lane.z);
+  const lane = PERCHES.shelfHigh.lane, spot = new THREE.Vector3(.95, 0, lane.z - .12);
   const settle = () => {
     if (brain.perch !== 'shelfHigh' || brain.mode !== 'idle') return;
     brain.perchUntil = Math.max(brain.perchUntil, clockNow + 40);

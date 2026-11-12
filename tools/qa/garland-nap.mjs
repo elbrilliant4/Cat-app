@@ -11,6 +11,6 @@ let s = 0, st;
 for (; s < 120; s++) { await step(20); st = await page.evaluate(() => ({doing: kitten.brain.activity, perch: kitten.brain.perch, at: kitten.brain.pos.toArray().map(v => +v.toFixed(2)), heading: +kitten.brain.heading.toFixed(2)})); if (st.doing === 'catnap') break; }
 await step(80);
 st = await page.evaluate(() => ({doing: kitten.brain.activity, perch: kitten.brain.perch, at: kitten.brain.pos.toArray().map(v => +v.toFixed(2)), heading: +kitten.brain.heading.toFixed(2)}));
-console.log(st.doing === 'catnap' && st.perch === 'shelfHigh' ? 'PASS' : 'FAIL', `asleep after ${s + 1} s:`, st);
+console.log(st.doing === 'catnap' && st.perch === 'shelfHigh' ? 'PASS' : 'FAIL', `asleep after ${s + 1} s:`, JSON.stringify(st));
 for (const [name, v] of Object.entries({front: {focus: [.6, 5.6, -3.6], yaw: .2, pitch: .08, dist: 4.2}, above: {focus: [.6, 5.6, -3.6], yaw: .5, pitch: .7, dist: 4}})) { await look(v); await page.locator('canvas').first().screenshot({path: `${OUT}/garland-nap-${name}.png`}); }
 await close();
