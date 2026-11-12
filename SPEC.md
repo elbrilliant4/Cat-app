@@ -28,23 +28,24 @@ the phone's browser and can be added to the home screen.
   no leg stretched more than ~4 cm (`tools/qa/legs.mjs`).
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
-- **Looking around** (preview, phase 14; plan A, Merlin 2026-11-12: the
-  camera works for the player, the finger is for Mochi). Done when: pinching
-  or scrolling is one line in and out about her (her face, all of her, the
-  whole room): from the whole room, pinching in goes to her, and pinching
-  far out gives the room back; the whole-room view lets the player look
-  round and settles back by itself; zooming in always moves the camera, even
-  after a wall stopped it; a flick glides on; two fingers twisting turn the
-  view; a double tap on her gives a close-up that follows; following her
-  keeps the player's zoom; on a phone there is no way to end up in a lost
-  view (`tools/qa/camera.mjs`, every line `PASS`).
+- **Looking around** (preview, phase 14; plan A, Merlin 2026-11-12, then
+  "moving around still off": the room view no longer turns only a little
+  and springs back). Done when: in the whole-room view a drag turns freely
+  and the view stays where you leave it; two fingers sliding move across the
+  room; a double tap on the floor goes closer to that spot (again when close:
+  the whole room); pinching in from the whole room goes to her, and pinching
+  far out from anywhere gives the room back; zooming in always moves the
+  camera, even after a wall stopped it; a flick glides on; two fingers
+  twisting turn the view; a double tap on her gives a close-up that follows;
+  following her keeps the player's zoom; Watch shows the whole room
+  (`tools/qa/camera.mjs`, every line `PASS`).
 - **Touching her** (preview, phase 14). Done when: she takes a touch by
   where it lands: head and back welcome, chin the favourite, tail and paws
   not for touching (ears flick, a look, a word, no friendship; kept up, she
   moves away), belly only as a good friend (otherwise a playful trap);
   stroking is felt all along the stroke; rolling over is hers to decide, not
-  every third pat; a tap on the floor calls her there unless she is busy or
-  asleep (`tools/qa/camera.mjs`).
+  every third pat; a single tap on the floor calls her there unless she is
+  busy or asleep (`tools/qa/camera.mjs`).
 - **Opening screen.** Done when: the first launch of the day plays the
   zoomies sequence with the real Mochi and ends on the Pocket Kitten logo
   with her name under it (the name can be changed, the logo cannot), her

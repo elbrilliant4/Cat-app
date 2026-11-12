@@ -66,7 +66,19 @@ await page.mouse.move(box.x + 100, box.y + 300); await page.mouse.down();
 for (let i = 1; i <= 5; i++) await page.mouse.move(box.x + 100 + i * 16, box.y + 300);
 await page.waitForTimeout(150); await page.mouse.up(); await step(6);
 const h1 = await state(); await step(160); const h2 = await state();
-line('room view settles back', h1.mode === 'room' && Math.abs(h1.yaw - h0.yaw) > .2 && Math.abs(h2.yaw - h0.yaw) < .03, `turned ${((h1.yaw - h0.yaw) * 57.3).toFixed(0)}°, 8 s later ${((h2.yaw - h0.yaw) * 57.3).toFixed(1)}° off (${h2.mode})`);
+line('room view stays where you leave it', h1.mode === 'room' && Math.abs(h1.yaw - h0.yaw) > .2 && Math.abs(h2.yaw - h1.yaw) < .03, `turned ${((h1.yaw - h0.yaw) * 57.3).toFixed(0)}°, 8 s later it moved ${((h2.yaw - h1.yaw) * 57.3).toFixed(1)}° by itself (${h2.mode})`);
+// (No leash: a long drag turns well past the old 63° limit.)
+await page.mouse.move(box.x + 40, box.y + 300); await page.mouse.down();
+for (let i = 1; i <= 10; i++) { await page.mouse.move(box.x + 40 + i * 30, box.y + 300); await step(1); }
+await page.mouse.up(); await step(40); const h3 = await state();
+line('turn freely in the room view', Math.abs(h3.yaw - h2.yaw) > 1.5, `a 300 px drag turned ${(Math.abs(h3.yaw - h2.yaw) * 57.3).toFixed(0)}°`);
+
+// 4d. Double tap on the floor: closer to that spot, and she stays put.
+await look(HOME); await step(2);
+[x0, y0] = await screenOf([1.2, 0, 1.0]); const q0 = await pos();
+await page.mouse.move(x0, y0); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(60);
+const dd = await state(); const q1 = await pos(); await shot('4d-double-tap-floor');
+line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - 1.2, dd.focus[2] - 1.0) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
 
 const dbl = async (x, y) => { await page.mouse.move(x, y); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(50); };
 // 5. Double tap on her: a close-up that follows.
@@ -123,6 +135,12 @@ await touch('touchStart', [[150, 400], [240, 400]]);
 for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 5, 400], [240 + i * 5, 410]]); await step(2); }
 await touch('touchEnd', []); await step(10); const sp = await state();
 line('pinch in the bed view', sp.mode === 'spot', `mode ${sp.mode}, ${sp.dist.toFixed(2)} m`);
+// (Two fingers sliding move the whole-room view across the room; pinching far out returns to the room.)
+await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const sl0 = await state();
+await touch('touchStart', [[150, 400], [240, 400]]);
+for (let i = 1; i <= 8; i++) { await touch('touchMove', [[150 + i * 15, 400], [240 + i * 15, 400]]); await step(2); }
+await touch('touchEnd', []); await step(30); const sl1 = await state();
+line('two fingers slide across the room', Math.hypot(sl1.focus[0] - sl0.focus[0], sl1.focus[2] - sl0.focus[2]) > .8, `view moved ${Math.hypot(sl1.focus[0] - sl0.focus[0], sl1.focus[2] - sl0.focus[2]).toFixed(1)} m (${sl1.mode})`);
 // (From the whole room, pinching in goes to her; pinching out far gives the room back.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const r0 = await state();
 const pinchBy = async (a, b) => { await touch('touchStart', [[195 - a, 400], [195 + a, 400]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[195 - a - (b - a) * i / 8, 400], [195 + a + (b - a) * i / 8, 400]]); await step(2); } await touch('touchEnd', []); await step(60); };

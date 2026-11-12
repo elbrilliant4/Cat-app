@@ -185,7 +185,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the floor to call her · pinch to come closer` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to look around · scroll to come closer`;
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the floor to call her · double tap to look closer · two fingers to move` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to look around · scroll to come closer`;
 }
 
 function showDeltas(before) {
@@ -2298,11 +2298,12 @@ function updatePlay(dt, t) {
 // ---------------------------------------------------------------------------
 // Camera: an orbit around a focus point. Everything is eased toward `goal`.
 //   one finger / left mouse  orbit (glides on after a flick)
-//   pinch / wheel            closer or further, always about her: her face, all
-//                            of her, the whole room (which settles back after a look round)
-//   two fingers twisting     turn the view;  right drag (mouse): slide it, a view of your own
+//   pinch / wheel            closer or further: from the whole room in to her;
+//                            far out from anywhere, the whole room again
+//   two fingers sliding      move across the room;  twisting: turn the view
+//   right drag (mouse)       slide the view
 //   tap                      her: a pat, by where it lands; the floor: she comes
-//   double tap on her        a close-up that follows
+//   double tap               on her: a close-up that follows; on the floor: closer to that spot
 //   buttons                  whole room, follow Mochi, food, water, bed
 const view = {
   focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
@@ -2408,8 +2409,6 @@ function clampGoal() {
   view.farY = Math.max(LIMITS.y[1], Math.min(view.farY, g.focus.y));
   g.dist = clamp(g.dist, LIMITS.dist[0], view.far);
   g.pitch = clamp(g.pitch, ...LIMITS.pitch);
-  // (The whole-room view only looks a little way round, and comes back.)
-  if (view.mode === 'room' && view.home) g.yaw = clamp(g.yaw, view.home.yaw - 1.1, view.home.yaw + 1.1);
   g.focus.x = clamp(g.focus.x, ...LIMITS.x);
   g.focus.y = clamp(g.focus.y, LIMITS.y[0], view.farY);
   g.focus.z = clamp(g.focus.z, ...LIMITS.z);
@@ -2480,7 +2479,7 @@ function zoomBy(f, at) {
   if (f < 1 && held && view.shown < g.dist) { view.dist = view.shown; view.cut = 0; }
   const reach = Math.max(from, boxArm(view.focus, camOffset, LIMITS.dist[1]));
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
-  if ((view.mode === 'follow' || view.mode === 'spot') && f > 1) {
+  if (view.mode !== 'room' && f > 1) {
     if (to < from * f - 1e-3) view.push += Math.log(f);
     if (to > 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
   }
@@ -2496,6 +2495,27 @@ function zoomBy(f, at) {
     }
   }
   clampGoal();
+}
+// Taps on the floor. One: she comes (after a moment, in case a second tap
+// follows). Two quick ones: the camera goes closer to that spot; already
+// close, back to the whole room.
+let lastFloor = null;
+function floorTap(x, y, ts) {
+  if (lastFloor && ts - lastFloor.t < 340 && Math.hypot(x - lastFloor.x, y - lastFloor.y) < 40) {
+    lastFloor = null;
+    if (view.mode !== 'room' && view.shown < 3) { CAMERA_VIEWS.room(); return; }
+    const p = pointUnder(x, y);
+    if (!p) return;
+    p.y = Math.max(p.y, .3);
+    view.goal.focus.copy(p);
+    view.goal.dist = Math.max(LIMITS.dist[0], Math.min(Math.min(view.goal.dist, view.shown) * .45, 4));
+    setCamMode('free');
+    view.zoomHeld = true;
+    clampGoal();
+    return;
+  }
+  const tap = lastFloor = {t: ts, x, y};
+  later(.34, () => { if (lastFloor === tap) { lastFloor = null; callTo(x, y); } });
 }
 // A double tap on her: a close-up that follows her.
 function doubleTap() {
@@ -2671,8 +2691,8 @@ host.addEventListener('pointermove', e => {
     const [p1, p2] = [...touches.values()];
     const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d, {x: mx, y: my});
-    // (Only a view you moved yourself slides about: otherwise the pinch zooms and turns.)
-    if (view.mode === 'free') pan(mx - pinch.mx, my - pinch.my);
+    // (Two fingers sliding move the view across the room; around her, or the bowl, fountain and bed, they only zoom and turn.)
+    if (view.mode === 'free' || view.mode === 'room') pan(mx - pinch.mx, my - pinch.my);
     // Twisting the two fingers turns the view (once it is clearly a twist,
     // so a plain pinch stays straight).
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -2755,8 +2775,8 @@ function endGesture(e) {
   }
   if (gesture && !gesture.moved && gesture.onPerch) { pawAt(e.clientX - gesture.rect.left, e.clientY - gesture.rect.top); invite(gesture.onPerch); }
   if (gesture && !gesture.moved && gesture.onCat) touchCat(gesture.zone, {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
-  // A tap on the bare floor calls her there.
-  if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && e.timeStamp - gesture.t0 < 400) callTo(e.clientX, e.clientY);
+  // A tap on the bare floor calls her there; two quick taps go closer to that spot instead.
+  if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && e.timeStamp - gesture.t0 < 400 && brain.mode !== 'play') floorTap(e.clientX, e.clientY, e.timeStamp);
   gesture = null;
   host.classList.remove('stroking', 'dragging');
 }
@@ -3365,11 +3385,6 @@ function updateCamera(dt) {
     clampGoal();
   }
   const g = view.goal, following = view.mode === 'follow' && ready;
-  // The whole-room view settles back a moment after you let go.
-  if (view.mode === 'room' && view.home && !gesture && !pinch && !view.fling && clockNow - view.lastDrag > 1.8) {
-    g.yaw = damp(g.yaw, view.home.yaw, 2.2, dt);
-    g.pitch = damp(g.pitch, view.home.pitch, 2.2, dt);
-  }
   let distGoal = g.dist;
   if (following) {
     // Keep Mochi (and, while playing, the toy) comfortably in frame. The
