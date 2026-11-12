@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const OUT = process.env.OUT || 'qa-out/panel';
 fs.mkdirSync(OUT, {recursive: true});
 const night = +(process.env.NIGHT || 0);
-const {page, step, close} = await open({width: 390, height: 844, night});
+const {page, step, close} = await open({width: 390, height: 844, night, flags: '&intro=0'});
 await page.setViewportSize({width: 390, height: 844});
 await page.evaluate(sleep => {
   const p = window.kitten && window.kitten.pet;
@@ -25,7 +25,7 @@ await page.evaluate(() => { kitten.refresh(); kitten.renderJournal && kitten.ren
 await page.waitForTimeout(1500);
 const panel = await page.$('.panel');
 await panel.screenshot({path: `${OUT}/panel${night ? '-night' : ''}.png`});
-await (await page.$('.dock')).screenshot({path: `${OUT}/dock${night ? '-night' : ''}.png`});
+{ const bb = await page.$eval('.dock', d => { const r = d.getBoundingClientRect(); return {x: r.x, y: r.y + scrollY, width: r.width, height: r.height}; }); await page.screenshot({path: `${OUT}/dock${night ? '-night' : ''}.png`, clip: bb, fullPage: true, timeout: 20000}); }
 const errs = await page.evaluate(() => window.__errors || []);
 console.log('saved', `${OUT}/panel${night ? '-night' : ''}.png`, errs.length ? errs : '');
 await close();
