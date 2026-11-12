@@ -13,6 +13,29 @@
   with `?decor=christmas` on the address, then the look picker. Stills:
   `DECOR=christmas node tools/qa/look.mjs`.
 
+## Go live, 2026-11-12: NOT live yet, blocked
+- Merlin said "Go live" and picked: everything except the new camera and
+  touch controls (he has not tried those on his phone; they stay on the
+  preview branch).
+- The live version is commit `5656431`: the preview branch at `5bccf2b`
+  with the four camera commits taken out (`78b32e7`, `4cca5f2`, `bbc4a25`,
+  `5bccf2b`). Checked: `npm run check`, `season.mjs`, `garland-nap.mjs`,
+  stills of both rooms. It was pushed to `main` of **`jvtomax99/Cat-app`**.
+- That did not publish anything. `jvtomax99/Cat-app` is a fork; it has
+  zero workflow runs. The site (https://elbrilliant4.github.io/Cat-app/)
+  is built from **`elbrilliant4/Cat-app`**, which the cloud sessions cannot
+  reach. The site still shows build 216 (`1cfc013`, a commit that is not
+  in the fork) and the preview build 220 (`c87a0ba`), both from 13:51 UTC.
+  So the fork and the real repo have drifted apart, and nothing pushed to
+  the fork today is on the preview link either.
+- Needed from Merlin: connect `elbrilliant4/Cat-app` to the sessions, or
+  say how the fork's work should reach it (a pull request from the fork).
+  Do not add a `MILESTONES.md` row until the site shows the new build.
+- When it can go live: `main` now holds a commit that undoes the camera
+  work, so before the preview branch can follow it, run
+  `git merge -s ours origin/main` on the preview branch (keeps the
+  preview's files, camera included).
+
 ## Next, in order (Merlin's picks, 2026-11-12)
 A. Overlaps, compared with `main` (done 2026-11-12, same runs on
    `origin/main` `43fdbf8`): main has 99 and 224 overlaps, the joined
