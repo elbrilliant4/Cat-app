@@ -188,7 +188,11 @@ export class MotionRig {
    * }
    */
   apply(s, dt = 0, t = 0, opt = {}) {
-    const contact = opt.contact ?? true;
+    // opt.bodyFloor: her body stays above the level she stands on (or is
+    // about to: in the air that's her root's height) even with no contact,
+    // so the lift doesn't come and go in one frame as she takes off and
+    // lands. Off only when she hangs below it (draped on the pendant).
+    const contact = opt.contact ?? true, bodyFloor = opt.bodyFloor ?? contact;
     // Pose, then make sure no part of her goes into the floor: if the body
     // (belly, haunches, chest, legs) dips below it, the pelvis rises until
     // it just touches and the legs solve again to their planted paws. The
@@ -197,13 +201,13 @@ export class MotionRig {
     // (Off the floor, the lift it was giving her eases away, a spring: let go
     // at once, her whole body dropped by it, up to 20 cm from a crouch, in the
     // one frame she took off.)
-    if (!contact && dt > 0) {
+    if (!bodyFloor && dt > 0) {
       const W = 14, d = this.lift || 0, v = this.liftV || 0, e = Math.exp(-W * dt), n = v + W * d;
       lift = (d + n * dt) * e; this.liftV = (v - W * n * dt) * e;
     } else this.liftV = 0;
     for (let pass = 0; pass < 4; pass++) {
       this.pose(s, t, lift);
-      if (!contact) { this.squash = 0; break; }
+      if (!bodyFloor) { this.squash = 0; break; }
       const low = this.lowest(this.bodySamples);
       this.squash = Math.max(0, -low);
       if (low >= -this.maxSquash) break;
@@ -211,6 +215,7 @@ export class MotionRig {
       this.squash = this.maxSquash;
     }
     this.lift = lift;
+    if (!contact) this.squash = 0;
     // Paws: if a paw's own skin (pads, heel) would dip below the floor, its
     // target rises by that much and the leg solves again.
     for (const [k, L] of Object.entries(this.legs)) {

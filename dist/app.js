@@ -618,6 +618,8 @@ const groundAt = p => Math.hypot(p.x - bed.position.x, p.z - bed.position.z) < p
 // (gravity for her size), clears the higher end by a little (more over a
 // long gap), and never crosses the floor faster than a sprint.
 const JUMP_G = 32;
+// How fast a turn may pick up or lose pace (rad/s2).
+const TURN_ACC = 40;
 function jumpArc(up, dist) {
   const clear = .12 + .06 * dist;
   const dur = Math.max(Math.sqrt(2 * (Math.max(up, 0) + clear) / JUMP_G) + Math.sqrt(2 * (Math.max(-up, 0) + clear) / JUMP_G), dist / 5, .3);
@@ -835,7 +837,7 @@ function updateCat(dt, t) {
     // as her legs drive, not all of it in one. The last eighth is the
     // landing: her front paws are down and her legs take up most of her
     // speed before she stops. A thrown thing's path in between.)
-    const kt = Math.min(1, (t - J.start) / J.dur), PUSH = .18, LAND = .12, END = .35;
+    const kt = Math.min(1, (t - J.start) / J.dur), PUSH = .18, LAND = .16, END = .15;
     const along = x => x < PUSH ? x * x / (2 * PUSH) : x < 1 - LAND ? x - PUSH / 2 : 1 - LAND - PUSH / 2 + (x - 1 + LAND) * (1 - (1 - END) * (x - 1 + LAND) / (2 * LAND));
     const k = kt >= 1 ? 1 : along(kt) / along(1);
     brain.pos.lerpVectors(J.from, J.to, k);
@@ -935,6 +937,15 @@ function updateCat(dt, t) {
       const d = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)), max = (resting ? 1.2 : 1.8 + brain.speed * 2.2) * dt;
       if (Math.abs(d) > max) brain.heading = was + Math.sign(d) * max;
     }
+    // A turn gathers pace over a few frames and eases off the same way:
+    // started at full pace in one frame, her hips whipped sideways (turning
+    // round on the mantel before jumping down, most of all).
+    const w = Math.atan2(Math.sin(brain.heading - was), Math.cos(brain.heading - was)) / Math.max(dt, 1e-4), lim = TURN_ACC * dt;
+    brain.turnRate = clamp(w, (brain.turnRate || 0) - lim, (brain.turnRate || 0) + lim);
+    brain.heading = was + brain.turnRate * dt;
+  } else if (brain.turnRate) {
+    brain.turnRate = Math.abs(brain.turnRate) < .01 ? 0 : damp(brain.turnRate, 0, 12, dt);
+    brain.heading += brain.turnRate * dt;
   }
   if (!J) brain.elevation = damp(brain.elevation, brain.perch ? perchTop() : groundAt(brain.pos), 8, dt);
   cat.root.position.set(brain.pos.x, brain.elevation, brain.pos.z);
@@ -1105,7 +1116,7 @@ function updateCat(dt, t) {
     air: J ? clamp((t - J.start) / J.dur, 0, 1) : -1,
     // (Her body follows the way she's flying; landing, she sinks and comes back up.)
     airTilt: J ? clamp(Math.atan2(J.toY - J.fromY + 4 * J.arc * (1 - 2 * clamp((t - J.start) / J.dur, 0, 1)), Math.max(.3, Math.hypot(J.to.x - J.from.x, J.to.z - J.from.z))) * .5, -.5, .55) : 0,
-    squash: a === 'land' ? Math.exp(-7 * (t - brain.actStart)) * motion : 0, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
+    squash: a === 'land' ? smoothstep(t - brain.actStart, 0, .07) * Math.exp(-7 * (t - brain.actStart)) * motion : 0, airUp: J ? Math.sign(J.toY - J.fromY) || 1 : 1, riding: brain.perch === 'vacuum',
     // In her bed, her tail stays inside the rim.
     tailBounds: !brain.perch && brain.elevation > .05 && Math.hypot(brain.pos.x - bed.position.x, brain.pos.z - bed.position.z) < place.bedRadius ? {x: bed.position.x, z: bed.position.z, r: place.bedRadius} : null,
     tailSolids: tailSolids(),

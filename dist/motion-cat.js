@@ -465,6 +465,11 @@ export class MotionCat {
     rig.floorU.floorY.value = unsupported ? -1e3 : rootPos.y;
     // (Contact whenever she's not walking or in the air: resting, crouching,
     // landing on a cushion. Walking, her legs carry her clear of it.)
-    rig.apply(state, dt, t, {contact: !unsupported && (low || settled || c.tailFloor > .05 || this.walkW < .5)});
+    // (And for a moment after a landing: the speed she came down with reads
+    // as walking for a frame, the contact came a frame late and her body
+    // popped up 5 cm.)
+    if (air) this.airAt = t;
+    const grounded = low || settled || c.tailFloor > .05 || this.walkW < .5 || t - (this.airAt ?? -9) < .6;
+    rig.apply(state, dt, t, {contact: !unsupported && grounded, bodyFloor: name !== 'drape' && (air || grounded)});
   }
 }
