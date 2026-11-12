@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mochi model study</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #b9b9b9; overflow: hidden; font: 13px/1.35 system-ui, sans-serif; color: #2b2622; }
+  canvas { display: block; touch-action: none; }
+  #label { position: fixed; left: 10px; top: 8px; background: rgba(255,255,255,.85); padding: 4px 8px; border-radius: 6px; }
+  #views { position: fixed; left: 0; right: 0; bottom: 12px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
+  #views button { font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid #8d8d8d; background: #fff; }
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<div id="label">Loading…</div>
+<div id="views"></div>
+<script type="module" src="./mochi-study.js"></script>
+</body>
+</html>
