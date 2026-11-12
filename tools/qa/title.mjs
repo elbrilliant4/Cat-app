@@ -4,7 +4,7 @@
 // Short: "wake her", a tap leaves it and the app is left usable. Phone and
 // desktop, plus: already asleep (tiptoe in), reduced motion (no sequence),
 // ?intro=0 and ?debug (both: no title). Needs `npm run dev` running.
-//   node tools/qa/title.mjs      OUT=qa-out PORT=5173
+//   node tools/qa/title.mjs      OUT=qa-out PORT=5173 ONLY=film (only the cases whose name matches)
 import fs from 'node:fs';
 async function chromium() {
   try { return (await import('playwright')).chromium; } catch {}
@@ -17,6 +17,7 @@ const PHONE = {viewport: {width: 390, height: 844}, deviceScaleFactor: 1, isMobi
 const titleOn = page => page.evaluate(() => document.documentElement.classList.contains('title'));
 let failed = 0;
 async function run(name, query, opts, body) {
+  if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return;
   const ctx = await browser.newContext(opts), page = await ctx.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
   try {
