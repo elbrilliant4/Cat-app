@@ -27,8 +27,15 @@ A. Overlaps, compared with `main` (done 2026-11-12, same runs on
    so the join did not break it, the run just went a different way; it
    now keeps .5 clear of the bowl, fountain and tent. Seed 1's first
    112 s: 81 overlaps before, 1 after (a 4 mm tail brush). The full 600 s
-   runs after the fix: see the end of this file if they were finished,
-   else rerun. The rest (heads and ears turned into the counter and
+   runs after the fix: 158 and 223 overlaps (seeds 1 and 2; before 328
+   and 133, so 381 against 461; a run goes a different way after any
+   change, so one seed going up is not a sign of a new fault). The hips in
+   the bowl are gone (worst at the bowl now: a wrist 10 cm in, walking
+   past). The worst left is the same as before: an ear 24 cm into the
+   counter walking at -3.07,-2.12 (seed 2, 32 s). The runs also list 23
+   and 11 moments with her centre past the walking floor's edge; the
+   earlier 600 s logs were not kept, so it is not known whether that is
+   new. Check it on `main` when the head and ear work starts. The rest (heads and ears turned into the counter and
    window wall) is a phase 02 leftover, there on `main` too: Merlin chose
    (2026-11-12) to fix it after going live, as its own piece of work. He
    has not said "Go live" yet.
