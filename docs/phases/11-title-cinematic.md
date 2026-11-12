@@ -123,6 +123,12 @@ its frame time says nothing about a phone. In place of a measurement the
 picture steps itself down when frames run over 40 ms (pixel ratio 1, then
 no bloom). Needs one look on Merlin's phone.
 
+Added 2026-11-12 (Merlin's pick): the Pocket Kitten logo (made with Runway
+in a side chat) is the brand at the top of the title; her name stays in the
+reveal under it, and the button says "Play with <name>". Three Meshy toys
+(yarn ball, felt mouse, fabric fish) sit on the rug beside her in the living
+title only; the yarn ball rolls and her eyes follow. No generated film.
+
 Timing note for step 5: the hit is the freeze at about 7.2 s after Enter;
 the name lands about 0.35 s later. Cut the music to those, or move the
 `CUES` times to the music.

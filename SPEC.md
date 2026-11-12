@@ -45,6 +45,12 @@ the phone's browser and can be added to the home screen.
   stroking is felt all along the stroke; rolling over is hers to decide, not
   every third pat; a tap on the floor calls her there unless she is busy or
   asleep (`tools/qa/camera.mjs`).
+- **Opening screen.** Done when: the first launch of the day plays the
+  zoomies sequence with the real Mochi and ends on the Pocket Kitten logo
+  with her name under it (the name can be changed, the logo cannot), her
+  toys on the rug beside her and "Play with <name>"; a tap skips at any
+  moment; other launches show the short title (`tools/qa/title.mjs`). No
+  generated film (Merlin, 2026-11-12).
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.

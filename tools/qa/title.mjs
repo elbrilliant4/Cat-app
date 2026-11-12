@@ -75,7 +75,15 @@ await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&
   if (st.vase > .001) throw new Error('the vase is not back');
   if (!st.sound) throw new Error('sound was not turned on');
   if (st.pet !== before) throw new Error('her save changed');
+  // The logo, her toys beside her, and her name on the button.
+  await page.waitForFunction(() => kitten.title.toys?.filter(o => o.visible && o.scale.x > .9).length === 3, null, {timeout: 120000}).catch(() => { throw new Error('her three toys are not out'); });
+  const top = await page.evaluate(() => { const i = document.querySelector('.title-logo'), r = i.getBoundingClientRect(); return {logo: i.complete && i.naturalWidth > 0 && r.width > 100 && r.top >= 0 && getComputedStyle(i).visibility === 'visible', go: document.getElementById('title-go').textContent, name: kitten.pet.name, far: Math.max(...kitten.title.toys.map(o => Math.hypot(o.position.x - kitten.brain.pos.x, o.position.z - kitten.brain.pos.z))), near: Math.min(...kitten.title.toys.map(o => Math.hypot(o.position.x - kitten.brain.pos.x, o.position.z - kitten.brain.pos.z)))}; });
+  if (!top.logo) throw new Error('the logo is not showing');
+  if (top.go !== 'Play with ' + top.name) throw new Error('button says: ' + top.go);
+  if (top.near < .4 || top.far > 1.3) throw new Error('toys misplaced: ' + JSON.stringify(top));
+  await page.screenshot({path: `${OUT}/title-live-toys.png`, timeout: 120000});
   await tapOut(page);
+  if (await page.evaluate(() => !!kitten.title.toys)) throw new Error('toys left out');
   if (await page.evaluate(() => !!kitten.title.fx || kitten.camera.fov > 47)) throw new Error('title picture left on');
 });
 await run('phone, short', '?night=0&intro=short', PHONE, through('phone'));

@@ -8,6 +8,7 @@ import {Room} from './room.js';
 import {Kitchen} from './kitchen.js';
 import {Sounds} from './sound.js';
 import {TitleFx} from './title-fx.js';
+import {GLTFLoader} from './vendor/GLTFLoader.js';
 
 const $ = s => document.querySelector(s);
 const {damp, clamp, lerp, smoothstep} = THREE.MathUtils;
@@ -22,7 +23,7 @@ const titleRoot = document.documentElement;
 let titleOn = titleRoot.classList.contains('title'), titleLeaving = false, titleFlip = false;
 // Where the title is: load, gate (the Enter buttons), cine (the sequence),
 // live (her name, "Tap to start") or still (asleep, "Tap to wake her").
-let titleStage = 'load', cine = null, titleFx = null;
+let titleStage = 'load', cine = null, titleFx = null, titleToys = null, titleToysOut = null;
 // (The sequence's slow motion: the game clock runs at this rate.)
 let timeRate = 1, clockLag = 0;
 const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
@@ -3085,15 +3086,84 @@ function titleReady() {
 // the sequence she sits and looks about.)
 function titleLife(t) {
   if (titleFx && titleFx.night !== night) titleFx.setNight(night);
+  titleToyLife(t);
   if (titleLeaving || titleStage === 'cine') return;
   if (!reduceMotion) view.goal.yaw = view.titleYaw + Math.sin(t * .22) * .09;
   if (titleStage === 'live') {
     if (t < brain.nextIdle) return;
     brain.nextIdle = t + rand(2.4, 4.2);
-    const r = Math.random();
-    if (r < .5) glanceAt(new THREE.Vector3(rand(-3, 3), rand(.4, 2.6), rand(-2.5, 3)), rand(1.2, 2.2));
+    const r = Math.random(), toys = (titleToys || []).filter(o => o.userData.born != null && t > o.userData.born + .6), yarn = toys.find(o => o.userData.rolls);
+    // The yarn ball rolls a little way and back, and her eyes go with it; or she looks at one of her toys.
+    if (yarn && r < .26) { yarn.userData.roll = t; brain.glance = yarn.position; brain.glanceUntil = t + 2.8; brain.nextIdle = t + 4; }
+    else if (toys.length && r < .4) glanceAt(pick(toys).position, 1.7);
+    else if (r < .5) glanceAt(new THREE.Vector3(rand(-3, 3), rand(.4, 2.6), rand(-2.5, 3)), rand(1.2, 2.2));
     else if (r < .7) slowBlink(); else if (r < .85) twitchEar(); else glanceAt(camera.position, 2);
   } else if (titleStage === 'still' && t > brain.nextZ) { brain.nextZ = t + rand(2.2, 3.4); burst('z', 1); }
+}
+
+// A few of her toys on the rug beside her, in the living title only (Meshy
+// models, see CREDITS.md). Fetched while the sequence plays, shown when her
+// name comes in, put away when the game starts.
+// at: [to the right on screen, toward the camera], from where she sits.
+const TITLE_TOYS = [
+  {file: 'yarn-ball', size: .3, at: [-.64, .1], turn: 2.4, rolls: true},
+  {file: 'felt-mouse', size: .3, at: [.56, .08], turn: -2.2},
+  {file: 'fabric-fish', size: .36, at: [.9, -.5], turn: .9},
+];
+async function loadTitleToys() {
+  if (titleToys) return;
+  titleToys = [];
+  const loader = new GLTFLoader();
+  // (The toys are packed small; this unpacks them. Fetched only here.)
+  try { loader.setMeshoptDecoder((await import('./vendor/meshopt_decoder.module.js')).MeshoptDecoder); } catch { return; }
+  TITLE_TOYS.forEach((d, i) => loader.load(`./assets/models/${d.file}.glb`, g => {
+    if (!titleOn || !titleToys || titleLeaving) return;
+    const o = g.scene, box = new THREE.Box3().setFromObject(o), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const k = d.size / Math.max(size.x, size.y, size.z), holder = new THREE.Group();
+    o.scale.setScalar(k); o.position.copy(c).multiplyScalar(-k);
+    o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    holder.add(o);
+    holder.visible = false;
+    holder.userData = {...d, i, half: size.y * k / 2, born: null, home: new THREE.Vector3(), turn0: new THREE.Quaternion(), roll: null};
+    scene.add(holder);
+    titleToys.push(holder);
+    if (titleStage === 'live') placeTitleToy(holder, .2);
+  }, undefined, () => {}));
+}
+// Beside her on the rug, as the title's camera sees it.
+function placeTitleToy(o, wait) {
+  const u = o.userData, a = view.titleYaw, cos = Math.cos(a), sin = Math.sin(a);
+  u.side = new THREE.Vector3(cos, 0, -sin);
+  u.home.set(HOME.x + u.at[0] * cos + u.at[1] * sin, u.half + .012, HOME.z - u.at[0] * sin + u.at[1] * cos);
+  o.position.copy(u.home);
+  o.rotation.set(0, a + u.turn, 0);
+  u.turn0.copy(o.quaternion);
+  o.scale.setScalar(.001);
+  o.visible = true;
+  u.born = clockNow + wait;
+}
+const toyRoll = new THREE.Quaternion(), toyAxis = new THREE.Vector3();
+function titleToyLife(t) {
+  for (const o of titleToys || []) {
+    const u = o.userData;
+    if (u.born == null) continue;
+    // (They pop in with a little overshoot, and shrink away as the game starts.)
+    const p = clamp((t - u.born) / .55, 0, 1), out = titleToysOut == null ? 1 : 1 - clamp((t - titleToysOut) / .35, 0, 1);
+    o.scale.setScalar(Math.max(.001, (1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2) * out));
+    if (u.roll != null) {
+      const q = clamp((t - u.roll) / 2.8, 0, 1), d = -Math.sin(q * Math.PI) * .26;
+      o.position.copy(u.home).addScaledVector(u.side, d);
+      o.quaternion.copy(toyRoll.setFromAxisAngle(toyAxis.set(u.side.z, 0, -u.side.x), d / u.half)).multiply(u.turn0);
+      if (q >= 1) u.roll = null;
+    }
+  }
+}
+function clearTitleToys() {
+  for (const o of titleToys || []) {
+    scene.remove(o);
+    o.traverse(m => { if (m.isMesh) { m.geometry.dispose(); for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) m.material[k]?.dispose(); m.material.dispose(); } });
+  }
+  titleToys = null;
 }
 
 // --- The zoomies cinematic -------------------------------------------------
@@ -3173,6 +3243,7 @@ function startCine() {
   $('#title-gate').hidden = true;
   cine = {T: 0, shot: -1, cue: 0, cut: true, look: new THREE.Vector3(), watch: null, hold: null, flashAt: null, vase: room.vaseWorld(new THREE.Vector3())};
   brain.nextBlink = clockNow + 30;
+  loadTitleToys();
 }
 // (Before she moves each frame: the clock, the cues, and the cut to the next shot.)
 function cineStep(real) {
@@ -3205,12 +3276,13 @@ function endCine(skipped = false) {
   brain.pos.copy(HOME); brain.elevation = skipped ? 0 : .5; brain.heading = view.goal.yaw - .3;
   setActivity('land', .3, () => setActivity('sit'));
   express('joy', 2.4);
+  (titleToys || []).forEach(o => placeTitleToy(o, .9 + o.userData.i * .25));
   Object.assign(brain, {tailUpUntil: clockNow + 3, nextIdle: clockNow + 3.2, nextBlink: clockNow + 1.6});
   const el = $('#title'), fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
   el.classList.remove('cine', 'streak', 'flash');
   el.classList.add('reveal');
   $('#title-sub').textContent = 'a little life to love';
-  $('#title-go').textContent = fine ? 'Click to start' : 'Tap to start';
+  $('#title-go').textContent = 'Play with ' + pet.name;
   $('#title-go').hidden = false;
   $('#title-go').focus({preventScroll: true});
   // A burst of sparkles from her name.
@@ -3226,6 +3298,7 @@ function endCine(skipped = false) {
 function leaveTitle() {
   if (!titleOn || !ready || titleLeaving) return;
   titleLeaving = true;
+  titleToysOut = clockNow;
   const live = titleStage === 'live';
   $('#title').classList.add('out');
   // A short music-box chime as she wakes (sound on only).
@@ -3267,6 +3340,7 @@ function endTitle() {
   titleOff();
   titleStage = 'off';
   titleFx?.dispose(); titleFx = null;
+  clearTitleToys();
   const hadFocus = $('#title').contains(document.activeElement);
   $('#title').remove();
   if (hadFocus) $('[data-cam="room"]')?.focus({preventScroll: true});
@@ -3443,7 +3517,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

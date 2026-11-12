@@ -34,7 +34,7 @@ Two kinds (`titleFull`, decided once at start):
   not with reduced motion, not if she was put to bed. `gate`: two Enter
   buttons ("with sound" sets `pet.sound` and saves; "without" leaves the
   save alone). `cine`: the zoomies sequence. `live`: her name, she sits at
-  `HOME`, "Tap to start".
+  `HOME` with her toys, "Play with <name>".
 - **Still** (short): she sleeps on the study bed whatever the save says
   (`pet.sleeping` is not changed) under her name; "Tap to wake her".
 
@@ -62,6 +62,17 @@ and dust (points moved in the shader). Used ONLY while the title is up:
 `frame` draws with `titleFx.render` if it exists, else the plain renderer.
 It watches its own frame time: over 40 ms for a run of frames, it first
 drops to pixel ratio 1, then turns bloom off. No depth blur yet.
+The logo (`.title-logo`, `assets/title/pocket-kitten-logo.webp`) is the
+brand at the top of every title stage except `cine`; her name (which can be
+changed) stays live text under it.
+Title toys (`TITLE_TOYS`, `loadTitleToys`, `placeTitleToy`, `titleToyLife`,
+`clearTitleToys`): three Meshy models packed with meshopt (the decoder,
+`vendor/meshopt_decoder.module.js`, is imported only here). Fetched when the
+sequence starts, hidden until `endCine()` places them around `HOME` by the
+title camera's yaw (`at`: [right on screen, toward the camera]); they pop
+in, the yarn ball rolls now and then while her eyes follow, they shrink
+away in `leaveTitle()` and are disposed in `endTitle()`. Not in the still
+title. Re-place them if `HOME`, the live title's camera or her size changes.
 Sounds: the wake-up chime in the still title (`sounds.play`,
 `assets/sounds/wake-chime.mp3`, sound on only). The sequence has no music yet.
 

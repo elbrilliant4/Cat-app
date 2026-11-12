@@ -17,3 +17,6 @@ bought. Rules: `docs/assets.md`. Merlin: keep your receipts for anything bought.
 | Little shelf painting: pears | `dist/art/shelf-pears.jpg` | **Unknown, to check** | **Unknown** | **(Merlin?)** | | |
 | App icons, portrait | `dist/assets/icons/` | **(Merlin?)** | **(Merlin?)** | | | |
 | Textures, furniture, decor | made in code (`dist/room.js`, `dist/kitchen.js`, `dist/decor.js`) | Ours, from Orion's references (references not shipped) | none | No | none | none |
+| Pocket Kitten logo | `dist/assets/title/pocket-kitten-logo.webp`; original in `sources/title/` | Made with Runway | Runway's terms for a paid plan **(Merlin: check your plan allows commercial use)** | Credits Merlin already had | about 45 Runway credits (one unused second try included) | Merlin's Runway |
+| Opening screen toys: yarn ball, felt mouse, fabric fish | `dist/assets/models/yarn-ball.glb`, `felt-mouse.glb`, `fabric-fish.glb`; fuller copies in `models/title-toys/` | Made with Meshy (text to 3D) | Paid Meshy plan: ours to use; free plan: CC BY 4.0, which the footer's Meshy credit covers **(Merlin: which plan?)** | Credits Merlin already had | 237 Meshy credits (two first tries not used) | Merlin's Meshy |
+| Mesh decoder | `dist/vendor/meshopt_decoder.module.js` | meshoptimizer by Arseny Kapoulkine, as shipped with three.js | MIT | No | Free | none |
