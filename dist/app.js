@@ -39,6 +39,11 @@ let storage = null;
 try { storage = localStorage; } catch {}
 const loaded = storage ? loadSave(storage) : null;
 let pet = loaded ? loaded.pet : fresh();
+// First steps, shown once to a new player: "tap the ball", then "give her a
+// stroke". A save from before this existed has nothing to learn.
+if (!pet.taught || typeof pet.taught !== 'object') { const isNew = !pet.bond && !pet.cuddles && (pet.journal?.length ?? 0) <= 1; pet.taught = {ball: !isNew, pet: !isNew}; }
+const teachStep = () => !pet.taught.ball ? 'ball' : !pet.taught.pet ? 'pet' : null;
+function learned(step) { if (pet.taught[step]) return; pet.taught[step] = true; save(); refresh(); }
 keepStorage();
 let saveWarned = false;
 function save() {
@@ -194,7 +199,11 @@ function refresh() {
   $('#sound-on').checked = pet.sound;
   $('#vol-cat').value = pet.catVolume;
   $('#sound-panel').classList.toggle('muted', !pet.sound);
+  const step = brain.mode === 'play' || pet.sleeping || titleOn && titleStage !== 'off' ? null : teachStep();
+  $('#scene-hint').classList.toggle('teach', !!step);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
+    : step === 'ball' ? `Tap the pink ball to play with ${pet.name}`
+    : step === 'pet' ? `Now give ${pet.name} a stroke`
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
     : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · drag to move around · tap the floor to call her · twist two fingers to turn` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to move around, right-drag to turn · scroll to come closer`;
 }
@@ -2002,6 +2011,7 @@ function zoneAt(point) {
 let lastDislike = -10, lastMumble = -10, dislikes = [];
 function touchCat(zone, opts = {}) {
   if (!ready) return;
+  if (pet.taught.ball && !pet.sleeping) learned('pet');
   if ((zone === 'tail' || zone === 'paws') && brain.activity !== 'belly') { dislikeTouch(zone); return; }
   // (Asleep: a mumble now and then, not at every stroke.)
   if (pet.sleeping) { if (clockNow - lastMumble < 4) return; lastMumble = clockNow; }
@@ -2166,6 +2176,7 @@ function act(a, opts = {}) {
 // Play: steer the toy; the kitten chases it, wiggles and pounces.
 const PLAY_SECONDS = 25;
 function startPlay() {
+  learned('ball');
   setMode('play', PLAY_SECONDS);
   setActivity('play');
   brain.playEnd = clockNow + PLAY_SECONDS;
@@ -2369,6 +2380,8 @@ function setPointer(e) {
 }
 function catHit() { return ready ? ray.intersectObjects(cat.meshes, false)[0] || null : null; }
 function hitsCat() { return !!catHit(); }
+// The ball on the floor: a tap near it starts a game. (A finger is wide: near counts.)
+function hitsToy() { return ready && place === room && (room.altToy || toy).visible !== false && ray.ray.distanceToPoint((room.altToy || toy).getWorldPosition(new THREE.Vector3())) < .26; }
 function hitsFountain() { return ready && ray.intersectObjects(room.clickables, false).length > 0; }
 // Which perch (if any) is under the pointer: the window and its sill, the
 // chair, or the fireplace and its mantel.
@@ -2875,6 +2888,13 @@ function endGesture(e) {
   } else lastTap = null;
   // Let go mid-flick: the view glides on and settles.
   if (gesture?.turning && e.timeStamp - gesture.lastT < 90 && Math.hypot(gesture.vx, gesture.vy) > 260) view.fling = gesture.slide ? {vx: clamp(gesture.vx, -900, 900) * .5, vy: clamp(gesture.vy, -900, 900) * .5, slide: true} : {vx: clamp(gesture.vx, -800, 800), vy: clamp(gesture.vy * .5, -400, 400)};
+  // A tap on her ball: play.
+  if (gesture && !gesture.moved && !gesture.onCat && !gesture.panning && brain.mode !== 'play' && e.timeStamp - gesture.t0 < 400 && (setPointer(e), hitsToy())) {
+    if (pet.sleeping) toast('Shh… wake your kitten first.'); else act('play');
+    gesture = null;
+    host.classList.remove('stroking', 'dragging');
+    return;
+  }
   if (gesture && !gesture.moved && gesture.onFountain) {
     if (pet.sleeping) toast('Shh… wake your kitten first.');
     else act('drink');
@@ -3161,6 +3181,12 @@ const TITLE_DAY = 'pocket-kitten-title-day', introParam = new URLSearchParams(lo
 const titleToday = () => { try { return storage.getItem(TITLE_DAY) === new Date().toDateString(); } catch { return false; } };
 const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short' && (introParam === 'full' || !titleToday());
 let titleLiveAt = 0;
+// The opening film (assets/title/mochi-opening.mp4): in place of the zoomies
+// sequence when the room looks like the film does: by day, the plain study,
+// the long-haired Mochi, an upright screen. ?film=0 keeps the sequence.
+const FILM_SRC = './assets/title/mochi-opening.mp4';
+const filmOK = () => titleFull && !night && room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
+let film = null;
 function titleView() {
   if (titleStage === 'live') {
     // Her sitting on the rug, the window and its light behind her.
@@ -3183,12 +3209,13 @@ if (titleOn) {
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'contextmenu']) el.addEventListener(ev, e => e.stopPropagation());
   el.addEventListener('click', titleTap);
   // "Enter with sound" turns sound on for good; without, the save is left as it is.
-  $('#enter-sound').onclick = e => { e.stopPropagation(); pet.sound = true; sounds.setEnabled(true); refresh(); save(); startCine(); };
-  $('#enter-mute').onclick = e => { e.stopPropagation(); startCine(); };
-  document.addEventListener('keydown', e => { if (titleStage === 'cine' && !e.repeat && ['Escape', 'Enter', ' '].includes(e.key)) { e.preventDefault(); titleTap(); } });
+  $('#enter-sound').onclick = e => { e.stopPropagation(); pet.sound = true; sounds.setEnabled(true); refresh(); save(); startOpening(); };
+  $('#enter-mute').onclick = e => { e.stopPropagation(); startOpening(); };
+  document.addEventListener('keydown', e => { if ((titleStage === 'cine' || titleStage === 'film') && !e.repeat && ['Escape', 'Enter', ' '].includes(e.key)) { e.preventDefault(); titleTap(); } });
 }
 function titleTap() {
   if (titleStage === 'cine') { if (cine.T > .4) endCine(true); }
+  else if (titleStage === 'film') { if (clockNow - film.at > .4) endFilm(); }
   else if (titleStage === 'live') { if (clockNow - titleLiveAt > .7) leaveTitle(); }
   else if (titleStage === 'still') leaveTitle();
 }
@@ -3227,7 +3254,7 @@ function titleReady() {
 function titleLife(t) {
   if (titleFx && titleFx.night !== night) titleFx.setNight(night);
   titleToyLife(t);
-  if (titleLeaving || titleStage === 'cine') return;
+  if (titleLeaving || titleStage === 'cine' || titleStage === 'film') return;
   if (!reduceMotion) view.goal.yaw = view.titleYaw + Math.sin(t * .22) * .09;
   if (titleStage === 'live') {
     if (t < brain.nextIdle) return;
@@ -3269,6 +3296,7 @@ async function loadTitleToys() {
     scene.add(holder);
     titleToys.push(holder);
     if (titleStage === 'live') placeTitleToy(holder, .2);
+    else if (titleStage === 'film') placeTitleToy(holder, 0);
   }, undefined, () => {}));
 }
 // Beside her on the rug, as the title's camera sees it.
@@ -3375,6 +3403,59 @@ function cineJump(to, toY, perch) {
   brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then: () => setActivity('sit', 9), start: clockNow, ...jumpArc(toY - brain.elevation, Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z)), out: 0};
   setActivity('jump');
 }
+function startOpening() { if (filmOK()) startFilm(); else startCine(); }
+// The film plays over the room. Under it the room is already set as the
+// film's last picture (she sits at HOME, her toys beside her), so the film
+// can fade straight into it. A film that will not start, or has not started
+// after 3 seconds, gives way to the zoomies sequence.
+function startFilm() {
+  if (titleStage !== 'gate') return;
+  const el = $('#title'), v = $('#title-film');
+  titleStage = 'film';
+  try { storage.setItem(TITLE_DAY, new Date().toDateString()); } catch {}
+  el.classList.remove('gate');
+  el.classList.add('film', 'lit', 'soft');
+  $('#title-gate').hidden = true;
+  film = {at: clockNow, rolling: false, watch: 0};
+  const fail = () => {
+    if (titleStage !== 'film' || film.rolling) return;
+    stopFilm();
+    el.classList.remove('film', 'soft');
+    (titleToys || []).forEach(o => { o.visible = false; o.userData.born = null; });
+    titleStage = 'gate';
+    startCine();
+  };
+  v.onplaying = () => { if (titleStage !== 'film') return; film.rolling = true; clearTimeout(film.watch); el.classList.add('rolling'); };
+  v.onended = endFilm;
+  v.onerror = fail;
+  v.muted = !pet.sound;
+  v.src = FILM_SRC;
+  // (A phone may refuse a film with sound: then it plays without.)
+  try { v.play()?.catch(() => { v.muted = true; v.play()?.catch(fail); }); } catch { fail(); }
+  film.watch = setTimeout(fail, 3000);
+  titleSnap();
+  brain.pos.copy(HOME); brain.elevation = 0; brain.heading = view.goal.yaw - .3;
+  setActivity('sit');
+  brain.nextBlink = clockNow + 30;
+  loadTitleToys().then(() => { if (titleStage === 'film') (titleToys || []).forEach(o => { if (o.userData.born == null) placeTitleToy(o, 0); }); });
+}
+function stopFilm() {
+  const v = $('#title-film');
+  clearTimeout(film?.watch);
+  if (!v) return;
+  v.onplaying = v.onended = v.onerror = null;
+  try { v.pause(); v.removeAttribute('src'); v.load(); } catch {}
+}
+function endFilm() {
+  if (titleStage !== 'film') return;
+  const el = $('#title'), v = $('#title-film');
+  clearTimeout(film.watch);
+  v.onended = v.onerror = null;
+  el.classList.remove('film', 'rolling');
+  // (The picture fades out over the room; then the film is let go.)
+  setTimeout(stopFilm, 700);
+  enterLive(true, false);
+}
 function startCine() {
   if (titleStage !== 'gate') return;
   titleStage = 'cine';
@@ -3411,14 +3492,19 @@ function endCine(skipped = false) {
   if (!cine) return;
   cine = null; timeRate = 1;
   room.resetVase();
+  enterLive(skipped, true);
+}
+// Into the living title: after the sequence she lands on the rug (land);
+// after the film she already sits there.
+function enterLive(skipped, land) {
   Object.assign(brain, {jump: null, perch: null, pounce: null, target: null, speed: 0, climbGoal: null, swatAt: null, glance: null, glanceUntil: 0, stuck: null, overrideUntil: 0});
   titleStage = 'live'; titleLiveAt = clockNow;
   resize();
   titleSnap();
   brain.pos.copy(HOME); brain.elevation = skipped ? 0 : .5; brain.heading = view.goal.yaw - .3;
-  setActivity('land', .3, () => setActivity('sit'));
+  if (land) setActivity('land', .3, () => setActivity('sit')); else setActivity('sit');
   express('joy', 2.4);
-  (titleToys || []).forEach(o => placeTitleToy(o, .9 + o.userData.i * .25));
+  (titleToys || []).forEach(o => { if (land || o.userData.born == null) placeTitleToy(o, land ? .9 + o.userData.i * .25 : 0); });
   Object.assign(brain, {tailUpUntil: clockNow + 3, nextIdle: clockNow + 3.2, nextBlink: clockNow + 1.6});
   const el = $('#title');
   el.classList.remove('cine', 'streak', 'flash');
@@ -3489,6 +3575,8 @@ function endTitle() {
   resize();
   CAMERA_VIEWS.room();
   if (pet.sleeping) greet(true);
+  refresh();
+  if (teachStep() === 'ball' && !pet.sleeping) setTimeout(() => { if (teachStep() === 'ball' && brain.mode !== 'play') say('Tap my ball!', 5000, true); }, 1600);
 }
 Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
 
@@ -3654,7 +3742,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, renderJournal, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, renderJournal, cat, get clock() { return clockNow; }, SWAT, express, endPlay, get teach() { return teachStep(); }, get title() { return {stage: titleStage, cine, film, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

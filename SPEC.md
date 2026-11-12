@@ -51,6 +51,18 @@ the phone's browser and can be added to the home screen.
   stroking is felt all along the stroke; rolling over is hers to decide, not
   every third pat; a single tap on the floor calls her there unless she is
   busy or asleep (`tools/qa/camera.mjs`).
+- **Opening film** (preview, phase 15). Done when: on the first launch of
+  the day, by day, in the plain study, with the long-haired Mochi and an
+  upright screen, Enter plays the film "Mochi and the yarn ball" (9.8 s,
+  its music only with "Enter with sound"); a tap skips it; it fades into
+  the living title with no visible jump in the room; at night, in a
+  seasonal look, with the first Mochi or on a wide screen the zoomies
+  sequence plays instead; a film that cannot load never leaves a black or
+  stuck screen (`tools/qa/title.mjs`).
+- **First steps** (preview, phase 15). Done when: a new player sees "Tap the
+  pink ball" once, a tap on the ball starts play at once, then one "give her
+  a stroke" hint, and neither shows again, also after a reload; a save from
+  before never sees them; the ball stays tappable for good.
 - **Opening screen.** Done when: the first launch of the day plays the
   zoomies sequence with the real Mochi and ends on the Pocket Kitten logo
   with her name under it (the name can be changed, the logo cannot), her
@@ -108,6 +120,9 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - **(Merlin?)** Payments, ads, notifications?
 
 ## Later
+- First steps for food, water, brushing and sleep (ChatGPT's review of the
+  opening film, 2026-11-12; v1 teaches only the ball and a stroke).
+- A "watch the film again" button; a film for night and for Christmas.
 - Miso, the second cat (blue British Shorthair), and the cats playing together.
 - Adopting more cats by levelling up.
 - Christmas tree mischief (phase 06, December).
