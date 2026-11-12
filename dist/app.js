@@ -3094,7 +3094,7 @@ function titleLife(t) {
     brain.nextIdle = t + rand(2.4, 4.2);
     const r = Math.random(), toys = (titleToys || []).filter(o => o.userData.born != null && t > o.userData.born + .6), yarn = toys.find(o => o.userData.rolls);
     // The yarn ball rolls a little way and back, and her eyes go with it; or she looks at one of her toys.
-    if (yarn && r < .26) { yarn.userData.roll = t; brain.glance = yarn.position; brain.glanceUntil = t + 2.8; brain.nextIdle = t + 4; }
+    if (yarn && r < .26) { yarn.userData.roll = t; brain.glance = yarn.userData.eye.copy(yarn.position); brain.glanceUntil = t + 2.8; brain.nextIdle = t + 4; }
     else if (toys.length && r < .4) glanceAt(pick(toys).position, 1.7);
     else if (r < .5) glanceAt(new THREE.Vector3(rand(-3, 3), rand(.4, 2.6), rand(-2.5, 3)), rand(1.2, 2.2));
     else if (r < .7) slowBlink(); else if (r < .85) twitchEar(); else glanceAt(camera.position, 2);
@@ -3116,6 +3116,7 @@ async function loadTitleToys() {
   const loader = new GLTFLoader();
   // (The toys are packed small; this unpacks them. Fetched only here.)
   try { loader.setMeshoptDecoder((await import('./vendor/meshopt_decoder.module.js')).MeshoptDecoder); } catch { return; }
+  if (!titleOn || !titleToys || titleLeaving) return;
   TITLE_TOYS.forEach((d, i) => loader.load(`./assets/models/${d.file}.glb`, g => {
     if (!titleOn || !titleToys || titleLeaving) return;
     const o = g.scene, box = new THREE.Box3().setFromObject(o), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
@@ -3124,7 +3125,7 @@ async function loadTitleToys() {
     o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     holder.add(o);
     holder.visible = false;
-    holder.userData = {...d, i, half: size.y * k / 2, born: null, home: new THREE.Vector3(), turn0: new THREE.Quaternion(), roll: null};
+    holder.userData = {...d, i, half: size.y * k / 2, born: null, eye: new THREE.Vector3(), home: new THREE.Vector3(), turn0: new THREE.Quaternion(), roll: null};
     scene.add(holder);
     titleToys.push(holder);
     if (titleStage === 'live') placeTitleToy(holder, .2);
@@ -3153,6 +3154,7 @@ function titleToyLife(t) {
     if (u.roll != null) {
       const q = clamp((t - u.roll) / 2.8, 0, 1), d = -Math.sin(q * Math.PI) * .26;
       o.position.copy(u.home).addScaledVector(u.side, d);
+      u.eye.copy(o.position);
       o.quaternion.copy(toyRoll.setFromAxisAngle(toyAxis.set(u.side.z, 0, -u.side.x), d / u.half)).multiply(u.turn0);
       if (q >= 1) u.roll = null;
     }
@@ -3278,7 +3280,7 @@ function endCine(skipped = false) {
   express('joy', 2.4);
   (titleToys || []).forEach(o => placeTitleToy(o, .9 + o.userData.i * .25));
   Object.assign(brain, {tailUpUntil: clockNow + 3, nextIdle: clockNow + 3.2, nextBlink: clockNow + 1.6});
-  const el = $('#title'), fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const el = $('#title');
   el.classList.remove('cine', 'streak', 'flash');
   el.classList.add('reveal');
   $('#title-sub').textContent = 'a little life to love';
