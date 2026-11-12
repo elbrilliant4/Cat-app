@@ -21,6 +21,17 @@ preview branch.
 | `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
 | `sound.js`, `meows.js` | Short sounds and meows (no ambient loops). |
 
+## Screens (index.html, style.css; look in `DESIGN.md`)
+Top bar: her name and mood, level chip (phones), day/night, sound, More.
+Over the room: the View button (`#view-menu`: camera views `[data-cam]`,
+full screen `#watch-open`, rooms and decor `#decor-btn`) and the care dock.
+`#more-dialog` holds moments, care guide, rename, backup code and credits.
+Phones (to 720 px wide, at least 560 tall) get one screen, no page scroll
+(the last media query in style.css). First visit (`firstVisit` in app.js:
+no save on the device) opens `#welcome-dialog`, then four `coach()` tips;
+test runs skip it (`navigator.webdriver`, `?debug`), `?welcome` forces it.
+`touchScreen` picks tap or click words.
+
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 
