@@ -15,7 +15,7 @@ One phase per session (see `WORKFLOW.md`). Briefs are in `docs/phases/`.
 | 07 | [Walk like a cat again](phases/07-walk-grace.md) | live (build 171) | Walk set to measured cat numbers, stutter-step fixed, a trot for every run, gallop only flat out. Merlin: "much much better". |
 | 10 | Seasonal looks stored away | live (build 174) | Halloween hidden from the picker out of October (`?decor=halloween` shows it); a room left in it wakes up as Thanksgiving. Christmas: waiting on Orion's image. |
 | 11 | First wall step from the floor | todo | (Merlin, 2026-11-12, after phase 06.) She lands on the first step facing the wall and turns round on it (.62 wide): head or hips into the wall or the counter's end for a second or two. Needs a new idea (another take-off spot, or not stopping on that step). |
-| 08 | [Friendly app screens](phases/08-app-screens.md) | todo | Merlin wants it "real app ready": an easy, clear interface. Draft brief written 2026-11-12, waiting for Merlin's OK and DESIGN.md. |
+| 08 | [Friendly app screens](phases/08-app-screens.md) | preview | Phones get one screen (room, care buttons, needs), a View menu, a More sheet, touch words, a first visit welcome and tips. `DESIGN.md` made. |
 | 09 | Small test group | todo | Share with 10-20 people (different phones) with a way to send feedback, before the 1000-member group. |
 
 ## Done (live build 190, `43fdbf8`)

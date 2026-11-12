@@ -45,6 +45,10 @@ the phone's browser and can be added to the home screen.
 - **Seasonal decor.** Done when: decor shows in its season only (Halloween
   in October, Thanksgiving), stays put day and night, and her routes stay
   open.
+- **Easy screens (phase 08).** Done when: a new person on a phone, with
+  nobody explaining, can feed, play with and pet her within a minute, see
+  how she's doing and find the backup code; the phone screen needs no
+  scrolling and no words are cut off; an existing save loads unchanged.
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
   volume for her and the room.
@@ -69,7 +73,6 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - Adopting more cats by levelling up.
 - Christmas: decor and tree mischief (phase 06, December).
 - The dog visit at the French doors.
-- Friendly app screens (phase 08): "real app ready".
 - Sharing with the 1000-member group after the test group.
 
 ## Decisions

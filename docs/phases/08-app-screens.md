@@ -1,4 +1,4 @@
-# Phase 08: Friendly app screens (draft, waiting for Merlin's OK)
+# Phase 08: Friendly app screens
 
 ## Goal
 Merlin: "real app ready", an easy, clear interface. The test group (phase
@@ -62,5 +62,20 @@ Phone screenshots at 375, 390 and 430 px (light and night) before and
 after; `npm run check`; save-checks with an old save; a first visit run in
 a fresh browser. Then Lettuce tries it on the preview.
 
-## Result
-(filled in at the end)
+## Result (2026-11-12, on preview)
+Merlin OK'd the plan; keep our look, no template, no style sites.
+- `DESIGN.md` written from the current look.
+- Phones: one screen, page height = screen height at 320, 390 and 430 px
+  wide (was 1177 px on a 664 px screen). No text cut off (also with the
+  preview build chip at 360x600).
+- View button and menu replace the six view buttons; More sheet holds
+  moments, guide, rename, backup, credits; level chip in the top bar.
+- Touch words on phones. First visit: welcome sheet (name her), then four
+  tips with "Skip tips"; tapping outside can't skip it by accident.
+- Checked: every menu item, full screen and back, Feed, backup code, level
+  chip; an old save (name, level 3, day 6, moments, decor) loads with no
+  welcome; `npm run check`, `tools/qa/season.mjs`; no page errors.
+- Reviewer caught: tap-outside skipped the welcome and lost the name; View
+  menu could run off short screens; preview build chip squeezed her name;
+  no skip for tips; wrong menu roles for screen readers. All fixed.
+- Not done: a real person trying it with nobody explaining (Lettuce).
