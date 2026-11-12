@@ -25,7 +25,9 @@ await page.evaluate(() => { kitten.refresh(); kitten.renderJournal && kitten.ren
 await page.waitForTimeout(1500);
 const panel = await page.$('.panel');
 await panel.screenshot({path: `${OUT}/panel${night ? '-night' : ''}.png`});
-{ const bb = await page.$eval('.dock', d => { const r = d.getBoundingClientRect(); return {x: r.x, y: r.y + scrollY, width: r.width, height: r.height}; }); await page.screenshot({path: `${OUT}/dock${night ? '-night' : ''}.png`, clip: bb, fullPage: true, timeout: 20000}); }
+// (lib.mjs hides the dock for clean 3D shots; show it for this one.)
+await page.evaluate(() => { document.documentElement.classList.remove('title', 'title-out'); document.querySelector('.dock').style.visibility = ''; });
+await (await page.$('.stage')).screenshot({path: `${OUT}/stage${night ? '-night' : ''}.png`, timeout: 30000});
 const errs = await page.evaluate(() => window.__errors || []);
 console.log('saved', `${OUT}/panel${night ? '-night' : ''}.png`, errs.length ? errs : '');
 await close();
