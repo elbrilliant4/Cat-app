@@ -116,20 +116,28 @@ await touch('touchStart', [[150, 400], [240, 400]]);
 for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 5, 400], [240 + i * 5, 410]]); await step(2); }
 await touch('touchEnd', []); await step(10); const sp = await state();
 line('pinch in the bed view', sp.mode === 'spot', `mode ${sp.mode}, ${sp.dist.toFixed(2)} m`);
-// (Two fingers sliding up tilt the view.)
-await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const sl0 = await state();
-await touch('touchStart', [[150, 500], [240, 500]]);
-for (let i = 1; i <= 8; i++) { await touch('touchMove', [[150, 500 - i * 15], [240, 500 - i * 15]]); await step(2); }
-await touch('touchEnd', []); await step(30); const sl1 = await state();
-const pit = await page.evaluate(() => kitten.view.goal.pitch);
-line('two fingers up tilt the view', Math.abs(sl1.dist - sl0.dist) < 1.5 && sl1.camY < sl0.camY - .5, `camera height ${sl0.camY} m to ${sl1.camY} m (pitch now ${pit.toFixed(2)})`);
+// (Coming closer tilts the view down to her level; further out looks down over the room.)
+await page.evaluate(() => document.querySelector('[data-cam="follow"]').click()); await step(80);
+const tp0 = await page.evaluate(() => kitten.view.goal.pitch);
+await touch('touchStart', [[150, 400], [240, 400]]);
+for (let i = 1; i <= 8; i++) { await touch('touchMove', [[150 - i * 10, 400], [240 + i * 10, 400]]); await step(2); }
+await touch('touchEnd', []); await step(30);
+const tp1 = await page.evaluate(() => kitten.view.goal.pitch);
+line('closer looks lower', tp1 < tp0 - .05, `tilt ${tp0.toFixed(2)} to ${tp1.toFixed(2)} as the view came closer`);
 // (From the whole room, pinching in goes to her; pinching out far gives the room back.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const r0 = await state();
 const pinchBy = async (a, b) => { await touch('touchStart', [[195 - a, 400], [195 + a, 400]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[195 - a - (b - a) * i / 8, 400], [195 + a + (b - a) * i / 8, 400]]); await step(2); } await touch('touchEnd', []); await step(60); };
 await pinchBy(40, 110); const r1 = await state();
 const cc = await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .3; return p.toArray(); });
-const [ccx, ccy] = await screenOf(cc); await shot('7c-pinched-in-from-room');
-line('pinch in from the room goes to her', r1.mode === 'follow' && r1.dist < 6 && Math.abs(ccx - (box.x + box.w / 2)) < 90, `${r0.mode} at ${r0.dist.toFixed(1)} m to ${r1.mode} at ${r1.dist.toFixed(1)} m; she is ${Math.abs(ccx - (box.x + box.w / 2)).toFixed(0)} px from the middle`);
+const [ccx] = await screenOf(cc); await shot('7c-pinched-in-from-room');
+const herAt = await screenOf(await page.evaluate(() => kitten.cat.root.position.toArray()));
+const onHer = Math.hypot(herAt[0] - 195, herAt[1] - 400) < 60;
+line('pinch in from the room goes where the fingers are', onHer ? r1.mode === 'follow' : r1.mode === 'free' && r1.dist < r0.dist * .7, `fingers ${onHer ? 'on her' : 'on the floor'}: ${r0.mode} at ${r0.dist.toFixed(1)} m to ${r1.mode} at ${r1.dist.toFixed(1)} m`);
+// (Pinching in on her from the whole room: her view.)
+await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80);
+{ const [hx, hy] = await screenOf(await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .2; return p.toArray(); }));
+  await touch('touchStart', [[hx - 40, hy], [hx + 40, hy]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[hx - 40 - i * 9, hy], [hx + 40 + i * 9, hy]]); await step(2); } await touch('touchEnd', []); await step(60);
+  const rh = await state(); line('pinch in on her goes to her', rh.mode === 'follow', `mode ${rh.mode} at ${rh.dist.toFixed(1)} m`); }
 await pinchBy(130, 30); await pinchBy(130, 30); const r2 = await state();
 line('pinch out gives the room back', r2.mode === 'room', `mode ${r2.mode} at ${r2.dist.toFixed(1)} m`);
 await look(HOME); await step(2);
@@ -140,6 +148,11 @@ for (let i = 1; i <= 12; i++) { await touch('touchMove', pair(i * .05)); await s
 await touch('touchEnd', []); await step(30);
 const t1 = await state();
 line('twist turns the view', Math.abs(t1.yaw) > .25 && Math.abs(t1.dist - 7) < .5, `turned ${(t1.yaw * 57.3).toFixed(0)}° for a 34° twist; distance ${t1.dist.toFixed(2)} m`);
+// (Twisting on and on never backs the camera into a wall: it stops at the edge, at full distance.)
+await look(HOME); await step(2);
+for (let k = 0; k < 3; k++) { await touch('touchStart', pair(0)); for (let i = 1; i <= 16; i++) { await touch('touchMove', pair(i * .1)); await step(2); } await touch('touchEnd', []); await step(10); }
+await step(30); const t2 = await state(); await shot('7d-twist-to-the-edge');
+line('turning stops before a wall', t2.dist > 7 * .9, `after three big twists: turned ${(t2.yaw * 57.3).toFixed(0)}°, camera ${t2.dist.toFixed(2)} m from the spot (asked 7)`);
 
 // 10. Watch (the room fills the screen): the whole room, with her in the picture, not a wall.
 await page.evaluate(() => document.querySelector('#watch-btn').click()); await page.waitForTimeout(400); await step(80);

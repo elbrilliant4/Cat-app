@@ -2298,9 +2298,10 @@ function updatePlay(dt, t) {
 // ---------------------------------------------------------------------------
 // Camera: an orbit around a focus point. Everything is eased toward `goal`.
 //   one finger / left mouse  in the room: move about it, like a map; around her: circle her (both glide on after a flick)
-//   pinch / wheel            closer or further: from the whole room in to her;
-//                            far out from anywhere, the whole room again
-//   two fingers              twisting: turn the view;  sliding up or down: tilt it
+//   pinch / wheel            closer or further, towards the spot between the fingers
+//                            (on her: to her); the view tilts down to her level as
+//                            it comes closer; far out from anywhere, the whole room
+//   two fingers              twisting: turn the view (never round into a wall)
 //   right drag (mouse)       turn the view
 //   tap                      her: a pat, by where it lands; the floor: she comes
 //   double tap               on her: a close-up that follows; on the floor: closer to that spot
@@ -2413,8 +2414,26 @@ function clampGoal() {
   g.focus.y = clamp(g.focus.y, LIMITS.y[0], view.farY);
   g.focus.z = clamp(g.focus.z, ...LIMITS.z);
 }
+// Turn the view, but never so the camera backs into a wall: a turn that
+// would shorten the camera's arm against the room stops there, like a map
+// stops at its edge. (Turning away from a wall is always fine.)
+const turnOff = new THREE.Vector3();
+function armAt(yaw) {
+  const g = view.goal;
+  turnOff.set(Math.sin(yaw) * Math.cos(g.pitch), Math.sin(g.pitch), Math.cos(yaw) * Math.cos(g.pitch));
+  return boxArm(g.focus, turnOff, g.dist);
+}
+function turnBy(da) {
+  if (!da) return;
+  const g = view.goal, was = armAt(g.yaw), now = armAt(g.yaw + da);
+  if (now < g.dist - .05 && now < was - 1e-3) return;
+  g.yaw += da;
+}
+// How far the view tilts down at a distance: far out it looks down over the
+// room, close in it is down at her level (the way a pet game frames it).
+const tiltFor = d => .1 + .55 * clamp(Math.log(Math.max(d, 1.1) / 1.1) / Math.log(9 / 1.1), 0, 1) ** 1.4;
 function orbit(dx, dy) {
-  view.goal.yaw -= dx * .008;
+  turnBy(-dx * .008);
   view.goal.pitch += dy * .006;
   view.lastDrag = clockNow;
   clampGoal();
@@ -2462,19 +2481,24 @@ function boxArm(focus, off, d) {
   }
   return d;
 }
-// The point in the room under a screen position: on her if she is there, on
-// the floor, otherwise at the depth the camera is looking at.
-const zoomPlane = new THREE.Plane(), zoomPt = new THREE.Vector3();
+// The point in the room under a screen position: on her if she is there,
+// otherwise on the floor, kept inside the room (fingers over a wall aim at
+// the floor at its foot, never into the wall). `onCat` says which.
+// (Aimed at her height above the floor, so a close look is at her level, not at the boards.)
+const zoomPt = new THREE.Vector3(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.28);
+let zoomOnCat = false;
 function pointUnder(x, y) {
   const r = host.getBoundingClientRect();
   pointer.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1);
   ray.setFromCamera(pointer, camera);
   const hit = ready && ray.intersectObjects(cat.meshes, false)[0];
+  zoomOnCat = !!hit;
   if (hit) return zoomPt.copy(hit.point);
-  // (The floor, where the pointer is on it inside the room.)
-  if (ray.ray.intersectPlane(groundPlane, zoomPt) && zoomPt.x > LIMITS.x[0] && zoomPt.x < LIMITS.x[1] && zoomPt.z > LIMITS.z[0] && zoomPt.z < LIMITS.z[1]) return zoomPt;
-  zoomPlane.setFromNormalAndCoplanarPoint(camOffset, view.focus);
-  return ray.ray.intersectPlane(zoomPlane, zoomPt);
+  // (Above the horizon there is no floor: straight in.)
+  if (!ray.ray.intersectPlane(aimPlane, zoomPt) || zoomPt.distanceTo(camera.position) > 40) return null;
+  zoomPt.x = clamp(zoomPt.x, LIMITS.x[0] + .4, LIMITS.x[1] - .4);
+  zoomPt.z = clamp(zoomPt.z, LIMITS.z[0] + .4, LIMITS.z[1] - .4);
+  return zoomPt;
 }
 // Zoom by a factor, towards the screen point `at` if given (the fingers, the
 // mouse): that point stays under them. Zoom always starts from where the
@@ -2486,13 +2510,20 @@ function zoomBy(f, at) {
   // room. From the whole room, pinching in goes to her; from her, pinching
   // out far enough gives the whole room back.
   if (clockNow - view.zoomedAt > .5) view.push = 0;
+  // Pinching in aims where the fingers are: on her (or close by her), her
+  // view; anywhere else, that spot on the floor.
+  const aim = at && f < 1 ? pointUnder(at.x, at.y) : null;
+  const nearHer = aim && ready && (zoomOnCat || Math.hypot(aim.x - cat.root.position.x, aim.z - cat.root.position.z) < .9);
   if (view.mode === 'room') {
     view.zoomedAt = clockNow;
     view.push -= Math.log(f);
     if (f >= 1 || view.push < .06 || !ready) return;
     const from = Math.min(g.dist, view.shown, 8.5);
-    setCamMode('follow');
+    setCamMode(aim && !nearHer ? 'free' : 'follow');
     g.dist = from; view.zoomHeld = true; view.push = 0;
+  } else if (view.mode === 'follow' && aim && !nearHer) {
+    g.dist = Math.min(view.mode === 'follow' && !view.zoomHeld ? view.auto : g.dist, view.shown);
+    setCamMode('free');
   }
   // (Following her with the zoom left to the camera: start from what it chose.)
   // Squeezed against a wall, nearer than the nearest zoom: nothing closer to go to.
@@ -2510,6 +2541,8 @@ function zoomBy(f, at) {
   }
   const k = to / from;
   g.dist = to;
+  // (Closer looks lower, further looks down over the room.)
+  g.pitch += tiltFor(to) - tiltFor(from);
   view.lastDrag = view.zoomedAt = clockNow;
   view.zoomHeld = true;
   // (Only in a view of your own; her view and the bowl, fountain and bed views stay on their subject.)
@@ -2716,8 +2749,6 @@ host.addEventListener('pointermove', e => {
     const [p1, p2] = [...touches.values()];
     const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d, {x: mx, y: my});
-    // Both fingers sliding up or down tilt the view.
-    if (Math.abs(my - pinch.my) > .5) { view.goal.pitch += (my - pinch.my) * .005; view.lastDrag = clockNow; clampGoal(); }
     // Twisting the two fingers turns the view (once it is clearly a twist,
     // so a plain pinch stays straight).
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -2726,7 +2757,7 @@ host.addEventListener('pointermove', e => {
     let twist = pinch.twist;
     if (d > 60) {
       if (Math.abs(twist) < .14) { twist += da; da = Math.abs(twist) < .14 ? 0 : twist - Math.sign(twist) * .14; }
-      if (da) { view.goal.yaw += da; view.lastDrag = clockNow; clampGoal(); }
+      if (da) { turnBy(da); view.lastDrag = clockNow; clampGoal(); }
     }
     pinch = {d, mx, my, a, twist};
     return;
@@ -3407,7 +3438,7 @@ function updateCamera(dt) {
   if (view.fling) {
     const fl = view.fling;
     if (fl.slide) pan(fl.vx * dt, fl.vy * dt);
-    else { view.goal.yaw -= fl.vx * dt * .008; view.goal.pitch += fl.vy * dt * .006; }
+    else { turnBy(-fl.vx * dt * .008); view.goal.pitch += fl.vy * dt * .006; }
     const k = Math.exp(-5.5 * dt);
     fl.vx *= k; fl.vy *= k;
     if (Math.hypot(fl.vx, fl.vy) < 25) view.fling = null;

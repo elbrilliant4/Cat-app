@@ -28,13 +28,17 @@ the phone's browser and can be added to the home screen.
   no leg stretched more than ~4 cm (`tools/qa/legs.mjs`).
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
-- **Looking around** (preview, phase 14; plan A, Merlin 2026-11-12, then
-  "moving around still off" and "two fingers to move is off"). Done when:
+- **Looking around** (live, phase 14; plan A, Merlin 2026-11-12, then
+  "moving around still off", "two fingers to move is off" and "zoom goes to
+  the walls, hard to aim": pinch aims at the fingers, tilt follows zoom,
+  turning stops before a wall). Done when:
   in the room, one finger drags you about it like a map (the floor stays
   under the finger) and the view stays where you leave it; around her, one
-  finger circles her; two fingers pinch to zoom, twist to turn, slide up or
-  down to tilt; a double tap on the floor goes closer to that spot (again
-  when close: the whole room); pinching in from the whole room goes to her,
+  finger circles her; two fingers pinch to zoom towards the spot between them
+  (on her: to her; never into a wall) and twist to turn, and a turn stops
+  before the camera would back into a wall; closer in, the view tilts down
+  to her level, further out it looks down over the room; a double tap on the floor goes closer to that spot (again
+  when close: the whole room); pinching in from the whole room goes where the fingers are,
   and pinching far out from anywhere gives the room back; zooming in always
   moves the camera, even after a wall stopped it; a flick glides on; a
   double tap on her gives a close-up that follows; following her keeps the

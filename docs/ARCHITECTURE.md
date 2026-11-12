@@ -80,14 +80,18 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 
 **Camera** (app.js, "Input"): an orbit round `view.focus`; everything eases
-towards `view.goal`. The player never has to steer it: `zoomBy` is one line
-in and out about her (`room` → pinch in → `follow`; far out → `room`), the
-`room` view lets you look round (`view.home` ± 1.1) and settles back, and
-only a mouse right-drag makes a view of your own (`free`, where zoom goes to
-the pointer, `pointUnder`). `view.shown` is how far the camera really is
-(walls, `boxArm`, and furniture hold it closer than `view.dist`); zoom
-starts from it. `view.zoomHeld` = the player chose the zoom, so follow
-leaves it (and looks at her face when closer than her whole body).
+towards `view.goal`. Modes: `room` (the whole room, `roomFrame`), `follow`
+(her), `spot` (bowl, fountain, bed), `free` (a view of your own). One finger
+in `room`/`free` drags the floor like a map (`grabPan`); in `follow`/`spot` it
+circles. `zoomBy` aims at the fingers: `pointUnder` gives the spot on her or
+on a plane at her height, clamped inside the floor (never a wall); a pinch
+on or near her (0.9 m) goes to `follow`, elsewhere to `free` towards that
+spot; far out from anywhere gives `room` back. Tilt follows zoom
+(`tiltFor(dist)`, applied as a change, so each view keeps its own angle).
+`turnBy` is the only way the view turns (drag, twist, flick): it refuses a
+turn that would shorten the camera's arm against `CAM_BOX`. `view.shown` is
+how far the camera really is (walls, `boxArm`, furniture); zoom starts from
+it. `view.zoomHeld` = the player chose the zoom, so follow leaves it.
 `view.fling` = the glide after a flick. Touch times come from `e.timeStamp`
 (the QA freezes `performance.now`).
 
