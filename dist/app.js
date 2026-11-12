@@ -2570,11 +2570,15 @@ function zoomBy(f, at) {
   // view; anywhere else, that spot on the floor.
   const aim = at && f < 1 ? pointUnder(at.x, at.y) : null;
   // (Near her = on screen, where you see her: within a fingertip or two.)
-  let nearHer = false;
-  if (at && f < 1 && ready) {
+  // (Decided once per pinch: as the view moves towards her she slides out
+  // from under the fingers, and that must not change what you aimed at.)
+  const fresh = clockNow - view.zoomedAt > .5;
+  let nearHer = fresh ? false : view.aimHer;
+  if (fresh && at && f < 1 && ready) {
     const r = host.getBoundingClientRect(), q = herOnScreen.copy(cat.root.position).setY(cat.root.position.y + .2).project(camera);
     nearHer = zoomOnCat || (q.z < 1 && Math.hypot(r.left + (q.x + 1) / 2 * r.width - at.x, r.top + (1 - q.y) / 2 * r.height - at.y) < 70);
   }
+  if (fresh) view.aimHer = nearHer;
   if (view.mode === 'room') {
     view.zoomedAt = clockNow;
     view.push -= Math.log(f);
