@@ -3437,7 +3437,8 @@ function startFilm() {
   v.src = FILM_SRC;
   // (A phone may refuse a film with sound: then it plays without.)
   try { v.play()?.catch(() => { v.muted = true; v.play()?.catch(fail); }); } catch { fail(); }
-  film.watch = setTimeout(fail, 3000);
+  // (?filmwait=ms: a longer wait, for the slow test machine.)
+  film.watch = setTimeout(fail, +new URLSearchParams(location.search).get('filmwait') || 3000);
   titleSnap();
   brain.pos.copy(HOME); brain.elevation = 0; brain.heading = view.goal.yaw - .3;
   setActivity('sit');

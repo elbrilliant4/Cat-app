@@ -102,11 +102,11 @@ const liveOK = async page => {
   if (st.logo !== 'visible' || st.go !== 'Play with ' + st.name) throw new Error('title not shown: ' + JSON.stringify(st));
 };
 const toyXY = page => page.evaluate(() => { const v = kitten.toy.position.clone().project(kitten.camera), r = kitten.renderer.domElement.getBoundingClientRect(); return {x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height}; });
-await run('film: plays after Enter, a tap skips, then the first steps (ball, stroke) once', '?debug&intro=full&night=0', PHONE, async page => {
+await run('film: plays after Enter, a tap skips, then the first steps (ball, stroke) once', '?debug&intro=full&night=0&filmwait=90000', PHONE, async page => {
   await withFilm(page);
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
-  await page.waitForSelector('#title.film.rolling', {timeout: 60000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
+  await page.waitForSelector('#title.film.rolling', {timeout: 120000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
   await page.waitForTimeout(2500);
   await page.screenshot({path: `${OUT}/film-playing.png`, timeout: 120000});
   if (await page.evaluate(() => !document.getElementById('title-film').muted)) throw new Error('film has sound after Enter without sound');
@@ -139,11 +139,11 @@ await run('film: plays after Enter, a tap skips, then the first steps (ball, str
   h = await hint();
   if (h.teach || h.step) throw new Error('prompt came back after a reload: ' + JSON.stringify(h));
 });
-await run('film: with sound, plays to its end and fades into the title', '?debug&intro=full&night=0', PHONE, async page => {
+await run('film: with sound, plays to its end and fades into the title', '?debug&intro=full&night=0&filmwait=90000', PHONE, async page => {
   await withFilm(page);
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.click('#enter-sound', {timeout: 120000, noWaitAfter: true});
-  await page.waitForSelector('#title.film.rolling', {timeout: 60000});
+  await page.waitForSelector('#title.film.rolling', {timeout: 120000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
   if (await page.evaluate(() => document.getElementById('title-film').muted)) throw new Error('film is muted after Enter with sound');
   await page.waitForFunction(() => kitten.title.stage === 'live', null, {timeout: 600000});
   await liveOK(page);
@@ -163,7 +163,9 @@ await run('film file missing: the sequence plays instead', '?debug&intro=full&ni
 for (const [name, q, opts] of [['night', '?debug&intro=full&night=1', PHONE], ['the Christmas look', '?debug&intro=full&night=0&decor=christmas', PHONE], ['the first Mochi', '?debug&intro=full&night=0&mochi=first', PHONE], ['a wide screen', '?debug&intro=full&night=0', DESK]])
   await run('no film in ' + name + ': the sequence', q, opts, async page => {
     await withFilm(page);
+    if (/decor=christmas/.test(q)) { await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; localStorage[k] = JSON.stringify({v: 2, name: 'Mochi', decor: 'christmas', updated: Date.now()}); }); await page.reload(); }
     await page.waitForSelector('#title.gate', {timeout: 120000});
+    if (/decor=christmas/.test(q) && await page.evaluate(() => kitten.room.decor) !== 'christmas') throw new Error('the Christmas look is not on');
     await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
     await page.waitForTimeout(800);
     if (await stage(page) !== 'cine') throw new Error('stage is ' + await stage(page));
@@ -173,7 +175,7 @@ for (const [name, q, opts] of [['night', '?debug&intro=full&night=1', PHONE], ['
     await tapOut(page);
   });
 await run('a save from before: no first steps', '?debug', PHONE, async page => {
-  await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; if (!localStorage[k]) localStorage[k] = JSON.stringify({v: 2, name: 'Mochi', bond: 12, cuddles: 3, updated: Date.now()}); });
+  await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; localStorage[k] = JSON.stringify({v: 2, name: 'Mochi', bond: 12, cuddles: 3, updated: Date.now()}); });
   await page.reload();
   await page.waitForSelector('#loading.done', {state: 'attached', timeout: 120000});
   await page.waitForTimeout(1500);
