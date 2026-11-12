@@ -4,7 +4,8 @@
 Third cut, after ChatGPT's review (Merlin pasted it, 22:00 UTC): 8.5 s, four
 shots. Merlin approved "Render it", music A, tutorial "Add now", film on the
 first launch of every day (as SPEC says). Files: `sources/title/film-v3/`.
-- Shot 1 wake: kept from the second cut (task 1512e762, cut 1.0-3.0).
+- Shot 1 wake: REDONE in the bright real room (Merlin asked), task
+  932911f0, key picture 8dcf62c1 (`k1.webp`), `shot1.mp4`.
 - Shot 2 spots the ball (over her shoulder), task e0675dc2, key picture
   67e501e9 (`k2.webp`). Use about 1.0 s.
 - Shot 3 crouch and short pounce, task 0b5eefc6 (4 s), key picture 4b40b5d4
@@ -13,18 +14,17 @@ first launch of every day (as SPEC says). Files: `sources/title/film-v3/`.
   DONE and good (`shot4.mp4`). Starts on 638c4681 (`k4s.webp`), ends on
   285df482 (`kE.webp`), which was made from a clean still of the real living
   title (`real-room.webp`, Runway upload asset 5a749de0). Use the last 3.0 s.
-- CUT DONE (22:40 UTC): `mochi-film-v3-A.mp4` (music A) and
-  `mochi-film-v3-silent.mp4`, 9.7 s. Cut: s1 0-2.0 of the second cut's
-  silent film, shot2 0.5-1.7, shot3 0.5-3.2, shot4 0.2-4.04; music from 0,
-  faded out from 8.2 s. `last-frame-vs-real-room.png` is the comparison.
-  Merlin has them; waiting for his OK or reshoot notes. Known weak spot:
-  shot 1 (kept) shows the old dark room, the other three the real bright one.
+- CUT DONE (22:50 UTC): `mochi-film-v3-A.mp4` (music A) and
+  `mochi-film-v3-silent.mp4`, 9.8 s, all four shots in the real room. Cut:
+  shot1 0.9-3.0, shot2 0.5-1.7, shot3 0.5-3.2, shot4 0.2-4.04; music from
+  0, faded out from 8.3 s. `last-frame-vs-real-room.png` is the comparison.
+  Merlin has it; waiting for his OK or reshoot notes.
 - After his OK on the cut: plan (big change, plan mode) for the film in the
   app PLUS the new "Tap the ball" first step: after the film the room is
   live, a short "Tap the ball" prompt, the first tap makes Mochi react at
   once, petting and care are taught after. Not in SPEC.md yet: add it with a
   "Done when" line when the plan is agreed; show the plan to Lettuce.
-- Runway credits: 1,406 left (132 for the three shots, 16 for key pictures).
+- Runway credits: 1,366 left (188 spent on this cut).
 - Still owed, Merlin said "Later": true-speed clip of the living title.
 
 ---
