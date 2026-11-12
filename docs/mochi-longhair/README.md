@@ -33,9 +33,16 @@ triangle copy for phones by Meshy's Remesh. 96 credits (170 in all).
   no repaint. Worse: she stands mid-step (hind legs staggered, as the back
   view was slightly turned), so her bone table needs each side measured and
   rest fixes like the first Mochi's (`aim()` in `real-cat.js`).
-- **Not rigged yet.** `BONES_LONGHAIR` is the first candidate's.
-  `tools/mochi-longhair/measure.py <glb>` prints the landmarks to build her
-  table from; `pack.py` makes a web copy.
+- **Rigged (Merlin picked this model).** `BONES_LONGHAIR`, `FACE_LONGHAIR`
+  and the `longhair` numbers in `cat-rig.js` are now hers, and
+  `rig-check.html?rig=2&model=longhair` loads her. Picture:
+  `rigged-poses.jpg`. Two fixes on the way: a model with over about 125,000
+  points broke a `Math.min(...)` call in the weights; loose flecks of tail
+  fur now follow the tail (`T.tailUp`). The first candidate
+  (`mochi-longhair.glb`) is kept for comparison only; its bone table is in
+  git history (commit `1d2b971`).
+- `tools/mochi-longhair/measure.py <glb>` prints the landmarks a bone table
+  is built from; `pack.py` makes a web copy.
 - The 8K original is too big for the repo comfortably (95 MB; GitHub's
   limit is 100): Merlin should download it from Meshy before it expires
   there (task `01a1cd4a-6e89-7137-b41f-0d9decacdf03`).
@@ -67,9 +74,10 @@ Two things her build needed: leg skin goes to the nearest leg (her legs
 stand close together), and a narrower midline limit (`T.mid`).
 
 Known faults, not fixed yet:
-- Sitting is low and sloped: the haunches don't tuck under. `POSES.sit` was
-  tuned for the first Mochi's leg lengths; her legs are shorter under the fur.
-- Crouch kicks a hind leg back.
+- (First candidate: sitting was low, the crouch kicked a leg. On the
+  top-settings model the sit reads as a sit; crouch and walk not looked at yet.)
+- Standing, her hind legs trail a little behind her.
+- Loading works out weights for 140,000 points: slow, to be timed on a phone.
 - The fur shells still use the first Mochi's regions (`furLengths`), so the
   fur is hidden in these pictures.
 - Contact points and petting colliders are the first Mochi's sizes.

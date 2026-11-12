@@ -42,7 +42,7 @@ const DEF = RIG === 2 ? BONES2 : BONES;
 // ?model=longhair: the long-haired candidate (rig 2 only).
 const LONGHAIR = new URLSearchParams(location.search).get('model') === 'longhair';
 const cat = new RealCat(LONGHAIR ? {rig: 2, model: 'longhair'} : {rig: RIG});
-await cat.load(LONGHAIR ? './assets/mochi-longhair.glb' : './assets/mochi-ragdoll.glb');
+await cat.load(LONGHAIR ? './assets/mochi-longhair-hq.glb' : './assets/mochi-ragdoll.glb');
 scene.add(cat.root);
 cat.fur.visible = false;
 const B = cat.bones, skinned = cat.skinned, geo = skinned.geometry;

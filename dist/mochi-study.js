@@ -10,7 +10,7 @@ import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {BONES_LONGHAIR, FACE_LONGHAIR} from './cat-rig.js';
 
 const q = new URLSearchParams(location.search);
-const file = q.get('model') || 'mochi-longhair.glb';
+const file = q.get('model') || 'mochi-longhair-hq.glb';
 const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);

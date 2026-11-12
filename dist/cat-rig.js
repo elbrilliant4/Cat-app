@@ -237,47 +237,48 @@ BONES2.tail5 = ['tail4', V(0.515, -0.38, -0.60)];
 BONES2.tail6 = ['tail5', V(0.505, -0.372, -0.72)];
 BONES2.tail7 = ['tail6', V(0.48, -0.365, -0.82), V(0.43, -0.34, -0.95)];
 
-// The long-haired Mochi candidate (assets/mochi-longhair.glb, see
+// The long-haired Mochi (assets/mochi-longhair-hq.glb, Meshy's top settings; see
 // docs/mochi-longhair/): the same bones as BONES2, measured on that model. It
-// stands straight and symmetric: midline x = 0, ground y = -0.62, facing +z,
+// stands almost square: midline x = 0, ground y = -0.6, facing +z,
 // her left is +x, tail raised. Thick fur: the skin is well inside the surface
 // (back at y .25, bones at .08). Not used by the app yet (mochi-study.html
 // draws it with ?bones).
 const side = (n, parent, x, y, z, end) => ({[n + 'R']: [parent && parent + 'R', V(-x, y, z), end && V(-end[0], end[1], end[2])].filter(v => v !== undefined), [n + 'L']: [parent && parent + 'L', V(x, y, z), end && V(...end)].filter(v => v !== undefined)});
-export const GROUND_Y_LONGHAIR = -0.62;
+export const GROUND_Y_LONGHAIR = -0.602;
 export const BONES_LONGHAIR = {
   hips:  [null,    V(0, 0.08, -0.30)],
   spine: ['hips',  V(0, 0.08, -0.02)],
   chest: ['spine', V(0, 0.08, 0.30)],
-  neck:  ['chest', V(0, 0.16, 0.55)],
-  head:  ['neck',  V(0, 0.27, 0.70), V(0, 0.27, 0.93)],
-  jaw:   ['head',  V(0, 0.21, 0.78), V(0, 0.19, 0.93)],
-  earR:  ['head',  V(-0.11, 0.40, 0.76), V(-0.147, 0.494, 0.80)],
-  earL:  ['head',  V(0.11, 0.40, 0.76), V(0.147, 0.494, 0.80)],
-  scapulaR: ['chest', V(-0.07, 0.20, 0.36)], scapulaL: ['chest', V(0.07, 0.20, 0.36)],
-  ...side('shoulder', 'scapula', 0.10, -0.02, 0.50),
-  ...side('elbow', 'shoulder', 0.09, -0.28, 0.45),
-  ...side('wrist', 'elbow', 0.08, -0.50, 0.50, [0.088, -0.60, 0.59]),
+  neck:  ['chest', V(0, 0.17, 0.55)],
+  head:  ['neck',  V(0, 0.29, 0.70), V(0, 0.29, 0.93)],
+  jaw:   ['head',  V(0, 0.23, 0.78), V(0, 0.21, 0.93)],
+  earR:  ['head',  V(-0.11, 0.41, 0.75), V(-0.152, 0.508, 0.787)],
+  earL:  ['head',  V(0.11, 0.41, 0.75), V(0.156, 0.509, 0.783)],
+  scapulaR: ['chest', V(-0.07, 0.20, 0.34)], scapulaL: ['chest', V(0.07, 0.20, 0.34)],
+  ...side('shoulder', 'scapula', 0.09, -0.02, 0.46),
+  ...side('elbow', 'shoulder', 0.075, -0.28, 0.42),
+  ...side('wrist', 'elbow', 0.078, -0.48, 0.435, [0.087, -0.585, 0.53]),
   thighR: ['hips', V(-0.10, 0.0, -0.30)], thighL: ['hips', V(0.10, 0.0, -0.30)],
   hipR: ['hips', V(-0.10, 0.0, -0.30)], hipL: ['hips', V(0.10, 0.0, -0.30)],
-  ...side('knee', 'hip', 0.11, -0.26, -0.18),
-  ...side('hock', 'knee', 0.09, -0.46, -0.31, [0.105, -0.60, -0.20]),
-  tail0: ['hips',  V(0, 0.14, -0.40)],
-  tail1: ['tail0', V(0, 0.20, -0.50)],
-  tail2: ['tail1', V(0, 0.27, -0.58)],
-  tail3: ['tail2', V(0, 0.34, -0.65)],
-  tail4: ['tail3', V(0, 0.41, -0.70)],
-  tail5: ['tail4', V(0, 0.47, -0.73)],
+  // (She stands mid-step: her right hind leg is a little further back.)
+  kneeR: ['hipR', V(-0.12, -0.26, -0.22)], kneeL: ['hipL', V(0.12, -0.26, -0.20)],
+  hockR: ['kneeR', V(-0.11, -0.45, -0.36), V(-0.15, -0.585, -0.28)], hockL: ['kneeL', V(0.10, -0.45, -0.31), V(0.13, -0.585, -0.20)],
+  tail0: ['hips',  V(0, 0.15, -0.40)],
+  tail1: ['tail0', V(0, 0.21, -0.50)],
+  tail2: ['tail1', V(0, 0.28, -0.58)],
+  tail3: ['tail2', V(0, 0.35, -0.66)],
+  tail4: ['tail3', V(0, 0.42, -0.71)],
+  tail5: ['tail4', V(0, 0.48, -0.74)],
   tail6: ['tail5', V(0, 0.53, -0.76)],
-  tail7: ['tail6', V(0, 0.58, -0.76), V(0, 0.62, -0.74)],
+  tail7: ['tail6', V(0, 0.57, -0.76), V(0, 0.60, -0.75)],
 };
 // Face landmarks, read off the model's texture (blue of the eyes, pink of the nose).
 export const FACE_LONGHAIR = {
-  eyeR: V(-0.064, 0.293, 0.883),
-  eyeL: V(0.062, 0.293, 0.884),
-  eyeRadius: new THREE.Vector2(0.021, 0.016),
-  mouth: V(0, 0.205, 0.925),
-  nose: V(0, 0.24, 0.941),
+  eyeR: V(-0.061, 0.311, 0.874),
+  eyeL: V(0.061, 0.311, 0.874),
+  eyeRadius: new THREE.Vector2(0.024, 0.017),
+  mouth: V(0, 0.225, 0.925),
+  nose: V(0, 0.261, 0.936),
 };
 
 // Where the parts of the model are, for the weights (the first Mochi's own
@@ -289,7 +290,7 @@ export const FACE_LONGHAIR = {
 // full strength (her legs stand closer together than the first Mochi's).
 const T = {tailCut: 0.11, front: -0.05, hind: -0.2, legTopF: -0.2, legTopH: -0.24, jaw: [0.72, 0.17, 0.305, 0.14], earY: 0.47, earZ: 0.78, headZ: 0.25, mid: [.02, .05]};
 const inJaw = p => p.z > T.jaw[0] && p.y > T.jaw[1] && p.y < T.jaw[2] && Math.abs(p.x - MIDLINE_X) < T.jaw[3];
-const T_LONGHAIR = {tailCut: 0.17, front: 0.22, hind: -0.02, legTopF: -0.3, legTopH: -0.3, jaw: [0.8, 0.14, 0.225, 0.09], earY: 0.4, earZ: 0.84, headZ: 0.48, mid: [.008, .015]};
+const T_LONGHAIR = {tailCut: 0.17, front: 0.22, hind: -0.02, legTopF: -0.3, legTopH: -0.3, jaw: [0.8, 0.16, 0.245, 0.09], earY: 0.41, earZ: 0.84, headZ: 0.48, mid: [.008, .015], tailUp: true};
 
 /**
  * Switches every table in this file to another model's measurements, in
@@ -303,8 +304,8 @@ export function useModel(name) {
   for (const k of ['scapulaR', 'scapulaL', 'thighR', 'thighL']) delete BONES[k];
   BONES.shoulderR = ['chest', BONES_LONGHAIR.shoulderR[1]]; BONES.shoulderL = ['chest', BONES_LONGHAIR.shoulderL[1]];
   for (const k of ['eyeR', 'eyeL', 'eyeRadius', 'mouth', 'nose']) FACE[k].copy(FACE_LONGHAIR[k]);
-  Object.assign(LEGS.R, {axis: [-0.085, 0.49]}); Object.assign(LEGS.L, {axis: [0.085, 0.49]});
-  Object.assign(LEGS.HR, {axis: [-0.1, -0.27]}); Object.assign(LEGS.HL, {axis: [0.1, -0.27]});
+  Object.assign(LEGS.R, {axis: [-0.078, 0.45]}); Object.assign(LEGS.L, {axis: [0.078, 0.45]});
+  Object.assign(LEGS.HR, {axis: [-0.125, -0.31]}); Object.assign(LEGS.HL, {axis: [0.115, -0.26]});
   Object.assign(T, T_LONGHAIR);
   GROUND_Y = GROUND_Y_LONGHAIR; MIDLINE_X = 0;
 }
@@ -360,6 +361,10 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
   const stack = [tip];
   region[tip] = 1;
   while (stack.length) { const v = stack.pop(); for (const u of adj[v]) if (region[u] === 0) { region[u] = 1; stack.push(u); } }
+  // A raised tail's loose flecks of fur (pieces of their own, which the
+  // spread above can't reach) belong to the tail too, or they stay behind
+  // in the air when it moves.
+  if (T.tailUp) for (let i = 0; i < N; i++) if (weld[i] === i && region[i] === 0 && pos.getZ(i) < r1.z && pos.getY(i) > r1.y) region[i] = 1;
   const LEG_REGIONS = {3: LEGS.R, 4: LEGS.L, 5: LEGS.HR, 6: LEGS.HL};
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i || region[i]) continue;
@@ -427,8 +432,10 @@ export function computeWeights2(geometry, {smooth = 300} = {}) {
     }
     let maxU = 0;
     for (let i = 0; i < N; i++) if (region[i] === 1 && isFinite(along[i])) maxU = Math.max(maxU, along[i]);
-    const start = Math.min(...Array.from({length: N}, (_, i) => region[i] === 1 && isFinite(along[i]) ? along[i] : Infinity));
+    let start = Infinity; // (a loop: a model can have more points than a call takes arguments)
+    for (let i = 0; i < N; i++) if (region[i] === 1 && isFinite(along[i])) start = Math.min(start, along[i]);
     for (let i = 0; i < N; i++) if (region[i] === 1 && isFinite(along[i])) along[i] = start + (along[i] - start) * (cum[cum.length - 1] - start) / Math.max(1e-6, maxU - start);
+    for (let i = 0; i < N; i++) if (region[i] === 1 && weld[i] === i && !isFinite(along[i])) along[i] = chainPos(P(i)); // loose pieces: by the nearest point of the chain
   }
   for (let i = 0; i < N; i++) {
     if (weld[i] !== i) continue;
