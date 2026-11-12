@@ -43,8 +43,16 @@ the phone's browser and can be added to the home screen.
 - **Night.** Done when: the sun/moon button switches lighting and she does
   night-owl things.
 - **Seasonal decor.** Done when: decor shows in its season only (Halloween
-  in October, Thanksgiving), stays put day and night, and her routes stay
-  open.
+  in October, Thanksgiving, Christmas in December), stays put day and
+  night, and her routes stay open.
+- **Christmas kitchen** (preview, from Orion's day and night pictures).
+  Done when: in December the look picker offers "Christmas at the Beach
+  House"; the kitchen then has the pine garland with fairy lights on the
+  top shelf, velvet bows, the wreath on the glazing, pine in a jug, the
+  runner with clementines and walnuts, the lantern with baubles, and in
+  the evening the lights and the glow under the shelves come up; she naps
+  on the top shelf by the garland; her routes stay open
+  (`tools/qa/vacuum.mjs`). The study keeps its classic look.
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
   volume for her and the room.
@@ -67,7 +75,8 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 ## Later
 - Miso, the second cat (blue British Shorthair), and the cats playing together.
 - Adopting more cats by levelling up.
-- Christmas: decor and tree mischief (phase 06, December).
+- Christmas tree mischief (phase 06, December). Christmas decor for the
+  study (mantel greenery, to match Orion's picture through the doorway).
 - The dog visit at the French doors.
 - Friendly app screens (phase 08): "real app ready".
 - Sharing with the 1000-member group after the test group.

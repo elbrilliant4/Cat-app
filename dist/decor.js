@@ -19,6 +19,9 @@ export const DECORS = {
   // (Seasonal looks are stored away out of season: `months` says when
   // they're offered, `then` what a room dressed in one changes to.)
   halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat', months: [10], then: 'thanksgiving'},
+  // (Christmas dresses the kitchen; the study keeps its classic plaid,
+  // leather and greenery, which is what shows through the doorway.)
+  christmas: {name: 'Christmas at the Beach House', note: 'Pine garland, velvet bows and fairy lights', months: [12], then: 'classic'},
 };
 // A look that's offered now (`force`: a decor named in the page's address,
 // to look at one out of season).
@@ -46,7 +49,7 @@ export function applyDecor(room, name) {
   const O = room.decorOriginal;
   for (const g of Object.values(room.decorProps || {})) g.forEach(o => o.visible = false);
   room.candleLight = null; room.pumpkinGlow = null; room.pumpkinHalos = null; room.altToy = null;
-  if (name === 'classic') {
+  if (name === 'classic' || name === 'christmas') {
     if (M.piping) M.piping.color.set('#6b7040');
     M.rug.map = O.rugMap; M.rug.color.copy(O.rugColor); room.rugEdge.color.copy(O.rugEdge);
     M.plaidBed.map = O.bedMap; M.sherpa.map = O.sherpaMap; M.plaidThrow.map = O.throwMap; room.fringeMat.color.copy(O.fringe);
@@ -591,15 +594,17 @@ export function applyKitchenDecor(kitchen, name) {
   if (!DECORS[name]) name = 'classic';
   const room = kitchen.room, T = room.decorTextures ??= thanksgivingTextures();
   const parts = kitchen.decorParts ??= {};
-  if (name !== 'classic') {
+  const autumn = name === 'thanksgiving' || name === 'halloween', christmas = name === 'christmas';
+  if (autumn) {
     parts.shared ??= kitchenAutumn(kitchen, T);
     parts[name] ??= name === 'halloween' ? kitchenHalloween(kitchen, T) : kitchenThanksgiving(kitchen, T);
   }
-  for (const [part, g] of Object.entries(parts)) g.visible = name !== 'classic' && (part === 'shared' || part === name);
+  if (christmas) parts.christmas ??= kitchenChristmas(kitchen, T);
+  for (const [part, g] of Object.entries(parts)) g.visible = part === 'shared' ? autumn : part === name;
   kitchen.orchid.visible = name === 'classic';
   if (kitchen.ghostCushion) kitchen.ghostCushion.visible = name === 'halloween';
-  kitchen.candleLight = name === 'classic' ? null : kitchen.lanternHalo;
-  kitchen.candleFlame = kitchen.lanternFlame;
+  kitchen.candleLight = autumn ? kitchen.lanternHalo : christmas ? kitchen.xmasHalo : null;
+  kitchen.candleFlame = christmas ? kitchen.xmasFlame : kitchen.lanternFlame;
   kitchen.pumpkinGlow = name === 'halloween' ? kitchen.jackGlow : null;
   kitchen.pumpkinHalos = name === 'halloween' ? kitchen.jackHalos : null;
   kitchen.decor = name;
@@ -613,6 +618,24 @@ const glowHalo = (inner, outer) => new THREE.SpriteMaterial({map: canvasTexture(
   g.fillStyle = grd; g.fillRect(0, 0, w, h);
 }), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0});
 
+// A brass lantern with a candle, standing on the back counter.
+function brassLantern(kitchen, g, x, z) {
+  const M = kitchen.materials, mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  const lantern = new THREE.Group(); lantern.position.set(x, COUNTER_TOP, z); lantern.scale.setScalar(1.45); g.add(lantern);
+  mesh(roundedBox(.2, .03, .2, .01), M.brass, lantern).position.y = .015;
+  for (const [x, z] of [[-.085, -.085], [.085, -.085], [-.085, .085], [.085, .085]]) mesh(new THREE.BoxGeometry(.016, .3, .016), M.brass, lantern).position.set(x, .18, z);
+  mesh(new THREE.BoxGeometry(.17, .28, .17), new THREE.MeshStandardMaterial({color: '#fff6e0', transparent: true, opacity: .18, roughness: .05, depthWrite: false}), lantern, {cast: false}).position.y = .18;
+  mesh(lathe([[0, 0], [.12, 0], [.1, .04], [.05, .09], [.02, .1], [0, .1]], 24), M.brass, lantern).position.y = .33;
+  mesh(new THREE.TorusGeometry(.035, .008, 6, 16), M.brass, lantern).position.y = .46;
+  mesh(new THREE.CylinderGeometry(.035, .035, .1, 16), new THREE.MeshStandardMaterial({color: '#f3ead6', roughness: .6}), lantern).position.y = .08;
+  const flame = mesh(new THREE.ConeGeometry(.012, .04, 8), new THREE.MeshBasicMaterial({color: '#ffcf70'}), lantern, {cast: false});
+  flame.position.y = .155;
+  const halo = new THREE.Sprite(glowHalo('rgba(255,200,120,1)', 'rgba(255,170,80,.45)'));
+  halo.material.opacity = .3; halo.scale.setScalar(.8); halo.position.y = .17;
+  lantern.add(halo);
+  return {halo, flame};
+}
+
 function kitchenAutumn(kitchen, T) {
   const g = kitchenPart(kitchen), M = kitchen.materials, room = kitchen.room;
   const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
@@ -625,18 +648,7 @@ function kitchenAutumn(kitchen, T) {
   const oakMat = new THREE.MeshStandardMaterial({map: T.oak, alphaTest: .45, side: THREE.DoubleSide, roughness: .75});
   room.sprigs(pitcher, new THREE.Vector3(0, .38, 0), 12, 1.25, {leaf: oakMat, stem: '#6a4a2c', size: 2.1, seed: 93});
   // A brass lantern with a candle, on the counter by the range.
-  const lantern = new THREE.Group(); lantern.position.set(3.42, COUNTER_TOP, -3.3); lantern.scale.setScalar(1.45); g.add(lantern);
-  mesh(roundedBox(.2, .03, .2, .01), M.brass, lantern).position.y = .015;
-  for (const [x, z] of [[-.085, -.085], [.085, -.085], [-.085, .085], [.085, .085]]) mesh(new THREE.BoxGeometry(.016, .3, .016), M.brass, lantern).position.set(x, .18, z);
-  mesh(new THREE.BoxGeometry(.17, .28, .17), new THREE.MeshStandardMaterial({color: '#fff6e0', transparent: true, opacity: .18, roughness: .05, depthWrite: false}), lantern, {cast: false}).position.y = .18;
-  mesh(lathe([[0, 0], [.12, 0], [.1, .04], [.05, .09], [.02, .1], [0, .1]], 24), M.brass, lantern).position.y = .33;
-  mesh(new THREE.TorusGeometry(.035, .008, 6, 16), M.brass, lantern).position.y = .46;
-  mesh(new THREE.CylinderGeometry(.035, .035, .1, 16), new THREE.MeshStandardMaterial({color: '#f3ead6', roughness: .6}), lantern).position.y = .08;
-  const flame = mesh(new THREE.ConeGeometry(.012, .04, 8), new THREE.MeshBasicMaterial({color: '#ffcf70'}), lantern, {cast: false});
-  flame.position.y = .155;
-  const halo = new THREE.Sprite(glowHalo('rgba(255,200,120,1)', 'rgba(255,170,80,.45)'));
-  halo.material.opacity = .3; halo.scale.setScalar(.8); halo.position.y = .17;
-  lantern.add(halo);
+  const {halo, flame} = brassLantern(kitchen, g, 3.42, -3.3);
   kitchen.lanternHalo = halo; kitchen.lanternFlame = flame;
   return g;
 }
@@ -771,5 +783,253 @@ function kitchenHalloween(kitchen, T) {
   const orange = new THREE.MeshStandardMaterial({color: '#e8892f', roughness: .55});
   for (const [x, y, z] of [[-.07, .1, -.04], [.08, .1, .03], [.0, .1, .1], [-.03, .17, .03], [.06, .1, -.1]]) mesh(new THREE.SphereGeometry(.06, 14, 10), orange, bowl).position.set(x, y, z);
   stoolTowel(kitchen, g, new THREE.MeshStandardMaterial({map: canvasTexture(128, 128, (c, w, h) => { c.fillStyle = '#c8642a'; c.fillRect(0, 0, w, h); c.fillStyle = '#5d6b3a'; c.fillRect(0, h * .78, w, h * .08); }), roughness: 1}));
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+// Christmas at the Beach House, the kitchen (from Orion's day and night
+// pictures): a pine garland with warm fairy lights along the back of the top
+// shelf, a burgundy velvet bow on the front of each end, a pine wreath with
+// its own bow and lights on the glazing, pine boughs in a stoneware jug, a
+// striped linen runner over the island's front with clementines in a brass
+// bowl and walnuts, a striped towel on a stool, the brass lantern with pine
+// and three champagne baubles on the counter, and a warm glow under both
+// shelves in the evening. Everything stands behind or beside where she
+// walks: the garland keeps to the back of the shelf (her lane is its front)
+// and stops short of where she lands at the left; the bows hang on the
+// shelf's front face, below its top.
+// ---------------------------------------------------------------------------
+function drawPineSprig(g, w, h) {
+  const r = rng(211);
+  g.clearRect(0, 0, w, h);
+  g.lineCap = 'round';
+  const greens = ['#1c3320', '#24402a', '#2e4f30', '#3a6038', '#16281a', '#4b7243'];
+  // A twig with needles raked forward on both sides, thinning to its tip.
+  const twig = (x0, y0, ang, len, wide) => {
+    const n = Math.round(len / 2.6);
+    for (let i = 0; i <= n; i++) {
+      const u = i / n, bend = Math.sin(u * 2.2) * .12, a = ang + bend;
+      const x = x0 + Math.sin(a) * len * u, y = y0 - Math.cos(a) * len * u;
+      for (const side of [-1, 1]) {
+        const na = a + side * (.38 + r() * .42), nl = wide * (1 - u * .5) * (.75 + r() * .5);
+        g.strokeStyle = greens[Math.floor(r() * greens.length)]; g.lineWidth = w / 230 * (.9 + r() * .6);
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(na) * nl, y - Math.cos(na) * nl); g.stroke();
+      }
+    }
+    g.strokeStyle = '#4a3a22'; g.lineWidth = w / 90;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + Math.sin(ang) * len * .8, y0 - Math.cos(ang) * len * .8); g.stroke();
+  };
+  twig(w * .5, h * .99, 0, h * .92, w * .2);
+  twig(w * .5, h * .78, -.62, h * .5, w * .16); twig(w * .5, h * .68, .58, h * .52, w * .16);
+  twig(w * .5, h * .5, -.5, h * .36, w * .13); twig(w * .5, h * .42, .55, h * .34, w * .13);
+}
+
+// Pine sprigs along a path: flat cards of the sprig, each rooted on the path
+// and pointing along it one way or the other, splayed out. `out(p)` gives
+// the directions they may splay toward (so none grow into a wall or shelf).
+function pineAlong(parent, mat, pts, {count, size = .42, spread = .7, jitter = .05, seed = 5, out = null}) {
+  const r = rng(seed), curve = new THREE.CatmullRomCurve3(pts), geo = new THREE.PlaneGeometry(size * .8, size);
+  geo.translate(0, size / 2, 0);
+  const inst = new THREE.InstancedMesh(geo, mat, count);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), q2 = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), s = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    const u = (i + r()) / count, p = curve.getPointAt(Math.min(1, u)), tan = curve.getTangentAt(Math.min(1, u));
+    let side;
+    for (let k = 0; k < 12; k++) {
+      side = new THREE.Vector3(r() - .5, r() - .5, r() - .5).normalize();
+      side.addScaledVector(tan, -side.dot(tan)).normalize();
+      if (!out || out(side, p)) break;
+    }
+    d.copy(tan).multiplyScalar(r() < .5 ? 1 : -1).addScaledVector(side, spread * (.5 + r())).normalize();
+    q.setFromUnitVectors(Y, d); q2.setFromAxisAngle(Y, r() * Math.PI * 2); q.multiply(q2);
+    p.addScaledVector(side, jitter * r());
+    m4.compose(p, q, s.setScalar(.7 + r() * .55));
+    inst.setMatrixAt(i, m4);
+  }
+  inst.castShadow = true; inst.receiveShadow = true;
+  parent.add(inst);
+  return inst;
+}
+
+// A strip of ribbon: `n` rows from centre(u), each `width(u)` wide along
+// across(u), puffed a little along its normal in the middle.
+function ribbonStrip(n, centre, across, width, puff = 0) {
+  const COLS = 5, pos = [], idx = [], c = new THREE.Vector3(), a = new THREE.Vector3(), nx = new THREE.Vector3(), t = new THREE.Vector3();
+  for (let i = 0; i <= n; i++) {
+    const u = i / n; centre(u, c); across(u, a).normalize();
+    centre(Math.min(1, u + .01), t).sub(centre(Math.max(0, u - .01), nx)); nx.crossVectors(a, t).normalize();
+    for (let j = 0; j < COLS; j++) {
+      const v = j / (COLS - 1) - .5, w = width(u, v);
+      pos.push(c.x + a.x * v * w + nx.x * puff * (.25 - v * v) * 4, c.y + a.y * v * w + nx.y * puff * (.25 - v * v) * 4, c.z + a.z * v * w + nx.z * puff * (.25 - v * v) * 4);
+    }
+  }
+  for (let i = 0; i < n; i++) for (let j = 0; j < COLS - 1; j++) { const k = i * COLS + j; idx.push(k, k + COLS, k + 1, k + 1, k + COLS, k + COLS + 1); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// A velvet bow, facing +z: two fat loops, a knot and two tails with
+// swallow-tail ends. `size` is about the width of one loop.
+function velvetBow(kitchen, parent, mat, size = .3, tail = 1.6) {
+  const bow = new THREE.Group(); parent.add(bow);
+  const mesh = (geo, rot = 0) => { const m = kitchen.mesh(geo, mat, bow, {cast: false}); m.rotation.z = rot; return m; };
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const side of [-1, 1]) {
+    // (A loop: out along the front, round and back behind, pinched at the knot.)
+    const loop = ribbonStrip(26, (u, c) => { const a = u * Math.PI * 2; return c.set(side * size * (1 - Math.cos(a)) / 2, -size * .1 * Math.sin(a / 2), size * .3 * Math.sin(a)); },
+      (u, a) => a.copy(up), u => size * (.22 + .5 * Math.pow(Math.sin(u * Math.PI), .6)), side * size * .06);
+    mesh(loop, side * .3);
+    const len = size * tail * (side < 0 ? 1 : .88);
+    const t = ribbonStrip(18, (u, c) => c.set(side * (size * .08 + size * .42 * u + Math.sin(u * 3) * size * .05), -u * len, size * (.1 + .06 * Math.sin(u * 5 + side))),
+      (u, a) => a.set(1, side * .35, .25 * Math.sin(u * 4)), (u, v) => size * (.36 + .12 * u), size * .03);
+    // (The swallow-tail: the middle of the hem cut up into it.)
+    const p = t.attributes.position, last = 18 * 5;
+    for (let j = 0; j < 5; j++) p.setY(last + j, p.getY(last + j) + size * .22 * (1 - Math.abs(j - 2) / 2));
+    t.computeVertexNormals();
+    mesh(t);
+  }
+  const knot = kitchen.mesh(new THREE.SphereGeometry(size * .2, 14, 10), mat, bow, {cast: false});
+  knot.scale.set(.9, 1.15, .8); knot.position.z = size * .08;
+  return bow;
+}
+
+function kitchenChristmas(kitchen, T) {
+  const g = kitchenPart(kitchen), M = kitchen.materials;
+  const mesh = (geo, mat, parent = g, opts) => kitchen.mesh(geo, mat, parent, opts);
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const BACK = -4.2, S2 = 5.5, SHELF_FRONT = -3.3;
+  T.pine ??= canvasTexture(512, 512, drawPineSprig);
+  const pine = new THREE.MeshStandardMaterial({map: T.pine, alphaTest: .4, side: THREE.DoubleSide, roughness: .8});
+  const velvet = new THREE.MeshStandardMaterial({color: '#7c1426', roughness: .95, side: THREE.DoubleSide});
+  const lights = []; // where the fairy lights sit
+
+  // The garland, along the back of the top shelf (her lane is the front),
+  // from just past where she lands to the right-hand end, then down past it.
+  const along = [];
+  for (let x = -4.15; x <= 3.31; x += .62) along.push(V(x, S2 + .13 + Math.sin(x * 2.3) * .03, BACK + .2 + Math.sin(x * 1.7) * .03));
+  // (Up and forward only: not into the wall or down into the shelf.)
+  const shelfOut = d => d.z > -.15 && d.y > -.25;
+  pineAlong(g, pine, along, {count: 420, size: .52, spread: .8, jitter: .08, seed: 11, out: shelfOut});
+  const drop = [V(3.3, S2 + .12, BACK + .22), V(3.47, S2 + .02, BACK + .3), V(3.52, S2 - .4, BACK + .32), V(3.5, S2 - .85, BACK + .3)];
+  pineAlong(g, pine, drop, {count: 44, size: .42, spread: .55, seed: 13, out: d => d.z > -.1 && d.x > -.3});
+  const r = rng(71), gc = new THREE.CatmullRomCurve3(along);
+  for (let i = 0; i < 42; i++) { const p = gc.getPointAt((i + .2 + r() * .6) / 42); lights.push(p.add(V((r() - .5) * .1, .05 + r() * .2, .14 + r() * .16))); }
+  const dc = new THREE.CatmullRomCurve3(drop);
+  for (let i = 0; i < 6; i++) lights.push(dc.getPointAt((i + .5) / 6).add(V(.06, 0, .1)));
+
+  // A velvet bow on the shelf's front face at each end, a few sprigs behind it.
+  for (const x of [-4.85, 3.12]) {
+    const b = velvetBow(kitchen, g, velvet, .32, 1.35);
+    b.position.set(x, S2 - .06, SHELF_FRONT + .07);
+    pineAlong(g, pine, [V(x - .32, S2 - .05, SHELF_FRONT + .03), V(x, S2 - .02, SHELF_FRONT + .04), V(x + .32, S2 - .05, SHELF_FRONT + .03)], {count: 12, size: .34, spread: .5, seed: 17 + x, out: d => d.z > .1 && d.y < .25});
+  }
+
+  // The wreath on the glazing, hung by its ribbon, with its bow at the top.
+  const WX = -5.84, WY = 5.75, WZ = -1.6, WR = .56, ring = [];
+  for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2; ring.push(V(WX, WY + Math.sin(a) * WR, WZ + Math.cos(a) * WR)); }
+  const wc = new THREE.CatmullRomCurve3(ring.slice(0, -1), true);
+  pineAlong(g, pine, wc.getSpacedPoints(48), {count: 170, size: .4, spread: .6, jitter: .05, seed: 23, out: d => d.x > 0});
+  for (let i = 0; i < 16; i++) { const a = (i + r() * .7) / 16 * Math.PI * 2, rr = WR + (r() - .5) * .16; lights.push(V(WX + .13 + r() * .06, WY + Math.sin(a) * rr, WZ + Math.cos(a) * rr)); }
+  const wb = velvetBow(kitchen, g, velvet, .34, 2.6);
+  wb.position.set(WX + .16, WY + WR - .02, WZ); wb.rotation.y = Math.PI / 2;
+  mesh(new THREE.BoxGeometry(.012, 2.1, .09), velvet, g, {cast: false}).position.set(WX - .04, WY + WR + 1.05, WZ);
+
+  // Pine boughs in a cream stoneware jug, on the island where the orchid stands.
+  const stoneware = new THREE.MeshStandardMaterial({color: '#efe7d6', roughness: .7});
+  const jug = new THREE.Group(); jug.position.set(-3.25, ISLAND_TOP, .3); jug.scale.setScalar(1.35); g.add(jug);
+  mesh(lathe([[0, 0], [.13, 0], [.17, .08], [.18, .2], [.13, .34], [.11, .4], [.13, .46], [.12, .47], [.09, .4], [0, .4]], 32), stoneware, jug);
+  const handle = mesh(new THREE.TorusGeometry(.09, .022, 8, 16, Math.PI * 1.1), stoneware, jug);
+  handle.position.set(-.16, .27, 0); handle.rotation.z = Math.PI / 2 + .1;
+  const twigMat = new THREE.MeshStandardMaterial({color: '#4f3d26', roughness: .9});
+  const bough = (parent, from, dir, len, seed, size = .4, droop = .35) => {
+    const mid = from.clone().addScaledVector(dir, len * .55), end = from.clone().addScaledVector(dir, len); end.y -= len * droop;
+    const pts = [from, mid, end];
+    mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 8, .012, 5), twigMat, parent, {cast: false});
+    pineAlong(parent, pine, pts, {count: Math.round(len * 26), size, spread: .6, jitter: .02, seed});
+  };
+  for (let i = 0; i < 11; i++) {
+    const a = i / 11 * Math.PI * 2 + r() * .4, tilt = i < 3 ? .15 + r() * .2 : .55 + r() * .5;
+    bough(jug, V(0, .42, 0), V(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt)), .5 + r() * .3, 31 + i, .34, i < 3 ? .05 : .3);
+  }
+
+  // The linen runner: across the island's left half and over its front edge.
+  {
+    const W = 1.5, L = 2.05, FRONT = 1.95, z0 = .32, R = .035, geo = new THREE.PlaneGeometry(W, L, 12, 40), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const u = p.getX(i) / W, sAlong = (.5 - p.getY(i) / L) * L, flat = FRONT - z0;
+      let y, z;
+      if (sAlong < flat) { y = .008; z = z0 + sAlong; }
+      else if (sAlong < flat + Math.PI / 2 * R) { const a = (sAlong - flat) / R; y = .008 - R + Math.cos(a) * R; z = FRONT + Math.sin(a) * R; }
+      else { const dd = sAlong - flat - Math.PI / 2 * R; y = .008 - R - dd; z = FRONT + R + Math.sin(u * 9 + 1) * .012 * Math.min(1, dd * 6); }
+      p.setXYZ(i, u * W, y, z);
+    }
+    geo.computeVertexNormals();
+    const runner = mesh(geo, new THREE.MeshStandardMaterial({map: T.runner, roughness: 1, side: THREE.DoubleSide}), g, {cast: false});
+    runner.position.set(-2.75, ISLAND_TOP, 0);
+  }
+  // Clementines with their leaves in a brass bowl, and walnuts beside it.
+  const bowl = new THREE.Group(); bowl.position.set(-2.55, ISLAND_TOP + .01, 1.2); g.add(bowl);
+  mesh(lathe([[0, 0], [.16, 0], [.27, .06], [.31, .15], [.3, .155], [.25, .075], [0, .065]], 32), M.brass, bowl);
+  const orange = new THREE.MeshStandardMaterial({color: '#ea8a2c', roughness: .5}), leaf = new THREE.MeshStandardMaterial({color: '#3f6a2c', roughness: .7, side: THREE.DoubleSide});
+  for (const [x, y, z] of [[-.1, .12, -.05], [.1, .12, .03], [0, .12, .12], [-.02, .2, .02], [.07, .12, -.12], [-.13, .12, .1]]) {
+    mesh(new THREE.SphereGeometry(.075, 16, 12), orange, bowl).position.set(x, y, z);
+  }
+  for (const [x, y, z, ry, rz] of [[-.02, .285, .02, .4, .5], [.04, .28, .0, 2.4, .6], [.13, .2, .05, 1.2, .9]]) {
+    const lf = mesh(new THREE.CircleGeometry(.06, 10), leaf, bowl, {cast: false}); lf.scale.set(.45, 1, 1); lf.position.set(x, y, z); lf.rotation.set(-1.1, ry, rz);
+  }
+  const nut = new THREE.MeshStandardMaterial({color: '#8a6238', roughness: .85});
+  for (const [x, z] of [[-3.02, 1.42], [-2.93, 1.5], [-3.08, 1.55], [-2.97, 1.62]]) { const n = mesh(new THREE.SphereGeometry(.042, 10, 8), nut); n.position.set(x, ISLAND_TOP + .05, z); n.scale.y = .9; }
+  stoolTowel(kitchen, g, new THREE.MeshStandardMaterial({map: T.cushion, roughness: 1}));
+
+  // On the counter by the range: the brass lantern, pine sprigs and three
+  // champagne baubles.
+  const {halo, flame} = brassLantern(kitchen, g, 3.42, -3.3);
+  kitchen.xmasHalo = halo; kitchen.xmasFlame = flame;
+  const sprigs = new THREE.Group(); sprigs.position.set(2.75, COUNTER_TOP + .03, -3.25); g.add(sprigs);
+  for (const [a, len] of [[.3, .5], [2.6, .45], [1.4, .35], [4.4, .4]]) bough(sprigs, V(0, .02, 0), V(Math.cos(a), .12, Math.sin(a)).normalize(), len, 51 + a, .3, .1);
+  const bauble = new THREE.MeshStandardMaterial({color: '#e9d6a6', metalness: .55, roughness: .22, emissive: '#5a4520', emissiveIntensity: .35});
+  for (const [x, z, rad] of [[2.62, -2.98, .075], [2.8, -2.92, .06], [2.93, -3.02, .07]]) {
+    mesh(new THREE.SphereGeometry(rad, 20, 14), bauble).position.set(x, COUNTER_TOP + rad, z);
+    mesh(new THREE.CylinderGeometry(rad * .22, rad * .22, rad * .25, 8), M.brass, g, {cast: false}).position.set(x, COUNTER_TOP + rad * 2, z);
+  }
+
+  // The fairy lights: little warm bulbs, and a soft glow round each that
+  // comes up in the evening.
+  const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(.021, 8, 6), new THREE.MeshBasicMaterial({color: '#ffe3ae'}), lights.length), m4 = new THREE.Matrix4();
+  lights.forEach((p, i) => bulbs.setMatrixAt(i, m4.makeTranslation(p.x, p.y, p.z)));
+  g.add(bulbs);
+  const glowTex = canvasTexture(64, 64, (c, w, h) => {
+    const grd = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grd.addColorStop(0, 'rgba(255,225,165,1)'); grd.addColorStop(.25, 'rgba(255,190,105,.55)'); grd.addColorStop(1, 'rgba(255,150,60,0)');
+    c.fillStyle = grd; c.fillRect(0, 0, w, h);
+  });
+  const glowMat = new THREE.PointsMaterial({map: glowTex, size: .3, sizeAttenuation: true, transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false});
+  const glowGeo = new THREE.BufferGeometry().setFromPoints(lights);
+  const glow = new THREE.Points(glowGeo, glowMat); glow.frustumCulled = false; g.add(glow);
+
+  // The glow under the shelves in the evening: light washing down the wall.
+  const washTex = canvasTexture(8, 64, (c, w, h) => {
+    const grd = c.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, 'rgba(255,170,90,1)'); grd.addColorStop(.25, 'rgba(255,150,70,.5)'); grd.addColorStop(1, 'rgba(255,140,60,0)');
+    c.fillStyle = grd; c.fillRect(0, 0, w, h);
+  });
+  const washMat = new THREE.MeshBasicMaterial({map: washTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
+  for (const y of [4.1, S2]) {
+    const wash = mesh(new THREE.PlaneGeometry(8.5, 1.25), washMat, g, {cast: false, receive: false});
+    wash.position.set(-.9, y - .09 - .625, BACK + .015);
+    const strip = mesh(new THREE.BoxGeometry(8.4, .015, .03), new THREE.MeshBasicMaterial({color: '#ffdca8'}), g, {cast: false, receive: false});
+    strip.position.set(-.9, y - .1, BACK + .06);
+  }
+  // (A little light of their own on what's round them, evenings only.)
+  const lamp = new THREE.PointLight('#ffb870', 0, 5, 1.6); lamp.position.set(-.5, S2 + .5, BACK + .9); g.add(lamp);
+
+  kitchen.updateChristmas = (dt, t, night) => {
+    if (!g.visible) return;
+    const k = 1 - Math.exp(-3 * dt), twinkle = 1 + Math.sin(t * 2.1) * .05 + Math.sin(t * 3.7) * .04;
+    glowMat.opacity += ((night ? .95 : .3) - glowMat.opacity) * k; glowMat.size = (night ? .5 : .28) * twinkle;
+    washMat.opacity += ((night ? .3 : 0) - washMat.opacity) * k;
+    lamp.intensity += ((night ? 2 : 0) - lamp.intensity) * k;
+  };
   return g;
 }

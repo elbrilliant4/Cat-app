@@ -893,7 +893,7 @@ function updateCat(dt, t) {
   if (atStepFoot && !['walk', 'prejump', 'jump'].includes(a)) { const hs = Math.atan2(Math.sin(brain.heading), Math.cos(brain.heading)); desiredHeading = Math.abs(hs) < 1.57 ? 0 : angleTo(brain.pos, PERCHES.step.spot); }
   const onward = brain.perch && !J && ['land', 'poise', 'sit'].includes(a) ? chainNext() : null;
   if (onward) desiredHeading = angleTo(brain.pos, onward);
-  else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = PERCHES[brain.perch].face;
+  else if (brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom', 'land'].includes(a)) desiredHeading = a === 'catnap' && brain.napFace != null && brain.perch === 'shelfHigh' ? brain.napFace : PERCHES[brain.perch].face;
   // Settled to watch something (the fire, say): she faces it.
   if (desiredHeading === null && brain.faceAt && !brain.perch && !J && ['sit', 'loaf', 'catnap', 'groom'].includes(a)) desiredHeading = angleTo(brain.pos, brain.faceAt);
   // In the kitchen's tent she lies along it, facing out of the front.
@@ -1153,6 +1153,8 @@ function idleLife(t) {
   if (pet.food < 40) options.push('bowl', 'bowl');
   if (pet.water < 60) options.push('drink', 'drink', 'drink');
   if (pet.energy < 50) options.push('nap');
+  // At Christmas, the top shelf by the garland is the place for a nap.
+  if (place === kitchen && kitchen.decor === 'christmas') options.push('garlandNap', 'garlandNap');
   options.push('meow');
   if (pet.happiness > 50) options.push('meow');
   let choice = pick(options);
@@ -1180,6 +1182,7 @@ function idleLife(t) {
   }
   if (choice === 'dash') dash();
   if (choice === 'drink') act('drink', {auto: true});
+  if (choice === 'garlandNap') garlandNap();
   if (choice === 'nap') walkTo(CUSHION_SPOT, () => { setActivity('loaf', rand(8, 14)); setTimeout(slowBlink, 1500); }, false, true);
   if (choice === 'bowl') {
     walkTo(EAT_SPOT, () => { setActivity('beg', 3.5); meow('mew'); say(pick(['Is it snack o’clock?', 'This bowl looks very empty…'])); }, false, true);
@@ -1504,6 +1507,23 @@ function tapCups(pats) {
 }
 // Along a shelf: a stroll to somewhere along it, a look round, and often
 // whatever's standing nearby gets a pat.
+// Christmas: up to the top shelf, along to the clear stretch between the
+// cups and the books, and a nap there lying along the shelf, tucked up
+// against the garland.
+function garlandNap() {
+  if (place !== kitchen || brain.mode !== 'idle') return false;
+  const lane = PERCHES.shelfHigh.lane, spot = new THREE.Vector3(.95, 0, lane.z);
+  const settle = () => {
+    if (brain.perch !== 'shelfHigh' || brain.mode !== 'idle') return;
+    brain.perchUntil = Math.max(brain.perchUntil, clockNow + 40);
+    walkPath((Math.abs(brain.pos.z - lane.z) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, lane.z)]).concat([spot]), () => {
+      brain.napFace = -Math.PI / 2;
+      setActivity('catnap', rand(16, 26), () => { brain.napFace = null; setActivity('sit', rand(2, 4)); });
+    });
+  };
+  if (brain.perch === 'shelfHigh') settle(); else jumpTo('shelfHigh', settle, rand(45, 60));
+  return true;
+}
 function stroll() {
   const P = PERCHES[brain.perch];
   if (!P?.lane || brain.jump) return false;
@@ -2505,7 +2525,7 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('watch')) setWatch(false); });
 
 // Room decor: the furniture stays put, only the look changes (decor.js).
-const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2']};
+const DECOR_SWATCHES = {classic: ['#3f472b', '#1e2536', '#5a3a22', '#e6dcc0'], thanksgiving: ['#d8cbb3', '#96a380', '#e0995e', '#b58a3c'], halloween: ['#d98b45', '#38332f', '#455d7a', '#efe5d2'], christmas: ['#2d4a27', '#7c1426', '#e9d6a6', '#efe7d6']};
 // What to tap to invite her up, in the room she's in.
 function perchHint() { return place === room ? 'the sill, chair or mantel' : 'a shelf, a cup, the tap, the vacuum or the big lamp'; }
 // Rooms she can be in. The kitchen is built the first time she goes there.
@@ -3137,7 +3157,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

@@ -17,7 +17,7 @@ preview branch.
 | `real-cat.js` | Fur, eyes, face, ears, jaw; also the classic movement (`?motion=classic`). |
 | `room.js` | `Room`: the study, bowl, fountain, window visitors (bird, moths, monarch). Shared methods live on `Room.prototype` (the kitchen uses them too). |
 | `kitchen.js` | `Kitchen`: island, shelves, sink and faucet, pendant lamp, robot vacuum, terrace, dog (`?dog`). Layout constants in `K`; spots in `layout()`. |
-| `decor.js` | Seasonal decor for both rooms; `pillowGeometry`. Seasonal looks have `months` and are stored away out of season (`inSeason`, `decorNow`; `?decor=halloween` shows one anyway). |
+| `decor.js` | Seasonal decor for both rooms; `pillowGeometry`. Seasonal looks have `months` and are stored away out of season (`inSeason`, `decorNow`; `?decor=halloween` shows one anyway). Christmas (`kitchenChristmas`) dresses the kitchen only; the study stays classic under it. Its evening lights run from `kitchen.updateChristmas`. |
 | `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
 | `sound.js`, `meows.js` | Short sounds and meows (no ambient loops). |
 

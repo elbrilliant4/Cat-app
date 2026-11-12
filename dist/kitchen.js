@@ -1207,6 +1207,7 @@ export class Kitchen {
       for (const m of this.pumpkinHalos) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
     }
     this.updatePaperBats?.(t);
+    this.updateChristmas?.(dt, t, night);
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     this.paving.material.color.set(night ? '#2a2724' : '#e2d6c0');
