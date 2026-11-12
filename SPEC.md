@@ -49,8 +49,10 @@ the phone's browser and can be added to the home screen.
   zoomies sequence with the real Mochi and ends on the Pocket Kitten logo
   with her name under it (the name can be changed, the logo cannot), her
   toys on the rug beside her and "Play with <name>"; a tap skips at any
-  moment; other launches show the short title (`tools/qa/title.mjs`). No
-  generated film (Merlin, 2026-11-12).
+  moment; other launches show the short title (`tools/qa/title.mjs`).
+  Merlin changed his mind on a generated film (2026-11-12, evening): a
+  13 s Runway film, "Mochi and the yarn ball", is cut and waiting for his
+  pick of music; it is NOT in the app yet (`HANDOFF.md`).
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.

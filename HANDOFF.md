@@ -1,4 +1,49 @@
-# Handoff: 2026-11-12
+# Handoff: 2026-11-12 (evening), opening screen
+
+## Next step (waiting on Merlin)
+Merlin asked for a Runway film intro and approved the storyboard ("Render
+the whole film"). The film is cut, 13.2 s, in three music versions; he has
+them and must pick A, B or C, or name shots to redo. It is NOT in the app.
+- Storyboard page: https://claude.ai/artifact/7dRXGQuqt78f4XDc6sjzHC
+- Film without sound: `sources/title/film/mochi-film-silent.mp4`; music
+  takes beside it (A storybook orchestra, B music box, C tiny epic). Mux:
+  music delayed 0.5 s, faded out from 12.2 s. Key pictures:
+  `sources/title/film-storyboard/`.
+- Runway task ids (shots 1 to 6, 3 s each, 720p, 36 credits each):
+  1512e762, 777ff498, 941a3198, de3a9330, 0e4d63c1, 9780f634. Key
+  pictures: 033b9d18 (1), 1a24c14b (2), 53638c5d (3), b6c58cbf (4),
+  f9e043ed (5), a48c712a (6). Cut: s1 1.0-3.0, s2 0-1.0, s3 0.3-2.8,
+  s4 0-2.5, s5 0.2-2.4, s6 0-3.0.
+- Credits: Runway 1,722 left (was 1,985 at the start of this session).
+- After his pick, building it in is a big change (plan first): play the
+  film after Enter on the first launch of the day in place of the zoomies
+  sequence, tap skips, then the living title (logo, name, toys) over the
+  real room. Day only: at night, in the Christmas look, or with
+  `?mochi=first`, keep the zoomies sequence. The film's room is not quite
+  the real study (bookshelves in shot 2). Add CREDITS rows and copy the
+  chosen film to `dist/assets/title/`.
+
+## Done this session (on the preview branch, pushed)
+- Pocket Kitten logo on top of the title, her name kept under it, button
+  "Play with <name>", three Meshy toys on the rug in the living title
+  (`TITLE_TOYS` in `app.js`; `docs/ARCHITECTURE.md`). Side branch
+  `claude/cat-app-opening-menu-vmvfz6` not merged.
+- `tools/qa/title.mjs`: 9 of 9 PASS. Reviewer: no real bugs, four small
+  points fixed. Left from the review: on a 320x568 phone the logo may
+  crowd her (not checked by eye); toys are only asserted on the skip path.
+- Still owed to Merlin: the true-speed clip of the living title
+  (`node tools/qa/title-clip.mjs`, about 20 min) and a check whether
+  https://jvtomax99.github.io/Cat-app/preview/ updates (Actions had never
+  run on the fork).
+- The session's checkout was a detached HEAD; it is on the branch now. A
+  push is sometimes refused once as "non-fast-forward": fetch, and retry.
+
+## Paste into a new chat
+> Read CLAUDE.md and HANDOFF.md. Merlin has three cuts of the opening film
+> (music A, B, C). Ask which he picked, then plan how it goes into the app.
+
+---
+# Earlier handoff (still holds)
 
 ## State
 - Live: build 174 = `97f11c8` (walk and trot, Halloween away); `main` has
