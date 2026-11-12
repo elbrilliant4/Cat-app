@@ -27,3 +27,4 @@ virtual time). Different seeds give different days: test 2 seeds.
 New check? Use `open()` from `lib.mjs` (`{seed, kitchen, night, quiet}`;
 returns `page`, `step(n)`, `look({focus, yaw, pitch, dist})`, `close()`),
 add it to this table.
+- `tools/qa/rig-shots.mjs`: pictures of the rig check (any pose and view, with or without fur, either model).
