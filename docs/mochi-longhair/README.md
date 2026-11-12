@@ -72,6 +72,36 @@ with the existing movement code. Clip: `walk-in-room.mp4`
 (`SCENE=walk FLAGS='&mochi=longhair&intro=0' node tools/qa/clip.mjs`).
 Her fur shells there still use the first Mochi's regions and lengths.
 
+## Fur, second pass: the tail (2026-11-12)
+Merlin: the tail "looks like a stiff, grainy bottle brush"; he wants soft,
+silky fur with a flowing shape. Four causes, each fixed at its source:
+1. **Shape.** Meshy made the tail a club (a trunk as thick as her thigh,
+   a bulb on top, flat underneath: the "squared-off hook"), and the tail
+   bones stopped short of its curled end. `tools/mochi-longhair/tail.py`
+   moves every point of it onto a smooth tube round a gently curving centre
+   line, tapering to a rounded tip, flares the base into her rump and
+   smooths the carved spikes round the root. It prints the bones for
+   `BONES_LONGHAIR` (tail1..tail7 are on that line). The file before it is
+   in git (`9e95947:dist/assets/mochi-longhair-hq.glb`).
+2. **Direction.** Tail hairs stood half out from the tail (lie .5): now laid
+   along it toward the tip (.84), with tufts leaning a little their own way
+   (the vertex shader's `furTuft`).
+3. **Grain.** Each fur layer drew a hair as a round dot placed in the
+   texture's map. On long, leaning hair the dots of one hair no longer
+   touched from layer to layer (rows of dots, not strands), and this model's
+   map is a patchwork of scraps, so the dots were every size. The long coat
+   now draws strokes drawn out along the comb direction (`furStretch`: 4,
+   or 8 with a phone's 9 layers), laid out on her body (`vBind`).
+4. **Shading.** Roots shaded, tips lighter, each hair its own shade; the
+   darkest fur warms toward its tips; a soft light at the outline. Her tail
+   is brown all round (`TAIL_BROWN`, `furTail`): the texture is cream
+   down one side.
+Not used: alpha to coverage for soft hair edges. The canvas is see-through
+to the page, and where a faded wall was behind her the fur came out white.
+Pictures: `tail-closeup.png`, `tail-sit-and-body.jpg`, `walk-normal.mp4`.
+Not checked: how the 9-layer version looks on a real phone; the outline
+still shows some single dots close up.
+
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
   ("not a humanoid"), no charge. Ours are worked out in code at load.

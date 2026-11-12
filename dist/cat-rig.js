@@ -267,14 +267,15 @@ export const BONES_LONGHAIR = {
   // (She stands mid-step: her right hind leg is a little further back.)
   kneeR: ['hipR', V(-0.12, -0.305, -0.22)], kneeL: ['hipL', V(0.12, -0.305, -0.20)],
   hockR: ['kneeR', V(-0.11, -0.468, -0.355), V(-0.15, -0.577, -0.28)], hockL: ['kneeL', V(0.10, -0.468, -0.31), V(0.13, -0.577, -0.20)],
+  // (Along the centre line the tail was reshaped on: tools/mochi-longhair/tail.py prints these.)
   tail0: ['hips',  V(0, 0.15, -0.40)],
-  tail1: ['tail0', V(0, 0.21, -0.50)],
-  tail2: ['tail1', V(0, 0.28, -0.58)],
-  tail3: ['tail2', V(0, 0.35, -0.66)],
-  tail4: ['tail3', V(0, 0.42, -0.71)],
-  tail5: ['tail4', V(0, 0.48, -0.74)],
-  tail6: ['tail5', V(0, 0.53, -0.76)],
-  tail7: ['tail6', V(0, 0.57, -0.76), V(0, 0.60, -0.75)],
+  tail1: ['tail0', V(0, 0.200, -0.445)],
+  tail2: ['tail1', V(0, 0.273, -0.491)],
+  tail3: ['tail2', V(0, 0.344, -0.541)],
+  tail4: ['tail3', V(0, 0.407, -0.600)],
+  tail5: ['tail4', V(0, 0.459, -0.669)],
+  tail6: ['tail5', V(0, 0.493, -0.748)],
+  tail7: ['tail6', V(0, 0.506, -0.834), V(0, 0.505, -0.920)],
 };
 // Face landmarks, read off the model's texture (blue of the eyes, pink of the nose).
 export const FACE_LONGHAIR = {
@@ -294,7 +295,7 @@ export const FACE_LONGHAIR = {
 // full strength (her legs stand closer together than the first Mochi's).
 const T = {tailCut: 0.11, front: -0.05, hind: -0.2, legTopF: -0.2, legTopH: -0.24, jaw: [0.72, 0.17, 0.305, 0.14], earY: 0.47, earZ: 0.78, headZ: 0.25, mid: [.02, .05]};
 const inJaw = p => p.z > T.jaw[0] && p.y > T.jaw[1] && p.y < T.jaw[2] && Math.abs(p.x - MIDLINE_X) < T.jaw[3];
-const T_LONGHAIR = {tailCut: 0.17, front: 0.22, hind: -0.02, legTopF: -0.3, legTopH: -0.3, jaw: [0.8, 0.16, 0.245, 0.09], earY: 0.41, earZ: 0.84, headZ: 0.48, mid: [.008, .015], tailUp: true};
+const T_LONGHAIR = {tailCut: 0.13, front: 0.22, hind: -0.02, legTopF: -0.3, legTopH: -0.3, jaw: [0.8, 0.16, 0.245, 0.09], earY: 0.41, earZ: 0.84, headZ: 0.48, mid: [.008, .015], tailUp: true};
 
 /**
  * Switches every table in this file to another model's measurements, in
