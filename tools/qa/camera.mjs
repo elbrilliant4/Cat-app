@@ -83,6 +83,22 @@ const g0 = await page.evaluate(() => kitten.view.goal.yaw); await page.mouse.up(
 await step(30); const g1 = await page.evaluate(() => kitten.view.goal.yaw);
 line('glide after a flick', Math.abs(g1 - g0) > .1, `turned ${(Math.abs(g1 - g0) * 57.3).toFixed(0)}° more after letting go`);
 
+// 6b. Touching her: by where it lands.
+await look(HOME); await step(2);
+for (let i = 0; i < 20 && await page.evaluate(() => !!kitten.brain.jump || !!kitten.brain.perch || kitten.brain.activity === 'walk'); i++) await step(40);
+await page.evaluate(() => { kitten.setActivity('sit'); kitten.brain.target = null; }); await step(30);
+const cat0 = await page.evaluate(() => kitten.cat.root.position.toArray());
+await look({focus: [cat0[0], .55, cat0[2]], yaw: 1.5, pitch: .2, dist: 3.4}); await step(4);
+// (Where each part is right now: a pat on the head lifts her tail.)
+const spot = part => page.evaluate(part => { const c = kitten.cat, v = new (c.root.position.constructor)(); if (part === 'head') { c.headTop(v); v.y -= .1; } else c.bones[part].getWorldPosition(v); return v.toArray(); }, part);
+const feel = async part => { await step(60); const [x, y] = await screenOf(await spot(part)); const zone = await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x, y]); const b0 = await page.evaluate(() => kitten.pet.bond); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up(); await step(2); const r = await page.evaluate(() => ({bond: kitten.pet.bond, face: kitten.brain.overrideUntil > kitten.clock ? kitten.brain.override : 'none (' + kitten.brain.activity + ', ' + kitten.brain.mode + ')'})); return {zone, gain: r.bond - b0, face: r.face}; };
+const th = await feel('head'); await shot('9a-head');
+line('head: welcome', th.zone === 'head' && th.gain > 0 && ['joy', 'love', 'bliss'].includes(th.face), `zone ${th.zone}, friendship +${th.gain}, face ${th.face}`);
+const tt = await feel('tail5'); await shot('9b-tail');
+line('tail: not for touching', tt.zone === 'tail' && tt.gain === 0 && tt.face === 'grumpy', `zone ${tt.zone}, friendship +${tt.gain}, face ${tt.face}`);
+const tp = await feel('wristL');
+line('paws: not for touching', tp.zone === 'paws' && tp.gain === 0 && tp.face === 'surprised', `zone ${tp.zone}, friendship +${tp.gain}, face ${tp.face}`);
+
 // 7. Two fingers: pinch keeps the spot between them; twisting turns the view.
 const cdp = await page.context().newCDPSession(page);
 await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
@@ -101,6 +117,12 @@ await touch('touchStart', [[150, 400], [240, 400]]);
 for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 4, 400], [240 + i * 4, 400 + i]]); await step(2); }
 await touch('touchEnd', []); await step(10); const pf = await state();
 line('pinch while following', pf.mode === 'follow', `mode ${pf.mode}, ${pf.dist.toFixed(2)} m`);
+// (The bed view: a pinch keeps it on the bed; a view of your own is not reachable by touch.)
+await page.evaluate(() => document.querySelector('[data-cam="bed"]').click()); await step(60);
+await touch('touchStart', [[150, 400], [240, 400]]);
+for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 5, 400], [240 + i * 5, 410]]); await step(2); }
+await touch('touchEnd', []); await step(10); const sp = await state();
+line('pinch in the bed view', sp.mode === 'spot', `mode ${sp.mode}, ${sp.dist.toFixed(2)} m`);
 // (From the whole room, pinching in goes to her; pinching out far gives the room back.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const r0 = await state();
 const pinchBy = async (a, b) => { await touch('touchStart', [[195 - a, 400], [195 + a, 400]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[195 - a - (b - a) * i / 8, 400], [195 + a + (b - a) * i / 8, 400]]); await step(2); } await touch('touchEnd', []); await step(60); };
@@ -119,18 +141,4 @@ await touch('touchEnd', []); await step(30);
 const t1 = await state();
 line('twist turns the view', Math.abs(t1.yaw) > .25 && Math.abs(t1.dist - 7) < .5, `turned ${(t1.yaw * 57.3).toFixed(0)}° for a 34° twist; distance ${t1.dist.toFixed(2)} m`);
 
-// 9. Touching her: by where it lands.
-await look(HOME); await step(2);
-await page.evaluate(() => { kitten.setActivity('sit'); kitten.brain.target = null; }); await step(30);
-const cat0 = await page.evaluate(() => kitten.cat.root.position.toArray());
-await look({focus: [cat0[0], .55, cat0[2]], yaw: 1.5, pitch: .2, dist: 3.4}); await step(4);
-const spots = await page.evaluate(() => { const c = kitten.cat, v = () => new (c.root.position.constructor)(); return {head: c.headTop(v()).toArray(), tail: c.bones.tail5.getWorldPosition(v()).toArray(), paw: c.bones.wristL.getWorldPosition(v()).toArray()}; });
-const feel = async w => { const [x, y] = await screenOf(w); const zone = await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x, y]); const b0 = await page.evaluate(() => kitten.pet.bond); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up(); await step(2); const r = await page.evaluate(() => ({bond: kitten.pet.bond, face: kitten.brain.override})); await step(40); return {zone, gain: r.bond - b0, face: r.face}; };
-spots.head[1] -= .1;
-const th = await feel(spots.head); await shot('9a-head');
-line('head: welcome', th.zone === 'head' && th.gain > 0 && ['joy', 'love', 'bliss'].includes(th.face), `zone ${th.zone}, friendship +${th.gain}, face ${th.face}`);
-const tt = await feel(spots.tail); await shot('9b-tail');
-line('tail: not for touching', tt.zone === 'tail' && tt.gain === 0 && tt.face === 'grumpy', `zone ${tt.zone}, friendship +${tt.gain}, face ${tt.face}`);
-const tp = await feel(spots.paw);
-line('paws: not for touching', tp.zone === 'paws' && tp.gain === 0 && tp.face === 'surprised', `zone ${tp.zone}, friendship +${tp.gain}, face ${tp.face}`);
 await close();

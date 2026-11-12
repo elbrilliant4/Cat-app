@@ -1927,18 +1927,22 @@ const zonePt = new THREE.Vector3();
 function zoneAt(point) {
   let best = 'back', d = Infinity;
   const near = (zone, p, k = 1) => { const x = p.distanceTo(point) * k; if (x < d) { d = x; best = zone; } };
+  // (Loafing or asleep her paws are tucked under her: her side is her side.)
+  const tucked = ['loaf', 'sleep', 'catnap'].includes(brain.activity);
   near('head', cat.headTop(zonePt));
   near('head', cat.head.localToWorld(zonePt.set(0, .2, .2)));
   near('head', cat.head.localToWorld(zonePt.set(0, .12, .26)));
   near('chin', cat.head.localToWorld(zonePt.set(0, -.05, .16)));
-  for (const [zone, bone] of ZONE_BONES) if (cat.bones[bone]) near(zone, cat.bones[bone].getWorldPosition(zonePt), zone === 'paws' ? 1.25 : 1);
+  for (const [zone, bone] of ZONE_BONES) if (cat.bones[bone]) near(zone, cat.bones[bone].getWorldPosition(zonePt), zone === 'paws' ? tucked ? 2.4 : 1.25 : 1);
   return best;
 }
 // A touch on her, wherever it lands.
-let lastDislike = -10, dislikes = [];
+let lastDislike = -10, lastMumble = -10, dislikes = [];
 function touchCat(zone, opts = {}) {
   if (!ready) return;
   if ((zone === 'tail' || zone === 'paws') && brain.activity !== 'belly') { dislikeTouch(zone); return; }
+  // (Asleep: a mumble now and then, not at every stroke.)
+  if (pet.sleeping) { if (clockNow - lastMumble < 4) return; lastMumble = clockNow; }
   // (Care only counts every so often, but she always feels the hand.)
   if (!pet.sleeping && clockNow - lastPet < .9) { brain.strokeUntil = clockNow + .6; burst('heart', 1, opts.at || headScreen); return; }
   act('pet', {...opts, zone});
@@ -1946,9 +1950,9 @@ function touchCat(zone, opts = {}) {
 // The tail and the paws: ears flick, a look, a word. Keep at it and she
 // moves away from your hand.
 function dislikeTouch(zone) {
-  if (pet.sleeping) { twitchEar(undefined, .8); return; }
   if (clockNow - lastDislike < 1.4) return;
   lastDislike = clockNow;
+  if (pet.sleeping) { twitchEar(undefined, .8); return; }
   brain.strokeUntil = 0;
   brain.content = Math.max(0, (brain.content || 0) - .25);
   express(zone === 'tail' ? 'grumpy' : 'surprised', zone === 'tail' ? 1.6 : .8);
@@ -1956,12 +1960,13 @@ function dislikeTouch(zone) {
   glanceAt(camera.position, 1.8);
   say(pick(zone === 'tail' ? ['Not the tail.', 'Excuse me. That is my tail.', '*tail flick*'] : ['My toes!', 'Those are my beans. Mine.', 'Paws are private.']), 2200);
   dislikes = dislikes.filter(x => clockNow - x < 10).concat(clockNow);
-  if (dislikes.length >= 3 && brain.mode === 'idle' && !brain.perch && !brain.jump && ['sit', 'loaf', 'stand', 'walk'].includes(brain.activity)) {
+  if (dislikes.length >= 3 && brain.mode === 'idle' && !busyBody() && !brain.perch && !brain.jump && ['sit', 'loaf', 'stand', 'walk'].includes(brain.activity)) {
     dislikes = [];
     const away = tmpV.subVectors(brain.pos, camera.position).setY(0).normalize().multiplyScalar(1.1).add(brain.pos);
     walkTo(away, () => { setActivity('sit'); glanceAt(camera.position, 2); });
   }
 }
+const busyBody = () => !!brain.eatAt || brain.vacRide || ['eat', 'drink', 'stalk'].includes(brain.activity);
 // A tap on the floor calls her over. She comes unless she is busy or asleep.
 function callTo(x, y) {
   if (!ready || brain.mode === 'play') return;
@@ -1971,7 +1976,8 @@ function callTo(x, y) {
   const r = host.getBoundingClientRect();
   pawAt(x - r.left, y - r.top);
   if (pet.sleeping) { twitchEar(undefined, .6); return; }
-  if (!['idle', 'solo'].includes(brain.mode)) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
+  // (Not in the middle of a drink at the tap, a stolen bite, a stalk or a ride: those have to finish.)
+  if (!['idle', 'solo'].includes(brain.mode) || busyBody()) { say(pick(['In a minute!', 'Busy! One sec.']), 2000); return; }
   const to = onRug(hit.setY(0));
   if (Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z) < .4 && !brain.perch) { glanceAt(camera.position, 2); slowBlink(); return; }
   brain.mode = 'idle';
@@ -2447,7 +2453,7 @@ function zoomBy(f, at) {
   if (f < 1 && held && view.shown < g.dist) { view.dist = view.shown; view.cut = 0; }
   const reach = Math.max(from, boxArm(view.focus, camOffset, LIMITS.dist[1]));
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
-  if (view.mode === 'follow' && f > 1) {
+  if ((view.mode === 'follow' || view.mode === 'spot') && f > 1) {
     if (to < from * f - 1e-3) view.push += Math.log(f);
     if (to > 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
   }
@@ -2455,11 +2461,11 @@ function zoomBy(f, at) {
   g.dist = to;
   view.lastDrag = view.zoomedAt = clockNow;
   view.zoomHeld = true;
-  if (at && view.mode !== 'follow' && Math.abs(k - 1) > 1e-4) {
+  // (Only in a view of your own; her view and the bowl, fountain and bed views stay on their subject.)
+  if (at && view.mode === 'free' && Math.abs(k - 1) > 1e-4) {
     const p = pointUnder(at.x, at.y);
     if (p) {
       g.focus.sub(p).multiplyScalar(k).add(p);
-      if (view.mode !== 'free') { setCamMode('free'); view.zoomHeld = true; }
     }
   }
   clampGoal();
@@ -2578,6 +2584,9 @@ function roomFrame() {
 const CAMERA_VIEWS = {
   room() {
     const fit = roomFrame();
+    // (After turns round her, come back the short way.)
+    const turns = Math.round((view.yaw - fit.yaw) / (Math.PI * 2)) * Math.PI * 2;
+    view.yaw -= turns;
     Object.assign(view.goal, {yaw: fit.yaw, pitch: fit.pitch, dist: fit.dist});
     view.goal.focus.copy(fit.focus);
     view.far = fit.dist; view.farY = fit.focus.y;
@@ -2605,6 +2614,8 @@ host.addEventListener('wheel', e => {
 host.addEventListener('pointerdown', e => {
   if (e.target.closest('button, .hud, .dock, dialog')) return;
   host.setPointerCapture(e.pointerId);
+  // (A first finger: nothing can be left over from a touch that never ended.)
+  if (e.isPrimary) { touches.clear(); pinch = null; }
   touches.set(e.pointerId, {x: e.clientX, y: e.clientY});
   view.fling = null;
   if (touches.size === 2) {
@@ -3406,7 +3417,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
