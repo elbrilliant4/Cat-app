@@ -47,6 +47,23 @@ triangle copy for phones by Meshy's Remesh. 96 credits (170 in all).
   limit is 100): Merlin should download it from Meshy before it expires
   there (task `01a1cd4a-6e89-7137-b41f-0d9decacdf03`).
 
+## Candidate B: Merlin's own Meshy model (2026-11-12)
+Merlin shared a model he made in Meshy (317 MB, 7.7 million triangles, fur
+strands and whiskers as real geometry, no skeleton). Meshy's Remesh made a
+90,000 triangle copy: `dist/assets/mochi-longhair-b.glb`, see it with
+`mochi-study.html?model=mochi-longhair-b.glb`. Side by side with the rigged
+model: `compare-merlin-model.jpg` (his on top). His: warmer cream closer to
+the sheet, squarer stance. At phone size its strands collapse into flat
+shards and it has no normal map; the face is flatter. Not rigged.
+
+**Merlin's pick: the rigged model, warmed up.** Its coat colour is shifted
+toward his model's warm cream by `tools/mochi-longhair/warm.py` (run on
+Meshy's 90,000 triangle file, then `pack.py`); blaze, muzzle and paws stay
+near white, eyes and nose untouched. Picture, three rows (his, before,
+warmed): `compare-warmed.jpg`. Only `dist/assets/mochi-longhair-hq.glb`
+is warmed; the 300,000 triangle copy in `models/` is as Meshy made it.
+Meshy's license: Merlin says it allows a public site.
+
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
   ("not a humanoid"), no charge. Ours are worked out in code at load.
