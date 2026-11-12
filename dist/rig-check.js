@@ -6,7 +6,8 @@
 //                      app pose (sit, loaf, crouch, sleep…) settled by update()
 //   check.mode(name)   'tex' | 'weights' | 'raw' (weights before smoothing)
 //                      | 'heat:<bone or group>' (one bone's influence)
-//   check.view(name)   see VIEWS
+//   check.view(name)   see VIEWS; 'face', 'faceSide': close on the head
+//   check.fur(on)      the fur layer (off to start with)
 //   check.bones(on)    the skeleton drawn over the mesh
 //   check.stats()      where influence crosses between body regions
 import * as THREE from 'three';
@@ -169,6 +170,13 @@ const VIEWS = {
 let viewName = 'side';
 function view(name) {
   viewName = name;
+  if (name === 'face' || name === 'faceSide') {
+    // Close on the head, wherever the pose has put it.
+    const h = B.head.getWorldPosition(new THREE.Vector3());
+    camera.position.copy(h).add(name === 'face' ? new THREE.Vector3(-.22, .08, 1.35) : new THREE.Vector3(-1.35, .08, .2));
+    camera.lookAt(h.x, h.y + .02, h.z + .08);
+    return label();
+  }
   const [p, l] = VIEWS[name];
   camera.position.set(...p);
   camera.lookAt(...l);
@@ -194,11 +202,12 @@ function drawBones() {
   lines.renderOrder = 9;
   boneLines.add(lines);
 }
+function fur(on) { cat.fur.visible = on; label(); }
 function bones(on) { boneLines.visible = on; drawBones(); }
 bones(false);
 
 function label(extra = '') {
-  document.getElementById('label').textContent = `rig v${RIG}   pose: ${poseName}   view: ${viewName}   ${modeName === 'tex' ? 'textured, fur hidden' : modeName === 'raw' ? 'weights BEFORE smoothing' : modeName === 'weights' ? 'weights after smoothing (as used)' : modeName}${extra}`;
+  document.getElementById('label').textContent = `rig v${RIG}   pose: ${poseName}   view: ${viewName}   ${modeName === 'tex' ? (cat.fur.visible ? 'textured, with fur' : 'textured, fur hidden') : modeName === 'raw' ? 'weights BEFORE smoothing' : modeName === 'weights' ? 'weights after smoothing (as used)' : modeName}${extra}`;
 }
 
 // Where influence crosses between regions. A vertex's region is the group
@@ -245,4 +254,4 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); ca
 function render() { if (modeName === 'tex') restoreSkin(); renderer.render(scene, camera); }
 renderer.setAnimationLoop(render);
 pose('rest'); view('side');
-window.check = {pose, mode, view, bones, stats, render, BENDS, VIEWS, cat, ready: true};
+window.check = {pose, mode, view, bones, fur, stats, render, BENDS, VIEWS, cat, ready: true};

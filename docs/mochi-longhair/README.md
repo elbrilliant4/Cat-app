@@ -78,14 +78,30 @@ Known faults, not fixed yet:
   top-settings model the sit reads as a sit; crouch and walk not looked at yet.)
 - Standing, her hind legs trail a little behind her.
 - Loading works out weights for 140,000 points: slow, to be timed on a phone.
-- The fur shells still use the first Mochi's regions (`furLengths`), so the
-  fur is hidden in these pictures.
 - Contact points and petting colliders are the first Mochi's sizes.
+
+## Fur layer (2026-11-12)
+She has her own soft coat now (`furLengthsLonghair` in `real-cat.js`, numbers
+in `FUR_LONGHAIR`). Body parts come from her skin weights, so the regions
+follow her anatomy: long ruff, britches and plume, medium body and belly,
+short lower legs, sleek paws, almost nothing on the muzzle, a small ear tuft.
+Each part also has a comb direction (`furDir`): hair leaves the skin, bends
+over to lie along the coat and sags a little. 20 layers on a computer, 9 on a
+phone. Pictures: `fur-layer.jpg` (stand and sit; side, three-quarter, face),
+`fur-face.jpg`. Take them again with
+`node tools/qa/rig-shots.mjs <dir> --model=longhair --fur --size=1800x1400 stand:side sit:face`
+(`check.fur(true)` and `check.view('face')` in the console do the same).
+Loading her in the rig check took 7 to 8 seconds in the headless browser.
+
+Not right yet: the eyes sit in a pale ring and look pasted on (next step);
+the white blaze still shows the model's own carved flakes; ear edges are a
+little ragged; the 9-layer phone coat has not been looked at or timed on a
+phone.
 
 ## Next (each shown under neutral light first)
 1. Poses on her proportions: sit, crouch, then walk in `motion-trial.html`.
-2. Fur shells with her regions and longer lengths (ruff, britches, plume);
-   eyes and lids tuned at `FACE_LONGHAIR`; then mouth and whiskers.
+2. Eyes close up at `FACE_LONGHAIR`, lids for blinking; then mouth and
+   whiskers. (Fur layer: done, see above.)
 3. Only then the app behind a flag (`?mochi=longhair`), room light,
    breathing, blinking, ears, tail. Then Merlin and Eagle compare.
 

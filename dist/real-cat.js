@@ -12,6 +12,9 @@ import {sculptFace, MOUTH, fade} from './face-sculpt.js';
 
 const {damp, clamp} = THREE.MathUtils;
 const MODEL_SCALE = 0.86;
+// The long-haired Mochi's coat, part by part (model units; see furLengthsLonghair).
+export const FUR_LONGHAIR = {scale: 1, body: .042, belly: .06, ruff: .08, bib: .012, muzzle: .002, skull: .012, cheek: .036, ear: .003, earTuft: .01,
+  armUp: .034, armLow: .013, feather: .014, haunch: .046, britches: .09, shin: .026, paw: .006, plume: .1};
 const MODEL_SCALE_LONGHAIR = 0.95; // her bones come out the first Mochi's size
 
 // Face presets: real-cat expressions. open = upper lids, happy = lower lids
@@ -288,7 +291,7 @@ export class RealCat {
     this.rigSource = {bright}; // (for rig-check.html)
     if (!this.longhair) this.weightMouth(geometry, names);
     this.sampleLidRing(pos, texel, px);
-    this.furLengths(geometry, weld);
+    this.furLengths(geometry, weld, names);
 
     const {root, bones, list} = buildSkeleton(v2 ? BONES2 : BONES);
     this.bones = bones;
@@ -409,7 +412,7 @@ export class RealCat {
 
 
   // How long the fur grows at each vertex (model units).
-  furLengths(geometry, weld) {
+  furLengths(geometry, weld, names) {
     const pos = geometry.attributes.position, N = pos.count;
     const len = new Float32Array(N);
     // Tiny disconnected pieces (whiskers) get no fur.
@@ -421,6 +424,7 @@ export class RealCat {
     }
     const size = new Map();
     for (let i = 0; i < N; i++) { const r = find(weld[i]); size.set(r, (size.get(r) || 0) + 1); }
+    if (this.longhair) { this.furInput = {geometry, names, loose: Uint8Array.from({length: N}, (_, i) => size.get(find(weld[i])) < 2000 ? 1 : 0)}; return this.furLengthsLonghair(); }
     const eyes = [FACE.eyeR, FACE.eyeL];
     const p = new THREE.Vector3();
     for (let i = 0; i < N; i++) {
@@ -451,6 +455,107 @@ export class RealCat {
     geometry.setAttribute('furLen', new THREE.BufferAttribute(len, 1));
   }
 
+  // The long-haired Mochi's coat. Her body parts come from her own skin
+  // weights (which bones move a point), so the regions follow her anatomy and
+  // blend where the weights blend. Each part has a length and a comb
+  // direction; furDir is that direction laid along the surface, its size how
+  // flat the hair lies (0 stands straight out, 1 lies along the coat).
+  // Lengths are model units: the model's surface already holds the bulk of
+  // the coat, so this is the soft outer layer. Run again after changing
+  // FUR_LONGHAIR to retune without reloading.
+  furLengthsLonghair() {
+    const {geometry, names, loose} = this.furInput, F = FUR_LONGHAIR;
+    const pos = geometry.attributes.position, nor = geometry.attributes.normal, N = pos.count;
+    const si = geometry.attributes.skinIndex, sw = geometry.attributes.skinWeight;
+    const len = new Float32Array(N), dir = new Float32Array(N * 3);
+    const part = names.map(n => n.startsWith('tail') ? 'tail' : n.startsWith('ear') ? (n.endsWith('R') ? 'earR' : 'earL') : n === 'head' || n === 'jaw' ? 'head'
+      : n === 'neck' || n === 'chest' || n.startsWith('scapula') ? 'chest' : n.startsWith('shoulder') ? 'armUp' : n.startsWith('elbow') ? 'armLow'
+      : n.startsWith('wrist') ? 'paw' : /^(thigh|hip)/.test(n) ? 'haunch' : n.startsWith('knee') ? 'shin' : n.startsWith('hock') ? 'hock' : 'body');
+    const tail = [0, 1, 2, 3, 4, 5, 6, 7].map(i => BONES2['tail' + i][1]).concat(BONES2.tail7[2]);
+    const tips = {earR: BONES2.earR, earL: BONES2.earL};
+    const p = new THREE.Vector3(), n = new THREE.Vector3(), d = new THREE.Vector3(), sum = new THREE.Vector3(), a = new THREE.Vector3(), ab = new THREE.Vector3();
+    const st = THREE.MathUtils.smoothstep;
+    // One part's length, comb direction (into d) and lie for this point.
+    const coat = name => {
+      const back = st(-n.z, .1, .6), under = st(-n.y, .2, .7), ax = Math.abs(p.x);
+      switch (name) {
+        case 'body': d.set(0, -.5, -1); return [F.body + (F.belly - F.body) * under, .8 - .3 * under];
+        case 'chest': {
+          // The ruff: the front and sides of the neck and chest, under the chin, down to the forelegs.
+          const ruff = st(p.z, .28, .46) * (1 - st(p.y, .14, .3)), bib = ruff * st(n.z, -.2, .5);
+          d.set(p.x * 2.2 * ruff, -1, -.9 + 1.05 * ruff);
+          return [F.body + (F.ruff - F.body) * ruff + (F.belly - F.body) * under * (1 - ruff) + F.bib * bib, .8 - .25 * ruff];
+        }
+        case 'head': {
+          // Short on the muzzle, longer toward the skull; the cheeks grow into the ruff.
+          const dn = p.distanceTo(FACE.nose), cheek = st(ax, .07, .14) * (1 - st(p.y, .2, .3)) * (1 - st(p.z, .82, .9));
+          d.subVectors(p, FACE.nose); d.y = d.y * .5 - .25 * cheek - .05; d.x *= 1 + cheek;
+          return [F.muzzle + (F.skull - F.muzzle) * st(dn, .05, .24) + (F.cheek - F.skull) * cheek, .85];
+        }
+        case 'earR': case 'earL': {
+          // Ears stay neat; a small tuft toward the tip.
+          const [, base, tip] = tips[name];
+          d.subVectors(tip, base);
+          return [F.ear + (F.earTuft - F.ear) * (1 - st(p.distanceTo(tip), .015, .06)), .8];
+        }
+        case 'armUp': d.set(0, -1, -.3); return [F.armUp + F.feather * back, .75];
+        case 'armLow': d.set(0, -1, -.15); return [F.armLow + F.feather * .6 * back, .85];
+        case 'haunch': {
+          // Britches: the long fur down the back of the thighs.
+          const br = back * (1 - st(p.z, -.3, -.12));
+          d.set(0, -1, -.4); return [F.haunch + (F.britches - F.haunch) * br, .7 - .15 * br];
+        }
+        case 'shin': d.set(0, -1, -.3); return [F.shin + (F.britches * .7 - F.shin) * back, .7];
+        case 'hock': case 'paw': {
+          // Short and sleek down to the toes; nothing underneath, where she stands.
+          const foot = 1 - st(p.y, GROUND_Y + .05, GROUND_Y + .13), sole = st(-n.y, .5, .8) * (1 - st(p.y, GROUND_Y + .02, GROUND_Y + .06));
+          d.set(0, -1 + .5 * foot, .9 * foot - (name === 'hock' ? .2 : 0) * (1 - foot));
+          return [(F.paw + ((name === 'hock' ? F.shin * .6 : F.armLow) - F.paw) * (1 - foot)) * (1 - sole), .88];
+        }
+        case 'tail': {
+          // The plume: fullest in the middle, hair sweeping toward the tip.
+          let best = Infinity, along = 0;
+          for (let k = 0; k < tail.length - 1; k++) {
+            ab.subVectors(tail[k + 1], tail[k]);
+            const t = clamp(a.subVectors(p, tail[k]).dot(ab) / ab.lengthSq(), 0, 1), dist = a.addScaledVector(ab, -t).length();
+            if (dist < best) { best = dist; along = (k + t) / (tail.length - 1); d.copy(ab).normalize(); }
+          }
+          d.y -= .25;
+          return [F.plume * (.55 + .45 * st(along, 0, .3)) * (1 - .25 * st(along, .8, 1)), .5];
+        }
+      }
+      return [0, 0];
+    };
+    for (let i = 0; i < N; i++) {
+      if (loose[i]) continue; // loose flecks: no coat
+      p.fromBufferAttribute(pos, i); n.fromBufferAttribute(nor, i);
+      let l = 0, lie = 0;
+      sum.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w < .01) continue;
+        const [L, flat] = coat(part[si.getComponent(i, k)]);
+        l += w * L; lie += w * flat; sum.addScaledVector(d.normalize(), w);
+      }
+      // Bare: the eyes, the nose leather, the lips.
+      for (const e of [FACE.eyeR, FACE.eyeL]) {
+        const de = Math.hypot((p.x - e.x) / FACE.eyeRadius.x, (p.y - e.y) / FACE.eyeRadius.y);
+        if (p.z > e.z - .06 && de < 2.2) l *= clamp((de - 1.5) / .7, 0, 1);
+      }
+      if (p.z > FACE.nose.z - .05) {
+        l *= st(Math.hypot(p.x - FACE.nose.x, (p.y - FACE.nose.y) * 1.2), .022, .04);
+        l *= st(Math.hypot((p.x - FACE.mouth.x) / .035, (p.y - FACE.mouth.y) / .014), .8, 1.4);
+      }
+      len[i] = l * F.scale;
+      // Lay the comb direction along the surface.
+      sum.addScaledVector(n, -sum.dot(n));
+      if (sum.lengthSq() > 1e-6) { sum.normalize().multiplyScalar(lie); dir[i * 3] = sum.x; dir[i * 3 + 1] = sum.y; dir[i * 3 + 2] = sum.z; }
+    }
+    geometry.setAttribute('furLen', new THREE.BufferAttribute(len, 1));
+    geometry.setAttribute('furDir', new THREE.BufferAttribute(dir, 3));
+    if (this.fur) { this.fur.geometry.setAttribute('furLen', geometry.attributes.furLen); this.fur.geometry.setAttribute('furDir', geometry.attributes.furDir); }
+  }
+
   patchSkin(material) {
     const u = this.faceUniforms;
     material.onBeforeCompile = shader => {
@@ -473,19 +578,26 @@ export class RealCat {
 
   addFur(skinned, baseMaterial) {
     const coarse = matchMedia('(pointer: coarse)').matches;
-    const shells = coarse ? 6 : 9;
+    const long = this.longhair; // longer hair needs more layers to stay soft
+    const shells = long ? (coarse ? 9 : 20) : coarse ? 6 : 9;
     const g = new THREE.InstancedBufferGeometry();
     for (const [name, attr] of Object.entries(skinned.geometry.attributes)) g.setAttribute(name, attr);
     g.setIndex(skinned.geometry.index);
     g.instanceCount = shells;
-    const u = {furShells: {value: shells}, furDensity: {value: 380}};
+    const u = {furShells: {value: shells}, furDensity: {value: long ? 520 : 380}};
     const m = new THREE.MeshStandardMaterial({map: baseMaterial.map, roughness: 1, metalness: 0});
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\n' + skinVertexHead + furVertex)
+        .replace('#include <common>', '#include <common>\n' + skinVertexHead + furVertex + (long ? 'attribute vec3 furDir;\n' : ''))
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;\nvFurLen = furLen;\nvLayer = (float(gl_InstanceID) + 1.0) / furShells;')
-        .replace('#include <skinning_vertex>', `#include <skinning_vertex>
+        .replace('#include <skinning_vertex>', long ? `#include <skinning_vertex>
+          // Each hair leaves the skin along the normal, then bends over into
+          // the comb direction and sags a little under its own weight.
+          vec3 furN = normalize(objectNormal);
+          vec3 furD = (skinMatrix * vec4(furDir, 0.0)).xyz;
+          float furLie = length(furDir);
+          transformed += furLen * (furN * (vLayer - 0.5 * furLie * vLayer * vLayer) + furD * (0.3 * vLayer + 0.7 * vLayer * vLayer) + vec3(0.0, -0.2, 0.0) * vLayer * vLayer);` : `#include <skinning_vertex>
           vec3 furN = normalize(objectNormal);
           transformed += furN * vLayer * furLen + vec3(0.0, -1.0, -0.4) * vLayer * vLayer * furLen * 0.6;`);
       shader.fragmentShader = shader.fragmentShader
@@ -497,11 +609,13 @@ export class RealCat {
           float furSeed = furHash(furCell);
           vec2 furF = fract(furG) - 0.5 - (vec2(furHash(furCell + 7.1), furHash(furCell + 3.3)) - 0.5) * 0.5;
           float furH = mix(0.4, 1.0, furSeed);
+          ${long ? 'furH *= mix(0.68, 1.0, furHash(floor(furG / 6.0) + 11.0)); // locks: neighbouring hairs share a length, so the coat lies in layers' : ''}
           if (vLayer > furH) discard;
           if (length(furF) > 0.6 * (1.0 - vLayer / furH) + 0.08) discard;
-          diffuseColor.rgb *= mix(0.86, 1.03, vLayer) * (0.96 + 0.07 * furHash(furCell + 1.7));`);
+          diffuseColor.rgb *= mix(${long ? '0.8, 1.04' : '0.86, 1.03'}, vLayer) * (0.96 + 0.07 * furHash(furCell + 1.7));`);
     };
-    m.customProgramCacheKey = () => 'mochi-fur';
+    m.customProgramCacheKey = () => long ? 'mochi-fur-long' : 'mochi-fur';
+    this.furUniforms = u;
     const fur = new THREE.SkinnedMesh(g, m);
     fur.frustumCulled = false;
     fur.castShadow = false;
