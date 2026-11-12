@@ -958,9 +958,16 @@ export class Kitchen {
         // doesn't count.)
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() {
           const p = kitchen.vacuum.position, h = kitchen.vac.heading, side = V(Math.cos(h), 0, -Math.sin(h)).multiplyScalar(.8), ahead = V(Math.sin(h), 0, Math.cos(h)).multiplyScalar(.9);
-          const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z); };
+          // (Room for the whole of her, not just her centre: sitting down
+          // after the hop her hips reach .5 behind her, so a spot hard by
+          // her bowl, the fountain or the tent counts against it, and the
+          // one chosen is moved clear of them.)
+          const ROOM = .5, round = OBSTACLES.filter(o => o !== VAC);
+          const crowd = q => round.reduce((n, o) => n + Math.max(0, o.r + ROOM - Math.hypot(q.x - o.x, q.z - o.z)), 0);
+          const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z) + crowd(q); };
           let best = null, bs = Infinity;
           for (const q of [p.clone().add(side), p.clone().sub(side), p.clone().sub(ahead), p.clone().add(ahead)]) { const sc = score(q); if (sc < bs - 1e-6) { bs = sc; best = q; } }
+          for (const o of round) { const d = Math.hypot(best.x - o.x, best.z - o.z); if (d < o.r + ROOM && d > 1e-3) { best.x = o.x + (best.x - o.x) / d * (o.r + ROOM); best.z = o.z + (best.z - o.z) / d * (o.r + ROOM); } }
           return kitchen.clampFloor(best);
         }},
       },

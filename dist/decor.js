@@ -862,14 +862,14 @@ function drawAlabaster(g, w, h) {
     const x = r() * w, y = r() * h, rad = 20 + r() * 70, warm = r() < .6;
     for (const dx of [-w, 0, w]) {
       const grd = g.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
-      grd.addColorStop(0, warm ? `rgba(214,160,92,${.1 + r() * .14})` : `rgba(255,250,236,${.2 + r() * .2})`); grd.addColorStop(1, 'rgba(230,190,130,0)');
+      grd.addColorStop(0, warm ? `rgba(196,134,66,${.16 + r() * .2})` : `rgba(255,250,236,${.2 + r() * .2})`); grd.addColorStop(1, 'rgba(230,190,130,0)');
       g.fillStyle = grd; g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
     }
   }
   g.lineCap = 'round';
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 22; i++) {
     let x = r() * w, y = r() * h, a = r() * Math.PI * 2;
-    g.strokeStyle = `rgba(150,96,48,${.12 + r() * .2})`; g.lineWidth = .8 + r() * 2.2;
+    g.strokeStyle = `rgba(140,84,38,${.22 + r() * .3})`; g.lineWidth = 1 + r() * 3;
     for (const dx of [-w, 0, w]) {
       const rr = rng(500 + i); let px = x + dx, py = y, pa = a;
       g.beginPath(); g.moveTo(px, py);
@@ -882,8 +882,8 @@ function drawAlabaster(g, w, h) {
 // A round mat of braided jute, coiled from the middle out.
 function drawWovenMat(g, w, h) {
   const r = rng(151), cx = w / 2, cy = h / 2, R = w / 2;
-  g.fillStyle = '#b99a66'; g.fillRect(0, 0, w, h);
-  const tones = ['#cdb07c', '#c2a36e', '#d6bd8c', '#b8975f'], band = R / 17;
+  g.fillStyle = '#9c7b4a'; g.fillRect(0, 0, w, h);
+  const tones = ['#b8935a', '#a9844d', '#c4a26a', '#9f7a45'], band = R / 17;
   for (let k = 17; k >= 1; k--) {
     const rad = k * band - band / 2;
     g.strokeStyle = tones[k % tones.length]; g.lineWidth = band * .9;
@@ -896,7 +896,7 @@ function drawWovenMat(g, w, h) {
       g.strokeStyle = r() < .5 ? 'rgba(110,84,46,.4)' : 'rgba(240,226,190,.4)'; g.lineWidth = band * .13;
       g.beginPath(); g.moveTo(x - ca * band * .36, y - sa * band * .36); g.lineTo(x + ca * band * .36, y + sa * band * .36); g.stroke();
     }
-    g.strokeStyle = 'rgba(80,58,30,.5)'; g.lineWidth = band * .09;
+    g.strokeStyle = 'rgba(70,48,24,.65)'; g.lineWidth = band * .12;
     g.beginPath(); g.arc(cx, cy, k * band, 0, Math.PI * 2); g.stroke();
   }
 }
@@ -1183,21 +1183,12 @@ function kitchenChristmas(kitchen, T) {
   });
   kitchen.xmasLamps = {alabaster, arms, fittings};
 
-  // Her corner: a round woven mat under the tent and a smaller one under
-  // the fountain, a green mat under her bowl, and a plaid cushion propped
-  // in the back of the tent. The mats lie flat on the floor (nothing to
-  // walk round, nothing for the vacuum to meet).
-  const weave = canvasTexture(512, 512, drawWovenMat);
-  const matMat = new THREE.MeshStandardMaterial({map: weave, roughness: 1});
-  for (const [x, z, rad, y, turn] of [[4.75, .75, 1.78, .006, .3], [3.0, 1.55, .82, .011, 1.1]]) {
-    const m = mesh(new THREE.CircleGeometry(rad, 56), matMat, g, {cast: false});
-    m.rotation.set(-Math.PI / 2, 0, turn); m.position.set(x, y, z);
-  }
-  const greenMat = mesh(roundedBox(1.2, .84, .01, .1), new THREE.MeshStandardMaterial({map: canvasTexture(256, 256, (c, w, h) => {
-    drawLinen(c, w, h, {base: '#4d6a48', dark: .12, seed: 83});
-    c.strokeStyle = 'rgba(226,214,186,.55)'; c.lineWidth = w * .012; c.strokeRect(w * .06, h * .08, w * .88, h * .84);
-  }), roughness: 1}), g, {cast: false});
-  greenMat.rotation.set(-Math.PI / 2, 0, -.5); greenMat.position.set(4.55, .016, 2.6);
+  // Her corner: a big round woven mat under the tent (her fountain and
+  // bowl have their own mats already), lying flat on the floor (nothing
+  // to walk round, nothing for the vacuum to meet), and a plaid cushion
+  // propped in the back of the tent.
+  const tentMat = mesh(new THREE.CircleGeometry(1.78, 56), new THREE.MeshStandardMaterial({map: canvasTexture(512, 512, drawWovenMat), roughness: 1}), g, {cast: false});
+  tentMat.rotation.set(-Math.PI / 2, 0, .3); tentMat.position.set(4.75, .004, .75);
   const plaid = new THREE.MeshStandardMaterial({map: kitchen.room.decorOriginal?.bedMap ?? kitchen.room.materials.plaidBed.map, roughness: .95});
   const cushion = mesh(pillowGeometry(.68, .66, .3), plaid, kitchen.bed);
   kitchen.mesh(pillowPiping(cushion.geometry), new THREE.MeshStandardMaterial({color: '#2b3a2a', roughness: .85}), cushion, {cast: false});
@@ -1259,11 +1250,15 @@ function kitchenChristmas(kitchen, T) {
   mesh(lathe([[0, 0], [.14, 0], [.19, .26], [.205, .27], [.2, .3], [0, .3]], 24), M.clay, tree);
   mesh(new THREE.CylinderGeometry(.175, .175, .02, 20), new THREE.MeshStandardMaterial({color: '#3a2a1c', roughness: 1}), tree, {cast: false}).position.y = .285;
   mesh(new THREE.CylinderGeometry(.014, .022, .95, 6), twigMat, tree, {cast: false}).position.y = .3 + .475;
-  for (let k = 0; k < 6; k++) {
-    const n = 7 - k, y = .44 + k * .125, len = .3 - k * .042;
-    for (let j = 0; j < n; j++) { const a = (j + (k % 2) * .5) / n * Math.PI * 2 + r() * .3; bough(tree, V(0, y, 0), V(Math.cos(a), -.12, Math.sin(a)).normalize(), len * (.85 + r() * .3), 401 + k * 9 + j, .2, .22); }
+  // (Tiers of short boughs, wide at the bottom, closing to a point: a little fir.)
+  for (let k = 0; k < 9; k++) {
+    const n = 9 - Math.floor(k * .6), y = .4 + k * .085, len = .34 - k * .033;
+    for (let j = 0; j < n; j++) {
+      const a = (j + (k % 2) * .5) / n * Math.PI * 2 + r() * .3, pts = [V(0, y, 0), V(Math.cos(a) * len * .55, y - .02, Math.sin(a) * len * .55), V(Math.cos(a) * len, y - .1, Math.sin(a) * len)];
+      pineAlong(tree, pine, pts, {count: 9, size: .24, spread: .5, jitter: .02, seed: 401 + k * 11 + j});
+    }
   }
-  bough(tree, V(0, 1.12, 0), V(.03, 1, .02).normalize(), .24, 499, .18, 0);
+  pineAlong(tree, pine, [V(0, 1.05, 0), V(.01, 1.2, 0), V(0, 1.34, .01)], {count: 10, size: .2, spread: .35, jitter: .01, seed: 499});
   let glowSize = .28;
 
   kitchen.updateChristmas = (dt, t, night) => {
@@ -1274,8 +1269,8 @@ function kitchenChristmas(kitchen, T) {
     stripMat.opacity += ((night ? 1 : 0) - stripMat.opacity) * k;
     dappleMat.opacity += ((night ? 0 : .42) - dappleMat.opacity) * k; wallMat.opacity = dappleMat.opacity * .45;
     poolMat.opacity += ((night ? .34 : 0) - poolMat.opacity) * k;
-    alabaster.emissiveIntensity += ((night ? 1.7 : .4) - alabaster.emissiveIntensity) * k;
-    lampHalo.opacity += ((night ? .5 : 0) - lampHalo.opacity) * k;
+    alabaster.emissiveIntensity += ((night ? 1.05 : .35) - alabaster.emissiveIntensity) * k;
+    lampHalo.opacity += ((night ? .8 : 0) - lampHalo.opacity) * k;
   };
   return g;
 }
