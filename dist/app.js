@@ -589,6 +589,7 @@ function twitchEar(side = Math.random() < .5 ? 0 : 1, strength = 1) { cat.twitch
 
 function setActivity(name, seconds = Infinity, after = null) {
   brain.activity = name;
+  brain.napFace = null; // (which way she lies for a nap on the shelf: set after, by garlandNap)
   brain.actStart = clockNow;
   brain.actUntil = clockNow + seconds;
   brain.after = after;
@@ -1517,8 +1518,10 @@ function garlandNap() {
     if (brain.perch !== 'shelfHigh' || brain.mode !== 'idle') return;
     brain.perchUntil = Math.max(brain.perchUntil, clockNow + 40);
     walkPath((Math.abs(brain.pos.z - lane.z) < .2 ? [] : [new THREE.Vector3(brain.pos.x + .25, 0, lane.z)]).concat([spot]), () => {
-      brain.napFace = -Math.PI / 2;
-      setActivity('catnap', rand(16, 26), () => { brain.napFace = null; setActivity('sit', rand(2, 4)); });
+      // (Lying along the shelf, the way she came: no turning round asleep.)
+      const face = Math.sin(brain.heading) >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      setActivity('catnap', rand(16, 26), () => setActivity('sit', rand(2, 4)));
+      brain.napFace = face;
     });
   };
   if (brain.perch === 'shelfHigh') settle(); else jumpTo('shelfHigh', settle, rand(45, 60));

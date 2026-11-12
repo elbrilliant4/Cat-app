@@ -797,7 +797,7 @@ function kitchenHalloween(kitchen, T) {
 // shelves in the evening. Everything stands behind or beside where she
 // walks: the garland keeps to the back of the shelf (her lane is its front)
 // and stops short of where she lands at the left; the bows hang on the
-// shelf's front face, below its top.
+// shelf's front face, below its top (nothing in her way on the shelf).
 // ---------------------------------------------------------------------------
 function drawPineSprig(g, w, h) {
   const r = rng(211);
@@ -907,9 +907,9 @@ function kitchenChristmas(kitchen, T) {
   // The garland, along the back of the top shelf (her lane is the front),
   // from just past where she lands to the right-hand end, then down past it.
   const along = [];
-  for (let x = -4.15; x <= 3.31; x += .62) along.push(V(x, S2 + .13 + Math.sin(x * 2.3) * .03, BACK + .2 + Math.sin(x * 1.7) * .03));
+  for (let x = -3.95; x <= 3.31; x += .605) along.push(V(x, S2 + .13 + Math.sin(x * 2.3) * .03, BACK + .2 + Math.sin(x * 1.7) * .03));
   // (Up and forward only: not into the wall or down into the shelf.)
-  const shelfOut = d => d.z > -.15 && d.y > -.25;
+  const shelfOut = d => d.z > -.15 && d.z < .55 && d.y > -.25;
   pineAlong(g, pine, along, {count: 420, size: .52, spread: .8, jitter: .08, seed: 11, out: shelfOut});
   const drop = [V(3.3, S2 + .12, BACK + .22), V(3.47, S2 + .02, BACK + .3), V(3.52, S2 - .4, BACK + .32), V(3.5, S2 - .85, BACK + .3)];
   pineAlong(g, pine, drop, {count: 44, size: .42, spread: .55, seed: 13, out: d => d.z > -.1 && d.x > -.3});
@@ -921,8 +921,8 @@ function kitchenChristmas(kitchen, T) {
   // A velvet bow on the shelf's front face at each end, a few sprigs behind it.
   for (const x of [-4.85, 3.12]) {
     const b = velvetBow(kitchen, g, velvet, .32, 1.35);
-    b.position.set(x, S2 - .06, SHELF_FRONT + .07);
-    pineAlong(g, pine, [V(x - .32, S2 - .05, SHELF_FRONT + .03), V(x, S2 - .02, SHELF_FRONT + .04), V(x + .32, S2 - .05, SHELF_FRONT + .03)], {count: 12, size: .34, spread: .5, seed: 17 + x, out: d => d.z > .1 && d.y < .25});
+    b.position.set(x, S2 - .2, SHELF_FRONT + .09);
+    pineAlong(g, pine, [V(x - .32, S2 - .2, SHELF_FRONT + .04), V(x, S2 - .17, SHELF_FRONT + .05), V(x + .32, S2 - .2, SHELF_FRONT + .04)], {count: 12, size: .3, spread: .5, seed: 17 + x, out: d => d.z > .1 && d.y < 0});
   }
 
   // The wreath on the glazing, hung by its ribbon, with its bow at the top.
@@ -1015,21 +1015,21 @@ function kitchenChristmas(kitchen, T) {
     c.fillStyle = grd; c.fillRect(0, 0, w, h);
   });
   const washMat = new THREE.MeshBasicMaterial({map: washTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
+  const stripMat = new THREE.MeshBasicMaterial({color: '#ffdca8', transparent: true, opacity: 0});
   for (const y of [4.1, S2]) {
     const wash = mesh(new THREE.PlaneGeometry(8.5, 1.25), washMat, g, {cast: false, receive: false});
     wash.position.set(-.9, y - .09 - .625, BACK + .015);
-    const strip = mesh(new THREE.BoxGeometry(8.4, .015, .03), new THREE.MeshBasicMaterial({color: '#ffdca8'}), g, {cast: false, receive: false});
+    const strip = mesh(new THREE.BoxGeometry(8.4, .015, .03), stripMat, g, {cast: false, receive: false});
     strip.position.set(-.9, y - .1, BACK + .06);
   }
-  // (A little light of their own on what's round them, evenings only.)
-  const lamp = new THREE.PointLight('#ffb870', 0, 5, 1.6); lamp.position.set(-.5, S2 + .5, BACK + .9); g.add(lamp);
+  let glowSize = .28;
 
   kitchen.updateChristmas = (dt, t, night) => {
     if (!g.visible) return;
     const k = 1 - Math.exp(-3 * dt), twinkle = 1 + Math.sin(t * 2.1) * .05 + Math.sin(t * 3.7) * .04;
-    glowMat.opacity += ((night ? .95 : .3) - glowMat.opacity) * k; glowMat.size = (night ? .5 : .28) * twinkle;
+    glowMat.opacity += ((night ? .95 : .3) - glowMat.opacity) * k; glowSize += ((night ? .5 : .28) - glowSize) * k; glowMat.size = glowSize * twinkle;
     washMat.opacity += ((night ? .3 : 0) - washMat.opacity) * k;
-    lamp.intensity += ((night ? 2 : 0) - lamp.intensity) * k;
+    stripMat.opacity += ((night ? 1 : 0) - stripMat.opacity) * k;
   };
   return g;
 }
