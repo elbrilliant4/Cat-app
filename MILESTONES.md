@@ -16,6 +16,7 @@ brings that version's app back.
 | Live build 174 | `97f11c8` | Halloween stored away out of October (a room left in it wakes up as Thanksgiving). |
 | Live build 267 | `1aba265` | Looking around and touching her: one finger drags the room like a map and circles her up close, two fingers pinch, turn and tilt, double tap looks closer, a floor tap calls her; she reacts to where she's touched (chin loved, tail and paws not, belly a trap until friends). |
 | Live build 284 | `0c2ec70` | The panel under the room redesigned (layout A): the need that wants her most is a big card with its button, the rest fill like glasses; glossy icons made with Meshy and Runway; a pink friendship card; moments grouped by day. Also carries the other session's camera and film-note commits up to `0c2ec70`. |
+| Live build 294 | `cdd41b3` | The dock over the room uses the glossy icons (bowl, yarn, heart, brush; a moon for Rest that becomes a sun for Wake). Also carries the other session's camera commit (pinching in on her from a view of your own) and test-only changes. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.

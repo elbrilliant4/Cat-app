@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2c2520;--ink2:#5d5148;--muted:#998c80;--alert:#e2554f;--food:#f28c5b;--happy:#f2689a;--water:#5b8def;--energy:#e9ad2f;--clean:#3fb3c9}
+*{box-sizing:border-box}
+body{margin:0;width:390px;height:844px;overflow:hidden;position:relative;font-family:Nunito,ui-rounded,system-ui,sans-serif;color:var(--ink);background:#f7f1ea}
+img{display:block}
+.room{position:absolute;inset:0;background:url(room-a.png) center 35%/cover}
+.roomtop{position:absolute;left:0;right:0;top:0;height:470px;background:url(room-a.png) center top/cover}
+.glass{background:rgba(255,251,246,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.7);box-shadow:0 8px 24px -12px rgba(74,46,25,.35)}
+.status{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-weight:800;font-size:16px;z-index:20}
+.name{position:absolute;top:58px;left:16px;padding:8px 14px;border-radius:18px;z-index:5}
+.name b{display:block;font-size:18px;font-weight:900}
+.name span{font-size:12px;font-weight:800;color:#3f9a6e}
+.name span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px}
+.dock{position:absolute;left:12px;right:12px;display:flex;justify-content:space-between;padding:7px 8px;border-radius:24px;z-index:5}
+.dock div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:800;color:var(--ink2)}
+.dock i{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 18%,transparent)}
+.dock img{width:44px;height:44px;filter:drop-shadow(0 4px 5px rgba(74,46,25,.22))}
+.sh{filter:drop-shadow(0 5px 6px rgba(74,46,25,.22))}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:5px 10px;border-radius:99px;color:var(--alert);background:rgba(226,85,79,.12)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.label{position:absolute;left:0;right:0;bottom:0;padding:5px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#fff;background:#2c2520;z-index:30}
+/* 1: sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;border-radius:30px 30px 0 0;background:rgba(255,250,245,.94);backdrop-filter:blur(20px);box-shadow:0 -12px 40px -16px rgba(74,46,25,.4);padding:10px 18px 40px;z-index:8}
+.grip{width:40px;height:5px;border-radius:5px;background:rgba(44,37,32,.18);margin:0 auto 12px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.row h2{margin:0;font-size:19px;font-weight:900}
+.hero{display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 10px 10px 8px;border-radius:20px;color:#fff;background:linear-gradient(120deg,#e0603a,#f08a5c 60%,#ffb183)}
+.hero img{width:56px;height:56px;filter:drop-shadow(0 6px 8px rgba(80,20,0,.3))}
+.hero div{flex:1}
+.hero small{font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;opacity:.92}
+.hero b{display:block;font-size:22px;font-weight:900;line-height:1.1}
+.hero p{margin:0;font-size:12px;font-weight:700}
+.hero button{border:0;border-radius:13px;padding:11px 16px;font:inherit;font-weight:900;color:#e0603a;background:#fff}
+.dots{display:flex;justify-content:space-between;margin-top:14px}
+.dot{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:800;color:var(--ink2)}
+.ring{position:relative;width:52px;height:52px}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring img{position:absolute;left:9px;top:9px;width:34px;height:34px}
+.hint{text-align:center;margin-top:12px;font-size:12px;font-weight:800;color:var(--muted)}
+.card{border-radius:24px;padding:14px;background:#fffaf5;box-shadow:0 1px 0 0 inset #fff,0 10px 24px -14px rgba(74,46,25,.3)}
+.bond{display:flex;align-items:center;gap:12px;padding:14px;border-radius:24px;color:#fff;background:linear-gradient(130deg,#ff9fb6,#e2557a 55%,#b9467e);margin-top:12px}
+.bond img{width:54px;height:54px}
+.bond small{font-size:11px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;opacity:.9}
+.bond b{display:block;font-size:18px;font-weight:900;margin-bottom:6px}
+.bar{height:8px;border-radius:8px;background:rgba(255,255,255,.3)}.bar i{display:block;height:100%;width:53%;border-radius:8px;background:#fff}
+.mom{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;font-weight:800}
+.mom img{width:34px;height:34px}.mom span{flex:1}.mom time{font-size:12px;color:var(--muted)}
+/* 2: carousel */
+.tabs{display:flex;gap:6px;justify-content:center;margin:12px 0 10px}
+.tabs span{padding:7px 14px;border-radius:99px;font-size:13px;font-weight:900;color:var(--muted)}
+.tabs span.on{color:var(--ink);background:#fffaf5;box-shadow:0 4px 12px -6px rgba(74,46,25,.35)}
+.track{display:flex;gap:12px;padding:0 16px;overflow:hidden}
+.page{flex:0 0 330px;border-radius:28px;padding:16px;background:#fffaf5;box-shadow:0 1px 0 0 inset #fff,0 16px 30px -18px rgba(74,46,25,.35)}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.mini div{position:relative;height:74px;border-radius:16px;overflow:hidden;padding:6px;text-align:center;background:color-mix(in srgb,var(--c) 10%,#fffaf5)}
+.mini div::after{content:"";position:absolute;left:0;right:0;bottom:0;height:var(--v);background:color-mix(in srgb,var(--c) 32%,transparent);z-index:0}
+.mini img{position:relative;z-index:1;width:34px;height:34px;margin:0 auto}
+.mini b{position:relative;z-index:1;font-size:14px;font-weight:900}
+.pdots{display:flex;gap:6px;justify-content:center;margin-top:12px}
+.pdots i{width:7px;height:7px;border-radius:50%;background:rgba(44,37,32,.2)}.pdots i.on{width:20px;border-radius:7px;background:var(--ink)}
+/* 3: HUD + tabs */
+.meters{position:absolute;top:126px;left:16px;padding:8px 10px;border-radius:18px;display:grid;gap:6px;z-index:5}
+.m{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:900}
+.m img{width:24px;height:24px}
+.m .t{width:56px;height:6px;border-radius:6px;background:rgba(44,37,32,.12);overflow:hidden}
+.m .t i{display:block;height:100%;border-radius:6px;background:var(--c)}
+.m.low b{color:var(--alert)}
+.bubble{position:absolute;top:300px;left:150px;padding:9px 12px 9px 9px;border-radius:18px 18px 18px 6px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;z-index:6;background:#fffaf5;box-shadow:0 10px 24px -10px rgba(74,46,25,.45)}
+.bubble img{width:30px;height:30px}
+.bubble button{border:0;border-radius:11px;padding:7px 12px;font:inherit;font-weight:900;color:#fff;background:linear-gradient(135deg,#ffa36c,#f0657e)}
+.tabbar{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);display:flex;gap:4px;padding:5px;border-radius:99px;z-index:6}
+.tabbar span{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:99px;font-size:13px;font-weight:900;color:var(--ink2)}
+.tabbar span.on{background:#2c2520;color:#fff}
+.tabbar img{width:22px;height:22px}
+</style></head><body>
+<div class="status"><span>6:40</span><span>●●● 52</span></div>
+<script>
+const v=new URLSearchParams(location.search).get('v');
+const N=[['bowl','Tummy',22,'#f28c5b'],['heart','Joy',96,'#f2689a'],['drop','Water',77,'#5b8def'],['bolt','Energy',100,'#e9ad2f'],['sparkle','Fluff',94,'#3fb3c9']];
+const D=[['bowl','Feed','--food'],['yarn','Play','--happy'],['heart','Cuddle','--happy'],['brush','Brush','--clean'],['moon','Rest','--energy']];
+const dock=b=>`<div class="dock glass" style="bottom:${b}px">${D.map(d=>`<div style="--c:var(${d[2]})"><i><img src="${d[0]}.webp"></i>${d[1]}</div>`).join('')}</div>`;
+const name=`<div class="name glass"><b>Mochi</b><span>A little hungry</span></div>`;
+const ring=n=>{const c=2*Math.PI*23;return `<div class="dot"><div class="ring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="none" stroke="${n[3]}" stroke-opacity=".18" stroke-width="5"/><circle cx="26" cy="26" r="23" fill="none" stroke="${n[2]<40?'#e2554f':n[3]}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-n[2]/100)}"/></svg><img class="sh" src="${n[0]}.webp"></div>${n[2]}%</div>`};
+const hero=`<div class="hero"><img src="bowl.webp"><div><small>Tummy · 22%</small><b>A snack, please!</b><p>She keeps glancing at the bowl.</p></div><button>Feed</button></div>`;
+let h='';
+if(v==='1'){
+ h=`<div class="room"></div>${name}${dock(318)}
+ <div class="sheet"><div class="grip"></div><div class="row"><h2>Mochi needs</h2><span class="pill">1 needs you</span></div>${hero}
+ <div class="dots">${N.map(ring).join('')}</div><div class="hint">Swipe up for friendship and moments</div></div>
+ <div class="label">1 · Pull-up sheet (resting)</div>`;
+}else if(v==='1b'){
+ h=`<div class="room"></div>${name}
+ <div class="sheet" style="top:150px;padding-top:10px"><div class="grip"></div><div class="row"><h2>Mochi needs</h2><span class="pill">1 needs you</span></div>${hero}
+ <div class="dots">${N.map(ring).join('')}</div>
+ <div class="bond"><img src="paw.webp"><div style="flex:1"><small>Friendship · Lv 1</small><b>New friends</b><div class="bar"><i></i></div></div></div>
+ <div class="row" style="margin-top:16px"><h2 style="font-size:17px">Moments</h2><span style="font-size:13px;font-weight:800;color:var(--muted)">Care guide ›</span></div>
+ <div class="mom"><img src="moon.webp"><span>Tucked in for sweet little dreams.</span><time>12:54</time></div>
+ <div class="mom"><img src="heart.webp"><span>5 cuddles. One very happy cat.</span><time>12:54</time></div></div>
+ <div class="label">1 · Pull-up sheet (swiped up)</div>`;
+}else if(v==='2'){
+ h=`<div class="roomtop"></div>${name}${dock(388)}
+ <div style="position:absolute;top:470px;left:0;right:0">
+ <div class="tabs"><span class="on">Needs</span><span>Friendship</span><span>Moments</span></div>
+ <div class="track"><div class="page"><div class="row"><h2 style="font-size:17px">Mochi needs</h2><span class="pill">1 needs you</span></div>${hero.replace('margin-top:12px','')}
+ <div class="mini">${N.slice(1).map(n=>`<div style="--c:${n[3]};--v:${n[2]}%"><img class="sh" src="${n[0]}.webp"><b>${n[2]}%</b></div>`).join('')}</div></div>
+ <div class="page"><div class="bond" style="margin:0"><img src="paw.webp"></div></div></div>
+ <div class="pdots"><i class="on"></i><i></i><i></i></div></div>
+ <div class="label">2 · Swipe cards under the room</div>`;
+}else{
+ h=`<div class="room"></div>${name}
+ <div class="meters glass">${N.map(n=>`<div class="m ${n[2]<40?'low':''}" style="--c:${n[3]}"><img class="sh" src="${n[0]}.webp"><div class="t"><i style="width:${n[2]}%"></i></div><b>${n[2]}</b></div>`).join('')}</div>
+ <div class="bubble"><img class="sh" src="bowl.webp">Snack time?<button>Feed</button></div>
+ ${dock(96)}
+ <div class="tabbar glass"><span class="on"><img src="paw.webp">Room</span><span><img src="heart.webp">Moments</span><span><img src="sparkle.webp">Guide</span></div>
+ <div class="label">3 · Needs on the room + tabs</div>`;
+}
+document.write(h);
+</script></body></html>
