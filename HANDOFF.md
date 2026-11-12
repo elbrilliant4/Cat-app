@@ -1,4 +1,49 @@
-# Handoff: 2026-11-12 (evening), opening screen
+# Handoff: 2026-11-12 (night), looking around and touching her (phase 14)
+
+## Next step (waiting on Merlin)
+Preview build 264 (`84e4ebf`) at https://jvtomax99.github.io/Cat-app/preview/
+has the new camera and touch. Merlin tried earlier builds and steered it;
+on 264 he gave no complaint, but has not said "Go live" for it. Ask him:
+go live with it, or what still feels off (one concrete case).
+- Live in the fork (jvtomax99.github.io/Cat-app/) is `5656431` (published
+  by the Deploy run of 16:19 UTC): no camera work. No MILESTONES row yet.
+- Going live: `main` holds a commit that undoes the camera work, so first
+  `git merge -s ours origin/main` on the preview branch, then push the sha
+  to `main`, run "Deploy site", check `/version.json`.
+
+## How it works now (Merlin's choices, in order)
+1. Plan A (picked after comparing Nintendogs, Pokemon-Amie, Peridot,
+   Talking Tom): she takes a touch by where it lands (chin favourite, tail
+   and paws disliked, belly a trap until friends), stroking felt along the
+   stroke, a floor tap calls her, pinch is one line in and out about her.
+2. "Moving around still off": no leash or snap-back in the room view.
+3. "Two fingers to move is off": one finger drags the room like a map
+   (`grabPan`), around her it circles her; two fingers pinch, twist to
+   turn, slide up/down to tilt; double tap the floor looks closer (a
+   single tap calls her after 0.34 s); pinch far out returns to the room.
+4. Watch on a phone framed the ceiling: `roomFrame` now shares spare
+   height above and below.
+Spec lines: SPEC.md "Looking around", "Touching her". Code map:
+docs/ARCHITECTURE.md "Camera" and "Touch" (the Camera paragraph predates
+steps 2 and 3: update it). Checks: `tools/qa/camera.mjs`, 17 of 17 PASS on
+`84e4ebf` (about 12 min; run with `run_in_background`).
+
+## Left
+- Feel on a real phone is Merlin's call; the checks use simulated input.
+- Dragging near the room's open front drifts up to about 17 px over a
+  120 px drag (the camera arm shortens against CAM_BOX).
+- Not built (plan B, "Not in v1"): carrying her, dragging food or brush,
+  full-screen room. The app still opens on the whole room, not on her.
+- Body-part spots go by bone name; tail and paw touch spheres are in
+  `real-cat.js`. Check them on the long-haired Mochi if her rig differs.
+
+## Paste into a new chat
+> Read CLAUDE.md and HANDOFF.md. Camera and touch (phase 14) are on the
+> preview at build 264. Ask Merlin: go live, or what still feels off. He
+> also has the opening film cuts (A, B, C) to pick from.
+
+---
+# Earlier handoff: 2026-11-12 (evening), opening screen
 
 ## Next step (waiting on Merlin)
 Merlin asked for a Runway film intro and approved the storyboard ("Render
