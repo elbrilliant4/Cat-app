@@ -607,8 +607,8 @@ export function applyKitchenDecor(kitchen, name) {
   // on the pictures' honey tone (and give it back for the other looks).
   const KM = kitchen.materials;
   kitchen.decorOriginal ??= {plaster: KM.plaster.color.clone(), floor: KM.floor.color.clone(), counter: KM.counter.color.clone()};
-  KM.plaster.color.set(christmas ? '#f6dcbb' : kitchen.decorOriginal.plaster);
-  KM.floor.color.set(christmas ? '#ecd2b0' : kitchen.decorOriginal.floor);
+  KM.plaster.color.set(christmas ? '#f6e6d0' : kitchen.decorOriginal.plaster);
+  KM.floor.color.set(christmas ? '#efdec6' : kitchen.decorOriginal.floor);
   KM.counter.color.set(christmas ? '#f7e6cc' : kitchen.decorOriginal.counter);
   kitchen.candleLight = autumn ? kitchen.lanternHalo : christmas ? kitchen.xmasHalo : null;
   kitchen.candleFlame = christmas ? kitchen.xmasFlame : kitchen.lanternFlame;
