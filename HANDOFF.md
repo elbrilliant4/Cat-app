@@ -33,6 +33,17 @@ them and must pick A, B or C, or name shots to redo. It is NOT in the app.
   the real study (bookshelves in shot 2). Add CREDITS rows and copy the
   chosen film to `dist/assets/title/`.
 
+## Second cut (2026-11-12, 21:50 UTC), replaces the first
+Merlin asked to redo the weak shots. Shots 2, 3, 4, 6 were redone in the
+real study; the film is now 14.9 s (`sources/title/film/mochi-film-silent.mp4`
+is the second cut). Cut: s1 1.0-3.0, s2b 0-1.2, s3b 0.2-2.7, s4b 0-3.0,
+s5 0.2-2.4, s6b 0-4.0; music laid from 0, faded out from 13.4 s. New
+Runway tasks: shots 83099f7f (2), cd41e22e (3), 8d763002 (4), 08429c76
+(6, starts on the last frame of shot 5); key pictures 72d9aadb (2),
+9325e0a9 (3), 7ae37d9c (4). Runway credits left: 1,554. Merlin has the
+three music versions and a 5-page storyboard PDF he is giving to ChatGPT
+to review; wait for his notes and his music pick.
+
 ## Done this session (on the preview branch, pushed)
 - Pocket Kitten logo on top of the title, her name kept under it, button
   "Play with <name>", three Meshy toys on the rug in the living title
