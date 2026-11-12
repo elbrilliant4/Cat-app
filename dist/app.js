@@ -59,6 +59,7 @@ function toast(text) {
 }
 
 const icon = (id, cls = '') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+const CLAY_ICONS = {'i-drop': 'drop', 'i-heart': 'heart', 'i-bowl': 'bowl', 'i-brush': 'brush', 'i-yarn': 'yarn', 'i-moon': 'moon', 'i-sparkle': 'sparkle', 'i-paw': 'paw', 'i-bolt': 'bolt'};
 const LEGACY_ICONS = {'♡': 'i-heart', '◡': 'i-bowl', '≋': 'i-brush', '✺': 'i-yarn', '☾': 'i-moon', '✦': 'i-sparkle'};
 const ICON_TINT = {'i-drop': '--water', 'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
 
@@ -69,17 +70,15 @@ const NEEDS = [
   {key: 'energy', label: 'Energy', img: 'bolt', tint: '--energy', low: 35, verb: 'Nap', act: 'sleep', tip: 'A nap will put the bounce back.'},
   {key: 'cleanliness', label: 'Fluff', img: 'sparkle', tint: '--clean', low: 30, verb: 'Brush', act: 'brush', tip: 'Time for a gentle brush.'},
 ];
-const CIRC = 2 * Math.PI * 29;
+// Needs: one tile each, filled like a glass by how full she is. The need
+// that wants her most grows into the big card at the top, with its button.
+const WAVE = '<svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6 Q12.5 0 25 6 T50 6 T75 6 T100 6 T125 6 T150 6 T175 6 T200 6 V12 H0Z"/></svg>';
 for (const n of NEEDS) {
   const el = document.createElement('div');
-  el.className = 'ring';
+  el.className = 'need';
   el.id = 'ring-' + n.key;
   el.style.setProperty('--tint', `var(${n.tint})`);
-  el.setAttribute('role', 'progressbar');
-  el.setAttribute('aria-label', n.label);
-  el.setAttribute('aria-valuemin', '0');
-  el.setAttribute('aria-valuemax', '100');
-  el.innerHTML = `<div class="ring-wrap"><svg class="dial" viewBox="0 0 70 70" aria-hidden="true"><circle class="track" cx="35" cy="35" r="29"/><circle class="bar" cx="35" cy="35" r="29" style="stroke-dashoffset:${CIRC}"/></svg><img class="ring-icon" src="assets/icons/clay/${n.img}.webp" alt="" width="34" height="34"></div><div><strong>0%</strong><small>${n.label}</small></div>`;
+  el.innerHTML = `<div class="need-fill" aria-hidden="true">${WAVE}</div><img class="need-icon" src="assets/icons/clay/${n.img}.webp" alt="" width="96" height="96"><div class="need-text"><small>${n.label}</small><strong role="progressbar" aria-label="${n.label}" aria-valuemin="0" aria-valuemax="100">0%</strong><p class="need-tip"></p></div><button class="need-btn" type="button" data-need="${n.key}" hidden>${n.verb}</button><div class="need-bar" aria-hidden="true"><i></i></div>`;
   $('#stats').append(el);
 }
 
@@ -137,9 +136,9 @@ function refresh() {
   $('#greeting').textContent = greeting();
   for (const n of NEEDS) {
     const v = Math.round(pet[n.key]), el = $('#ring-' + n.key);
-    el.querySelector('.bar').style.strokeDashoffset = String(CIRC * (1 - v / 100));
+    el.style.setProperty('--v', v / 100);
     el.querySelector('strong').textContent = v + '%';
-    el.setAttribute('aria-valuenow', v);
+    el.querySelector('strong').setAttribute('aria-valuenow', v);
     el.classList.toggle('low', v < n.low);
   }
   const lv = levelInfo(pet.bond);
@@ -169,18 +168,24 @@ function refresh() {
     b.setAttribute('aria-disabled', String(off));
     b.classList.toggle('active', brain.mode === b.dataset.action || (b.dataset.action === 'sleep' && pet.sleeping));
   }
-  // The lowest need, if any is low, gets a line and a one-tap button for it.
-  const lowest = NEEDS.filter(n => pet[n.key] < n.low).sort((a, b) => pet[a.key] / a.low - pet[b.key] / b.low)[0];
-  const lowCount = NEEDS.filter(n => pet[n.key] < n.low).length;
-  $('#care-tip').textContent = pet.sleeping ? 'Resting restores energy, even while you’re away.' : lowest ? lowest.tip : 'All good. Just be here.';
-  const nb = $('#nudge-btn');
-  nb.hidden = pet.sleeping || !lowest;
-  if (lowest && !pet.sleeping) { nb.textContent = lowest.verb; nb.dataset.need = lowest.key; nb.style.setProperty('--tint', `var(${lowest.tint})`); }
-  $('#nudge').classList.toggle('wants', !!lowest && !pet.sleeping);
-  $('#nudge').style.setProperty('--tint', pet.sleeping ? 'var(--dream)' : lowest ? `var(${lowest.tint})` : 'var(--good)');
+  // The big card: asleep, her energy; otherwise the need that is lowest
+  // against its own "low" line, with its button when it is actually low.
+  const lows = NEEDS.filter(n => pet[n.key] < n.low);
+  const hero = pet.sleeping ? NEEDS.find(n => n.key === 'energy') : [...NEEDS].sort((a, b) => pet[a.key] / a.low - pet[b.key] / b.low)[0];
+  const tip = pet.sleeping ? 'Resting restores energy, even while you’re away.' : lows.length ? hero.tip : 'All good. Just be here.';
+  for (const n of NEEDS) {
+    const el = $('#ring-' + n.key), on = n === hero;
+    if (on && !el.classList.contains('hero')) { el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); }
+    el.classList.toggle('hero', on);
+    el.classList.toggle('dream', on && pet.sleeping);
+    if (n.key === 'energy') { const src = `assets/icons/clay/${pet.sleeping ? 'moon' : 'bolt'}.webp`; const im = el.querySelector('.need-icon'); if (!im.src.endsWith(src)) im.src = src; }
+    el.querySelector('.need-tip').textContent = on ? tip : '';
+    el.querySelector('.need-btn').hidden = !on || pet.sleeping || !lows.includes(n);
+  }
+  $('#care-tip-live').textContent = tip;
   const pill = $('#needs-pill');
-  pill.textContent = pet.sleeping ? 'Asleep' : lowCount ? (lowCount === 1 ? '1 needs you' : `${lowCount} need you`) : 'All good';
-  pill.dataset.state = pet.sleeping ? 'sleep' : lowCount ? 'low' : 'good';
+  pill.textContent = pet.sleeping ? 'Asleep' : lows.length ? (lows.length === 1 ? '1 needs you' : `${lows.length} need you`) : 'All good';
+  pill.dataset.state = pet.sleeping ? 'sleep' : lows.length ? 'low' : 'good';
   // Her own name everywhere (buttons, the sound panel, the care guide).
   document.querySelectorAll('.pet-name-slot').forEach(el => { if (el.textContent !== pet.name) el.textContent = pet.name; });
   $('[data-cam="follow"]').title = $('[data-cam="follow"]').ariaLabel = `Follow ${pet.name}`;
@@ -241,7 +246,8 @@ function renderJournal(fresh = false) {
     const li = document.createElement('li');
     li.className = 'moment' + (fresh && i === 0 ? ' new' : '');
     li.style.setProperty('--tint', `var(${ICON_TINT[id] || '--love'})`);
-    li.innerHTML = `<span class="moment-icon">${icon(id)}</span><span class="moment-text"></span><time></time>`;
+    const art = CLAY_ICONS[id];
+    li.innerHTML = `<span class="moment-icon">${art ? `<img src="assets/icons/clay/${art}.webp" alt="" width="40" height="40">` : icon(id)}</span><span class="moment-text"></span><time></time>`;
     li.querySelector('.moment-text').textContent = m.text;
     const t = li.querySelector('time');
     t.dateTime = new Date(m.time).toISOString();
@@ -3052,23 +3058,25 @@ for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume']]) {
   $(id).oninput = e => { pet[key] = +e.target.value; sounds.setVolume(kind, pet[key]); };
   $(id).onchange = () => { save(); if (kind === 'cat' && pet.sound) meow('mew'); };
 }
-$('.tabs').onclick = e => {
-  const b = e.target.closest('[data-tab]');
-  if (!b) return;
-  for (const x of $('.tabs').querySelectorAll('button')) { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', String(x === b)); }
-  $('#journal-wrap').hidden = b.dataset.tab !== 'journal';
-  $('#guide').hidden = b.dataset.tab !== 'guide';
+$('#log-switch').onclick = () => {
+  const toGuide = $('#guide').hidden;
+  $('#guide').hidden = !toGuide;
+  $('#journal-wrap').hidden = toGuide;
+  $('#log-title').firstChild.textContent = toGuide ? 'Care guide ' : 'Moments ';
+  $('#journal-count').hidden = toGuide;
+  $('#log-switch').innerHTML = toGuide ? '<span aria-hidden="true">‹</span> Moments' : 'Care guide <span aria-hidden="true">›</span>';
 };
 $('#journal-more').onclick = () => { journalAll = !journalAll; renderJournal(); };
 // The Needs card's button does what the dock would: it brings the room back
 // into view first, since play and the fountain happen there.
-$('#nudge-btn').onclick = () => {
-  const n = NEEDS.find(x => x.key === $('#nudge-btn').dataset.need);
+$('#stats').addEventListener('click', e => {
+  const b = e.target.closest('.need-btn');
+  const n = b && NEEDS.find(x => x.key === b.dataset.need);
   if (!n) return;
   $('.stage').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   if (n.cam) $(`[data-cam="${n.cam}"]`).click();
   else $(`.dock [data-action="${n.act}"]`).click();
-};
+});
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', e => {
     if (e.target !== d) return;
