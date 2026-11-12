@@ -28,9 +28,10 @@ A. Overlaps, compared with `main` (done 2026-11-12, same runs on
    now keeps .5 clear of the bowl, fountain and tent. Seed 1's first
    112 s: 81 overlaps before, 1 after (a 4 mm tail brush). The full 600 s
    runs after the fix: see the end of this file if they were finished,
-   else rerun. Still for Merlin to decide: the rest (heads and ears turned
-   into the counter and window wall) is a phase 02 leftover, there on
-   `main` too.
+   else rerun. The rest (heads and ears turned into the counter and
+   window wall) is a phase 02 leftover, there on `main` too: Merlin chose
+   (2026-11-12) to fix it after going live, as its own piece of work. He
+   has not said "Go live" yet.
 B. Christmas details (all four built 2026-11-12, on the preview, waiting
    for Merlin's eye). Orion's pictures were not in the session that built
    these (they are never committed): it worked from this list, so ask
