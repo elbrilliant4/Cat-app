@@ -90,6 +90,20 @@ export class Sounds {
     if (this.ctx) this.bus[kind].gain.setTargetAtTime(v, this.ctx.currentTime, .08);
   }
 
+  // A one-off sound file from this folder (the title screen's wake-up
+  // chime), on her volume; nothing if muted or still locked.
+  async play(file, gain = .5) {
+    if (!this.ctx || !this.enabled) return false;
+    try {
+      const buffer = await this.ctx.decodeAudioData(await (await fetch(this.base + file)).arrayBuffer());
+      if (!this.enabled || this.ctx.state !== 'running') return false;
+      const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
+      src.buffer = buffer; g.gain.value = gain;
+      src.connect(g).connect(this.bus.cat); src.start();
+      return true;
+    } catch (e) { console.warn('Sound unavailable:', e); return false; }
+  }
+
   // Something landing (see above). One-off and quiet; nothing if muted.
   knock(kind = 'cup') {
     if (!this.ctx || !this.enabled || this.ctx.state !== 'running') return;

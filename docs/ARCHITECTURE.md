@@ -11,7 +11,7 @@ preview branch.
 | File | Job |
 |---|---|
 | `app.js` | The brain: state (`brain`, `pet`), behaviours, walking and jumping, camera, night, rooms, debug hooks. Big file; search by function name. |
-| `motion-cat.js` | `MotionCat`: poses (`POSES`), walk (to 1.0), trot (1.0-2.2) and gallop gaits, foot placement and stepping, eating reach. Walk numbers from real cats: `docs/phases/07-walk-grace.md`. |
+| `motion-cat.js` | `MotionCat`: poses (`POSES`), walk (to 1.0), trot (1.0-2.2) and gallop gaits (a dash, `ctl.sprint`, gallops from the first step; body `flex` and `saw`, level head, tail: `docs/phases/12-cat-motion.md`), foot placement and stepping, eating reach. Walk numbers from real cats: `docs/phases/07-walk-grace.md`. |
 | `motion.js` | `MotionRig`: IK legs (`solveLeg`, `reachShort` = how far a leg is short of its paw), spine, head and neck, tail (`drapeTail`, bed bounds), floor contact. |
 | `cat-rig.js` | Builds the skeleton and skin weights from the Meshy model at load. |
 | `real-cat.js` | Fur, eyes, face, ears, jaw; also the classic movement (`?motion=classic`). |
@@ -20,6 +20,50 @@ preview branch.
 | `decor.js` | Seasonal decor for both rooms; `pillowGeometry`. Seasonal looks have `months` and are stored away out of season (`inSeason`, `decorNow`; `?decor=halloween` shows one anyway). |
 | `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
 | `sound.js`, `meows.js` | Short sounds and meows (no ambient loops). |
+
+## Title screen (app.js, "Title screen" block; markup `#title`; styles at the end of style.css; picture in `title-fx.js`)
+A script in the head of `index.html` puts the class `title` on `<html>`
+before the first paint: on at every launch, off with `?intro=0` or `?debug`
+(the QA tools), forced with `?intro=full`, `short` or `1`. While `titleOn`:
+the stage is full screen, `titleLife` runs instead of `idleLife`, the
+header, panel and footer are `inert`. `titleStage` says where it is:
+`load`, `gate`, `cine`, `live`, `still`.
+
+Two kinds (`titleFull`, decided once at start):
+- **Full**: the first launch of the day (localStorage `pocket-kitten-title-day`),
+  not with reduced motion, not if she was put to bed. `gate`: two Enter
+  buttons ("with sound" sets `pet.sound` and saves; "without" leaves the
+  save alone). `cine`: the zoomies sequence. `live`: her name, she sits at
+  `HOME`, "Tap to start".
+- **Still** (short): she sleeps on the study bed whatever the save says
+  (`pet.sleeping` is not changed) under her name; "Tap to wake her".
+
+The sequence: a story clock `cine.T` in real seconds. `SHOTS` = when each
+shot starts plus its camera (`cineCamera` places the camera itself,
+`updateCamera` is skipped). `CUES` = what she does when, by direct calls
+(`setActivity`, `express`, `cineJump`: a jump with no crouch first).
+`cine.watch` is a per-frame check (start the leap when she reaches the
+hearth; freeze when she is nearly on the lens). `cine.hold` keeps her
+heading. Slow motion: `timeRate` slows the game clock (`clockLag` in
+`frame`); it is 1 outside the sequence. `endCine()` (the natural end, or a
+tap: `titleTap`) tidies: vase home (`room.resetVase`), she is put at `HOME`,
+lens and camera back, name in (`.reveal`).
+
+`leaveTitle()` (tap, click, Enter): from `still` she stretches and walks
+home (or stays asleep); from `live` she greets you. The camera glides to
+the room view (`view.glideUntil`), `shrinkTitle()` animates the stage down
+to its card (the picture is only stretched meanwhile: `titleFlip`), then
+`endTitle()` puts everything back and disposes `titleFx`.
+
+`title-fx.js` (`TitleFx`): three's `EffectComposer` (vendored in
+`dist/vendor/postprocessing`, `shaders`) with bloom, a vignette and grain
+pass, plus sun shafts (additive sheets from the window to the sun patch)
+and dust (points moved in the shader). Used ONLY while the title is up:
+`frame` draws with `titleFx.render` if it exists, else the plain renderer.
+It watches its own frame time: over 40 ms for a run of frames, it first
+drops to pixel ratio 1, then turns bloom off. No depth blur yet.
+Sounds: the wake-up chime in the still title (`sounds.play`,
+`assets/sounds/wake-chime.mp3`, sound on only). The sequence has no music yet.
 
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
