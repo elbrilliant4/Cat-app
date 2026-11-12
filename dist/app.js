@@ -64,6 +64,8 @@ function toast(text) {
 }
 
 const icon = (id, cls = '') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+// Phones get the room full screen with the panel as a pull-up sheet (phase 08).
+const sheetMQ = matchMedia('(max-width: 720px)');
 const CLAY_ICONS = {'i-drop': 'drop', 'i-heart': 'heart', 'i-bowl': 'bowl', 'i-brush': 'brush', 'i-yarn': 'yarn', 'i-moon': 'moon', 'i-sparkle': 'sparkle', 'i-paw': 'paw', 'i-bolt': 'bolt'};
 const LEGACY_ICONS = {'♡': 'i-heart', '◡': 'i-bowl', '≋': 'i-brush', '✺': 'i-yarn', '☾': 'i-moon', '✦': 'i-sparkle'};
 const ICON_TINT = {'i-drop': '--water', 'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
@@ -2695,7 +2697,7 @@ function roomFrame() {
   if (!document.body.classList.contains('watch')) {
     const cams = $('.cam-buttons')?.getBoundingClientRect(), dock = $('.dock')?.getBoundingClientRect();
     if (cams?.width && cams.left - box.left > W / 2) { right = cams.left - box.left - 6; camsBottom = 1 - (cams.bottom - box.top + 6) / H * 2; }
-    if (dock?.height && dock.top - box.top > H / 2) bottom = dock.top - box.top - 10;
+    if (dock?.height && (sheetMQ.matches || dock.top - box.top > H / 2)) bottom = dock.top - box.top - 10;
   }
   const L = -1 + 20 / W, Rcams = right / W * 2 - 1, Redge = 1 - 14 / W, B = 1 - bottom / H * 2, T = 1 - 16 / H;
   fitCam.fov = camera.fov; fitCam.aspect = W / H; fitCam.updateProjectionMatrix();
@@ -3098,6 +3100,7 @@ $('#stats').addEventListener('click', e => {
   const b = e.target.closest('.need-btn');
   const n = b && NEEDS.find(x => x.key === b.dataset.need);
   if (!n) return;
+  sheetOpen(false);
   $('.stage').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   if (n.cam) $(`[data-cam="${n.cam}"]`).click();
   else $(`.dock [data-action="${n.act}"]`).click();
@@ -3748,7 +3751,90 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, renderJournal, cat, get clock() { return clockNow; }, SWAT, express, endPlay, get teach() { return teachStep(); }, get title() { return {stage: titleStage, cine, film, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+// The sheet (phase 08). Resting: the needs; open: everything. A drag that
+// starts on the resting sheet, or on the open sheet's grip or "needs"
+// heading, moves it; inside the open sheet the list scrolls. Touches on the
+// sheet never reach the room (it is outside the camera's element).
+const sheet = $('#sheet'), sheetGrip = $('#sheet-grip'), sheetScrim = $('#sheet-scrim');
+const isSheetOpen = () => document.body.classList.contains('sheet-open');
+function sheetOpen(on) {
+  if (on && !sheetMQ.matches) return;
+  document.body.classList.toggle('sheet-open', on);
+  sheetGrip.setAttribute('aria-expanded', String(on));
+  sheetGrip.ariaLabel = on ? 'Show less' : 'Show more';
+  if (!on) sheet.scrollTop = 0;
+}
+function sheetPeek() {
+  if (!sheetMQ.matches) return;
+  const p = sheet.getBoundingClientRect(), n = $('.panel .needs').getBoundingClientRect();
+  const px = Math.round(n.bottom - p.top + 14);
+  const was = parseFloat(document.documentElement.style.getPropertyValue('--peek-px')) || 0;
+  if (Math.abs(px - was) < 2) return;
+  document.documentElement.style.setProperty('--peek-px', px + 'px');
+  // The dock moved: frame the room in the space left above it.
+  if (view.mode === 'room' && !titleOn) setTimeout(() => CAMERA_VIEWS.room(), 60);
+}
+function sheetLayout() {
+  const phone = sheetMQ.matches;
+  // The top bar's buttons and the credits go where a phone can see them.
+  const acts = $('.top-actions'), foot = $('footer');
+  if (phone) { $('.hud-left').append(acts); sheet.append(foot); }
+  else { $('.topbar').append(acts); $('.app').append(foot); sheetOpen(false); }
+  sheetScrim.hidden = !phone;
+  requestAnimationFrame(sheetPeek);
+}
+sheetMQ.addEventListener('change', sheetLayout);
+new ResizeObserver(() => sheetPeek()).observe($('.panel .needs'));
+sheetLayout();
+let sheetDrag = null, sheetNoClick = false;
+sheet.addEventListener('pointerdown', e => {
+  if (!sheetMQ.matches || document.body.classList.contains('watch') || e.button > 0) return;
+  const open = isSheetOpen(), handle = !!e.target.closest('.sheet-grip, .needs > .card-head');
+  if (open && !handle) return;
+  sheetDrag = {id: e.pointerId, y: e.clientY, t: performance.now(), open, moving: false};
+});
+sheet.addEventListener('pointermove', e => {
+  const d = sheetDrag;
+  if (!d || e.pointerId !== d.id) return;
+  const dy = e.clientY - d.y;
+  if (!d.moving) {
+    if (Math.abs(dy) < 8) return;
+    d.moving = true;
+    d.travel = sheet.offsetHeight - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--peek-px') || 300);
+    sheet.classList.add('dragging');
+    try { sheet.setPointerCapture(e.pointerId); } catch {}
+  }
+  const base = d.open ? 0 : d.travel;
+  let y = base + dy;
+  if (y < 0) y = -Math.sqrt(-y) * 2;                       // a little give past the top
+  if (y > d.travel) y = d.travel + Math.sqrt(y - d.travel) * 2;
+  sheet.style.transform = `translateY(${y}px)`;
+});
+function sheetDragEnd(e) {
+  const d = sheetDrag;
+  if (!d || e.pointerId !== d.id) return;
+  sheetDrag = null;
+  if (!d.moving) return;
+  const dy = e.clientY - d.y, v = dy / Math.max(1, performance.now() - d.t);
+  sheet.classList.remove('dragging');
+  sheet.style.transform = '';
+  const y = (d.open ? 0 : d.travel) + dy;
+  sheetOpen(Math.abs(v) > .35 ? v < 0 : y < d.travel / 2);
+  sheetNoClick = true; setTimeout(() => sheetNoClick = false, 0);
+}
+sheet.addEventListener('pointerup', sheetDragEnd);
+sheet.addEventListener('pointercancel', sheetDragEnd);
+// A tap: the grip toggles; on the resting sheet anything but a button opens it.
+sheet.addEventListener('click', e => {
+  if (sheetNoClick) { e.stopPropagation(); e.preventDefault(); sheetNoClick = false; return; }
+  if (!sheetMQ.matches) return;
+  if (e.target.closest('#sheet-grip')) { sheetOpen(!isSheetOpen()); return; }
+  if (!isSheetOpen() && !e.target.closest('button, a, input')) sheetOpen(true);
+}, true);
+sheetScrim.addEventListener('click', () => sheetOpen(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && isSheetOpen()) sheetOpen(false); });
+
+if (params.has('debug')) window.kitten = {brain, renderJournal, sheetOpen, sheetPeek, cat, get clock() { return clockNow; }, SWAT, express, endPlay, get teach() { return teachStep(); }, get title() { return {stage: titleStage, cine, film, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });

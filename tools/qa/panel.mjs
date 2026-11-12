@@ -1,12 +1,12 @@
-// Stills of the panel under the room (needs, friendship, moments) on a phone.
+// Stills of the panel at tablet width (800 px; phones get the sheet, see sheet.mjs): needs, friendship, moments, the guide, the dock.
 // NIGHT=1 for the dark look, SLEEP=1 for her asleep, OUT (default qa-out/panel).
 import {open} from './lib.mjs';
 import fs from 'node:fs';
 const OUT = process.env.OUT || 'qa-out/panel';
 fs.mkdirSync(OUT, {recursive: true});
 const night = +(process.env.NIGHT || 0);
-const {page, step, close} = await open({width: 390, height: 844, night, flags: '&intro=0'});
-await page.setViewportSize({width: 390, height: 844});
+const {page, step, close} = await open({width: 800, height: 1000, night, flags: '&intro=0'});
+
 await page.evaluate(sleep => {
   const p = window.kitten && window.kitten.pet;
   if (!p) return;
@@ -34,7 +34,7 @@ await close();
 
 // Taps: the Needs button opens the snack menu; Show all; the care guide.
 {
-  const {page, step, close} = await open({width: 390, height: 844});
+  const {page, step, close} = await open({width: 800, height: 1000});
   await page.evaluate(() => { const p = kitten.pet; p.food = 20; p.sleeping = false; const t = Date.now(); p.journal = Array.from({length: 9}, (_, i) => ({text: 'Moment ' + (i + 1), icon: 'i-heart', time: t - i * 6e5})); kitten.refresh(); kitten.renderJournal(); });
   await step(10);
   const rows = () => page.$$eval('#journal .moment', l => l.length);

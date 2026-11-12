@@ -508,3 +508,54 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
 @keyframes title-shine { 0% { background-position: 130% 0, 0 0; } 22%, 100% { background-position: -30% 0, 0 0; } }
 @keyframes title-spark { 0% { opacity: 0; transform: translate(0, 0) scale(0) rotate(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(var(--s)) rotate(120deg); } }
 @media (prefers-reduced-motion: reduce) { .gate-paw { animation: none; } }
+
+/* Phase 08: on a phone the room fills the screen and the panel is a sheet
+   at the bottom with two stops: resting (the needs) and open (everything).
+   app.js sets --peek-px (the resting height) and body.sheet-open. */
+.hud-left { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.sheet-grip, .sheet-scrim { display: none; }
+@media (max-width: 720px) {
+  :root { --peek: calc(var(--peek-px, 300px) + env(safe-area-inset-bottom)); }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .topbar { display: none; }
+  .app { padding: 0; }
+  .layout { display: block; }
+  .stage { position: fixed; inset: 0; z-index: 1; border-radius: 0; border: 0; box-shadow: none; }
+  .scene { height: 100vh; height: 100dvh; min-height: 0; max-height: none; }
+  .scene-hint { display: none; }
+  .hud-top { top: calc(10px + env(safe-area-inset-top)); }
+  .hud-left .top-actions { display: flex; gap: 6px; margin: 0; }
+  .hud-left .top-actions .icon-btn { width: 38px; height: 38px; border-radius: 13px; font-size: 17px; background: var(--glass); border-color: var(--glass-line); box-shadow: 0 6px 16px -10px rgba(74, 46, 25, .45); }
+  .hud-left .chip { height: 38px; padding: 0 11px; border-radius: 13px; background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .hud-left .sound-panel { left: 0; right: auto; }
+  .dock { bottom: calc(var(--peek) + 10px); transition: opacity .4s, bottom .4s var(--ease); }
+  .play-meter { bottom: calc(var(--peek) + 104px); }
+
+  .panel { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; height: calc(100dvh - 56px - env(safe-area-inset-top)); display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; padding: 0 14px calc(18px + env(safe-area-inset-bottom)); overflow: hidden; overscroll-behavior: contain; border-radius: 30px 30px 0 0; background: var(--bg); box-shadow: 0 -1px 0 0 rgba(255, 255, 255, .6), 0 -16px 40px -18px rgba(74, 46, 25, .45); transform: translateY(calc(100% - var(--peek))); transition: transform .55s cubic-bezier(.2, .8, .2, 1), background 1.2s var(--ease); touch-action: none; will-change: transform; }
+  .panel.dragging { transition: none; }
+  .sheet-open .panel { transform: translateY(0); overflow-y: auto; touch-action: pan-y; }
+  .panel .log { grid-column: auto; }
+  .sheet-grip { display: block; position: sticky; top: 0; z-index: 3; height: 26px; margin: 0 -14px -6px; border: 0; background: var(--bg); touch-action: none; cursor: grab; transition: background 1.2s var(--ease); }
+  .sheet-grip i { display: block; width: 40px; height: 5px; margin: 0 auto; border-radius: 5px; background: color-mix(in srgb, var(--ink) 20%, transparent); }
+  .sheet-scrim { display: block; position: fixed; inset: 0; z-index: 30; background: rgba(28, 22, 18, .22); opacity: 0; pointer-events: none; transition: opacity .45s var(--ease); }
+  .sheet-open .sheet-scrim { opacity: 1; pointer-events: auto; }
+  body.watch .panel { transform: translateY(100%); }
+
+  /* Inside the sheet the needs aren't a card in a card, and the four calm
+     tiles sit in one row so the resting sheet stays short. */
+  .panel .needs { background: none; border: 0; box-shadow: none; padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .panel .needs .card-head { margin-bottom: 10px; touch-action: none; }
+  .panel .needs-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .panel .need:not(.hero) { height: 92px; padding: 8px 4px 9px; }
+  .panel .need:not(.hero) .need-icon { position: static; display: block; width: 40px; height: 40px; margin: 0 auto; }
+  .panel .need:not(.hero) .need-text { position: static; align-items: center; margin-top: 3px; }
+  .panel .need:not(.hero) strong { font-size: 17px; letter-spacing: -.3px; }
+  .panel .need:not(.hero) small { font-size: 11px; }
+  .panel .need.hero { min-height: 118px; padding: 12px 14px 22px 14px; }
+  .panel .need.hero .need-icon { width: 76px; height: 76px; }
+  .panel .need.hero strong { font-size: 32px; }
+  .panel .need.hero .need-tip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .panel footer { padding: 8px 4px 0; }
+  .panel .bond-card { align-self: auto; }
+}
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) { .panel, .sheet-scrim, .dock { transition: none; } }

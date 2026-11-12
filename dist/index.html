@@ -95,9 +95,11 @@
         <div class="speech" id="speech" role="status" aria-live="polite"><span id="speech-text"></span></div>
 
         <div class="hud hud-top">
-          <div class="nameplate glass">
-            <div class="name-row"><h1 id="pet-name">Mochi</h1><button class="ghost-btn" id="rename" aria-label="Rename kitten"><svg><use href="#i-edit"/></svg></button></div>
-            <span class="mood" id="mood"><i></i><span id="mood-text">Feeling lovely</span></span>
+          <div class="hud-left">
+            <div class="nameplate glass">
+              <div class="name-row"><h1 id="pet-name">Mochi</h1><button class="ghost-btn" id="rename" aria-label="Rename kitten"><svg><use href="#i-edit"/></svg></button></div>
+              <span class="mood" id="mood"><i></i><span id="mood-text">Feeling lovely</span></span>
+            </div>
           </div>
           <div class="hud-buttons cam-buttons" role="toolbar" aria-label="Camera">
             <button class="icon-btn glass" data-cam="room" aria-label="Whole room" aria-pressed="true" title="Whole room"><svg><use href="#i-view"/></svg><span>Room</span></button>
@@ -122,7 +124,9 @@
       <p class="scene-hint" id="scene-hint">Stroke Mochi to pet · drag to look around · pinch to zoom</p>
     </section>
 
-    <aside class="panel">
+    <div class="sheet-scrim" id="sheet-scrim" hidden></div>
+    <aside class="panel" id="sheet">
+      <button class="sheet-grip" id="sheet-grip" type="button" aria-label="Show more" aria-expanded="false" aria-controls="sheet"><i></i></button>
       <section class="card needs" aria-labelledby="needs-title">
         <div class="card-head"><h2 id="needs-title"><span class="pet-name-slot">Mochi</span> needs</h2><span class="status-pill" id="needs-pill">All good</span></div>
         <div class="needs-grid" id="stats"></div>

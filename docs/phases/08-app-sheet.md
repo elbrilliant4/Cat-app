@@ -2,7 +2,7 @@
 
 Merlin, 2026-11-12: "I don't like how the menu is just one giant strip."
 He picked the pull-up sheet (option 1 of three mockups: sheet, swipe cards,
-needs on the room plus tabs). Status: **plan, waiting for Merlin's OK.**
+needs on the room plus tabs). Status: **approved by Merlin (2026-11-12, "OK, build it here"), with the three assumptions below.**
 
 ## What it does (phones, under 720 px wide)
 - The room fills the whole screen. No page scroll.
