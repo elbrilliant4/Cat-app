@@ -376,7 +376,15 @@ export class MotionCat {
     const dip = clamp((.5 - this.patAt.y) / .4, 0, 1);
     pelvis.pos.x += .04 * lean; pelvis.pos.z += .045 * out; pelvis.roll += SWAT_ROLL * .5 * lean; pelvis.pitch -= .05 * out * dip;
     // Air: the body follows the arc (nose up rising, down falling).
-    if (ctl.air >= 0) { const k = ctl.air, up = ctl.airUp ?? 1; pelvis.pitch += ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k); }
+    // She tips into it and levels out again as she lands (a spring, eased
+    // both ways): set straight to the arc's slope, her whole body snapped
+    // round by up to 30 degrees in one frame at take-off and at landing.
+    {
+      const k = ctl.air, up = ctl.airUp ?? 1, goal = k >= 0 ? (ctl.airTilt != null ? ctl.airTilt : (up > 0 ? .3 : -.25) * Math.cos(Math.PI * k)) : 0;
+      const W = 16, d = (this.tilt || 0) - goal, v = this.tiltV || 0, e = Math.exp(-W * dt), n = v + W * d;
+      this.tilt = goal + (d + n * dt) * e; this.tiltV = (v - W * n * dt) * e;
+      pelvis.pitch += this.tilt;
+    }
     // Landing: she sinks on her legs, front first, and comes back up.
     if (ctl.squash > .01) { pelvis.pos.y -= .045 * ctl.squash; pelvis.pitch -= .1 * ctl.squash; }
     const paws = {};

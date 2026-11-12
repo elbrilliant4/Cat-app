@@ -65,3 +65,25 @@ first Mochi took phases 01, 07 and 12, and it sets how natural she can get.
 Merlin watches clips of walk, run, turn, sit down, stand up and a jump (and
 her on the preview link on his phone) and says they are fluid; gait numbers
 within the `docs/QA.md` targets; the first Mochi's numbers unchanged.
+
+## Done so far (2026-11-12)
+- **Her joints** are at the first Mochi's heights (`BONES_LONGHAIR`): walk
+  and run footfalls now match the first Mochi's chart; before, her front left
+  paw took catch-up steps through most of a running stride.
+- **`tools/qa/smooth.mjs`** measures jolts. It showed the two cats move alike,
+  and three jolts in the shared code, now eased (they change both cats):
+  1. Stopping dead on arrival (`app.js`, the walk): she eases down (+.06 in
+     place of +.2) and the last of her speed dies away over a couple of
+     centimetres. End of a run, change of speed at the head: 86 to 48 m/s2
+     (first Mochi), 71 to 74 on her (not better: look at why).
+  2. The body's tilt in a jump snapped to the arc's slope in one frame
+     (`motion-cat.js`): now a spring. Turning change 1990 to about 430 rad/s2.
+  3. A jump went from still to full speed in one frame and stopped the same
+     way (`app.js`, `brain.jump`): a push-off over the first sixth and a
+     landing over the last eighth. Head 1790 to about 580 m/s2, hips 820 to
+     about 390. The rig also lets the floor's lift go with a spring
+     (`motion.js`).
+- Not done: what is left of the jump's jolt (find the frame with `OUT`),
+  the 230 rad/s2 head turn as she sits down, her run's stop, eat and reach
+  checks after the softer stop (`tools/qa/eat-reach.mjs`), frame rate on a
+  phone, poses, behaviour list.

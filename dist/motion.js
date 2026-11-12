@@ -194,6 +194,13 @@ export class MotionRig {
     // it just touches and the legs solve again to their planted paws. The
     // tail is laid along the floor rather than through it.
     let lift = 0;
+    // (Off the floor, the lift it was giving her eases away, a spring: let go
+    // at once, her whole body dropped by it, up to 20 cm from a crouch, in the
+    // one frame she took off.)
+    if (!contact && dt > 0) {
+      const W = 14, d = this.lift || 0, v = this.liftV || 0, e = Math.exp(-W * dt), n = v + W * d;
+      lift = (d + n * dt) * e; this.liftV = (v - W * n * dt) * e;
+    } else this.liftV = 0;
     for (let pass = 0; pass < 4; pass++) {
       this.pose(s, t, lift);
       if (!contact) { this.squash = 0; break; }

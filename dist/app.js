@@ -797,9 +797,11 @@ function updateCat(dt, t) {
     // (Running: a trot. A dash or zoomies, 2.6, is flat out: a gallop.)
     // (A dash takes off and pulls up harder than a walk or a trot.)
     const top = typeof brain.run === 'number' ? brain.run : brain.run ? 2.1 : .65, flat = top >= 2.5;
-    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * (flat ? 3.2 : 2.5) + .2) : .15, flat ? 8 : 5, dt);
+    // (She eases right down as she arrives, and the last of her speed dies
+    // away over a couple of centimetres below: stopping dead from a walk or a
+    // run is a jolt through her whole body.)
+    brain.speed = damp(brain.speed, facing < .8 ? Math.min(top, dist * (flat ? 3.2 : 2.5) + .06) : .15, flat ? 8 : 5, dt);
     if (dist < .06) {
-      brain.speed = 0;
       brain.target = null;
       brain.stuck = null;
       const next = brain.after;
@@ -824,12 +826,18 @@ function updateCat(dt, t) {
       }
     }
   } else if (!pc) {
-    brain.speed = damp(brain.speed, 0, 8, dt);
+    brain.speed = damp(brain.speed, 0, 12, dt);
   }
   const J = brain.jump;
   if (J) {
     // (A thrown thing's path: steady across, and a plain arc up and down.)
-    const k = Math.min(1, (t - J.start) / J.dur);
+    // (The first sixth is the push-off: she gathers speed over a few frames
+    // as her legs drive, not all of it in one. The last eighth is the
+    // landing: her front paws are down and her legs take up most of her
+    // speed before she stops. A thrown thing's path in between.)
+    const kt = Math.min(1, (t - J.start) / J.dur), PUSH = .18, LAND = .12, END = .35;
+    const along = x => x < PUSH ? x * x / (2 * PUSH) : x < 1 - LAND ? x - PUSH / 2 : 1 - LAND - PUSH / 2 + (x - 1 + LAND) * (1 - (1 - END) * (x - 1 + LAND) / (2 * LAND));
+    const k = kt >= 1 ? 1 : along(kt) / along(1);
     brain.pos.lerpVectors(J.from, J.to, k);
     // (Between shelves she arcs out past the edge of the one above.)
     if (J.out) brain.pos.z += J.out * Math.sin(Math.PI * k);
