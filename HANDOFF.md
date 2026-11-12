@@ -13,10 +13,12 @@ first launch of every day (as SPEC says). Files: `sources/title/film-v3/`.
   DONE and good (`shot4.mp4`). Starts on 638c4681 (`k4s.webp`), ends on
   285df482 (`kE.webp`), which was made from a clean still of the real living
   title (`real-room.webp`, Runway upload asset 5a749de0). Use the last 3.0 s.
-- Shots 2 and 3 were stuck at 98% at Runway for over 11 minutes when this
-  was written. Check them with get_task before paying for a new take.
-- Then: cut (ffmpeg, as before), lay music A, send Merlin the film and a new
-  side-by-side of the last frame against `real-room.webp`. Not in the app.
+- CUT DONE (22:40 UTC): `mochi-film-v3-A.mp4` (music A) and
+  `mochi-film-v3-silent.mp4`, 9.7 s. Cut: s1 0-2.0 of the second cut's
+  silent film, shot2 0.5-1.7, shot3 0.5-3.2, shot4 0.2-4.04; music from 0,
+  faded out from 8.2 s. `last-frame-vs-real-room.png` is the comparison.
+  Merlin has them; waiting for his OK or reshoot notes. Known weak spot:
+  shot 1 (kept) shows the old dark room, the other three the real bright one.
 - After his OK on the cut: plan (big change, plan mode) for the film in the
   app PLUS the new "Tap the ball" first step: after the film the room is
   live, a short "Tap the ball" prompt, the first tap makes Mochi react at
