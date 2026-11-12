@@ -1,11 +1,13 @@
 // Model study: a cat model on its own under plain neutral light, with no
 // room, no fur shader and no movement, for judging a model before it is
-// rigged. ?model=<file in assets/> (default: the candidate from the Mochi
+// rigged. ?bones draws the skeleton measured for the long-haired model
+// (cat-rig.js) over it. ?model=<file in assets/> (default: the candidate from the Mochi
 // character sheet), ?view=<name>. Drag to turn it; the buttons jump to the
 // character sheet's views.
 //   window.study.view(name)   front | side | back | threeq | face | paws | top
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
+import {BONES_LONGHAIR, FACE_LONGHAIR} from './cat-rig.js';
 
 const q = new URLSearchParams(location.search);
 const file = q.get('model') || 'mochi-longhair.glb';
@@ -45,6 +47,23 @@ const turn = new THREE.Group();
 model.scale.setScalar(scale);
 model.position.set(-mid.x * scale, -box.min.y * scale, -mid.z * scale);
 turn.add(model);
+if (q.has('bones')) {
+  // The measured skeleton and face landmarks, in the model's own space.
+  const g = new THREE.Group(), pts = [], dot = new THREE.SphereGeometry(.012, 10, 8);
+  const seen = new THREE.MeshBasicMaterial({color: '#ff3b1f', depthTest: false}), face = new THREE.MeshBasicMaterial({color: '#18c964', depthTest: false});
+  const mark = (v, m) => { const d = new THREE.Mesh(dot, m); d.position.copy(v); d.renderOrder = 10; g.add(d); };
+  for (const [, [parent, pos, end]] of Object.entries(BONES_LONGHAIR)) {
+    mark(pos, seen);
+    if (parent) pts.push(BONES_LONGHAIR[parent][1], pos);
+    if (end) { pts.push(pos, end); mark(end, seen); }
+  }
+  for (const k of ['eyeR', 'eyeL', 'nose', 'mouth']) mark(FACE_LONGHAIR[k], face);
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color: '#ffd400', depthTest: false}));
+  lines.renderOrder = 9;
+  g.add(lines);
+  model.add(g);
+  model.traverse(o => { if (o.isMesh && o.material.map) { o.material.transparent = true; o.material.opacity = .55; } });
+}
 turn.rotation.y = (+q.get('yaw') || 0) * Math.PI / 180; // if a model doesn't face +z
 scene.add(turn);
 const H = size.y * scale;

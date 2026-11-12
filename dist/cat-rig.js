@@ -237,6 +237,49 @@ BONES2.tail5 = ['tail4', V(0.515, -0.38, -0.60)];
 BONES2.tail6 = ['tail5', V(0.505, -0.372, -0.72)];
 BONES2.tail7 = ['tail6', V(0.48, -0.365, -0.82), V(0.43, -0.34, -0.95)];
 
+// The long-haired Mochi candidate (assets/mochi-longhair.glb, see
+// docs/mochi-longhair/): the same bones as BONES2, measured on that model. It
+// stands straight and symmetric: midline x = 0, ground y = -0.62, facing +z,
+// her left is +x, tail raised. Thick fur: the skin is well inside the surface
+// (back at y .25, bones at .08). Not used by the app yet (mochi-study.html
+// draws it with ?bones).
+const side = (n, parent, x, y, z, end) => ({[n + 'R']: [parent && parent + 'R', V(-x, y, z), end && V(-end[0], end[1], end[2])].filter(v => v !== undefined), [n + 'L']: [parent && parent + 'L', V(x, y, z), end && V(...end)].filter(v => v !== undefined)});
+export const GROUND_Y_LONGHAIR = -0.62;
+export const BONES_LONGHAIR = {
+  hips:  [null,    V(0, 0.08, -0.30)],
+  spine: ['hips',  V(0, 0.08, -0.02)],
+  chest: ['spine', V(0, 0.08, 0.30)],
+  neck:  ['chest', V(0, 0.16, 0.55)],
+  head:  ['neck',  V(0, 0.27, 0.70), V(0, 0.27, 0.93)],
+  jaw:   ['head',  V(0, 0.21, 0.78), V(0, 0.19, 0.93)],
+  earR:  ['head',  V(-0.11, 0.40, 0.76), V(-0.147, 0.494, 0.80)],
+  earL:  ['head',  V(0.11, 0.40, 0.76), V(0.147, 0.494, 0.80)],
+  scapulaR: ['chest', V(-0.07, 0.20, 0.36)], scapulaL: ['chest', V(0.07, 0.20, 0.36)],
+  ...side('shoulder', 'scapula', 0.10, -0.02, 0.50),
+  ...side('elbow', 'shoulder', 0.09, -0.28, 0.45),
+  ...side('wrist', 'elbow', 0.08, -0.50, 0.50, [0.088, -0.60, 0.59]),
+  thighR: ['hips', V(-0.10, 0.0, -0.30)], thighL: ['hips', V(0.10, 0.0, -0.30)],
+  hipR: ['hips', V(-0.10, 0.0, -0.30)], hipL: ['hips', V(0.10, 0.0, -0.30)],
+  ...side('knee', 'hip', 0.11, -0.26, -0.18),
+  ...side('hock', 'knee', 0.09, -0.46, -0.31, [0.105, -0.60, -0.20]),
+  tail0: ['hips',  V(0, 0.14, -0.40)],
+  tail1: ['tail0', V(0, 0.20, -0.50)],
+  tail2: ['tail1', V(0, 0.27, -0.58)],
+  tail3: ['tail2', V(0, 0.34, -0.65)],
+  tail4: ['tail3', V(0, 0.41, -0.70)],
+  tail5: ['tail4', V(0, 0.47, -0.73)],
+  tail6: ['tail5', V(0, 0.53, -0.76)],
+  tail7: ['tail6', V(0, 0.58, -0.76), V(0, 0.62, -0.74)],
+};
+// Face landmarks, read off the model's texture (blue of the eyes, pink of the nose).
+export const FACE_LONGHAIR = {
+  eyeR: V(-0.064, 0.293, 0.883),
+  eyeL: V(0.062, 0.293, 0.884),
+  eyeRadius: new THREE.Vector2(0.021, 0.016),
+  mouth: V(0, 0.205, 0.925),
+  nose: V(0, 0.24, 0.941),
+};
+
 const TAIL_CUT = 0.11;
 const FRONT_LIMIT = -0.05, HIND_LIMIT = -0.2; // z: front-leg bones only ahead of this, hind-leg bones only behind // radius round the first tail segment that separates the tail from the body
 const fall = (d, r0, r1) => 1 - THREE.MathUtils.smoothstep(d, r0, r1);
