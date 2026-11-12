@@ -29,16 +29,17 @@ the phone's browser and can be added to the home screen.
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
 - **Looking around** (preview, phase 14; plan A, Merlin 2026-11-12, then
-  "moving around still off": the room view no longer turns only a little
-  and springs back). Done when: in the whole-room view a drag turns freely
-  and the view stays where you leave it; two fingers sliding move across the
-  room; a double tap on the floor goes closer to that spot (again when close:
-  the whole room); pinching in from the whole room goes to her, and pinching
-  far out from anywhere gives the room back; zooming in always moves the
-  camera, even after a wall stopped it; a flick glides on; two fingers
-  twisting turn the view; a double tap on her gives a close-up that follows;
-  following her keeps the player's zoom; Watch shows the whole room
-  (`tools/qa/camera.mjs`, every line `PASS`).
+  "moving around still off" and "two fingers to move is off"). Done when:
+  in the room, one finger drags you about it like a map (the floor stays
+  under the finger) and the view stays where you leave it; around her, one
+  finger circles her; two fingers pinch to zoom, twist to turn, slide up or
+  down to tilt; a double tap on the floor goes closer to that spot (again
+  when close: the whole room); pinching in from the whole room goes to her,
+  and pinching far out from anywhere gives the room back; zooming in always
+  moves the camera, even after a wall stopped it; a flick glides on; a
+  double tap on her gives a close-up that follows; following her keeps the
+  player's zoom; Watch shows the whole room (`tools/qa/camera.mjs`, every
+  line `PASS`).
 - **Touching her** (preview, phase 14). Done when: she takes a touch by
   where it lands: head and back welcome, chin the favourite, tail and paws
   not for touching (ears flick, a look, a word, no friendship; kept up, she

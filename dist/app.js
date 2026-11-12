@@ -185,7 +185,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap the floor to call her · double tap to look closer · two fingers to move` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to look around · scroll to come closer`;
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · drag to move around · tap the floor to call her · twist two fingers to turn` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to move around, right-drag to turn · scroll to come closer`;
 }
 
 function showDeltas(before) {
@@ -2297,11 +2297,11 @@ function updatePlay(dt, t) {
 // Input: stroke the kitten, drag to orbit, steer the toy, look at the pointer
 // ---------------------------------------------------------------------------
 // Camera: an orbit around a focus point. Everything is eased toward `goal`.
-//   one finger / left mouse  orbit (glides on after a flick)
+//   one finger / left mouse  in the room: move about it, like a map; around her: circle her (both glide on after a flick)
 //   pinch / wheel            closer or further: from the whole room in to her;
 //                            far out from anywhere, the whole room again
-//   two fingers sliding      move across the room;  twisting: turn the view
-//   right drag (mouse)       slide the view
+//   two fingers              twisting: turn the view;  sliding up or down: tilt it
+//   right drag (mouse)       turn the view
 //   tap                      her: a pat, by where it lands; the floor: she comes
 //   double tap               on her: a close-up that follows; on the floor: closer to that spot
 //   buttons                  whole room, follow Mochi, food, water, bed
@@ -2417,6 +2417,27 @@ function orbit(dx, dy) {
   view.goal.yaw -= dx * .008;
   view.goal.pitch += dy * .006;
   view.lastDrag = clockNow;
+  clampGoal();
+}
+// Drag the room like a map: the bit of floor under the finger stays under it.
+const grabA = new THREE.Vector3(), grabB = new THREE.Vector3(), floorY0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function floorUnder(x, y, out) {
+  const r = host.getBoundingClientRect();
+  pointer.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(pointer, camera);
+  return ray.ray.intersectPlane(floorY0, out) && out.distanceTo(camera.position) < 40 ? out : null;
+}
+function grabPan(x0, y0, x1, y1) {
+  const a = floorUnder(x0, y0, grabA), b = floorUnder(x1, y1, grabB);
+  // (Above the horizon there is no floor to hold: slide by the finger's travel instead.)
+  if (!a || !b) { pan(x1 - x0, y1 - y0); return; }
+  let dx = a.x - b.x, dz = a.z - b.z;
+  const len = Math.hypot(dx, dz);
+  if (len > 2) { dx *= 2 / len; dz *= 2 / len; }
+  view.goal.focus.x += dx; view.goal.focus.z += dz;
+  view.focus.x += dx; view.focus.z += dz;
+  view.lastDrag = clockNow;
+  setCamMode('free');
   clampGoal();
 }
 function pan(dx, dy) {
@@ -2691,8 +2712,8 @@ host.addEventListener('pointermove', e => {
     const [p1, p2] = [...touches.values()];
     const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     if (d > 10 && pinch.d > 10) zoomBy(pinch.d / d, {x: mx, y: my});
-    // (Two fingers sliding move the view across the room; around her, or the bowl, fountain and bed, they only zoom and turn.)
-    if (view.mode === 'free' || view.mode === 'room') pan(mx - pinch.mx, my - pinch.my);
+    // Both fingers sliding up or down tilt the view.
+    if (Math.abs(my - pinch.my) > .5) { view.goal.pitch += (my - pinch.my) * .005; view.lastDrag = clockNow; clampGoal(); }
     // Twisting the two fingers turns the view (once it is clearly a twist,
     // so a plain pinch stays straight).
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -2730,10 +2751,14 @@ host.addEventListener('pointermove', e => {
       }
     }
   } else if (gesture.panning) {
-    pan(sx, sy);
+    // (Right mouse button or shift: turn the view.)
+    orbit(sx, sy);
     host.classList.add('dragging');
   } else if (brain.mode !== 'play' && gesture.moved) {
-    orbit(sx, sy);
+    // One finger: around her (or the bowl, fountain, bed), circle round;
+    // in the room, move about it, the floor staying under the finger.
+    gesture.slide = view.mode !== 'follow' && view.mode !== 'spot';
+    if (gesture.slide) grabPan(gesture.lastX, gesture.lastY, e.clientX, e.clientY); else orbit(sx, sy);
     host.classList.add('dragging');
     // (How fast the finger is going, for the glide after a flick.)
     const ms = Math.max(4, e.timeStamp - gesture.lastT), mix = Math.min(1, ms / 60);
@@ -2768,7 +2793,7 @@ function endGesture(e) {
     lastTap = e.timeStamp - gesture.t0 < 320 ? {t: e.timeStamp, x: e.clientX, y: e.clientY} : null;
   } else lastTap = null;
   // Let go mid-flick: the view glides on and settles.
-  if (gesture?.turning && e.timeStamp - gesture.lastT < 90 && Math.hypot(gesture.vx, gesture.vy) > 260) view.fling = {vx: clamp(gesture.vx, -800, 800), vy: clamp(gesture.vy * .5, -400, 400)};
+  if (gesture?.turning && e.timeStamp - gesture.lastT < 90 && Math.hypot(gesture.vx, gesture.vy) > 260) view.fling = gesture.slide ? {vx: clamp(gesture.vx, -900, 900) * .5, vy: clamp(gesture.vy, -900, 900) * .5, slide: true} : {vx: clamp(gesture.vx, -800, 800), vy: clamp(gesture.vy * .5, -400, 400)};
   if (gesture && !gesture.moved && gesture.onFountain) {
     if (pet.sleeping) toast('Shh… wake your kitten first.');
     else act('drink');
@@ -3377,8 +3402,8 @@ Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal
 function updateCamera(dt) {
   if (view.fling) {
     const fl = view.fling;
-    view.goal.yaw -= fl.vx * dt * .008;
-    view.goal.pitch += fl.vy * dt * .006;
+    if (fl.slide) pan(fl.vx * dt, fl.vy * dt);
+    else { view.goal.yaw -= fl.vx * dt * .008; view.goal.pitch += fl.vy * dt * .006; }
     const k = Math.exp(-5.5 * dt);
     fl.vx *= k; fl.vy *= k;
     if (Math.hypot(fl.vx, fl.vy) < 25) view.fling = null;

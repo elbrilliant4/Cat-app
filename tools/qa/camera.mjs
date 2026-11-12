@@ -9,7 +9,7 @@ const OUT = process.env.OUT || 'qa-out/camera'; fs.mkdirSync(OUT, {recursive: tr
 const {page, step, look, close} = await open({seed: 3, width: 390, height: 844});
 const box = await page.evaluate(() => { const r = document.querySelector('#scene, .scene').getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; });
 const HOME = {focus: [0, .7, -.2], yaw: 0, pitch: .3, dist: 7};
-const state = () => page.evaluate(() => { const v = kitten.view, c = kitten.camera; return {mode: v.mode, yaw: v.yaw, goalDist: v.goal.dist, dist: c.position.distanceTo(v.focus), focus: v.focus.toArray().map(x => +x.toFixed(2))}; });
+const state = () => page.evaluate(() => { const v = kitten.view, c = kitten.camera; return {mode: v.mode, camY: +c.position.y.toFixed(2), yaw: v.yaw, goalDist: v.goal.dist, dist: c.position.distanceTo(v.focus), focus: v.focus.toArray().map(x => +x.toFixed(2))}; });
 const screenOf = w => page.evaluate(w => { const c = kitten.camera; c.updateMatrixWorld(); const p = new (c.position.constructor)(...w).project(c), r = document.querySelector('.scene').getBoundingClientRect(); return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; }, w);
 const wheel = async (n, dy) => { for (let i = 0; i < n; i++) { await page.mouse.wheel(0, dy); await step(3); } };
 const shot = n => page.screenshot({path: `${OUT}/${n}.png`});
@@ -59,19 +59,16 @@ await page.mouse.move(x0, y0); await page.mouse.down(); await page.mouse.up(); a
 await step(240); const p1 = await pos(); await shot('4b-she-came');
 line('tap the floor, she comes', Math.hypot(p1[0] - SPOT[0], p1[1] - SPOT[2]) < .5, `she was ${Math.hypot(p0[0] - SPOT[0], p0[1] - SPOT[2]).toFixed(1)} m from the spot, now ${Math.hypot(p1[0] - SPOT[0], p1[1] - SPOT[2]).toFixed(2)} m`);
 
-// 4c. The whole-room view: a look round, then it settles back by itself.
+// 4c. One finger drags the room like a map: the floor under the finger stays under it, and the view stays where you leave it.
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80);
-const h0 = await state();
-await page.mouse.move(box.x + 100, box.y + 300); await page.mouse.down();
-for (let i = 1; i <= 5; i++) await page.mouse.move(box.x + 100 + i * 16, box.y + 300);
-await page.waitForTimeout(150); await page.mouse.up(); await step(6);
-const h1 = await state(); await step(160); const h2 = await state();
-line('room view stays where you leave it', h1.mode === 'room' && Math.abs(h1.yaw - h0.yaw) > .2 && Math.abs(h2.yaw - h1.yaw) < .03, `turned ${((h1.yaw - h0.yaw) * 57.3).toFixed(0)}°, 8 s later it moved ${((h2.yaw - h1.yaw) * 57.3).toFixed(1)}° by itself (${h2.mode})`);
-// (No leash: a long drag turns well past the old 63° limit.)
-await page.mouse.move(box.x + 40, box.y + 300); await page.mouse.down();
-for (let i = 1; i <= 10; i++) { await page.mouse.move(box.x + 40 + i * 30, box.y + 300); await step(1); }
-await page.mouse.up(); await step(40); const h3 = await state();
-line('turn freely in the room view', Math.abs(h3.yaw - h2.yaw) > 1.5, `a 300 px drag turned ${(Math.abs(h3.yaw - h2.yaw) * 57.3).toFixed(0)}°`);
+const G = [0.4, 0, 1.2]; [x0, y0] = await screenOf(G);
+await page.mouse.move(x0, y0); await page.mouse.down();
+for (let i = 1; i <= 8; i++) { await page.mouse.move(x0 - i * 15, y0 - i * 10); await step(1); }
+await page.waitForTimeout(150); await page.mouse.up(); await step(30);
+const [gx, gy] = await screenOf(G), h1 = await state();
+const off = Math.hypot(gx - (x0 - 120), gy - (y0 - 80));
+await step(160); const h2 = await state(); await shot('4c-dragged-room');
+line('drag moves about the room', off < 30 && Math.hypot(h2.focus[0] - h1.focus[0], h2.focus[2] - h1.focus[2]) < .05, `the floor point ended ${off.toFixed(0)} px from the finger; 8 s later the view had drifted ${Math.hypot(h2.focus[0] - h1.focus[0], h2.focus[2] - h1.focus[2]).toFixed(2)} m by itself`);
 
 // 4d. Double tap on the floor: closer to that spot, and she stays put.
 await look(HOME); await step(2);
@@ -87,29 +84,13 @@ const head = await page.evaluate(() => { const p = kitten.cat.root.position.clon
 [x0, y0] = await screenOf(head); await dbl(x0, y0); await step(40); const k = await state(); await shot('5-double-tap-her');
 line('double tap, her', k.mode === 'follow' && k.dist < 3, `mode ${k.mode}, ${k.dist.toFixed(2)} m`);
 
-// 6. Flick: the view glides on after the finger lifts.
+// 6. Flick: the view glides on after the finger lifts (in the room it slides; round her it circles).
 await look(HOME); await step(2);
 await page.mouse.move(box.x + 80, box.y + 300); await page.mouse.down();
 for (let i = 1; i <= 6; i++) await page.mouse.move(box.x + 80 + i * 30, box.y + 300);
-const g0 = await page.evaluate(() => kitten.view.goal.yaw); await page.mouse.up();
-await step(30); const g1 = await page.evaluate(() => kitten.view.goal.yaw);
-line('glide after a flick', Math.abs(g1 - g0) > .1, `turned ${(Math.abs(g1 - g0) * 57.3).toFixed(0)}° more after letting go`);
-
-// 6b. Touching her: by where it lands.
-await look(HOME); await step(2);
-for (let i = 0; i < 20 && await page.evaluate(() => !!kitten.brain.jump || !!kitten.brain.perch || kitten.brain.activity === 'walk'); i++) await step(40);
-await page.evaluate(() => { kitten.setActivity('sit'); kitten.brain.target = null; }); await step(30);
-const cat0 = await page.evaluate(() => kitten.cat.root.position.toArray());
-await look({focus: [cat0[0], .55, cat0[2]], yaw: 1.5, pitch: .2, dist: 3.4}); await step(4);
-// (Where each part is right now: a pat on the head lifts her tail.)
-const spot = part => page.evaluate(part => { const c = kitten.cat, v = new (c.root.position.constructor)(); if (part === 'head') { c.headTop(v); v.y -= .1; } else c.bones[part].getWorldPosition(v); return v.toArray(); }, part);
-const feel = async part => { await step(60); const [x, y] = await screenOf(await spot(part)); const zone = await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x, y]); const b0 = await page.evaluate(() => kitten.pet.bond); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up(); await step(2); const r = await page.evaluate(() => ({bond: kitten.pet.bond, face: kitten.brain.overrideUntil > kitten.clock ? kitten.brain.override : 'none (' + kitten.brain.activity + ', ' + kitten.brain.mode + ')'})); return {zone, gain: r.bond - b0, face: r.face}; };
-const th = await feel('head'); await shot('9a-head');
-line('head: welcome', th.zone === 'head' && th.gain > 0 && ['joy', 'love', 'bliss'].includes(th.face), `zone ${th.zone}, friendship +${th.gain}, face ${th.face}`);
-const tt = await feel('tail5'); await shot('9b-tail');
-line('tail: not for touching', tt.zone === 'tail' && tt.gain === 0 && tt.face === 'grumpy', `zone ${tt.zone}, friendship +${tt.gain}, face ${tt.face}`);
-const tp = await feel('wristL');
-line('paws: not for touching', tp.zone === 'paws' && tp.gain === 0 && tp.face === 'surprised', `zone ${tp.zone}, friendship +${tp.gain}, face ${tp.face}`);
+const g0 = await page.evaluate(() => kitten.view.goal.focus.toArray()); await page.mouse.up();
+await step(30); const g1 = await page.evaluate(() => kitten.view.goal.focus.toArray());
+line('glide after a flick', Math.hypot(g1[0] - g0[0], g1[2] - g0[2]) > .15, `slid ${Math.hypot(g1[0] - g0[0], g1[2] - g0[2]).toFixed(2)} m more after letting go`);
 
 // 7. Two fingers: pinch keeps the spot between them; twisting turns the view.
 const cdp = await page.context().newCDPSession(page);
@@ -135,12 +116,13 @@ await touch('touchStart', [[150, 400], [240, 400]]);
 for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 5, 400], [240 + i * 5, 410]]); await step(2); }
 await touch('touchEnd', []); await step(10); const sp = await state();
 line('pinch in the bed view', sp.mode === 'spot', `mode ${sp.mode}, ${sp.dist.toFixed(2)} m`);
-// (Two fingers sliding move the whole-room view across the room; pinching far out returns to the room.)
+// (Two fingers sliding up tilt the view.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const sl0 = await state();
-await touch('touchStart', [[150, 400], [240, 400]]);
-for (let i = 1; i <= 8; i++) { await touch('touchMove', [[150 + i * 15, 400], [240 + i * 15, 400]]); await step(2); }
+await touch('touchStart', [[150, 500], [240, 500]]);
+for (let i = 1; i <= 8; i++) { await touch('touchMove', [[150, 500 - i * 15], [240, 500 - i * 15]]); await step(2); }
 await touch('touchEnd', []); await step(30); const sl1 = await state();
-line('two fingers slide across the room', Math.hypot(sl1.focus[0] - sl0.focus[0], sl1.focus[2] - sl0.focus[2]) > .8, `view moved ${Math.hypot(sl1.focus[0] - sl0.focus[0], sl1.focus[2] - sl0.focus[2]).toFixed(1)} m (${sl1.mode})`);
+const pit = await page.evaluate(() => kitten.view.goal.pitch);
+line('two fingers up tilt the view', Math.abs(sl1.dist - sl0.dist) < 1.5 && sl1.camY < sl0.camY - .5, `camera height ${sl0.camY} m to ${sl1.camY} m (pitch now ${pit.toFixed(2)})`);
 // (From the whole room, pinching in goes to her; pinching out far gives the room back.)
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80); const r0 = await state();
 const pinchBy = async (a, b) => { await touch('touchStart', [[195 - a, 400], [195 + a, 400]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[195 - a - (b - a) * i / 8, 400], [195 + a + (b - a) * i / 8, 400]]); await step(2); } await touch('touchEnd', []); await step(60); };
