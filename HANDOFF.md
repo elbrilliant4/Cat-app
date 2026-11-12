@@ -21,17 +21,36 @@ A. Overlaps, compared with `main` (done 2026-11-12, same runs on
    525 s), her head 15 cm into the window wall, jaw 8 cm into the island.
    So this was mostly there before the join. New on the joined branch
    only: sitting with her hips 25 cm into the food bowl (seed 1, 107 s, she
-   at 4.06,3.12). Left to do: look at that one case, and decide with Merlin
-   whether the rest (heads and ears turned into the counter and window
-   wall) is a phase 02 leftover to fix before live.
-B. Christmas details Merlin asked for, from Orion's pictures (all four):
-   1. Mochi curled up asleep in the garland (a curled sleep pose; motion
-      work, phase 12 is paused for the new model, so ask how far to go).
-   2. The three hanging lamps as glowing alabaster shades on brass arms.
-   3. Tent corner: plaid cushion in the tent, woven round mats under the
-      tent and the fountain, green mat under the bowl.
-   4. Shelf and counter styling closer to the pictures (boards, stacked
-      bowls, framed prints, books; utensil jar, pine in a pot).
+   at 4.06,3.12). That one is fixed: she hopped off the vacuum to a spot
+   hard by the bowl and sat down with her hips in it. The spot chooser
+   (`kitchen.js`, the vacuum perch's `base`) is the same code on `main`,
+   so the join did not break it, the run just went a different way; it
+   now keeps .5 clear of the bowl, fountain and tent. Seed 1's first
+   112 s: 81 overlaps before, 1 after (a 4 mm tail brush). The full 600 s
+   runs after the fix: see the end of this file if they were finished,
+   else rerun. Still for Merlin to decide: the rest (heads and ears turned
+   into the counter and window wall) is a phase 02 leftover, there on
+   `main` too.
+B. Christmas details (all four built 2026-11-12, on the preview, waiting
+   for Merlin's eye). Orion's pictures were not in the session that built
+   these (they are never committed): it worked from this list, so ask
+   Merlin for the pictures before matching any closer.
+   1. Curled nap: Merlin picked "light curl now". New pose `curl` in
+      `motion-cat.js` (numbers only, used for the top-shelf garland nap;
+      `tailWrap` says which side the tail wraps). She arrives from the
+      left and lies with her back in the garland, face to the room.
+      `garland-nap.mjs` passes day and night. To redo for the new model.
+   2. Lamps: alabaster shades (drawn stone, lit from inside, warmer and
+      brighter at night with a halo), brass arms, a brass band on each.
+      Same shapes and places (she still rides the big one).
+   3. Tent corner: a big round woven mat under the tent, a green plaid
+      cushion propped in the back of the tent. The fountain's woven mat
+      and the bowl's green mat were already there in every look.
+   4. Shelves: two boards and a stack of bowls over the sink, books by
+      the glasses, flat books with a brass dish and a framed pine print on
+      the top shelf. Counter: a stoneware jar of utensils (in place of the
+      crock) and a little fir in a clay pot (in place of the olive); both
+      swap back in the other looks. Nothing she knocks over moved.
 Done this session for Christmas: kitchen decor, warm walls and floor,
 dappled sun, evening lights, her nap spot, study mantel pine and lantern,
 plaid chair cushion, kitchen camera (wide screens) turned to yaw .15 so
