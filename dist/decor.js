@@ -603,6 +603,13 @@ export function applyKitchenDecor(kitchen, name) {
   for (const [part, g] of Object.entries(parts)) g.visible = part === 'shared' ? autumn : part === name;
   kitchen.orchid.visible = name === 'classic';
   if (kitchen.ghostCushion) kitchen.ghostCushion.visible = name === 'halloween';
+  // Christmas warms the room itself: the plaster and the stone floor take
+  // on the pictures' honey tone (and give it back for the other looks).
+  const KM = kitchen.materials;
+  kitchen.decorOriginal ??= {plaster: KM.plaster.color.clone(), floor: KM.floor.color.clone(), counter: KM.counter.color.clone()};
+  KM.plaster.color.set(christmas ? '#f6dcbb' : kitchen.decorOriginal.plaster);
+  KM.floor.color.set(christmas ? '#ecd2b0' : kitchen.decorOriginal.floor);
+  KM.counter.color.set(christmas ? '#f7e6cc' : kitchen.decorOriginal.counter);
   kitchen.candleLight = autumn ? kitchen.lanternHalo : christmas ? kitchen.xmasHalo : null;
   kitchen.candleFlame = christmas ? kitchen.xmasFlame : kitchen.lanternFlame;
   kitchen.pumpkinGlow = name === 'halloween' ? kitchen.jackGlow : null;
@@ -1022,6 +1029,39 @@ function kitchenChristmas(kitchen, T) {
     const strip = mesh(new THREE.BoxGeometry(8.4, .015, .03), stripMat, g, {cast: false, receive: false});
     strip.position.set(-.9, y - .1, BACK + .06);
   }
+  // Low winter sun through the garden's trees: dappled light across the
+  // floor and up the far wall by day.
+  const dapple = canvasTexture(512, 512, (c, w, h) => {
+    const rr = rng(97);
+    c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    c.translate(w / 2, h / 2); c.rotate(-.45); c.translate(-w / 2, -h / 2);
+    for (let i = 0; i < 420; i++) {
+      const x = rr() * w * 1.4 - w * .2, y = rr() * h * 1.4 - h * .2, rad = 7 + rr() * 22, a = .25 + rr() * .5;
+      const grd = c.createRadialGradient(x, y, 0, x, y, rad);
+      grd.addColorStop(0, `rgba(255,216,160,${a})`); grd.addColorStop(.6, `rgba(255,205,140,${a * .5})`); grd.addColorStop(1, 'rgba(255,200,130,0)');
+      c.fillStyle = grd; c.beginPath(); c.ellipse(x, y, rad * 1.5, rad * .8, .3, 0, Math.PI * 2); c.fill();
+    }
+    // (The glazing bars' shadows across it.)
+    c.fillStyle = 'rgba(0,0,0,.8)';
+    for (let x = -w * .2; x < w * 1.3; x += w / 6) c.fillRect(x, -h, w * .022, h * 3);
+    for (let y = -h * .2; y < h * 1.3; y += h / 3.2) c.fillRect(-w, y, w * 3, h * .02);
+  });
+  const dappleMat = new THREE.MeshBasicMaterial({map: dapple, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
+  const sunFloor = mesh(new THREE.PlaneGeometry(12.6, 8.4), dappleMat, g, {cast: false, receive: false});
+  sunFloor.rotation.x = -Math.PI / 2; sunFloor.position.set(.4, .022, .3);
+  const sunWall = mesh(new THREE.PlaneGeometry(8.4, 6.5), dappleMat, g, {cast: false, receive: false});
+  sunWall.rotation.y = -Math.PI / 2; sunWall.position.set(6.97, 3.6, .2);
+  // In the evening, pools of lamplight on the floor and the island.
+  const poolTex = canvasTexture(64, 64, (c, w, h) => {
+    const grd = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grd.addColorStop(0, 'rgba(255,190,110,.9)'); grd.addColorStop(.5, 'rgba(255,170,90,.35)'); grd.addColorStop(1, 'rgba(255,160,80,0)');
+    c.fillStyle = grd; c.fillRect(0, 0, w, h);
+  });
+  const poolMat = new THREE.MeshBasicMaterial({map: poolTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
+  for (const [x, y, z, sx, sz] of [[-1.2, .024, 3.4, 7, 3.6], [3.6, .024, 1.6, 4.5, 4], [-1.2, ISLAND_TOP + .012, .7, 4.6, 2.2], [-1, COUNTER_TOP + .012, -3.4, 8, 1.3]]) {
+    const pool = mesh(new THREE.PlaneGeometry(sx, sz), poolMat, g, {cast: false, receive: false});
+    pool.rotation.x = -Math.PI / 2; pool.position.set(x, y, z);
+  }
   let glowSize = .28;
 
   kitchen.updateChristmas = (dt, t, night) => {
@@ -1030,6 +1070,8 @@ function kitchenChristmas(kitchen, T) {
     glowMat.opacity += ((night ? .95 : .3) - glowMat.opacity) * k; glowSize += ((night ? .5 : .28) - glowSize) * k; glowMat.size = glowSize * twinkle;
     washMat.opacity += ((night ? .3 : 0) - washMat.opacity) * k;
     stripMat.opacity += ((night ? 1 : 0) - stripMat.opacity) * k;
+    dappleMat.opacity += ((night ? 0 : .42) - dappleMat.opacity) * k;
+    poolMat.opacity += ((night ? .34 : 0) - poolMat.opacity) * k;
   };
   return g;
 }
