@@ -2418,12 +2418,16 @@ const CAMERA_VIEWS = {
 for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => { toggleViewMenu(false); CAMERA_VIEWS[b.dataset.cam](); });
 // The View button: one menu for the camera views, full screen and rooms.
 function toggleViewMenu(open = $('#view-menu').hidden) {
-  $('#view-menu').hidden = !open;
+  const menu = $('#view-menu');
+  menu.hidden = !open;
   $('#view-btn').setAttribute('aria-expanded', String(open));
+  // On a short screen it scrolls inside the room rather than running off it.
+  if (open) { menu.style.maxHeight = ''; const room = host.getBoundingClientRect(), r = menu.getBoundingClientRect(); if (r.bottom > room.bottom - 8) { menu.style.maxHeight = Math.max(120, room.bottom - 8 - r.top) + 'px'; menu.style.overflow = 'auto'; } }
 }
 $('#view-btn').onclick = () => toggleViewMenu();
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.view-wrap')) toggleViewMenu(false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleViewMenu(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#view-menu').hidden) { toggleViewMenu(false); $('#view-btn').focus(); } });
+$('#view-menu').addEventListener('focusout', e => { if (!e.relatedTarget?.closest?.('.view-wrap')) toggleViewMenu(false); });
 
 host.addEventListener('contextmenu', e => e.preventDefault());
 host.addEventListener('wheel', e => {
@@ -2525,7 +2529,6 @@ $('#close-name').onclick = () => $('#name-dialog').close();
 function setWatch(on) {
   document.body.classList.toggle('watch', on);
   $('#watch-btn').setAttribute('aria-pressed', String(on));
-  $('#watch-btn span').textContent = on ? 'Exit' : 'Watch';
   try {
     if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -2686,7 +2689,7 @@ $('.tabs').onclick = e => {
   $('#journal').hidden = b.dataset.tab !== 'journal';
   $('#guide').hidden = b.dataset.tab !== 'guide';
 };
-for (const d of document.querySelectorAll('dialog')) {
+for (const d of document.querySelectorAll('dialog:not(#welcome-dialog)')) {
   d.addEventListener('click', e => {
     if (e.target !== d) return;
     const r = d.getBoundingClientRect();
@@ -2712,7 +2715,7 @@ fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).t
   if (!v) return;
   const text = `${v.channel === 'preview' ? 'Preview' : 'Version'} build ${v.build} · ${v.commit}`;
   $('#build-label').textContent = text;
-  if (v.channel === 'preview') { $('.topbar').classList.add('has-build'); $('#build-chip').innerHTML = `Preview<span class="long"> · build</span> ${v.build}`; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
+  if (v.channel === 'preview') { $('.topbar').classList.add('has-build'); $('#build-chip').innerHTML = `Preview<span class="long"> · build</span> ${v.build}`; $('#build-chip').dataset.short = 'b' + v.build; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
 }).catch(() => {});
 
 // ---------------------------------------------------------------------------
@@ -2909,24 +2912,28 @@ function welcome() {
   $('#welcome-dialog').showModal();
 }
 $('#welcome-dialog').addEventListener('cancel', e => e.preventDefault());
-$('#welcome-form').onsubmit = e => {
-  e.preventDefault();
+$('#welcome-form').onsubmit = e => { e.preventDefault(); $('#welcome-dialog').close(); };
+// However it closes: keep the name typed, say hello, then the tips.
+$('#welcome-dialog').addEventListener('close', () => {
   const name = $('#welcome-name').value.trim().slice(0, 24);
   if (name && name !== pet.name) { pet.name = name; moment('A name to love: ' + pet.name + '.', 'i-heart'); }
   save(); refresh();
-  $('#welcome-dialog').close();
   greet(true);
   setTimeout(() => coach(0), 2600);
-};
+});
 const COACH = [
   ['.dock', () => `Look after ${pet.name} with these: feed, play, cuddle, brush and rest.`],
   ['#scene', () => touchScreen ? `Stroke her with your finger to pet her. Drag the room to look around, pinch to zoom.` : `Stroke her with the mouse to pet her. Drag the room to look around, scroll to zoom.`],
   ['#view-btn', () => `View: follow ${pet.name}, see her bowl or bed, or visit the kitchen.`],
   ['#more-btn', () => `More: her moments, the care guide and a backup code to keep her safe.`],
 ];
+let coachAt = -1;
 function coach(i) {
   const el = $('#coach');
-  if (i >= COACH.length) { el.hidden = true; return; }
+  // (In full screen the dock is tucked away: skip its tip.)
+  if (i === 0 && document.body.classList.contains('watch')) i = 1;
+  coachAt = i < COACH.length ? i : -1;
+  if (i >= COACH.length) { el.hidden = true; document.querySelectorAll('.coach-target').forEach(x => x.classList.remove('coach-target')); return; }
   const [sel, text] = COACH[i];
   $('#coach-text').textContent = text();
   $('#coach-next').textContent = i === COACH.length - 1 ? 'Got it' : 'Next';
@@ -2941,5 +2948,7 @@ function coach(i) {
   el.style.top = Math.max(pad, top) + 'px'; el.style.left = left + 'px';
   document.querySelectorAll('.coach-target').forEach(x => x.classList.remove('coach-target'));
   if (!big) $(sel).classList.add('coach-target');
-  if (i >= COACH.length - 1) $('#coach-next').addEventListener('click', () => document.querySelectorAll('.coach-target').forEach(x => x.classList.remove('coach-target')), {once: true});
 }
+$('#coach-skip').onclick = () => coach(COACH.length);
+addEventListener('resize', () => { if (coachAt >= 0) coach(coachAt); });
+addEventListener('scroll', () => { if (coachAt >= 0) coach(coachAt); }, {passive: true});

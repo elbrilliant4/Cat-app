@@ -84,16 +84,16 @@
         <div class="hud hud-top">
           <div class="hud-buttons cam-buttons">
             <div class="view-wrap">
-              <button class="icon-btn glass view-btn" id="view-btn" aria-haspopup="true" aria-expanded="false" aria-controls="view-menu"><svg><use href="#i-view"/></svg><span>View</span></button>
-              <div class="view-menu glass" id="view-menu" role="menu" aria-label="Views and rooms" hidden>
-                <button role="menuitem" data-cam="room" aria-pressed="true"><svg><use href="#i-view"/></svg><span>Whole room</span></button>
-                <button role="menuitem" data-cam="follow" aria-pressed="false"><svg><use href="#i-paw"/></svg><span>Follow <span class="pet-name-slot">Mochi</span></span></button>
-                <button role="menuitem" data-cam="food" aria-pressed="false"><svg><use href="#i-bowl"/></svg><span>Food bowl</span></button>
-                <button role="menuitem" data-cam="water" aria-pressed="false"><svg><use href="#i-drop"/></svg><span>Water fountain</span></button>
-                <button role="menuitem" data-cam="bed" aria-pressed="false"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
-                <button role="menuitem" id="watch-open"><svg><use href="#i-expand"/></svg><span>Full screen</span></button>
+              <button class="icon-btn glass view-btn" id="view-btn" aria-expanded="false" aria-controls="view-menu"><svg><use href="#i-view"/></svg><span>View</span></button>
+              <div class="view-menu glass" id="view-menu" aria-label="Views and rooms" hidden>
+                <button data-cam="room" aria-pressed="true"><svg><use href="#i-view"/></svg><span>Whole room</span></button>
+                <button data-cam="follow" aria-pressed="false"><svg><use href="#i-paw"/></svg><span>Follow <span class="pet-name-slot">Mochi</span></span></button>
+                <button data-cam="food" aria-pressed="false"><svg><use href="#i-bowl"/></svg><span>Food bowl</span></button>
+                <button data-cam="water" aria-pressed="false"><svg><use href="#i-drop"/></svg><span>Water fountain</span></button>
+                <button data-cam="bed" aria-pressed="false"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
+                <button id="watch-open"><svg><use href="#i-expand"/></svg><span>Full screen</span></button>
                 <hr>
-                <button role="menuitem" id="decor-btn"><svg><use href="#i-house"/></svg><span>Rooms and decor</span></button>
+                <button id="decor-btn"><svg><use href="#i-house"/></svg><span>Rooms and decor</span></button>
               </div>
             </div>
             <button class="icon-btn glass" id="watch-btn" aria-label="Leave full screen" aria-pressed="false"><svg><use href="#i-expand"/></svg><span>Exit</span></button>
@@ -217,7 +217,7 @@
     <button class="primary" type="submit">Say hello</button>
   </form>
 </dialog>
-<div class="coach" id="coach" role="dialog" aria-live="polite" hidden><p id="coach-text"></p><button type="button" id="coach-next">Next</button></div>
+<div class="coach" id="coach" role="dialog" aria-live="polite" hidden><p id="coach-text"></p><div class="coach-row"><button type="button" id="coach-skip">Skip tips</button><button type="button" id="coach-next">Next</button></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="./app.js"></script>
 </body>
