@@ -21,6 +21,25 @@ Nothing here is live or on preview.
   the app's bones (same names as `BONES2`) and face points, measured on this
   model. Midline x = 0, ground y = -0.62, facing +z, her left is +x.
 
+## Second model, Meshy's top settings (2026-11-12)
+Merlin: "use the best settings, cost is not an issue". Three new large views
+(`sources/mochi-longhair-hq-views/`, finer fur, the right leg colours asked
+for in the prompt), then Multi-Image to 3D: meshy-7.1, 2K geometry (the most
+that endpoint has), 8K textures with PBR, 300,000 triangles; a 90,000
+triangle copy for phones by Meshy's Remesh. 96 credits (170 in all).
+- `dist/assets/mochi-longhair-hq.glb`; see it:
+  `mochi-study.html?model=mochi-longhair-hq.glb`. Picture: `neutral-light-hq.jpg`.
+- Better than the first: face and eyes, finer coat, leg colours right with
+  no repaint. Worse: she stands mid-step (hind legs staggered, as the back
+  view was slightly turned), so her bone table needs each side measured and
+  rest fixes like the first Mochi's (`aim()` in `real-cat.js`).
+- **Not rigged yet.** `BONES_LONGHAIR` is the first candidate's.
+  `tools/mochi-longhair/measure.py <glb>` prints the landmarks to build her
+  table from; `pack.py` makes a web copy.
+- The 8K original is too big for the repo comfortably (95 MB; GitHub's
+  limit is 100): Merlin should download it from Meshy before it expires
+  there (task `01a1cd4a-6e89-7137-b41f-0d9decacdf03`).
+
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her
   ("not a humanoid"), no charge. Ours are worked out in code at load.
