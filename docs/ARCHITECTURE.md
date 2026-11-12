@@ -68,6 +68,16 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 
+**Camera** (app.js, "Input"): an orbit round `view.focus`; everything eases
+towards `view.goal`. `view.shown` is how far the camera really is (walls,
+`boxArm`, and furniture hold it closer than `view.dist`); `zoomBy(f, at)`
+always starts from it and keeps the room point under `at` (`pointUnder`:
+her, the floor, else the focus depth) in place. `view.zoomHeld` = the
+player chose the zoom, so follow leaves it (and looks at her face when
+closer than her whole body); any view button clears it. `view.fling` = the
+glide after a flick. Touch times come from `e.timeStamp` (the QA freezes
+`performance.now`).
+
 `updateCat` order: idle and night choices (`idleLife`, `nightLife`) →
 movement toward `brain.target` (heading, turn caps) → eyes, head, gaze →
 eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).

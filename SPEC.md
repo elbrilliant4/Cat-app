@@ -28,6 +28,13 @@ the phone's browser and can be added to the home screen.
   no leg stretched more than ~4 cm (`tools/qa/legs.mjs`).
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
+- **Looking around** (preview, phase 14). Done when: pinching or scrolling
+  zooms towards the fingers or the pointer; zooming in always moves the
+  camera, even after a wall stopped it; a flick glides on; two fingers
+  twisting turn the view; a double tap on her gives a close-up that follows
+  her, on the room moves closer to that spot (and, when close, back to the
+  whole room); following her keeps the player's zoom
+  (`tools/qa/camera.mjs`, every line `PASS`).
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.
