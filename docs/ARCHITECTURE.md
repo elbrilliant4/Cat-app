@@ -91,7 +91,38 @@ eating reach → pick a pose → `cat.update(dt, t, ctl)` (MotionCat).
 ## Gotchas (learned the hard way)
 - **Study walks are clamped to the rug** (`onRug`) unless `walkTo(..., anywhere = true)`.
 - The kitchen vacuum avoids the island with `route(from, to, pad)`
-  (pad .45, .75 with her riding); `clampVacuum` keeps it out of the padded box.
+  (pad .45, .7 with her riding); `clampVacuum` keeps it out of the padded
+  box, `clampVacBox` inside `VAC_FLOOR` / `VAC_FLOOR_RIDE` (its body, and
+  her head and hips aboard, clear of the walls and counter). A route it
+  can't find returns `[]` and it picks another goal (never a straight line
+  through the furniture). By the window the lane is just wide enough for
+  it with her aboard: KEEP_OUT, the riding pad and `VAC_FLOOR_RIDE.x0` are
+  tuned together (padded island edge -5.25, box -5.3); move one, re-check
+  the others or the left-side corner nodes vanish and no route exists.
+- `KEEP_OUT` (her centre) is .65 from the island's faces and 1.35 in
+  front of it: her head and hips reach about .6 from her centre, the stool
+  legs .7 in front of the island. Shrink it and she walks through the stools.
+  `FLOOR` is .6 from the counter and the window wall for the same reason.
+  `clampFloor` and `pushOut` run the island's margin and the circles a few
+  times and end with the margin (squeezed between it and the vacuum's
+  circle, the margin wins), `clampFloor` then the floor's edge.
+- The gap at the foot of the wall steps (between the counter's end and the
+  window wall) is .78 wide and she is 1.2 long: routes go in and out by
+  `GAP_MOUTH`, and at the foot she keeps facing north or the first step
+  (`atStepFoot` in app.js). Any turn across the gap puts her in the wall.
+- Boarding or stalking the vacuum, `approachVacuum` picks a side where she
+  and her landing stay on free floor; off it, `PERCHES.vacuum.base` scores
+  both sides, ahead and behind. `randomFloorPoint(pad)` keeps the vacuum's
+  goals outside each obstacle's padded circle: `route()` drops a circle
+  that holds the goal, and would drive straight through it.
+- **Her tail keeps out of furniture** in `MotionRig.clearTail(solids)`
+  (`motion.js`), run after the tail is posed and laid on the floor: each
+  joint inside a solid turns its bone to bring it out by the nearest face
+  (lying on top counts as out). The solids come per frame from
+  `tailSolids()` in `app.js`: the room layout's `tailSolids` list (the
+  kitchen's is in `layout()`; the study has none yet) minus her bed while
+  she's in it and the counter while she sits in the sink, plus the vacuum
+  where it is. Shapes: `box`, `cyl`, `rbox` (turned box, the tent).
 - The motion rig resets the jaw and ears each frame (otherwise rotations pile up).
 - Random choices make runs differ: seed `Math.random` (QA `open({seed})`).
   `setTimeout` and `performance.now` are real time: in QA they're put on

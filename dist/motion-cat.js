@@ -448,7 +448,7 @@ export class MotionCat {
       scap: {L: scapFor('LF'), R: scapFor('RF')},
       paws,
       tail: {lift: lerp(c.tailLift, 0, stream) + this.tailBob, curl: lerp(c.tailCurl, .04, stream), side: c.tailSide + this.tailLag, up: ctl.tailUp || 0, amp: tl.amp, speed: tl.speed,
-        floor: air ? 0 : c.tailFloor, wrap: 1, radius: c.tailR, bounds: ctl.tailBounds},
+        floor: air ? 0 : c.tailFloor, wrap: 1, radius: c.tailR, bounds: ctl.tailBounds, solids: ctl.tailSolids},
       breathe: breath, face: ctl.face, look: ctl.look,
     };
     // Soft contact on her support surface (not mid-air).
