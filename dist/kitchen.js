@@ -281,10 +281,12 @@ export class Kitchen {
     // end: a crock of wooden spoons, a little olive in a pot, bottles, and a
     // brass mushroom lamp at the right.
     const crock = new THREE.Group(); crock.position.set(2.95, C, -3.75); g.add(crock);
+    this.crock = crock; // (a seasonal look may swap it for its own jar)
     this.mesh(lathe([[0, 0], [.17, 0], [.18, .38], [.16, .4], [0, .4]], 20), M.cream, crock);
     for (let i = 0; i < 4; i++) { const s = this.mesh(new THREE.CylinderGeometry(.015, .02, .75, 6), M.walnut, crock); s.position.set((i - 1.5) * .05, .55, (i % 2) * .05); s.rotation.z = (i - 1.5) * .12; }
-    const pot = this.mesh(lathe([[0, 0], [.14, 0], [.18, .25], [0, .25]], 20), M.clay, g); pot.position.set(-.55, C, -3.85);
-    this.room.sprigs(g, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a', leaf: M.leaf});
+    const olive = this.counterOlive = new THREE.Group(); g.add(olive); // (likewise: Christmas stands a pine here)
+    const pot = this.mesh(lathe([[0, 0], [.14, 0], [.18, .25], [0, .25]], 20), M.clay, olive); pot.position.set(-.55, C, -3.85);
+    this.room.sprigs(olive, new THREE.Vector3(-.55, C + .25, -3.85), 7, .6, {stem: '#66704a', leaf: M.leaf});
     for (const [x, h, c] of [[2.65, .55, '#3e4a2c'], [2.75, .45, '#7a4a1e']]) this.mesh(lathe([[0, 0], [.07, 0], [.07, h * .7], [.03, h * .85], [.03, h], [0, h]], 14), new THREE.MeshStandardMaterial({color: c, roughness: .2}), g).position.set(x, C, -4.0);
     const lampG = new THREE.Group(); lampG.position.set(3.35, C, -3.9); g.add(lampG);
     this.mesh(lathe([[0, 0], [.13, 0], [.1, .05], [.03, .1], [.03, .55], [0, .55]], 16), M.brass, lampG);
@@ -956,9 +958,16 @@ export class Kitchen {
         // doesn't count.)
         vacuum: {spot: this.vacuum.position, top: .16, face: 0, ride: true, get base() {
           const p = kitchen.vacuum.position, h = kitchen.vac.heading, side = V(Math.cos(h), 0, -Math.sin(h)).multiplyScalar(.8), ahead = V(Math.sin(h), 0, Math.cos(h)).multiplyScalar(.9);
-          const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z); };
+          // (Room for the whole of her, not just her centre: sitting down
+          // after the hop her hips reach .5 behind her, so a spot hard by
+          // her bowl, the fountain or the tent counts against it, and the
+          // one chosen is moved clear of them.)
+          const ROOM = .5, round = OBSTACLES.filter(o => o !== VAC);
+          const crowd = q => round.reduce((n, o) => n + Math.max(0, o.r + ROOM - Math.hypot(q.x - o.x, q.z - o.z)), 0);
+          const score = q => { const c = kitchen.clampFloor(q.clone()); return kitchen.pushOut(q.clone()).distanceTo(q) + Math.abs(c.x - q.x) + Math.max(0, FLOOR.z0 - q.z) + crowd(q); };
           let best = null, bs = Infinity;
           for (const q of [p.clone().add(side), p.clone().sub(side), p.clone().sub(ahead), p.clone().add(ahead)]) { const sc = score(q); if (sc < bs - 1e-6) { bs = sc; best = q; } }
+          for (const o of round) { const d = Math.hypot(best.x - o.x, best.z - o.z); if (d < o.r + ROOM && d > 1e-3) { best.x = o.x + (best.x - o.x) / d * (o.r + ROOM); best.z = o.z + (best.z - o.z) / d * (o.r + ROOM); } }
           return kitchen.clampFloor(best);
         }},
       },
@@ -1009,9 +1018,11 @@ export class Kitchen {
   frame(wide) {
     const I = K.island;
     return {
-      // Wide screens look a little toward the right wall and its painting;
-      // phones toward the window corner, where her steps climb the wall.
-      yaw: wide ? -.2 : .35,
+      // Wide screens look nearly straight at the back wall, from a little
+      // right of centre: from there the study's fireplace shows through the
+      // doorway (straight on it's hidden by the jamb). Phones look toward
+      // the window corner, where her steps climb the wall.
+      yaw: wide ? .15 : .35,
       // Wide screens: the whole room. Phones: her route (floor, wall steps,
       // counter, both shelves) and the island; the tent corner is a drag away.
       across: wide
@@ -1207,6 +1218,7 @@ export class Kitchen {
       for (const m of this.pumpkinHalos) m.opacity = damp(m.opacity, night ? .75 : 0, 3, dt) * f;
     }
     this.updatePaperBats?.(t);
+    this.updateChristmas?.(dt, t, night);
     const sky = night ? this.view.night : this.view.day;
     for (const gl of [this.glass]) if (gl.material.map !== sky) { gl.material.map = sky; gl.material.needsUpdate = true; }
     this.paving.material.color.set(night ? '#2a2724' : '#e2d6c0');

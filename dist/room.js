@@ -1503,7 +1503,7 @@ export class Room {
     if (this.candleLight) {
       const glow = this.candleLight.material;
       glow.opacity = damp(glow.opacity, night ? .95 : .3, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);
-      this.thanksgivingFlame.scale.y = 1 + Math.sin(t * 11) * .12;
+      (this.candleFlame || this.thanksgivingFlame).scale.y = 1 + Math.sin(t * 11) * .12;
     }
     if (this.pumpkinGlow) {
       const f = 1 + Math.sin(t * 9) * .05 + Math.sin(t * 5.3) * .04;

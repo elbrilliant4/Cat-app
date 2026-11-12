@@ -1,101 +1,108 @@
-# Handoff — 2026-11-11
+# Handoff: 2026-11-12
 
 ## State
-- Live: build 174 = `97f11c8` (walk and trot, Halloween away).
-- Preview: `f027528` on `claude/expressive-cat-modern-ui-65z6r5`, phase 02
-  (Vision) done, **waiting on Merlin** to look and say "Go live" (7 commits
-  `ad829b7`..`f027528`; go live with the last one).
-- Build numbers = commits on the branch; count in a full clone.
+- Live: build 174 = `97f11c8` (walk and trot, Halloween away); `main` has
+  since had docs and rules added (`43fdbf8`).
+- Preview branch `claude/expressive-cat-modern-ui-65z6r5`: on 2026-11-12
+  `main` was merged into it (Merlin's choice), so it now holds both lines
+  of work: vacuum Vision (phase 02), the title screen and zoomies cinematic
+  (11, 11b), move like a real cat (12), and the new **Christmas kitchen
+  (phase 13)**. None of it is live; all of it waits on Merlin.
+- Christmas kitchen: built in code from Orion's day and night pictures, no
+  bought assets, no Meshy or Runway credits used. Shows in December, or now
+  with `?decor=christmas` on the address, then the look picker. Stills:
+  `DECOR=christmas node tools/qa/look.mjs`.
 
-## Phase 02, in short
-The vacuum never went through anything (measured); she did. Her tail now
-keeps out of the kitchen's furniture (`clearTail` in motion.js, the
-kitchen's `tailSolids`), the keep-out and the vacuum's lanes fit her body,
-she boards and leaves the vacuum from a side with room, the gap by the
-window steps is entered by its mouth. Numbers and leftovers:
-`docs/phases/02-vacuum-vision.md`. Pictures: `qa-out/vision-evidence/`
-(not committed; rerun `tools/qa/vacuum.mjs` to make new ones).
+## Next, in order (Merlin's picks, 2026-11-12)
+A. Overlaps, compared with `main` (done 2026-11-12, same runs on
+   `origin/main` `43fdbf8`): main has 99 and 224 overlaps, the joined
+   branch 328 and 133 (323 against 461 in total). Main's worst are the same
+   size: an ear 28 cm into the counter walking at -5.40,-2.41 (seed 2,
+   525 s), her head 15 cm into the window wall, jaw 8 cm into the island.
+   So this was mostly there before the join. New on the joined branch
+   only: sitting with her hips 25 cm into the food bowl (seed 1, 107 s, she
+   at 4.06,3.12). That one is fixed: she hopped off the vacuum to a spot
+   hard by the bowl and sat down with her hips in it. The spot chooser
+   (`kitchen.js`, the vacuum perch's `base`) is the same code on `main`,
+   so the join did not break it, the run just went a different way; it
+   now keeps .5 clear of the bowl, fountain and tent. Seed 1's first
+   112 s: 81 overlaps before, 1 after (a 4 mm tail brush). The full 600 s
+   runs after the fix: 158 and 223 overlaps (seeds 1 and 2; before 328
+   and 133, so 381 against 461; a run goes a different way after any
+   change, so one seed going up is not a sign of a new fault). The hips in
+   the bowl are gone (worst at the bowl now: a wrist 10 cm in, walking
+   past). The worst left is the same as before: an ear 24 cm into the
+   counter walking at -3.07,-2.12 (seed 2, 32 s). The runs also list 23
+   and 11 moments with her centre past the walking floor's edge; the
+   earlier 600 s logs were not kept, so it is not known whether that is
+   new. Check it on `main` when the head and ear work starts. The rest (heads and ears turned into the counter and
+   window wall) is a phase 02 leftover, there on `main` too: Merlin chose
+   (2026-11-12) to fix it after going live, as its own piece of work. He
+   has not said "Go live" yet.
+B. Christmas details (all four built 2026-11-12, on the preview, waiting
+   for Merlin's eye). Orion's pictures were not in the session that built
+   these (they are never committed): it worked from this list, so ask
+   Merlin for the pictures before matching any closer.
+   1. Curled nap: Merlin picked "light curl now". New pose `curl` in
+      `motion-cat.js` (numbers only, used for the top-shelf garland nap;
+      `tailWrap` says which side the tail wraps). She arrives from the
+      left and lies with her back in the garland, face to the room.
+      `garland-nap.mjs` passes day and night. To redo for the new model.
+   2. Lamps: alabaster shades (drawn stone, lit from inside, warmer and
+      brighter at night with a halo), brass arms, a brass band on each.
+      Same shapes and places (she still rides the big one).
+   3. Tent corner: a big round woven mat under the tent, a green plaid
+      cushion propped in the back of the tent. The fountain's woven mat
+      and the bowl's green mat were already there in every look.
+   4. Shelves: two boards and a stack of bowls over the sink, books by
+      the glasses, flat books with a brass dish and a framed pine print on
+      the top shelf. Counter: a stoneware jar of utensils (in place of the
+      crock) and a little fir in a clay pot (in place of the olive); both
+      swap back in the other looks. Nothing she knocks over moved.
+Done this session for Christmas: kitchen decor, warm walls and floor,
+dappled sun, evening lights, her nap spot, study mantel pine and lantern,
+plaid chair cushion, kitchen camera (wide screens) turned to yaw .15 so
+the fireplace shows through the doorway.
 
-## Next (Merlin's order)
-1. Merlin looks at the preview; "Go live" → `git push origin f027528:main`,
-   check the Deploy workflow, add a row to `MILESTONES.md`.
-2. Phase 03, the study: a `tailSolids` list in `studyLayout()` (app.js)
-   from the study's furniture (room.js: beds, chair, mantel, bookcase,
-   walls), and `tools/qa/tail.mjs` for both rooms (copy the body-point and
-   solid-reading parts of `vacuum.mjs`). The mechanism is done.
-3. Christmas decor (waiting on Orion's image), Miso (waiting on the .glb),
-   phases 08, 09.
-
-## Gotchas learned this phase
-- Every pass that "should have worked" didn't until measured: run
-  `tools/qa/vacuum.mjs` (2 seeds x 600 s, ~25 real minutes for both in
-  parallel) after any change to kitchen.js margins, FLOOR, KEEP_OUT, the
-  vacuum's pads or `clearTail`.
-- The window lane is just wide enough for the vacuum with her aboard:
-  `KEEP_OUT.x0`, the riding pad (.7) and `VAC_FLOOR_RIDE.x0` (-5.3) are
-  tuned together; see ARCHITECTURE.
-- `route()` drops any circle that holds the goal: never let a goal sit
-  inside a padded circle (randomFloorPoint handles the vacuum's).
-- The cloud container restarts kill background runs: launch them with
-  `run_in_background`, outputs in the scratchpad, and check they finished
-  (`overlap(s):` in the output).
-- Screenshots in the QA nudge the clock a frame; same AT list = same run.
-
-## Paste into a new chat
-> Read CLAUDE.md and HANDOFF.md. Phase 02 is on preview waiting for
-> Merlin. If Merlin says Go live, do that; otherwise do phase 03 for the
-> study (docs/phases/03-tail-collision.md).
-
----
-
-# Earlier handoff from the preview branch (phases 11b and 12)
-
-## Handoff — 2026-11-11 (evening)
-
-## State
-- Live: build 161 = `70ade23` (unchanged).
-- Preview branch `claude/expressive-cat-modern-ui-65z6r5`, not live:
-  the title screen (step 1), Halloween stored away, and now **phase 11b,
-  steps 1, 2, 3 and 7**: Enter buttons, the zoomies sequence (7.6 s), glow
-  and sun shafts, name reveal with shine and sparkles, skip, once a day.
-  See the Result section of `docs/phases/11-title-cinematic.md`.
-- Merlin was sent a true-speed clip (`tools/qa/title-clip.mjs`). Waiting on
-  his view of it.
-- GitHub Actions has 0 runs on this repo, so `/preview/` does not update.
-  Only Merlin can check the repo's Actions settings. Until then the
-  preview is a clip.
-
-## Next
-0. **Phase 12, move like a real cat** (`docs/phases/12-cat-motion.md`):
-   Merlin finds her movement unnatural (run, jumps, vase pat, also in the
-   app) and picked "fix the motion code". Steps 1 (jumps), 2 (the run) and 3 (the
-   swat) are on the preview branch. Merlin said yes to the run; he has not
-   judged the jumps (frame sheets) or the swat (old | new clip) yet. Next:
-   step 4, the in-betweens.
-   This comes before the music.
-1. Merlin's notes on the clip (shots, pace, look).
-2. Phase 11b, what is left: the music sting from Runway (step 5; 2 or 3
-   takes for Merlin to pick by ear; the hit goes on the freeze at about
-   7.2 s), the paw-wipe into the app (step 6), name ornament if wanted.
-3. One look on Merlin's phone for speed (not measurable here).
-4. Then as before: phase 02 Vision, Christmas decor (Orion's image), Miso
-   (Merlin's .glb), phase 08, 09.
+## After that (ask Merlin which)
+1. Merlin looks at the Christmas kitchen on the preview and gives notes
+   or "Go live" (go live takes the whole preview branch: check with him
+   that phases 11, 11b and 12 are ready to go with it, or go live with
+   less).
+2. Phase 12, move like a real cat (`docs/phases/12-cat-motion.md`): paused
+   by Merlin 2026-11-12, he is working on a new cat model. Ask before going
+   on. The swat's third take still needs its clip
+   (`SCENE=swat FPS=30 SEC=3.8 node tools/qa/clip.mjs`).
+3. Phase 11b leftovers: music sting, paw-wipe, logo polish.
+4. Phase 03, the study's `tailSolids` and `tools/qa/tail.mjs`.
+5. Christmas for the study and the tree (phase 06), Miso, phases 08, 09.
 
 ## Gotchas
-- Merlin judges by eye and ear: send clips and sound files, offer choices
-  as a picker.
-- The title QA (`title.mjs`) needs `npm run dev` running and takes about
-  25 min; a clip about 20 min (software 3D, about 2.5 s a frame). Use
-  `tools/qa/title-shots.mjs` for quick stills of single shots.
-- The room is big: Mochi sitting is about 1.1 units tall, the mantel is at
-  2.76, the walls are 12 high. A camera looking steeply up sees past the
-  wall tops (black).
-- The olive tree stands at about (4.0, -1.45): keep it out of the mantel
-  shots.
-- A side-view clip (`clip.mjs`) takes about 15 min here; for a quick look
-  at a move, take stills through it (see how `title-shots.mjs` steps).
-- In the QA stepper, CSS animations only move when `anims()` is called
-  each frame (see `title-clip.mjs`).
+- Joined code measured 2026-11-12 (`vacuum.mjs` SEED 1 and 2, 600 s,
+  classic look; Christmas adds nothing on the floor). The vacuum never
+  touches anything. Her body does: 328 and 133 overlaps (phase 02 ended
+  at 74 and 199, seeds not recorded, so not a like-for-like number).
+  Worst: sitting with her hips 25 cm into the food bowl (seed 1, 107 s),
+  an ear 24 cm into the counter walking at -3.07,-2.12 (seed 2, 32 s),
+  jaw 11 cm into the island. Not yet known whether the merge caused it:
+  run the same two seeds on `main` (`43fdbf8`) to compare before live.
+  `legs.mjs`: worst 7 cm, a front leg sitting on the chair and mantel (the
+  known leftover from phase 01).
+- QA stills: the look picker redresses the room 120 ms after the tap, on
+  real time; wait before stepping (see `look.mjs`).
+- Merlin judges by eye and ear: send pictures, clips and sound files.
+- The older notes still hold: background runs with `run_in_background`,
+  one render at a time (two at once time out), software 3D is slow.
 
 ## Paste into a new chat
-> Read CLAUDE.md and docs/HANDOFF.md, then go on with phase 12 (docs/phases/12-cat-motion.md), step 4: the in-betweens.
+> Read CLAUDE.md and HANDOFF.md. The Christmas kitchen (phase 13) is on
+> the preview waiting for Merlin's notes. Ask Merlin what's next.
+
+## The long-haired Mochi (joined in 2026-11-12)
+Merlin picked a new Meshy model for Mochi and asked for her to replace the
+first Mochi on the preview link (not live). She is the default cat now;
+`?mochi=first` shows the kitten. Model, rig, fur, tail and what is missing
+(whiskers, a mouth that opens, blinking unchecked): `docs/mochi-longhair/README.md`.
+Movement fitted to her and the jolts taken out of stops, turns and jumps
+(both cats): `docs/phases/13-longhair-motion.md`, `tools/qa/smooth.mjs`.
+QA scripts run her by default; `MOCHI=first` runs the kitten.

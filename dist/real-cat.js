@@ -402,6 +402,9 @@ export class RealCat {
     collider('chest', .32, 0, -.02, .05);
     collider('spine', .32, 0, 0, 0, 1, 1, 1.2);
     collider('hips', .3, 0, 0, -.05);
+    // (Her tail and paws can be touched too: she has opinions about those.)
+    for (const b of ['tail1', 'tail2', 'tail3', 'tail4', 'tail5', 'tail6', 'tail7']) if (bones[b]) collider(b, .1, 0, 0, 0);
+    for (const b of ['wristR', 'wristL', 'hockR', 'hockL']) if (bones[b]) { collider(b, .09, 0, 0, 0); collider(b, .1, ...endOf(b).multiplyScalar(.7).toArray()); }
 
     if (!this.longhair) { this.addWhiskers(bones); this.addMouthInterior(bones); }
     this.neck = bones.neck;

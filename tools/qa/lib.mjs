@@ -13,6 +13,8 @@ async function chromium() {
 }
 
 export async function open({seed = null, kitchen = false, night = 0, flags = '', width = 420, height = 760, quiet = true} = {}) {
+  // MOCHI=first: the first Mochi (the kitten); the app's default is the long-haired Mochi.
+  if (process.env.MOCHI === 'first') flags += '&mochi=first';
   const srv = http.createServer((q, r) => {
     let f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]));
     if (f.endsWith('/')) f += 'index.html';
@@ -63,7 +65,7 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
     try { for (let i = 0; i < n; i++) { r.render = i === n - 1 ? render : () => {}; kitten.step(dt, 1); __vt.tick(dt * 1000); } } finally { r.render = render; }
   }, [n, dt]);
   // Put the camera somewhere and draw: {focus: [x,y,z], yaw, pitch, dist}.
-  const look = v => page.evaluate(v => { const w = kitten.view; w.mode = 'free'; for (const o of [w, w.goal]) { o.focus.set(...v.focus); Object.assign(o, {yaw: v.yaw, pitch: v.pitch, dist: v.dist}); } w.cut = 0; w.lift = 0; kitten.step(1 / 60, 1, true); }, v);
+  const look = v => page.evaluate(v => { const w = kitten.view; w.mode = 'free'; for (const o of [w, w.goal]) { o.focus.set(...v.focus); Object.assign(o, {yaw: v.yaw, pitch: v.pitch, dist: v.dist}); } w.cut = 0; w.lift = 0; w.fling = null; w.zoomHeld = false; kitten.step(1 / 60, 1, true); }, v);
   const close = async () => { await browser.close(); srv.close(); };
   return {page, step, look, close};
 }
