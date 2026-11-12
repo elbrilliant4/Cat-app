@@ -2509,6 +2509,7 @@ function pointUnder(x, y) {
 // mouse): that point stays under them. Zoom always starts from where the
 // camera really is, so a wall or a piece of furniture holding it closer
 // never leaves a stretch of pinching that does nothing.
+const herOnScreen = new THREE.Vector3();
 function zoomBy(f, at) {
   const g = view.goal;
   // One line in and out, always about her: her face, all of her, the whole
@@ -2518,7 +2519,12 @@ function zoomBy(f, at) {
   // Pinching in aims where the fingers are: on her (or close by her), her
   // view; anywhere else, that spot on the floor.
   const aim = at && f < 1 ? pointUnder(at.x, at.y) : null;
-  const nearHer = aim && ready && (zoomOnCat || Math.hypot(aim.x - cat.root.position.x, aim.z - cat.root.position.z) < .9);
+  // (Near her = on screen, where you see her: within a fingertip or two.)
+  let nearHer = false;
+  if (at && f < 1 && ready) {
+    const r = host.getBoundingClientRect(), q = herOnScreen.copy(cat.root.position).setY(cat.root.position.y + .2).project(camera);
+    nearHer = zoomOnCat || (q.z < 1 && Math.hypot(r.left + (q.x + 1) / 2 * r.width - at.x, r.top + (1 - q.y) / 2 * r.height - at.y) < 70);
+  }
   if (view.mode === 'room') {
     view.zoomedAt = clockNow;
     view.push -= Math.log(f);
