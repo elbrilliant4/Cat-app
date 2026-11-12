@@ -654,7 +654,9 @@ export class RealCat {
           // or two wide: cells smaller than a pixel are noise (the "static"
           // at the app's usual distance, and it flickers as she moves).
           vec3 furFw = fwidth(furG);
-          furG /= exp2(max(0.0, ceil(log2(max(max(furFw.x, furFw.y), furFw.z) * 0.85))));
+          float furFar = max(0.0, ceil(log2(max(max(furFw.x, furFw.y), furFw.z) * 0.85)));
+          furG /= exp2(furFar);
+          furFar = min(furFar / 3.0, 1.0);
           vec3 furCell = floor(furG);
           float furSeed = furHash3(furCell);
           vec3 furF = fract(furG) - 0.5 - (vec3(furHash3(furCell + 7.1), furHash3(furCell + 3.3), furHash3(furCell + 5.7)) - 0.5) * 0.4;
@@ -671,7 +673,9 @@ export class RealCat {
           // shade; and the darkest fur (her tail, mask) warms toward the
           // tips, so it reads as soft brown fur, not a black mass.
           float furLum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-          diffuseColor.rgb *= mix(0.6, 1.1, vLayer) * (0.9 + 0.2 * furHash3(furCell + 1.7));
+          // (Gentler from further off: hairs a pixel wide with shaded roots
+          // and bright tips side by side read as a mottled, woolly coat.)
+          diffuseColor.rgb *= mix(mix(0.6, 0.88, furFar), mix(1.1, 1.02, furFar), vLayer) * (1.0 + (0.2 - 0.14 * furFar) * (furHash3(furCell + 1.7) - 0.5));
           diffuseColor.rgb += vec3(0.05, 0.03, 0.017) * vLayer * vLayer * (1.0 - smoothstep(0.03, 0.2, furLum)) * (0.6 + 0.8 * furSeed);` : `#include <map_fragment>
           if (vFurLen < 0.002) discard;
           vec2 furG = vMapUv * vec2(furDensity);
@@ -688,7 +692,7 @@ export class RealCat {
           diffuseColor.rgb += (diffuseColor.rgb * 0.7 + vec3(0.035, 0.022, 0.013)) * furRim;
           #include <lights_physical_fragment>`);
     };
-    m.customProgramCacheKey = () => long ? 'mochi-fur-long6' : 'mochi-fur';
+    m.customProgramCacheKey = () => long ? 'mochi-fur-long7' : 'mochi-fur';
     this.furUniforms = u;
     const fur = new THREE.SkinnedMesh(g, m);
     fur.frustumCulled = false;
