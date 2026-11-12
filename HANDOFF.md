@@ -1,9 +1,28 @@
 # Handoff: 2026-11-12 (night), third cut of the opening film
 
 ## Next step
-Third cut, after ChatGPT's review (Merlin pasted it, 22:00 UTC): 8.5 s, four
-shots. Merlin approved "Render it", music A, tutorial "Add now", film on the
-first launch of every day (as SPEC says). Files: `sources/title/film-v3/`.
+Merlin said the third cut is good ("Good, write the plan", 22:55 UTC). Film:
+`sources/title/film-v3/mochi-film-v3-A.mp4`, 9.8 s, music A. NOT in the app.
+Now: the plan for a big change (CLAUDE.md "Big vs small"): first look at 2
+or 3 similar apps' openings and first-run steps, tell Merlin in a few lines,
+then plan mode, list assumptions, wait for his OK. Nothing is built.
+Decisions Merlin made tonight (not in SPEC.md yet, add them with the plan):
+- The film plays after Enter on the first launch of every day, in place of
+  the zoomies sequence; a tap skips. Night, the Christmas look and
+  `?mochi=first` keep the zoomies (earlier outline, still stands).
+- "Tap the ball" first step: ADD NOW, planned with the film. After the film
+  the room is live, a short "Tap the ball" prompt, the first tap makes Mochi
+  react at once, petting and care taught after. My proposal, not yet agreed:
+  the prompt shows only the very first time, not every day. Note: the yarn
+  ball is a title toy today (`TITLE_TOYS`), removed on entering the room, so
+  the room needs a real ball. Show the plan to Lettuce before building.
+- The film's last frame matches the living title (`real-room.webp`), so the
+  hand-over should be a short cross-fade from film to the live room.
+- Also: CREDITS.md rows for the film and music, copy the film to
+  `dist/assets/title/` (1.7 MB), reduced motion gets no film.
+- Another session pushes to this branch too (panel revamp): fetch and
+  rebase before every push.
+How the cut was made:
 - Shot 1 wake: REDONE in the bright real room (Merlin asked), task
   932911f0, key picture 8dcf62c1 (`k1.webp`), `shot1.mp4`.
 - Shot 2 spots the ball (over her shoulder), task e0675dc2, key picture
