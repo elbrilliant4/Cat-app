@@ -45,7 +45,11 @@ line('follow keeps zoom', Math.abs(f2.dist - f1.dist) < .15 && f2.mode === 'foll
 
 // 3b. Squeezed against a wall, closer than the nearest zoom: zooming in leaves the view where it is.
 await look({focus: [-3.9, .5, 0], yaw: -1.57, pitch: .3, dist: 3}); await step(10);
-await page.mouse.move(box.x + box.w * .3, box.y + box.h * .3);
+// (Pointing away from her: a pinch on her goes to her, which is another check.)
+{ const hp = await screenOf(await page.evaluate(() => kitten.cat.root.position.toArray()));
+  const cand = [[.3, .3], [.7, .3], [.3, .7], [.7, .7]].map(([a, b]) => [box.x + box.w * a, box.y + box.h * b]);
+  const far = cand.sort((u, v) => Math.hypot(v[0] - hp[0], v[1] - hp[1]) - Math.hypot(u[0] - hp[0], u[1] - hp[1]))[0];
+  await page.mouse.move(far[0], far[1]); }
 await wheel(3, -120); await step(10); const q = await page.evaluate(() => kitten.view.goal.focus.toArray());
 line('zoom when squeezed', Math.hypot(q[0] + 3.9, q[1] - .5, q[2]) < .3, `focus now [${q.map(x => x.toFixed(2))}] (was [-3.9, .5, 0])`);
 
@@ -136,7 +140,8 @@ line('pinch in from the room goes where the fingers are', onHer ? r1.mode === 'f
 // (Pinching in on her from the whole room: her view. She is set in the open
 // middle first: earlier checks walked her about, maybe under the care bar.)
 await page.evaluate(() => { kitten.brain.pos.set(0, 0, .3); kitten.cat.root.position.set(0, 0, .3); kitten.brain.mode = 'idle'; });
-await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(80);
+// (Long enough for the view to finish gliding back from wherever it was.)
+await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(240);
 { const [hx, hy] = await screenOf(await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .2; return p.toArray(); }));
   const rm = (await state()).mode;
   await touch('touchStart', [[hx - 40, hy], [hx + 40, hy]]); for (let i = 1; i <= 8; i++) { await touch('touchMove', [[hx - 40 - i * 9, hy], [hx + 40 + i * 9, hy]]); await step(2); } await touch('touchEnd', []); await step(60);
