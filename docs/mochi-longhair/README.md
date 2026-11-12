@@ -104,8 +104,16 @@ Pictures: `tail-closeup.png`, `tail-sit-and-body.jpg`, `walk-normal.mp4`.
    they are about a pixel across (`fwidth` of the cell grid), so from further
    off hairs gather into locks. Britches no longer run up round the tail's
    root (a shaggy collar from behind).
-Not checked: how the 9-layer version looks on a real phone. From directly
-behind, the fur round the tail's root is still a dark ring.
+6. **Hair ends in dots.** Toward a long hair's tip its layers were further
+   apart along the hair than a stroke was long: a gentler bend toward the
+   tips (`.5v + .5v2`), and strokes half as long again on fur over .075.
+7. **The dark ring round the tail's root** (from behind): the tail's base
+   flares less and its fur starts shorter; the rump within .19 of the root,
+   which the texture paints dark, is drawn fawn (`furTail` below 0).
+`?fur=phone` gives a phone's 9 layers on a computer (strokes 9 long, not
+4). Picture, 20 layers above, 9 below: `fur-20-vs-9-layers.jpg`.
+Not checked: a real phone (frame rate, and its sharper screen). From
+directly behind there is still a darker band where the tail leaves her.
 
 ## Missing (not substituted)
 - **A skeleton and skin weights in the file.** Meshy's rigging refused her

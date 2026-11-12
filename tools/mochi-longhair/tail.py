@@ -33,7 +33,7 @@ u=S/LEN
 bins=np.clip((u*20).astype(int),0,19); old=np.array([np.percentile(best[bins==k],92) if (bins==k).sum()>10 else .1 for k in range(20)])
 oldR=np.interp(u,(np.arange(20)+.5)/20,old)
 R=.024+.03*(1-u)**.8+.016*np.sin(np.pi*np.clip(u,0,1))**2     # base .054, fullest .056 near the middle, tip .024
-fl=np.clip(u/.2,0,1); R=R+.028*(1-fl*fl*(3-2*fl))               # flared at the base, to the width of her rump there
+fl=np.clip(u/.12,0,1); R=R+.012*(1-fl*fl*(3-2*fl))               # flared at the base, to the width of her rump there
 q=np.clip(best/np.maximum(oldR,1e-4),0,1.3)
 newr=R*(.55+.45*np.minimum(q,1))                                # inner layers stay inside the outer ones
 rad=(Q-near)/np.maximum(best,1e-6)[:,None]

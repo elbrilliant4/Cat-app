@@ -70,7 +70,10 @@ varying float vTail;
 // tail.py), which showed as a white fringe when she carried it up.
 const TAIL_BROWN = /* glsl */`
   { float tailLum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.085, 0.036, 0.019) * (0.75 + 1.4 * min(tailLum, 0.5)), vTail * smoothstep(0.035, 0.12, tailLum)); }
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.085, 0.036, 0.019) * (0.75 + 1.4 * min(tailLum, 0.5)), max(vTail, 0.0) * smoothstep(0.035, 0.12, tailLum));
+    // (vTail below 0: her rump round the tail's root, which the texture
+    // paints dark, a ring of dark fur from behind. Fawn like the rest of it.)
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.345, 0.215) * (0.8 + 0.9 * tailLum), max(-vTail, 0.0) * (1.0 - smoothstep(0.1, 0.3, tailLum))); }
 `;
 
 const eyeFragment = /* glsl */`
@@ -552,7 +555,7 @@ export class RealCat {
           // (Laid well over, .88: stood half out from the tail, .5, the hairs
           // pointed every way round it, a bottle brush. Shorter where the tail
           // leaves her rump, so the two coats meet, and toward the tip.)
-          return [F.plume * (.45 + .55 * st(along, 0, .35)) * (1 - .3 * st(along, .75, 1)), .84];
+          return [F.plume * (.3 + .7 * st(along, 0, .38)) * (1 - .3 * st(along, .75, 1)), .84];
         }
       }
       return [0, 0];
@@ -587,6 +590,10 @@ export class RealCat {
     geometry.setAttribute('furDir', new THREE.BufferAttribute(dir, 3));
     // (The loose flecks of her tail too: they have no coat, but they are tail.)
     for (let i = 0; i < N; i++) if (loose[i]) { let w = 0; for (let k = 0; k < 4; k++) if (part[si.getComponent(i, k)] === 'tail') w += sw.getComponent(i, k); tailW[i] = w; }
+    {
+      const rootAt = BONES2.tail1[1], q = new THREE.Vector3();
+      for (let i = 0; i < N; i++) { const d = q.fromBufferAttribute(pos, i).distanceTo(rootAt), near = 1 - st(d, .1, .19); if (near > 0 && tailW[i] < .5) tailW[i] = tailW[i] > .02 ? tailW[i] * (1 - near) : -near; }
+    }
     geometry.setAttribute('furTail', new THREE.BufferAttribute(tailW, 1));
     if (this.fur) for (const k of ['furLen', 'furDir', 'furTail']) this.fur.geometry.setAttribute(k, geometry.attributes[k]);
   }
@@ -608,12 +615,13 @@ export class RealCat {
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nvec3 lidBaseNormal = normal;')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(normal, lidBaseNormal, lidMask));');
     };
-    material.customProgramCacheKey = () => 'mochi-skin2';
+    material.customProgramCacheKey = () => 'mochi-skin3';
     material.needsUpdate = true;
   }
 
   addFur(skinned, baseMaterial) {
-    const coarse = matchMedia('(pointer: coarse)').matches;
+    // (?fur=phone: a phone's fewer layers on a computer, to look at them.)
+    const coarse = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).get('fur') === 'phone';
     const long = this.longhair; // longer hair needs more layers to stay soft
     const shells = long ? (coarse ? 9 : 20) : coarse ? 6 : 9;
     const g = new THREE.InstancedBufferGeometry();
@@ -621,7 +629,7 @@ export class RealCat {
     g.setIndex(skinned.geometry.index);
     g.instanceCount = shells;
     // (Long coat: cells per model unit, about 2.3 mm across in the room, and how far they're drawn out along the hair: further with fewer layers.)
-    const u = {furShells: {value: shells}, furDensity: {value: long ? 410 : 380}, furStretch: {value: coarse ? 8 : 4}};
+    const u = {furShells: {value: shells}, furDensity: {value: long ? 410 : 380}, furStretch: {value: coarse ? 9 : 4}};
     const m = new THREE.MeshStandardMaterial({map: baseMaterial.map, roughness: 1, metalness: 0});
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, u);
@@ -637,7 +645,7 @@ export class RealCat {
           vec3 furTuft = vec3(sin(position.y * 83.0 + position.z * 61.0) + .6 * sin(position.x * 190.0 + position.y * 170.0), sin(position.z * 71.0 + position.x * 97.0) + .6 * sin(position.y * 210.0 + position.z * 150.0), sin(position.x * 89.0 + position.y * 67.0) + .6 * sin(position.z * 180.0 + position.x * 230.0));
           vec3 furD = (skinMatrix * vec4(furDir + furTuft * 0.11 * furLie, 0.0)).xyz;
           vFurDir = furDir;
-          transformed += furLen * (furN * (vLayer - 0.5 * furLie * vLayer * vLayer) + furD * (0.3 * vLayer + 0.7 * vLayer * vLayer) + vec3(0.0, -0.2, 0.0) * vLayer * vLayer);` : `#include <skinning_vertex>
+          transformed += furLen * (furN * (vLayer - 0.5 * furLie * vLayer * vLayer) + furD * (0.5 * vLayer + 0.5 * vLayer * vLayer) + vec3(0.0, -0.2, 0.0) * vLayer * vLayer);` : `#include <skinning_vertex>
           vec3 furN = normalize(objectNormal);
           transformed += furN * vLayer * furLen + vec3(0.0, -1.0, -0.4) * vLayer * vLayer * furLen * 0.6;`);
       shader.fragmentShader = shader.fragmentShader
@@ -648,7 +656,10 @@ export class RealCat {
           float furLie = length(vFurDir);
           vec3 furDn = furLie > 0.001 ? vFurDir / furLie : vec3(0.0, 1.0, 0.0);
           // (Short fur, her face and paws: nearly round, as it was.)
-          float furLong = vFurLen < 0.024 ? 1.6 : furStretch;
+          // (And the longest, the plume, ruff and britches: longer strokes,
+          // their layers being further apart along the hair. Where a stroke
+          // was shorter than that step, the hair's end broke into dots.)
+          float furLong = vFurLen < 0.024 ? 1.6 : vFurLen < 0.075 ? furStretch : furStretch * 1.5;
           vec3 furG = (vBind + furDn * dot(vBind, furDn) * (1.0 / furLong - 1.0)) * furDensity;
           // From further off the hairs gather into locks, each still a pixel
           // or two wide: cells smaller than a pixel are noise (the "static"
@@ -692,7 +703,7 @@ export class RealCat {
           diffuseColor.rgb += (diffuseColor.rgb * 0.7 + vec3(0.035, 0.022, 0.013)) * furRim;
           #include <lights_physical_fragment>`);
     };
-    m.customProgramCacheKey = () => long ? 'mochi-fur-long7' : 'mochi-fur';
+    m.customProgramCacheKey = () => long ? 'mochi-fur-long8' : 'mochi-fur';
     this.furUniforms = u;
     const fur = new THREE.SkinnedMesh(g, m);
     fur.frustumCulled = false;
