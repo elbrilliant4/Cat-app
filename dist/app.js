@@ -24,6 +24,10 @@ const loaded = storage ? loadSave(storage) : null;
 let pet = loaded ? loaded.pet : fresh();
 keepStorage();
 let saveWarned = false;
+// A brand-new player (no save on this device) gets the welcome once. Test
+// runs skip it (?welcome shows it anyway).
+const QS = new URLSearchParams(location.search);
+const firstVisit = QS.has('welcome') || loaded?.source === 'new' && !navigator.webdriver && !QS.has('debug');
 function save() {
   try { storeSave(storage, pet); }
   catch { if (!saveWarned) { toast('Browser storage is unavailable. Care will last for this visit.'); saveWarned = true; } }
@@ -108,6 +112,8 @@ function isNight() {
 }
 let night = isNight();
 
+// Touch words on phones and tablets, mouse words on computers.
+const touchScreen = matchMedia('(pointer: coarse), (hover: none)').matches || navigator.maxTouchPoints > 0 && !matchMedia('(pointer: fine)').matches;
 function refresh() {
   night = isNight();
   const m = mood(pet);
@@ -116,7 +122,7 @@ function refresh() {
   $('#mood').style.setProperty('--mood', MOOD_COLORS[m] || '#5cc489');
   // Calendar days: a kitten adopted last night is on day 2 this morning.
   const midnight = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
-  $('#age').textContent = 'Day ' + Math.max(1, Math.round((midnight(Date.now()) - midnight(pet.born)) / 86400000) + 1);
+  $('#age').textContent = $('#age-more').textContent = 'Day ' + Math.max(1, Math.round((midnight(Date.now()) - midnight(pet.born)) / 86400000) + 1);
   $('#greeting').textContent = greeting();
   for (const n of NEEDS) {
     const v = Math.round(pet[n.key]), el = $('#ring-' + n.key);
@@ -126,7 +132,8 @@ function refresh() {
     el.classList.toggle('low', v < 35);
   }
   const lv = levelInfo(pet.bond);
-  $('#level').textContent = lv.level;
+  $('#level').textContent = $('#level-mini').textContent = lv.level;
+  $('#level-chip').ariaLabel = `Friendship level ${lv.level}: ${lv.name}`;
   $('#bond-label').textContent = lv.name;
   $('#xp-fill').style.width = (lv.progress * 100).toFixed(1) + '%';
   $('#xp-bar').setAttribute('aria-valuenow', Math.round(lv.progress * 100));
@@ -168,7 +175,7 @@ function refresh() {
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · tap ${perchHint()} to invite her · pinch to zoom` : `Stroke ${pet.name} to pet · click ${perchHint()} to invite her up · drag to look around · scroll to zoom`;
+    : touchScreen ? `Stroke ${pet.name} to pet her · tap ${perchHint()} to invite her up` : `Stroke ${pet.name} to pet · click ${perchHint()} to invite her up · drag to look around · scroll to zoom`;
 }
 
 function showDeltas(before) {
@@ -584,7 +591,7 @@ cat.load('./assets/mochi-ragdoll.glb', p => {
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
-  greet(true);
+  if (firstVisit) setTimeout(welcome, 900); else greet(true);
 }).catch(e => {
   $('#loading strong').textContent = 'Your kitten couldn’t load.';
   $('#load-progress').textContent = 'Please reload to try again.';
@@ -2408,7 +2415,15 @@ const CAMERA_VIEWS = {
   water: () => lookAtSpot(fountain.position, {y: .2}),
   bed: () => lookAtSpot(bed.position, {dist: 3, y: .3}),
 };
-for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => CAMERA_VIEWS[b.dataset.cam]());
+for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => { toggleViewMenu(false); CAMERA_VIEWS[b.dataset.cam](); });
+// The View button: one menu for the camera views, full screen and rooms.
+function toggleViewMenu(open = $('#view-menu').hidden) {
+  $('#view-menu').hidden = !open;
+  $('#view-btn').setAttribute('aria-expanded', String(open));
+}
+$('#view-btn').onclick = () => toggleViewMenu();
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.view-wrap')) toggleViewMenu(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleViewMenu(false); });
 
 host.addEventListener('contextmenu', e => e.preventDefault());
 host.addEventListener('wheel', e => {
@@ -2518,7 +2533,8 @@ function setWatch(on) {
   // Once the layout has changed size.
   setTimeout(() => CAMERA_VIEWS.room(), 80);
 }
-$('#watch-btn').onclick = () => setWatch(!document.body.classList.contains('watch'));
+$('#watch-btn').onclick = () => setWatch(false);
+$('#watch-open').onclick = () => { toggleViewMenu(false); setWatch(true); };
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('watch')) setWatch(false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('watch')) setWatch(false); });
 
@@ -2570,7 +2586,7 @@ $('#place-options').addEventListener('click', e => {
 function renderDecor() {
   $('#decor-options').innerHTML = Object.entries(DECORS).filter(([id]) => inSeason(id, DECOR_FORCE)).map(([id, d]) => `<button type="button" data-decor="${id}" aria-pressed="${room.decor === id}" style="--tint:var(--accent)"><span class="decor-swatch">${DECOR_SWATCHES[id].map(c => `<i style="background:${c}"></i>`).join('')}</span><strong>${d.name}</strong><small>${d.note}</small></button>`).join('');
 }
-$('#decor-btn').onclick = () => { renderPlaces(); renderDecor(); $('#decor-dialog').showModal(); };
+$('#decor-btn').onclick = () => { toggleViewMenu(false); renderPlaces(); renderDecor(); $('#decor-dialog').showModal(); };
 // Day or night by hand (until the clock next turns dusk or dawn).
 $('#daynight').onclick = () => {
   pet.nightOverride = {night: !night, clock: clockNight()};
@@ -2598,6 +2614,12 @@ $('#decor-options').addEventListener('click', e => {
   }, 120);
   if (ready && !pet.sleeping) { express('curious', 1.6); glanceAt(new THREE.Vector3(rand(-2, 2), 1.4, -2.5), 2); }
 });
+
+// More: her moments, the care guide, rename, backup code, credits.
+$('#more-btn').onclick = () => { renderJournal(); $('#more-dialog').showModal(); };
+$('#more-rename').onclick = () => { $('#more-dialog').close(); $('#rename').click(); };
+$('#more-backup').onclick = () => { $('#more-dialog').close(); $('#open-backup').click(); };
+$('#level-chip').onclick = () => { const lv = levelInfo(pet.bond); toast(`Friendship level ${lv.level}: ${lv.name}` + (lv.level >= LEVELS.length ? '' : ` · ${lv.toGo} more to level ${lv.level + 1}`)); };
 
 // Backup codes (save.js): copy one out, or bring a kitten in from one.
 $('#open-backup').onclick = () => {
@@ -2878,3 +2900,46 @@ if (params.has('debug')) window.kitten = {brain, cat, express, ridePendant, dash
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
 // In manual mode, draw one frame so the page isn't blank before stepping.
 if (manual) frame(virtualNow);
+
+// ---------------------------------------------------------------------------
+// First visit: name her, then three short tips over the real screen.
+// ---------------------------------------------------------------------------
+function welcome() {
+  $('#welcome-name').value = pet.name;
+  $('#welcome-dialog').showModal();
+}
+$('#welcome-dialog').addEventListener('cancel', e => e.preventDefault());
+$('#welcome-form').onsubmit = e => {
+  e.preventDefault();
+  const name = $('#welcome-name').value.trim().slice(0, 24);
+  if (name && name !== pet.name) { pet.name = name; moment('A name to love: ' + pet.name + '.', 'i-heart'); }
+  save(); refresh();
+  $('#welcome-dialog').close();
+  greet(true);
+  setTimeout(() => coach(0), 2600);
+};
+const COACH = [
+  ['.dock', () => `Look after ${pet.name} with these: feed, play, cuddle, brush and rest.`],
+  ['#scene', () => touchScreen ? `Stroke her with your finger to pet her. Drag the room to look around, pinch to zoom.` : `Stroke her with the mouse to pet her. Drag the room to look around, scroll to zoom.`],
+  ['#view-btn', () => `View: follow ${pet.name}, see her bowl or bed, or visit the kitchen.`],
+  ['#more-btn', () => `More: her moments, the care guide and a backup code to keep her safe.`],
+];
+function coach(i) {
+  const el = $('#coach');
+  if (i >= COACH.length) { el.hidden = true; return; }
+  const [sel, text] = COACH[i];
+  $('#coach-text').textContent = text();
+  $('#coach-next').textContent = i === COACH.length - 1 ? 'Got it' : 'Next';
+  $('#coach-next').onclick = () => coach(i + 1);
+  el.hidden = false;
+  // Beside its target: below it if there's room, otherwise above.
+  const r = $(sel).getBoundingClientRect(), box = el.getBoundingClientRect(), pad = 12;
+  const big = r.height > innerHeight * .5;
+  const below = r.top + r.height / 2 < innerHeight / 2;
+  let top = big ? r.top + r.height * .35 : below ? r.bottom + pad : r.top - pad - box.height;
+  let left = clamp(r.left + r.width / 2 - box.width / 2, pad, innerWidth - box.width - pad);
+  el.style.top = Math.max(pad, top) + 'px'; el.style.left = left + 'px';
+  document.querySelectorAll('.coach-target').forEach(x => x.classList.remove('coach-target'));
+  if (!big) $(sel).classList.add('coach-target');
+  if (i >= COACH.length - 1) $('#coach-next').addEventListener('click', () => document.querySelectorAll('.coach-target').forEach(x => x.classList.remove('coach-target')), {once: true});
+}

@@ -27,6 +27,8 @@
   <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="m16 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="m15 15 5 5M10.5 8v5M8 10.5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
   <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M19.8 4.2v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18.5" cy="12" r="2"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 3.5v10m-4-4 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 14.5v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14.5 5.5 4 4L9 19H5v-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 2.8c3.4 4.2 6.6 8 6.6 11.6a6.6 6.6 0 0 1-13.2 0c0-3.6 3.2-7.4 6.6-11.6Z" fill="currentColor"/></symbol>
   <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -45,12 +47,16 @@
 
 <div class="app">
   <header class="topbar">
-    <a class="brand" href="./" aria-label="Pocket Kitten home"><img class="brand-mark" src="./assets/icons/icon-192.png" alt="" width="38" height="38"><span>pocket kitten</span></a>
+    <a class="brand" href="./" aria-label="Home"><img class="brand-mark" src="./assets/icons/icon-192.png" alt="" width="38" height="38"></a>
+    <div class="nameplate">
+      <div class="name-row"><h1 id="pet-name">Mochi</h1><button class="ghost-btn" id="rename" aria-label="Rename"><svg><use href="#i-edit"/></svg></button></div>
+      <span class="mood" id="mood"><i></i><span id="mood-text">Feeling lovely</span></span>
+    </div>
     <p class="greeting" id="greeting">Hello again.</p>
     <div class="top-actions">
       <span class="chip build-chip" id="build-chip" hidden></span>
       <span class="chip day-chip"><svg><use href="#i-heart"/></svg><span id="age">Day 1</span></span>
-      <button class="icon-btn" id="decor-btn" aria-label="Rooms and decor" title="Rooms and decor"><svg><use href="#i-house"/></svg></button>
+      <button class="chip level-chip" id="level-chip" aria-label="Friendship level"><svg><use href="#i-heart"/></svg><span>Lv <b id="level-mini">1</b></span></button>
       <button class="icon-btn" id="daynight" aria-label="Switch to night" title="Switch to night"><svg><use href="#i-moon"/></svg></button>
       <div class="sound-wrap">
         <button class="icon-btn" id="sound" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false" aria-controls="sound-panel"><svg><use href="#i-mute"/></svg></button>
@@ -59,6 +65,7 @@
           <label class="sp-row"><span class="pet-name-slot">Mochi</span><input type="range" id="vol-cat" min="0" max="1" step="0.05" aria-label="Your kitten's volume"></label>
         </div>
       </div>
+      <button class="icon-btn" id="more-btn" aria-label="More" title="More"><svg><use href="#i-more"/></svg></button>
     </div>
   </header>
 
@@ -75,17 +82,21 @@
         <div class="speech" id="speech" role="status" aria-live="polite"><span id="speech-text"></span></div>
 
         <div class="hud hud-top">
-          <div class="nameplate glass">
-            <div class="name-row"><h1 id="pet-name">Mochi</h1><button class="ghost-btn" id="rename" aria-label="Rename kitten"><svg><use href="#i-edit"/></svg></button></div>
-            <span class="mood" id="mood"><i></i><span id="mood-text">Feeling lovely</span></span>
-          </div>
-          <div class="hud-buttons cam-buttons" role="toolbar" aria-label="Camera">
-            <button class="icon-btn glass" data-cam="room" aria-label="Whole room" aria-pressed="true" title="Whole room"><svg><use href="#i-view"/></svg><span>Room</span></button>
-            <button class="icon-btn glass" data-cam="follow" aria-label="Follow your kitten" aria-pressed="false" title="Follow your kitten"><svg><use href="#i-paw"/></svg><span class="pet-name-slot">Mochi</span></button>
-            <button class="icon-btn glass" data-cam="food" aria-label="Show the food bowl" aria-pressed="false" title="Food bowl"><svg><use href="#i-bowl"/></svg><span>Food</span></button>
-            <button class="icon-btn glass" data-cam="water" aria-label="Show the water fountain" aria-pressed="false" title="Water fountain"><svg><use href="#i-drop"/></svg><span>Water</span></button>
-            <button class="icon-btn glass" data-cam="bed" aria-label="Show the bed" aria-pressed="false" title="Bed"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
-            <button class="icon-btn glass" id="watch-btn" aria-label="Watch full screen" aria-pressed="false" title="Watch"><svg><use href="#i-expand"/></svg><span>Watch</span></button>
+          <div class="hud-buttons cam-buttons">
+            <div class="view-wrap">
+              <button class="icon-btn glass view-btn" id="view-btn" aria-haspopup="true" aria-expanded="false" aria-controls="view-menu"><svg><use href="#i-view"/></svg><span>View</span></button>
+              <div class="view-menu glass" id="view-menu" role="menu" aria-label="Views and rooms" hidden>
+                <button role="menuitem" data-cam="room" aria-pressed="true"><svg><use href="#i-view"/></svg><span>Whole room</span></button>
+                <button role="menuitem" data-cam="follow" aria-pressed="false"><svg><use href="#i-paw"/></svg><span>Follow <span class="pet-name-slot">Mochi</span></span></button>
+                <button role="menuitem" data-cam="food" aria-pressed="false"><svg><use href="#i-bowl"/></svg><span>Food bowl</span></button>
+                <button role="menuitem" data-cam="water" aria-pressed="false"><svg><use href="#i-drop"/></svg><span>Water fountain</span></button>
+                <button role="menuitem" data-cam="bed" aria-pressed="false"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
+                <button role="menuitem" id="watch-open"><svg><use href="#i-expand"/></svg><span>Full screen</span></button>
+                <hr>
+                <button role="menuitem" id="decor-btn"><svg><use href="#i-house"/></svg><span>Rooms and decor</span></button>
+              </div>
+            </div>
+            <button class="icon-btn glass" id="watch-btn" aria-label="Leave full screen" aria-pressed="false"><svg><use href="#i-expand"/></svg><span>Exit</span></button>
           </div>
         </div>
 
@@ -117,23 +128,8 @@
         </div>
       </section>
 
-      <section class="card log">
-        <nav class="tabs" role="tablist" aria-label="Pet information">
-          <button role="tab" data-tab="journal" class="active" aria-selected="true">Moments <span id="journal-count">1</span></button>
-          <button role="tab" data-tab="guide" aria-selected="false">Care guide</button>
-        </nav>
-        <ol class="journal" id="journal" aria-label="Pet journal"></ol>
-        <div class="guide" id="guide" hidden>
-          <article><span style="--tint:var(--food)"><svg><use href="#i-bowl"/></svg></span><div><h3>A happy tummy</h3><p>Food slowly drops over time. A full kitten will politely decline another serving.</p></div></article>
-          <article><span style="--tint:var(--water)"><svg><use href="#i-drop"/></svg></span><div><h3>Fresh water</h3><p><span class="pet-name-slot">Mochi</span> wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
-          <article><span style="--tint:var(--happy)"><svg><use href="#i-yarn"/></svg></span><div><h3>Play &amp; pounce</h3><p>Steer the toy, then hold it still near your kitten — watch for the wiggle.</p></div></article>
-          <article><span style="--tint:var(--love)"><svg><use href="#i-heart"/></svg></span><div><h3>Strokes &amp; slow blinks</h3><p>Stroke your kitten in the room. Close friends answer with a slow blink — cat for “I love you”.</p></div></article>
-          <article><span style="--tint:var(--energy)"><svg><use href="#i-moon"/></svg></span><div><h3>Sweet dreams</h3><p>Rest restores energy, even while you’re away. Care is saved in this browser.</p></div></article>
-        </div>
-      </section>
     </aside>
   </main>
-  <footer><span>Made for small, happy moments. <span id="build-label">Build: dev</span> <a id="review-link" href="./review/" hidden>Review pack</a></span><span>3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Kitchen painting: Jan Davidsz de Heem, <a href="https://www.nga.gov/collection/art-object-page.46097.html" target="_blank" rel="noopener"><i>Vase of Flowers</i></a>, c. 1660, National Gallery of Art, Washington · Pocket Kitten</span></footer>
 </div>
 
 <dialog id="feed-dialog" aria-labelledby="feed-title">
@@ -186,6 +182,42 @@
     <div class="snacks decor-options" id="decor-options"></div>
   </form>
 </dialog>
+<dialog id="more-dialog" class="sheet" aria-labelledby="more-title">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <span class="eyebrow"><span id="age-more">Day 1</span> together</span>
+  <h2 id="more-title"><span class="pet-name-slot">Mochi</span>’s little book</h2>
+  <div class="more-links">
+    <button type="button" class="secondary" id="more-rename"><svg><use href="#i-edit"/></svg>Rename</button>
+    <button type="button" class="secondary" id="more-backup"><svg><use href="#i-save"/></svg>Backup code</button>
+  </div>
+      <section class="log">
+        <nav class="tabs" role="tablist" aria-label="Pet information">
+          <button role="tab" data-tab="journal" class="active" aria-selected="true">Moments <span id="journal-count">1</span></button>
+          <button role="tab" data-tab="guide" aria-selected="false">Care guide</button>
+        </nav>
+        <ol class="journal" id="journal" aria-label="Pet journal"></ol>
+        <div class="guide" id="guide" hidden>
+          <article><span style="--tint:var(--food)"><svg><use href="#i-bowl"/></svg></span><div><h3>A happy tummy</h3><p>Food slowly drops over time. A full kitten will politely decline another serving.</p></div></article>
+          <article><span style="--tint:var(--water)"><svg><use href="#i-drop"/></svg></span><div><h3>Fresh water</h3><p><span class="pet-name-slot">Mochi</span> wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
+          <article><span style="--tint:var(--happy)"><svg><use href="#i-yarn"/></svg></span><div><h3>Play &amp; pounce</h3><p>Steer the toy, then hold it still near your kitten — watch for the wiggle.</p></div></article>
+          <article><span style="--tint:var(--love)"><svg><use href="#i-heart"/></svg></span><div><h3>Strokes &amp; slow blinks</h3><p>Stroke your kitten in the room. Close friends answer with a slow blink — cat for “I love you”.</p></div></article>
+          <article><span style="--tint:var(--energy)"><svg><use href="#i-moon"/></svg></span><div><h3>Sweet dreams</h3><p>Rest restores energy, even while you’re away. Care is saved in this browser.</p></div></article>
+        </div>
+      </section>
+  <footer class="about"><span>Made for small, happy moments. <span id="build-label">Build: dev</span> <a id="review-link" href="./review/" hidden>Review pack</a></span><span>3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Kitchen painting: Jan Davidsz de Heem, <a href="https://www.nga.gov/collection/art-object-page.46097.html" target="_blank" rel="noopener"><i>Vase of Flowers</i></a>, c. 1660, National Gallery of Art, Washington · Pocket Kitten</span></footer>
+</dialog>
+
+<dialog id="welcome-dialog" class="sheet" aria-labelledby="welcome-title">
+  <form id="welcome-form">
+    <span class="eyebrow">Welcome</span>
+    <h2 id="welcome-title">Meet your kitten.</h2>
+    <p class="dialog-note">She’s a little ragdoll who lives her own life here: she naps, climbs and explores. Look after her and your friendship grows.</p>
+    <label for="welcome-name">What shall we call her?</label>
+    <input id="welcome-name" maxlength="24" value="Mochi" autocomplete="off">
+    <button class="primary" type="submit">Say hello</button>
+  </form>
+</dialog>
+<div class="coach" id="coach" role="dialog" aria-live="polite" hidden><p id="coach-text"></p><button type="button" id="coach-next">Next</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="./app.js"></script>
 </body>

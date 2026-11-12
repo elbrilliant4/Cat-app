@@ -108,7 +108,9 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .greeting { margin: 0; flex: 1; color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top-actions { display: flex; align-items: center; gap: 10px; }
 .chip { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink-2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-.day-chip svg { color: var(--love); }
+.day-chip svg, .level-chip svg { color: var(--love); }
+.level-chip { cursor: pointer; }
+.level-chip b { font-weight: 850; color: var(--ink); }
 .icon-btn { width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; font-size: 19px; color: var(--ink-2); transition: transform .35s var(--spring), background .3s, color .3s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .icon-btn:hover { transform: translateY(-2px); color: var(--ink); }
 .icon-btn:active { transform: scale(.92); }
@@ -137,12 +139,11 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 
 .hud { position: absolute; z-index: 4; pointer-events: none; }
 .hud > * { pointer-events: auto; }
-.hud-top { top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.nameplate { border-radius: 16px; padding: 7px 12px 8px; min-width: 0; transition: opacity .6s, transform .6s; }
-/* Out of the way while a bird is at the window. */
-.scene.bird .nameplate { opacity: .12; transform: translateY(-4px); }
+.hud-top { z-index: 5; top: 16px; left: auto; right: 16px; display: flex; justify-content: flex-end; align-items: flex-start; gap: 10px; }
+.nameplate { min-width: 0; }
 .name-row { display: flex; align-items: center; gap: 4px; }
-.nameplate h1 { margin: 0; font-size: 19px; line-height: 1.1; font-weight: 800; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.topbar .nameplate { flex: 0 1 auto; }
+.nameplate h1 { margin: 0; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; font-weight: 800; letter-spacing: -.6px; overflow-wrap: anywhere; }
 .ghost-btn { border: 0; background: transparent; color: var(--muted); width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; transition: background .2s, color .2s; }
 .ghost-btn:hover { background: var(--line); color: var(--ink); }
 .mood { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ink-2); margin-top: 1px; }
@@ -151,10 +152,21 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .hud-buttons { display: flex; gap: 8px; }
 .hud-buttons .icon-btn { width: 44px; height: 44px; }
 .cam-buttons { flex-direction: column; gap: 6px; }
-.cam-buttons .icon-btn { width: 52px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 17px; border-radius: 14px; }
-.cam-buttons .icon-btn span { font-size: 9.5px; font-weight: 800; letter-spacing: .2px; line-height: 1; }
-/* Her name on the follow button: a long one is trimmed with an ellipsis. */
-.cam-buttons .icon-btn .pet-name-slot { display: block; max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cam-buttons .icon-btn { width: auto; height: 42px; padding: 0 14px 0 12px; display: flex; align-items: center; gap: 7px; font-size: 18px; border-radius: 14px; }
+.cam-buttons .icon-btn span { font-size: 13px; font-weight: 800; }
+#watch-btn { display: none; }
+body.watch #watch-btn { display: flex; }
+body.watch .view-wrap { display: none; }
+/* The View menu: camera views, full screen, rooms and decor. */
+.view-wrap { position: relative; }
+.view-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 220px; padding: 6px; border-radius: 18px; display: grid; gap: 2px; background: var(--card-solid); animation: menuin .3s var(--spring); }
+@keyframes menuin { from { opacity: 0; transform: translateY(-6px) scale(.96); } }
+.view-menu button { display: flex; align-items: center; gap: 11px; border: 0; background: transparent; border-radius: 12px; padding: 10px 12px; min-height: 42px; font-size: 14px; font-weight: 700; color: var(--ink-2); text-align: left; }
+.view-menu button svg { font-size: 18px; color: var(--accent); }
+.view-menu button:hover { background: var(--line); color: var(--ink); }
+.view-menu button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); }
+.view-menu hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.view-menu .pet-name-slot { display: inline; }
 
 /* Speech bubble, anchored above the kitten's head from JS */
 .speech { position: absolute; left: 0; top: 0; z-index: 3; width: max-content; max-width: min(300px, 72%); padding: 11px 16px; border-radius: 18px 18px 18px 6px; background: var(--card-solid); color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; box-shadow: var(--shadow); pointer-events: none; opacity: 0; scale: .8; transform: translate(var(--x, 0px), var(--y, 0px)) translate(0, -100%); transform-origin: 0 100%; transition: opacity .35s var(--ease), scale .5s var(--spring); will-change: transform; }
@@ -317,13 +329,9 @@ label.spaced { margin-top: 22px; }
   .stage { border-radius: 24px; }
   .scene { height: 68svh; min-height: 470px; max-height: 640px; }
   .hud-top { top: 12px; left: 12px; right: 12px; }
-  .nameplate { padding: 6px 10px 7px; border-radius: 14px; }
   .nameplate h1 { font-size: 16px; }
   .mood { font-size: 10px; }
-  .hud-buttons { flex-direction: column; }
-  .hud-buttons .icon-btn { width: 40px; height: 40px; border-radius: 13px; }
-  .cam-buttons .icon-btn { width: 46px; height: 44px; font-size: 16px; }
-  .cam-buttons .icon-btn span { font-size: 8.5px; }
+  .cam-buttons .icon-btn { height: 40px; padding: 0 12px 0 10px; font-size: 17px; border-radius: 13px; }
   .dock { left: 10px; right: 10px; bottom: 10px; transform: none; justify-content: space-between; gap: 0; padding: 6px; border-radius: 22px; }
   .dock button { min-width: 0; flex: 1; padding: 6px 2px; font-size: 11px; }
   .dock-icon { width: 40px; height: 40px; border-radius: 14px; font-size: 20px; }
@@ -336,6 +344,8 @@ label.spaced { margin-top: 22px; }
 }
 @media (max-width: 380px) {
   .day-chip span { display: none; }
+  .level-chip { padding: 8px 9px; gap: 4px; }
+  .level-chip > span { font-size: 0; } .level-chip b { font-size: 13px; }
   .dock-icon { width: 36px; height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -348,5 +358,63 @@ body.watch .stage { position: fixed; inset: 0; z-index: 60; border-radius: 0; bo
 body.watch .scene { height: 100vh; height: 100dvh; min-height: 0; max-height: none; }
 body.watch .dock, body.watch .scene-hint, body.watch .play-meter { opacity: 0; pointer-events: none; }
 body.watch .scene-hint { display: none; }
-body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
 .dock, .scene-hint { transition: opacity .4s; }
+
+/* More sheet */
+.more-links { display: flex; gap: 10px; margin: -4px 0 18px; }
+.more-links .secondary { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.more-links svg { color: var(--accent); font-size: 17px; }
+#more-dialog .journal { max-height: none; }
+footer.about { display: grid; gap: 8px; padding: 22px 2px 0; margin-top: 18px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.5; }
+footer.about > span { display: block; }
+
+/* First visit tips */
+.coach { position: fixed; z-index: 70; width: min(300px, calc(100vw - 24px)); padding: 14px 16px 12px; border-radius: 18px; background: #2c2520; color: #fff8f0; box-shadow: var(--shadow-lg); animation: menuin .4s var(--spring); }
+.night .coach { background: #f6eee4; color: #1c1612; }
+.coach p { margin: 0 0 10px; font-size: 14px; font-weight: 650; line-height: 1.45; }
+.coach button { display: block; margin-left: auto; border: 0; border-radius: 12px; padding: 8px 16px; font-size: 14px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #ffa36c, #f0657e); }
+.coach-target { box-shadow: 0 0 0 3px #fff, 0 0 0 7px color-mix(in srgb, var(--accent) 70%, transparent) !important; border-radius: 18px; }
+.level-chip { display: none; }
+
+/* Phones: one screen, no page scrolling. The room fills the middle, the
+   needs sit underneath; friendship shows as the level chip in the top bar. */
+@media (max-width: 720px) {
+  .level-chip { display: inline-flex; padding: 8px 11px; }
+  .day-chip { display: none; }
+  .brand { display: none; }
+  .topbar { gap: 8px; }
+  .topbar .nameplate { flex: 1; }
+  .mood { max-width: 100%; display: flex; }
+  .mood i { flex: none; }
+  .mood > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #rename { display: none; }
+  .top-actions { gap: 6px; }
+  .top-actions .icon-btn { width: 40px; height: 40px; border-radius: 13px; }
+  .topbar.has-build .brand { display: none; }
+  .bond-card { display: none; }
+  .scene-hint { padding: 6px 12px 7px; }
+  .view-menu button { min-height: 40px; padding: 8px 12px; }
+  /* Sheets rise from the bottom. */
+  dialog { margin: auto 0 0; width: 100%; max-width: 100%; max-height: 90dvh; overflow: auto; border-radius: 28px 28px 0 0; border-bottom: 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
+  dialog[open] { animation: sheetin .45s var(--ease); }
+  @keyframes sheetin { from { transform: translateY(40%); opacity: 0; } }
+  dialog h2 { font-size: 22px; margin-bottom: 14px; }
+}
+@media (max-width: 720px) and (min-height: 560px) {
+  body { min-height: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+  .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .topbar { flex: none; height: 60px; padding-top: env(safe-area-inset-top); box-sizing: content-box; }
+  .layout { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+  .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .scene { flex: 1; height: auto; min-height: 0; max-height: none; }
+  .panel { flex: none; display: block; }
+  .card.needs { padding: 8px 6px 8px; border-radius: 22px; }
+  .needs .card-head { display: none; }
+  .rings { gap: 0; }
+  .ring { gap: 2px; }
+  .ring-wrap, .ring svg.dial { width: 44px; height: 44px; }
+  .ring .track, .ring .bar { stroke-width: 8; }
+  .ring-icon { font-size: 16px; }
+  .ring strong { font-size: 12.5px; }
+  .ring small { font-size: 10.5px; margin-top: 0; }
+}
