@@ -245,24 +245,28 @@ BONES2.tail7 = ['tail6', V(0.48, -0.365, -0.82), V(0.43, -0.34, -0.95)];
 // draws it with ?bones).
 const side = (n, parent, x, y, z, end) => ({[n + 'R']: [parent && parent + 'R', V(-x, y, z), end && V(-end[0], end[1], end[2])].filter(v => v !== undefined), [n + 'L']: [parent && parent + 'L', V(x, y, z), end && V(...end)].filter(v => v !== undefined)});
 export const GROUND_Y_LONGHAIR = -0.602;
+// Joint heights are the first Mochi's (hip and shoulder joints, knees,
+// hocks, elbows, wrists the same height off the floor in the room), so the
+// movement tuned on her fits; the paws and the head are where this model
+// has them. The spine runs through the middle of the body, fur included.
 export const BONES_LONGHAIR = {
-  hips:  [null,    V(0, 0.08, -0.30)],
-  spine: ['hips',  V(0, 0.08, -0.02)],
-  chest: ['spine', V(0, 0.08, 0.30)],
-  neck:  ['chest', V(0, 0.17, 0.55)],
+  hips:  [null,    V(0, -0.03, -0.27)],
+  spine: ['hips',  V(0, -0.01, 0.01)],
+  chest: ['spine', V(0, -0.01, 0.29)],
+  neck:  ['chest', V(0, 0.15, 0.55)],
   head:  ['neck',  V(0, 0.29, 0.70), V(0, 0.29, 0.93)],
   jaw:   ['head',  V(0, 0.23, 0.78), V(0, 0.21, 0.93)],
   earR:  ['head',  V(-0.11, 0.41, 0.75), V(-0.152, 0.508, 0.787)],
   earL:  ['head',  V(0.11, 0.41, 0.75), V(0.156, 0.509, 0.783)],
-  scapulaR: ['chest', V(-0.07, 0.20, 0.34)], scapulaL: ['chest', V(0.07, 0.20, 0.34)],
-  ...side('shoulder', 'scapula', 0.09, -0.02, 0.46),
-  ...side('elbow', 'shoulder', 0.075, -0.28, 0.42),
-  ...side('wrist', 'elbow', 0.078, -0.48, 0.435, [0.087, -0.585, 0.53]),
-  thighR: ['hips', V(-0.10, 0.0, -0.30)], thighL: ['hips', V(0.10, 0.0, -0.30)],
-  hipR: ['hips', V(-0.10, 0.0, -0.30)], hipL: ['hips', V(0.10, 0.0, -0.30)],
+  scapulaR: ['chest', V(-0.07, 0.20, 0.32)], scapulaL: ['chest', V(0.07, 0.20, 0.32)],
+  ...side('shoulder', 'scapula', 0.09, -0.052, 0.37),
+  ...side('elbow', 'shoulder', 0.078, -0.305, 0.40),
+  ...side('wrist', 'elbow', 0.078, -0.504, 0.44, [0.087, -0.577, 0.53]),
+  thighR: ['hips', V(-0.10, -0.069, -0.27)], thighL: ['hips', V(0.10, -0.069, -0.27)],
+  hipR: ['hips', V(-0.10, -0.069, -0.27)], hipL: ['hips', V(0.10, -0.069, -0.27)],
   // (She stands mid-step: her right hind leg is a little further back.)
-  kneeR: ['hipR', V(-0.12, -0.26, -0.22)], kneeL: ['hipL', V(0.12, -0.26, -0.20)],
-  hockR: ['kneeR', V(-0.11, -0.45, -0.36), V(-0.15, -0.585, -0.28)], hockL: ['kneeL', V(0.10, -0.45, -0.31), V(0.13, -0.585, -0.20)],
+  kneeR: ['hipR', V(-0.12, -0.305, -0.22)], kneeL: ['hipL', V(0.12, -0.305, -0.20)],
+  hockR: ['kneeR', V(-0.11, -0.468, -0.355), V(-0.15, -0.577, -0.28)], hockL: ['kneeL', V(0.10, -0.468, -0.31), V(0.13, -0.577, -0.20)],
   tail0: ['hips',  V(0, 0.15, -0.40)],
   tail1: ['tail0', V(0, 0.21, -0.50)],
   tail2: ['tail1', V(0, 0.28, -0.58)],
@@ -304,7 +308,7 @@ export function useModel(name) {
   for (const k of ['scapulaR', 'scapulaL', 'thighR', 'thighL']) delete BONES[k];
   BONES.shoulderR = ['chest', BONES_LONGHAIR.shoulderR[1]]; BONES.shoulderL = ['chest', BONES_LONGHAIR.shoulderL[1]];
   for (const k of ['eyeR', 'eyeL', 'eyeRadius', 'mouth', 'nose']) FACE[k].copy(FACE_LONGHAIR[k]);
-  Object.assign(LEGS.R, {axis: [-0.078, 0.45]}); Object.assign(LEGS.L, {axis: [0.078, 0.45]});
+  Object.assign(LEGS.R, {axis: [-0.078, 0.43]}); Object.assign(LEGS.L, {axis: [0.078, 0.43]});
   Object.assign(LEGS.HR, {axis: [-0.125, -0.31]}); Object.assign(LEGS.HL, {axis: [0.115, -0.26]});
   Object.assign(T, T_LONGHAIR);
   GROUND_Y = GROUND_Y_LONGHAIR; MIDLINE_X = 0;
