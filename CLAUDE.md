@@ -6,6 +6,10 @@ kitchen. What it does and for whom: `SPEC.md`.
 ## Hard rules
 - Work only on branch `claude/expressive-cat-modern-ui-65z6r5`. GitHub Pages
   publishes it at /preview/. No other branches, no Vercel.
+- In the fork `jvtomax99/Cat-app` (its owner's own version of the app,
+  2026-11-12): every change he asks for goes to that preview branch, which
+  shows at https://jvtomax99.github.io/Cat-app/preview/. The original site
+  (elbrilliant4.github.io) is published from a repository the fork can't reach.
 - Nothing goes live without Merlin saying "Go live". Live = `git push origin
   <reviewed sha>:main`, check the Deploy workflow, add a row to `MILESTONES.md`.
 - This repo only. Never touch Netlify.
