@@ -1,3 +1,52 @@
+# Handoff: 2026-11-12 (night), third cut of the opening film
+
+## Next step
+Merlin said the third cut is good ("Good, write the plan", 22:55 UTC). Film:
+`sources/title/film-v3/mochi-film-v3-A.mp4`, 9.8 s, music A. NOT in the app.
+Now: the plan for a big change (CLAUDE.md "Big vs small"): first look at 2
+or 3 similar apps' openings and first-run steps, tell Merlin in a few lines,
+then plan mode, list assumptions, wait for his OK. Nothing is built.
+Decisions Merlin made tonight (not in SPEC.md yet, add them with the plan):
+- The film plays after Enter on the first launch of every day, in place of
+  the zoomies sequence; a tap skips. Night, the Christmas look and
+  `?mochi=first` keep the zoomies (earlier outline, still stands).
+- "Tap the ball" first step: ADD NOW, planned with the film. After the film
+  the room is live, a short "Tap the ball" prompt, the first tap makes Mochi
+  react at once, petting and care taught after. My proposal, not yet agreed:
+  the prompt shows only the very first time, not every day. Note: the yarn
+  ball is a title toy today (`TITLE_TOYS`), removed on entering the room, so
+  the room needs a real ball. Show the plan to Lettuce before building.
+- The film's last frame matches the living title (`real-room.webp`), so the
+  hand-over should be a short cross-fade from film to the live room.
+- Also: CREDITS.md rows for the film and music, copy the film to
+  `dist/assets/title/` (1.7 MB), reduced motion gets no film.
+- Another session pushes to this branch too (panel revamp): fetch and
+  rebase before every push.
+How the cut was made:
+- Shot 1 wake: REDONE in the bright real room (Merlin asked), task
+  932911f0, key picture 8dcf62c1 (`k1.webp`), `shot1.mp4`.
+- Shot 2 spots the ball (over her shoulder), task e0675dc2, key picture
+  67e501e9 (`k2.webp`). Use about 1.0 s.
+- Shot 3 crouch and short pounce, task 0b5eefc6 (4 s), key picture 4b40b5d4
+  (`k3.webp`). Use about 2.5 s.
+- Shot 4 nudges the ball to the viewer, sits, waits: task ff8063f9 (4 s),
+  DONE and good (`shot4.mp4`). Starts on 638c4681 (`k4s.webp`), ends on
+  285df482 (`kE.webp`), which was made from a clean still of the real living
+  title (`real-room.webp`, Runway upload asset 5a749de0). Use the last 3.0 s.
+- CUT DONE (22:50 UTC): `mochi-film-v3-A.mp4` (music A) and
+  `mochi-film-v3-silent.mp4`, 9.8 s, all four shots in the real room. Cut:
+  shot1 0.9-3.0, shot2 0.5-1.7, shot3 0.5-3.2, shot4 0.2-4.04; music from
+  0, faded out from 8.3 s. `last-frame-vs-real-room.png` is the comparison.
+  Merlin has it; waiting for his OK or reshoot notes.
+- After his OK on the cut: plan (big change, plan mode) for the film in the
+  app PLUS the new "Tap the ball" first step: after the film the room is
+  live, a short "Tap the ball" prompt, the first tap makes Mochi react at
+  once, petting and care are taught after. Not in SPEC.md yet: add it with a
+  "Done when" line when the plan is agreed; show the plan to Lettuce.
+- Runway credits: 1,366 left (188 spent on this cut).
+- Still owed, Merlin said "Later": true-speed clip of the living title.
+
+---
 # Handoff: 2026-11-12 (late), camera and touch live
 
 ## Next step

@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from '/vendor/GLTFLoader.js';
+const S = 256;
+const r = new THREE.WebGLRenderer({antialias: true, alpha: true, preserveDrawingBuffer: true});
+r.setSize(S, S); r.setPixelRatio(1); r.setClearColor(0, 0);
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+document.body.append(r.domElement);
+// Render one model as a soft clay icon: one colour, warm key light from top
+// left, a cool fill, a bright rim, framed to fill about 82% of the square.
+window.renderIcon = async ({url, color, color2, split = 1, yaw = -.35, pitch = .28, roll = 0}) => {
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xfff6ee, 0xd9b9a4, 1.5));
+  const key = new THREE.DirectionalLight(0xfff1e2, 2.6); key.position.set(-2, 3, 3); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xe9f0ff, .7); fill.position.set(3, 0, 2); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 1.6); rim.position.set(1.5, 2, -3); scene.add(rim);
+  const g = await new GLTFLoader().loadAsync(url);
+  const obj = g.scene;
+  const base = new THREE.Color(color), alt = new THREE.Color(color2 || color);
+  obj.traverse(m => {
+    if (!m.isMesh) return;
+    m.geometry.computeVertexNormals();
+    m.material = new THREE.MeshPhysicalMaterial({color: base, roughness: .5, clearcoat: .35, clearcoatRoughness: .4, sheen: .6, sheenColor: new THREE.Color(0xffffff), sheenRoughness: .7, vertexColors: !!color2});
+    if (color2) {
+      m.geometry.computeBoundingBox();
+      const bb = m.geometry.boundingBox, pos = m.geometry.attributes.position, c = new Float32Array(pos.count * 3);
+      const cut = bb.min.y + (bb.max.y - bb.min.y) * split;
+      for (let i = 0; i < pos.count; i++) { const col = pos.getY(i) > cut ? alt : base; c.set([col.r, col.g, col.b], i * 3); }
+      m.geometry.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      m.material.color.set(0xffffff);
+    }
+  });
+  const pivot = new THREE.Group(); pivot.add(obj); scene.add(pivot);
+  const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3());
+  obj.position.sub(c);
+  pivot.rotation.set(pitch, yaw, roll);
+  const b2 = new THREE.Box3().setFromObject(pivot), sz = b2.getSize(new THREE.Vector3());
+  const half = Math.max(sz.x, sz.y) / 2 / .82;
+  const cam = new THREE.OrthographicCamera(-half, half, half, -half, .01, 100);
+  cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0);
+  const cen = b2.getCenter(new THREE.Vector3()); pivot.position.sub(new THREE.Vector3(cen.x, cen.y, 0));
+  r.render(scene, cam);
+  return r.domElement.toDataURL('image/png');
+};
+window.ready = true;
+</script>

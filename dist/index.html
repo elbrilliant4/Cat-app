@@ -124,16 +124,20 @@
 
     <aside class="panel">
       <section class="card needs" aria-labelledby="needs-title">
-        <div class="card-head"><h2 id="needs-title">Needs</h2><span class="card-sub" id="care-tip">A snack, a game, or simply being here.</span></div>
+        <div class="card-head"><h2 id="needs-title">Needs</h2><span class="status-pill" id="needs-pill">All good</span></div>
         <div class="rings" id="stats"></div>
+        <div class="nudge" id="nudge">
+          <span class="nudge-text" id="care-tip">A snack, a game, or simply being here.</span>
+          <button class="nudge-btn" id="nudge-btn" type="button" hidden></button>
+        </div>
       </section>
 
       <section class="card bond-card" aria-labelledby="bond-title">
-        <div class="level-badge"><small>LV</small><b id="level">1</b></div>
+        <div class="level-badge"><img src="assets/icons/clay/paw.webp" alt="" width="56" height="56"><span class="lv-chip">Lv <b id="level">1</b></span></div>
         <div class="bond-body">
-          <h2 id="bond-title"><span id="bond-label">New friends</span></h2>
+          <div class="bond-top"><h2 id="bond-title"><span id="bond-label">New friends</span></h2><span class="bond-count" id="bond-count">0 cuddles</span></div>
           <div class="xp" role="progressbar" aria-label="Friendship to next level" aria-valuemin="0" aria-valuemax="100" id="xp-bar"><i id="xp-fill"></i></div>
-          <div class="bond-meta"><span id="bond-next">15 to go</span><span id="bond-count">0 cuddles</span></div>
+          <div class="bond-meta" id="bond-next">15 to go</div>
         </div>
       </section>
 
@@ -142,18 +146,21 @@
           <button role="tab" data-tab="journal" class="active" aria-selected="true">Moments <span id="journal-count">1</span></button>
           <button role="tab" data-tab="guide" aria-selected="false">Care guide</button>
         </nav>
-        <ol class="journal" id="journal" aria-label="Pet journal"></ol>
+        <div id="journal-wrap">
+          <ol class="journal" id="journal" aria-label="Pet journal"></ol>
+          <button class="more-btn" id="journal-more" type="button" hidden>Show all</button>
+        </div>
         <div class="guide" id="guide" hidden>
-          <article><span style="--tint:var(--food)"><svg><use href="#i-bowl"/></svg></span><div><h3>A happy tummy</h3><p>Food slowly drops over time. A full kitten will politely decline another serving.</p></div></article>
-          <article><span style="--tint:var(--water)"><svg><use href="#i-drop"/></svg></span><div><h3>Fresh water</h3><p><span class="pet-name-slot">Mochi</span> wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
-          <article><span style="--tint:var(--happy)"><svg><use href="#i-yarn"/></svg></span><div><h3>Play &amp; pounce</h3><p>Steer the toy, then hold it still near your kitten — watch for the wiggle.</p></div></article>
-          <article><span style="--tint:var(--love)"><svg><use href="#i-heart"/></svg></span><div><h3>Strokes &amp; slow blinks</h3><p>Stroke your kitten in the room. Close friends answer with a slow blink — cat for “I love you”.</p></div></article>
-          <article><span style="--tint:var(--energy)"><svg><use href="#i-moon"/></svg></span><div><h3>Sweet dreams</h3><p>Rest restores energy, even while you’re away. Care is saved in this browser.</p></div></article>
+          <article><img src="assets/icons/clay/bowl.webp" alt="" width="40" height="40"><div><h3>A happy tummy</h3><p>Food slowly drops over time. A full kitten will politely decline another serving.</p></div></article>
+          <article><img src="assets/icons/clay/drop.webp" alt="" width="40" height="40"><div><h3>Fresh water</h3><p><span class="pet-name-slot">Mochi</span> wanders over to her fountain by herself. Tap the fountain to invite a drink.</p></div></article>
+          <article><img src="assets/icons/clay/heart.webp" alt="" width="40" height="40"><div><h3>Play, pounce, cuddle</h3><p>Steer the toy, then hold it still near your kitten and watch for the wiggle. Stroke her in the room: close friends answer with a slow blink, cat for “I love you”.</p></div></article>
+          <article><img src="assets/icons/clay/sparkle.webp" alt="" width="40" height="40"><div><h3>A soft brush</h3><p>Brushing keeps her fluff fluffy. She lets you know when it’s time.</p></div></article>
+          <article><img src="assets/icons/clay/bolt.webp" alt="" width="40" height="40"><div><h3>Sweet dreams</h3><p>Rest restores energy, even while you’re away. Care is saved in this browser.</p></div></article>
         </div>
       </section>
     </aside>
   </main>
-  <footer><span>Made for small, happy moments. <span id="build-label">Build: dev</span> <a id="review-link" href="./review/" hidden>Review pack</a></span><span>3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Kitchen painting: Jan Davidsz de Heem, <a href="https://www.nga.gov/collection/art-object-page.46097.html" target="_blank" rel="noopener"><i>Vase of Flowers</i></a>, c. 1660, National Gallery of Art, Washington · Pocket Kitten</span></footer>
+  <footer><span class="foot-line">Made for small, happy moments.<span class="foot-build"><span id="build-label">Build: dev</span> <a id="review-link" href="./review/" hidden>Review pack</a></span></span><span class="foot-credits">3D cat model made with <a href="https://www.meshy.ai" target="_blank" rel="noopener">Meshy</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) · Kitchen painting: Jan Davidsz de Heem, <a href="https://www.nga.gov/collection/art-object-page.46097.html" target="_blank" rel="noopener"><i>Vase of Flowers</i></a>, c. 1660, National Gallery of Art, Washington · Pocket Kitten</span></footer>
 </div>
 
 <dialog id="feed-dialog" aria-labelledby="feed-title">
