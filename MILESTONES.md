@@ -14,6 +14,7 @@ brings that version's app back.
 | Live build 137 | `631f8ab` | Mouth reaches the food and water (sits in the sink to lap the faucet), monarch butterflies at the windows, vacuum steers round the island and stools, steadier legs on turns and shelves, gathered tent flaps. |
 | Live build 171 | `70ade23` | Walks like a cat (set to measured cat numbers: longer slower steps, lower, narrow track, no stutter-step), a trot for every run, gallop only at a dash or zoomies, hind legs no longer hop together. |
 | Live build 174 | `97f11c8` | Halloween stored away out of October (a room left in it wakes up as Thanksgiving). |
+| Live build 267 | `1aba265` | Looking around and touching her: one finger drags the room like a map and circles her up close, two fingers pinch, turn and tilt, double tap looks closer, a floor tap calls her; she reacts to where she's touched (chin loved, tail and paws not, belly a trap until friends). |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
