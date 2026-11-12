@@ -63,11 +63,11 @@ const LEGACY_ICONS = {'♡': 'i-heart', '◡': 'i-bowl', '≋': 'i-brush', '✺'
 const ICON_TINT = {'i-drop': '--water', 'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
 
 const NEEDS = [
-  {key: 'food', label: 'Tummy', icon: 'i-bowl', tint: '--food'},
-  {key: 'happiness', label: 'Joy', icon: 'i-heart', tint: '--happy'},
-  {key: 'water', label: 'Water', icon: 'i-drop', tint: '--water'},
-  {key: 'energy', label: 'Energy', icon: 'i-bolt', tint: '--energy'},
-  {key: 'cleanliness', label: 'Fluff', icon: 'i-sparkle', tint: '--clean'},
+  {key: 'food', label: 'Tummy', img: 'bowl', tint: '--food', low: 40, verb: 'Feed', act: 'feed', tip: 'A tasty snack would be lovely.'},
+  {key: 'happiness', label: 'Joy', img: 'heart', tint: '--happy', low: 35, verb: 'Play', act: 'play', tip: 'A cuddle or a game would help.'},
+  {key: 'water', label: 'Water', img: 'drop', tint: '--water', low: 40, verb: 'Fountain', cam: 'water', tip: 'Tap the fountain to invite a drink.'},
+  {key: 'energy', label: 'Energy', img: 'bolt', tint: '--energy', low: 35, verb: 'Nap', act: 'sleep', tip: 'A nap will put the bounce back.'},
+  {key: 'cleanliness', label: 'Fluff', img: 'sparkle', tint: '--clean', low: 30, verb: 'Brush', act: 'brush', tip: 'Time for a gentle brush.'},
 ];
 const CIRC = 2 * Math.PI * 29;
 for (const n of NEEDS) {
@@ -79,7 +79,7 @@ for (const n of NEEDS) {
   el.setAttribute('aria-label', n.label);
   el.setAttribute('aria-valuemin', '0');
   el.setAttribute('aria-valuemax', '100');
-  el.innerHTML = `<div class="ring-wrap"><svg class="dial" viewBox="0 0 70 70" aria-hidden="true"><circle class="track" cx="35" cy="35" r="29"/><circle class="bar" cx="35" cy="35" r="29" style="stroke-dashoffset:${CIRC}"/></svg><span class="ring-icon">${icon(n.icon)}</span></div><div><strong>0%</strong><small>${n.label}</small></div>`;
+  el.innerHTML = `<div class="ring-wrap"><svg class="dial" viewBox="0 0 70 70" aria-hidden="true"><circle class="track" cx="35" cy="35" r="29"/><circle class="bar" cx="35" cy="35" r="29" style="stroke-dashoffset:${CIRC}"/></svg><img class="ring-icon" src="assets/icons/clay/${n.img}.webp" alt="" width="34" height="34"></div><div><strong>0%</strong><small>${n.label}</small></div>`;
   $('#stats').append(el);
 }
 
@@ -140,14 +140,15 @@ function refresh() {
     el.querySelector('.bar').style.strokeDashoffset = String(CIRC * (1 - v / 100));
     el.querySelector('strong').textContent = v + '%';
     el.setAttribute('aria-valuenow', v);
-    el.classList.toggle('low', v < 35);
+    el.classList.toggle('low', v < n.low);
   }
   const lv = levelInfo(pet.bond);
   $('#level').textContent = lv.level;
   $('#bond-label').textContent = lv.name;
   $('#xp-fill').style.width = (lv.progress * 100).toFixed(1) + '%';
   $('#xp-bar').setAttribute('aria-valuenow', Math.round(lv.progress * 100));
-  $('#bond-next').textContent = lv.level >= LEVELS.length ? 'Max level — wow' : `${lv.toGo} to level ${lv.level + 1}`;
+  $('#bond-next').textContent = lv.level >= LEVELS.length ? 'Top level. Nothing left to prove.' : `${lv.toGo} more care to reach “${LEVEL_NAMES[lv.level]}”`;
+  $('#xp-bar').setAttribute('aria-valuenow', Math.round(lv.progress * 100));
   $('#bond-count').textContent = pet.cuddles + ' cuddle' + (pet.cuddles === 1 ? '' : 's');
   if (lv.level > shownLevel) {
     const badge = $('.level-badge');
@@ -168,13 +169,18 @@ function refresh() {
     b.setAttribute('aria-disabled', String(off));
     b.classList.toggle('active', brain.mode === b.dataset.action || (b.dataset.action === 'sleep' && pet.sleeping));
   }
-  $('#care-tip').textContent = pet.sleeping ? 'Resting restores energy, even while you’re away.'
-    : pet.food < 40 ? 'A tasty snack would be lovely.'
-    : pet.water < 40 ? 'Tap the fountain to invite a drink.'
-    : pet.energy < 35 ? 'A nap will put the bounce back.'
-    : pet.cleanliness < 30 ? 'Time for a gentle brush.'
-    : pet.happiness < 35 ? 'A cuddle or a game would help.'
-    : 'All good. Just be here.';
+  // The lowest need, if any is low, gets a line and a one-tap button for it.
+  const lowest = NEEDS.filter(n => pet[n.key] < n.low).sort((a, b) => pet[a.key] / a.low - pet[b.key] / b.low)[0];
+  const lowCount = NEEDS.filter(n => pet[n.key] < n.low).length;
+  $('#care-tip').textContent = pet.sleeping ? 'Resting restores energy, even while you’re away.' : lowest ? lowest.tip : 'All good. Just be here.';
+  const nb = $('#nudge-btn');
+  nb.hidden = pet.sleeping || !lowest;
+  if (lowest && !pet.sleeping) { nb.textContent = lowest.verb; nb.dataset.need = lowest.key; nb.style.setProperty('--tint', `var(${lowest.tint})`); }
+  $('#nudge').classList.toggle('wants', !!lowest && !pet.sleeping);
+  $('#nudge').style.setProperty('--tint', pet.sleeping ? 'var(--dream)' : lowest ? `var(${lowest.tint})` : 'var(--good)');
+  const pill = $('#needs-pill');
+  pill.textContent = pet.sleeping ? 'Asleep' : lowCount ? (lowCount === 1 ? '1 needs you' : `${lowCount} need you`) : 'All good';
+  pill.dataset.state = pet.sleeping ? 'sleep' : lowCount ? 'low' : 'good';
   // Her own name everywhere (buttons, the sound panel, the care guide).
   document.querySelectorAll('.pet-name-slot').forEach(el => { if (el.textContent !== pet.name) el.textContent = pet.name; });
   $('[data-cam="follow"]').title = $('[data-cam="follow"]').ariaLabel = `Follow ${pet.name}`;
@@ -208,20 +214,43 @@ function moment(text, iconId = 'i-heart') {
   renderJournal(true);
   save();
 }
+// Moments, newest first, under a day heading (Today, Yesterday, a date);
+// five show until "Show all".
+let journalAll = false;
+function dayLabel(t) {
+  const d = new Date(t); d.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((today - d) / 86400000);
+  return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+}
 function renderJournal(fresh = false) {
   const list = $('#journal');
   list.replaceChildren();
-  pet.journal.slice(0, 8).forEach((m, i) => {
+  const shown = pet.journal.slice(0, journalAll ? 12 : 5);
+  let lastDay = null;
+  shown.forEach((m, i) => {
+    const day = dayLabel(m.time);
+    if (day !== lastDay) {
+      const h = document.createElement('li');
+      h.className = 'day-head';
+      h.textContent = day;
+      list.append(h);
+      lastDay = day;
+    }
     const id = LEGACY_ICONS[m.icon] || (String(m.icon).startsWith('i-') ? m.icon : 'i-heart');
     const li = document.createElement('li');
     li.className = 'moment' + (fresh && i === 0 ? ' new' : '');
     li.style.setProperty('--tint', `var(${ICON_TINT[id] || '--love'})`);
-    const when = new Date(m.time);
-    li.innerHTML = `<span class="moment-icon">${icon(id)}</span><div><strong></strong><small></small></div>`;
-    li.querySelector('strong').textContent = m.text;
-    li.querySelector('small').textContent = when.toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) + ' · ' + when.toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'});
+    li.innerHTML = `<span class="moment-icon">${icon(id)}</span><span class="moment-text"></span><time></time>`;
+    li.querySelector('.moment-text').textContent = m.text;
+    const t = li.querySelector('time');
+    t.dateTime = new Date(m.time).toISOString();
+    t.textContent = new Date(m.time).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'});
     list.append(li);
   });
+  const more = $('#journal-more');
+  more.hidden = pet.journal.length <= 5;
+  more.textContent = journalAll ? 'Show fewer' : `Show all ${pet.journal.length}`;
   $('#journal-count').textContent = pet.journal.length;
 }
 
@@ -3021,8 +3050,18 @@ $('.tabs').onclick = e => {
   const b = e.target.closest('[data-tab]');
   if (!b) return;
   for (const x of $('.tabs').querySelectorAll('button')) { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', String(x === b)); }
-  $('#journal').hidden = b.dataset.tab !== 'journal';
+  $('#journal-wrap').hidden = b.dataset.tab !== 'journal';
   $('#guide').hidden = b.dataset.tab !== 'guide';
+};
+$('#journal-more').onclick = () => { journalAll = !journalAll; renderJournal(); };
+// The Needs card's button does what the dock would: it brings the room back
+// into view first, since play and the fountain happen there.
+$('#nudge-btn').onclick = () => {
+  const n = NEEDS.find(x => x.key === $('#nudge-btn').dataset.need);
+  if (!n) return;
+  $('.stage').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+  if (n.cam) $(`[data-cam="${n.cam}"]`).click();
+  else $(`.dock [data-action="${n.act}"]`).click();
 };
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', e => {
@@ -3601,7 +3640,7 @@ let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 // clips that play at true speed however slowly its renderer draws.
 const params = new URLSearchParams(location.search), manual = params.has('debug') && params.has('frames');
 let virtualNow = performance.now();
-if (params.has('debug')) window.kitten = {brain, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {brain, renderJournal, cat, get clock() { return clockNow; }, SWAT, express, get title() { return {stage: titleStage, cine, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
