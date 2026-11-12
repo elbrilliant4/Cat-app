@@ -13,7 +13,25 @@
   with `?decor=christmas` on the address, then the look picker. Stills:
   `DECOR=christmas node tools/qa/look.mjs`.
 
-## Next (ask Merlin which)
+## Next, in order (Merlin's picks, 2026-11-12)
+A. Compare overlaps with `main`: same runs (`SEC=600 SEED=1` and `SEED=2
+   SHOTS=0 node tools/qa/vacuum.mjs`) on `origin/main`, against the joined
+   numbers under Gotchas. Was running when this was written; if the logs
+   are gone, rerun. Then fix what the join broke, or note it was there.
+B. Christmas details Merlin asked for, from Orion's pictures (all four):
+   1. Mochi curled up asleep in the garland (a curled sleep pose; motion
+      work, phase 12 is paused for the new model, so ask how far to go).
+   2. The three hanging lamps as glowing alabaster shades on brass arms.
+   3. Tent corner: plaid cushion in the tent, woven round mats under the
+      tent and the fountain, green mat under the bowl.
+   4. Shelf and counter styling closer to the pictures (boards, stacked
+      bowls, framed prints, books; utensil jar, pine in a pot).
+Done this session for Christmas: kitchen decor, warm walls and floor,
+dappled sun, evening lights, her nap spot, study mantel pine and lantern,
+plaid chair cushion, kitchen camera (wide screens) turned to yaw .15 so
+the fireplace shows through the doorway.
+
+## After that (ask Merlin which)
 1. Merlin looks at the Christmas kitchen on the preview and gives notes
    or "Go live" (go live takes the whole preview branch: check with him
    that phases 11, 11b and 12 are ready to go with it, or go live with

@@ -1009,9 +1009,11 @@ export class Kitchen {
   frame(wide) {
     const I = K.island;
     return {
-      // Wide screens look a little toward the right wall and its painting;
-      // phones toward the window corner, where her steps climb the wall.
-      yaw: wide ? -.2 : .35,
+      // Wide screens look nearly straight at the back wall, from a little
+      // right of centre: from there the study's fireplace shows through the
+      // doorway (straight on it's hidden by the jamb). Phones look toward
+      // the window corner, where her steps climb the wall.
+      yaw: wide ? .15 : .35,
       // Wide screens: the whole room. Phones: her route (floor, wall steps,
       // counter, both shelves) and the island; the tent corner is a drag away.
       across: wide
