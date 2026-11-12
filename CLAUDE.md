@@ -10,6 +10,9 @@ kitchen. What it does and for whom: `SPEC.md`.
   2026-11-12): every change he asks for goes to that preview branch, which
   shows at https://jvtomax99.github.io/Cat-app/preview/. The original site
   (elbrilliant4.github.io) is published from a repository the fork can't reach.
+- In the fork, a push does not publish. After pushing, run the "Deploy
+  site" workflow (`pages.yml` on `main`; it republishes `main` unchanged),
+  then check `/preview/version.json` shows the new commit before saying so.
 - Nothing goes live without Merlin saying "Go live". Live = `git push origin
   <reviewed sha>:main`, check the Deploy workflow, add a row to `MILESTONES.md`.
 - This repo only. Never touch Netlify.
@@ -22,6 +25,8 @@ kitchen. What it does and for whom: `SPEC.md`.
 - Request ambiguous → ask ONE clarifying question before doing anything.
 - Several options → always as a picker (AskUserQuestion), recommended first
   with a one-line why. Picking one means: go do it.
+- Every reply that leaves a next step ends with my suggestion and clickable
+  options (Merlin, 2026-11-12).
 - Challenge Merlin. If a plan is bad, say so and why, give a better option,
   and name the biggest risk he isn't seeing. Don't argue small stuff. Once
   he decides after hearing you out, build it his way.
@@ -59,7 +64,7 @@ say "fixed", "works" or "done" without running it; say what you checked.
 Couldn't check → say "not verified" and why.
 - Small: a screenshot or a short "try this" list.
 - Big: check against its "Done when" line, push, give the preview link
-  (https://elbrilliant4.github.io/Cat-app/preview/) to test on his phone.
+  (https://jvtomax99.github.io/Cat-app/preview/) to test on his phone.
 - Phase or big feature done → a separate reviewer subagent checks the diff
   for bugs, broken behaviour and anything off-spec, without seeing how it
   was written. Fix what it finds; tell Merlin in 2 or 3 lines what it caught.
