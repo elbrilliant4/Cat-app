@@ -28,7 +28,7 @@ let titleStage = 'load', cine = null, titleFx = null, titleToys = null, titleToy
 let timeRate = 1, clockLag = 0;
 const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
 const TITLE_CHIME = 'wake-chime.mp3';
-function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, footer').forEach(el => el.inert = false); }
+function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, .app > footer').forEach(el => el.inert = false); }
 const motion = reduceMotion ? 0.35 : 1;
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ function toast(text) {
 
 const icon = (id, cls = '') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 // Phones get the room full screen with the panel as a pull-up sheet (phase 08).
-const sheetMQ = matchMedia('(max-width: 720px)');
+const sheetMQ = matchMedia('(max-width: 720px) and (orientation: portrait)');
 const CLAY_ICONS = {'i-drop': 'drop', 'i-heart': 'heart', 'i-bowl': 'bowl', 'i-brush': 'brush', 'i-yarn': 'yarn', 'i-moon': 'moon', 'i-sparkle': 'sparkle', 'i-paw': 'paw', 'i-bolt': 'bolt'};
 const LEGACY_ICONS = {'♡': 'i-heart', '◡': 'i-bowl', '≋': 'i-brush', '✺': 'i-yarn', '☾': 'i-moon', '✦': 'i-sparkle'};
 const ICON_TINT = {'i-drop': '--water', 'i-heart': '--love', 'i-bowl': '--food', 'i-brush': '--clean', 'i-yarn': '--happy', 'i-moon': '--energy', 'i-sparkle': '--accent', 'i-sun': '--energy'};
@@ -3564,7 +3564,7 @@ function shrinkTitle() {
   titleRoot.classList.add('title', 'title-out');
   if (!stage.animate || r.width < 10) return endTitle();
   const from = {top: '0px', left: '0px', width: innerWidth + 'px', height: innerHeight + 'px', borderRadius: '0px'};
-  const to = {top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px', borderRadius: getComputedStyle(titleRoot).getPropertyValue('--radius').trim() || '28px'};
+  const to = {top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px', borderRadius: sheetMQ.matches ? '0px' : getComputedStyle(titleRoot).getPropertyValue('--radius').trim() || '28px'};
   let anim;
   try { anim = stage.animate([from, to], {duration: 900, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards'}); } catch { return endTitle(); }
   titleFlip = true;
@@ -3767,23 +3767,27 @@ function sheetOpen(on) {
   sheetGrip.setAttribute('aria-expanded', String(on));
   sheetGrip.ariaLabel = on ? 'Show less' : 'Show more';
   if (!on) sheet.scrollTop = 0;
+  // Resting, what's below the needs can't be reached by keyboard either.
+  for (const el of sheet.querySelectorAll('.bond-card, .log, footer')) el.inert = sheetMQ.matches && !on;
+  if (!on) requestAnimationFrame(sheetPeek);
 }
 function sheetPeek() {
   if (!sheetMQ.matches) return;
   const p = sheet.getBoundingClientRect(), n = $('.panel .needs').getBoundingClientRect();
-  const px = Math.round(n.bottom - p.top + 14);
+  const px = Math.round(n.bottom - p.top + sheet.scrollTop + 14);
   const was = parseFloat(document.documentElement.style.getPropertyValue('--peek-px')) || 0;
   if (Math.abs(px - was) < 2) return;
   document.documentElement.style.setProperty('--peek-px', px + 'px');
   // The dock moved: frame the room in the space left above it.
-  if (view.mode === 'room' && !titleOn) setTimeout(() => CAMERA_VIEWS.room(), 60);
+  if (view.mode === 'room' && !titleOn) { clearTimeout(sheetPeek.t); sheetPeek.t = setTimeout(() => CAMERA_VIEWS.room(), 450); }
 }
 function sheetLayout() {
   const phone = sheetMQ.matches;
   // The top bar's buttons and the credits go where a phone can see them.
   const acts = $('.top-actions'), foot = $('footer');
   if (phone) { $('.hud-left').append(acts); sheet.append(foot); }
-  else { $('.topbar').append(acts); $('.app').append(foot); sheetOpen(false); }
+  else { $('.topbar').append(acts); $('.app').append(foot); }
+  sheetOpen(false);
   sheetScrim.hidden = !phone;
   requestAnimationFrame(sheetPeek);
 }
@@ -3819,6 +3823,7 @@ function sheetDragEnd(e) {
   if (!d || e.pointerId !== d.id) return;
   sheetDrag = null;
   if (!d.moving) return;
+  if (e.type === 'pointercancel') { sheet.classList.remove('dragging'); sheet.style.transform = ''; sheetOpen(d.open); return; }
   const dy = e.clientY - d.y, v = dy / Math.max(1, performance.now() - d.t);
   sheet.classList.remove('dragging');
   sheet.style.transform = '';
@@ -3835,6 +3840,29 @@ sheet.addEventListener('click', e => {
   if (e.target.closest('#sheet-grip')) { sheetOpen(!isSheetOpen()); return; }
   if (!isSheetOpen() && !e.target.closest('button, a, input')) sheetOpen(true);
 }, true);
+let sheetPull = null;
+sheet.addEventListener('touchstart', e => {
+  sheetPull = isSheetOpen() && !sheetDrag && sheet.scrollTop <= 0 && e.touches.length === 1 ? {y: e.touches[0].clientY, t: performance.now(), on: false} : null;
+}, {passive: true});
+sheet.addEventListener('touchmove', e => {
+  const d = sheetPull;
+  if (!d) return;
+  const dy = e.touches[0].clientY - d.y;
+  if (!d.on && (dy < 6 || sheet.scrollTop > 0)) { if (dy < -6) sheetPull = null; return; }
+  d.on = true; d.dy = dy;
+  e.preventDefault();
+  sheet.classList.add('dragging');
+  sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
+}, {passive: false});
+const sheetPullEnd = e => {
+  const d = sheetPull; sheetPull = null;
+  if (!d?.on) return;
+  sheet.classList.remove('dragging'); sheet.style.transform = '';
+  const v = d.dy / Math.max(1, performance.now() - d.t);
+  sheetOpen(!(e.type === 'touchend' && (d.dy > 120 || v > .35)));
+};
+sheet.addEventListener('touchend', sheetPullEnd);
+sheet.addEventListener('touchcancel', sheetPullEnd);
 sheetScrim.addEventListener('click', () => sheetOpen(false));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && isSheetOpen()) sheetOpen(false); });
 

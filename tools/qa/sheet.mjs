@@ -48,6 +48,21 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   ok(await isOpen(page), 'a tap on the grip opens it');
   await page.mouse.click(200, 30); await page.waitForTimeout(800);
   ok(!(await isOpen(page)), 'a tap on the room above closes it');
+  // Open, scrolled down, a need changes: the resting height must survive.
+  await page.click('#sheet-grip'); await page.waitForTimeout(700);
+  await page.evaluate(() => { document.querySelector('#sheet').scrollTop = 400; kitten.pet.food = 90; kitten.pet.water = 20; kitten.refresh(); });
+  await page.waitForTimeout(500);
+  await page.mouse.click(200, 30); await page.waitForTimeout(900);
+  const pk = await page.evaluate(() => { const s = document.querySelector('#sheet').getBoundingClientRect(), d = document.querySelector('.dock').getBoundingClientRect(); return {top: s.top, dock: d.bottom}; });
+  ok(pk.top > 400 && pk.top < 700 && pk.dock <= pk.top + 1, `resting height kept after a change while scrolled (sheet top ${Math.round(pk.top)}, dock ${Math.round(pk.dock)})`);
+  const inert = await page.evaluate(() => ['.bond-card', '.log', '#sheet footer'].every(q => document.querySelector(q).inert));
+  ok(inert, 'resting: friendship, moments and footer are out of keyboard reach');
+  await page.evaluate(() => { kitten.pet.food = 22; kitten.pet.water = 77; kitten.refresh(); });
+  await page.waitForTimeout(600);
+  // A message shows above the sheet.
+  const t = await page.evaluate(async () => { kitten.pet.sleeping = true; kitten.refresh(); document.querySelector('.dock [data-action="feed"]').click(); await new Promise(r => setTimeout(r, 600)); const el = document.querySelector('.toast'), r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); kitten.pet.sleeping = false; kitten.refresh(); return {text: el.textContent, top: !!hit && el.contains(hit)}; });
+  ok(t.top, `a message shows on top ("${t.text}")`);
+  await page.waitForTimeout(3000);
   await page.click('.need.hero .need-btn'); await page.waitForTimeout(700);
   ok(await page.evaluate(() => document.querySelector('#feed-dialog').open), 'Feed on the resting sheet opens the snack menu');
   await close();
@@ -56,4 +71,12 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   const {page, close} = await start(1, true);
   await page.screenshot({path: `${OUT}/asleep-night.png`});
   await close();
+}
+{
+  // Turned sideways: no sheet, the old layout.
+  const s = await open({width: 667, height: 375, flags: '&intro=0'});
+  await s.step(10);
+  const fixed = await s.page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).position);
+  ok(fixed !== 'fixed', `phone turned sideways keeps the page layout (sheet position ${fixed})`);
+  await s.close();
 }
