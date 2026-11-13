@@ -3913,6 +3913,19 @@ function updateCamera(dt) {
     clampGoal();
   }
   const g = view.goal, following = view.mode === 'follow' && ready;
+  // The care buttons and the sheet cover the bottom of the picture. In Mochi
+  // mode the whole picture slides up by half of that, so she sits in the
+  // middle of the part you can see. (The picture moves, not the camera: a
+  // lower camera flattens the floor and taps on it land on the furniture.)
+  {
+    const clear = clearArea(), W = Math.max(1, host.clientWidth);
+    view.shift = damp(view.shift || 0, following && !titleOn ? (clear.h - clear.bottom) / 2 : 0, 4, dt);
+    const px = view.shift < .5 ? 0 : Math.round(view.shift);
+    if (px !== view.shiftPx || W !== view.shiftW || clear.h !== view.shiftH) {
+      if (px) camera.setViewOffset(W, clear.h, 0, px, W, clear.h); else camera.clearViewOffset();
+      Object.assign(view, {shiftPx: px, shiftW: W, shiftH: clear.h});
+    }
+  }
   // Let go past the end of the turn: it springs back to the end.
   if (!touches.size && !view.fling && !titleOn) {
     const over = Math.abs(g.yaw) - TURN_MAX;
@@ -3931,10 +3944,6 @@ function updateCamera(dt) {
     // middle of body and tail.
     const fit = fitDistance(frame.radius);
     if (view.zoomHeld && !playing && g.dist < fit) frame.center.lerp(cat.headCenter(framePt), clamp((fit - g.dist) / (fit * .45), 0, 1));
-    // The care buttons and the sheet cover the bottom of the picture: aim a
-    // little under her, so she sits in the middle of the part you can see.
-    const clear = clearArea();
-    frame.center.y -= (1 - clear.bottom / clear.h) * view.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.cos(view.pitch);
     if (frame.center.distanceTo(g.focus) > (playing ? .2 : .3) * clamp(g.dist / 3, .35, 1)) g.focus.copy(frame.center);
     clampGoal();
     // Your own zoom stays until you pick a view again. (While playing it

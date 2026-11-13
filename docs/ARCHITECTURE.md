@@ -197,8 +197,10 @@ stays inside `CAM_BOX`: turned to a side, the arm shortens. `view.shown` is
 how far the camera really is (walls, `boxArm`, furniture); zoom starts from
 it. `view.zoomHeld` = the player chose the zoom, so follow leaves it.
 `clearArea()` = the part of the picture above the care buttons and the
-sheet; in `follow` the focus is lowered so she sits in the middle of it,
-and close in it aims at `cat.headCenter`. `keepCamMode`: Mochi mode unless
+sheet; in `follow` the picture slides up by half of what they cover
+(`camera.setViewOffset`, eased as `view.shift`; the camera itself does not
+move, so taps on the floor land where they did), and close in it aims at
+`cat.headCenter`. `keepCamMode`: Mochi mode unless
 the player picked Explore (also called when the first steps end, from
 `learned`). `showHer()`: a care button pressed in Explore while
 `herInPicture()` is false looks at her (`lookAtSpot`, mode `spot`).
