@@ -64,11 +64,13 @@ const mode = () => page.evaluate(() => kitten.view.mode);
 const pref = () => page.evaluate(() => localStorage.getItem('mochi-cam'));
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(120);
 const prefE = await pref();
-const SPOT = [-1.0, 0, .8];
+// (A bare bit of floor: not the ball, a bowl or a perch.)
+const SPOT = [.6, 0, 1.3];
 [x0, y0] = await screenOf(SPOT);
 const e0 = await pos();
 await page.mouse.move(x0, y0); await page.mouse.down(); await page.mouse.up(); await step(160); const e1 = await pos();
-line('tap the floor in Explore, she stays', Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) < .3 && await mode() !== 'follow', `she moved ${Math.hypot(e1[0] - e0[0], e1[1] - e0[1]).toFixed(2)} m, mode ${await mode()}`);
+const bm = await page.evaluate(() => kitten.brain.mode);
+line('tap the floor in Explore, she stays', Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) < .3 && await mode() !== 'follow' && bm === 'idle', `tapped at ${x0.toFixed(0)}, ${y0.toFixed(0)}: she moved ${Math.hypot(e1[0] - e0[0], e1[1] - e0[1]).toFixed(2)} m (${bm}), mode ${await mode()}`);
 await page.evaluate(() => document.querySelector('[data-cam="follow"]').click()); await step(80);
 line('the buttons are remembered', prefE === 'explore' && await pref() === 'mochi', `kept "${prefE}" after Explore, "${await pref()}" after Mochi`);
 const far4 = await page.evaluate(() => { const p = kitten.brain.pos; return [p.x < 0 ? p.x + 1.3 : p.x - 1.3, 0, p.z + .5]; });
@@ -80,8 +82,8 @@ line('tap the floor in Mochi, she comes', Math.hypot(p1[0] - far4[0], p1[1] - fa
 
 // 4c. One finger turns the view about what it looks at, and the view stays where you leave it.
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(120);
-const dragBy = async (dx, n = 8) => { const sx = box.x + box.w / 2 - dx * n / 2, sy = box.y + 330; await page.mouse.move(sx, sy); await page.mouse.down(); for (let i = 1; i <= n; i++) { await page.mouse.move(sx + i * dx, sy); await step(1); } await page.waitForTimeout(150); await page.mouse.up(); await step(40); };
-const h0 = await state(); await dragBy(-15); const h1 = await state();
+const dragBy = async (dx, n = 6) => { const sx = box.x + box.w / 2 - dx * n / 2, sy = box.y + 330; await page.mouse.move(sx, sy); await page.mouse.down(); for (let i = 1; i <= n; i++) { await page.mouse.move(sx + i * dx, sy); await step(1); } await page.waitForTimeout(150); await page.mouse.up(); await step(40); };
+const h0 = await state(); await dragBy(-20); const h1 = await state();
 await step(160); const h2 = await state(); await shot('4c-turned');
 line('one finger turns the view', Math.abs(h1.yaw - h0.yaw) > .5 && h1.mode === 'free' && Math.abs(h2.yaw - h1.yaw) < .03, `turned ${((h1.yaw - h0.yaw) * 57.3).toFixed(0)}° for a 120 px drag (${h0.mode} to ${h1.mode}); 8 s later it had drifted ${((h2.yaw - h1.yaw) * 57.3).toFixed(1)}°`);
 // (On and on: the turn ends at a side wall, gives a little, springs back; then all the way to the other side.)
@@ -97,12 +99,11 @@ await look(HOME); await step(2);
 [x0, y0] = await screenOf([.6, 0, -.8]); const q0 = await pos(); // (on a phone screen, off her)
 await page.mouse.move(x0, y0); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(60);
 const dd = await state(); const q1 = await pos(); await shot('4d-double-tap-floor');
-const q0b = q0;
 line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - .6, dd.focus[2] + .8) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
 
 const dbl = async (x, y) => { await page.mouse.move(x, y); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(50); };
 // 4e. The fireplace: a double tap goes to it; so does a pinch (see 7).
-const FIRE = [3.55, .55, 1.1], SIDE = {focus: [1.2, .7, .4], yaw: -.7, pitch: .3, dist: 7};
+const FIRE = [3.55, .55, 1.1], SIDE = {focus: [2.5, .7, 1], yaw: -1.2, pitch: .3, dist: 5};
 await look(SIDE); await step(2);
 [x0, y0] = await screenOf(FIRE); await dbl(x0, y0); await step(40); const fp = await state(); await shot('4e-double-tap-fireplace');
 line('double tap the fireplace', Math.hypot(fp.focus[0] - FIRE[0], fp.focus[2] - FIRE[2]) < .9 && fp.dist < 4.2 && fp.mode === 'free', `looking at [${fp.focus}] from ${fp.dist.toFixed(1)} m (fireplace at [${FIRE}]), tapped at ${x0.toFixed(0)}, ${y0.toFixed(0)}`);
