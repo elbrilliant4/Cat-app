@@ -1,3 +1,23 @@
+# Handoff: 2026-11-13, opening film and first steps on the preview
+
+## Next step (waiting on Merlin)
+Phase 15 is built, reviewed and on the preview; Merlin tested it on his
+phone and said it works. `node tools/qa/title.mjs`: 17 of 17 PASS (run it
+alone, never two runs at once: the machine is too slow and the film ends
+before the test looks). It waits for his "Go live". Careful: going live
+pushes the whole preview branch to `main`, and the branch also holds another
+session's work (phase 08 phone sheet, panel revamp, camera checks) and
+phases 02, 11 to 14b. Ask him which of that he has approved before any push
+to `main`. Details: `docs/phases/15-opening-film.md`, SPEC.md, and
+`docs/ARCHITECTURE.md` ("The film", "First steps").
+- Reviewer found 10 points, all fixed (worst: an older backup code broke
+  the app until reload; a film that stalled could freeze).
+- Not checkable here: film start and sound on a real iPhone (Merlin's test
+  covered his phone only), and Lettuce has not seen it.
+- Still owed, Merlin said "Later": true-speed clip of the living title.
+- Runway credits: 1,366 left.
+
+---
 # Handoff: 2026-11-12 (night), third cut of the opening film
 
 ## Next step
