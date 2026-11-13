@@ -21,7 +21,7 @@ export const DECORS = {
   halloween: {name: 'Halloween at the Beach House', note: 'Jack-o’-lanterns, paper bats and a felt bat', months: [10], then: 'thanksgiving'},
   // (Christmas dresses the kitchen; the study keeps its classic plaid,
   // leather and greenery, with pine and a lantern on the mantel.)
-  christmas: {name: 'Christmas at the Beach House', note: 'Pine garland, velvet bows and fairy lights', months: [12], then: 'classic'},
+  christmas: {name: 'Christmas at the Beach House', note: 'Pine garland, velvet bows and fairy lights', months: [11, 12], then: 'classic'},
 };
 // A look that's offered now (`force`: a decor named in the page's address,
 // to look at one out of season).
