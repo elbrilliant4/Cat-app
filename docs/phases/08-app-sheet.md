@@ -59,3 +59,14 @@ are always on screen together, and nothing is more than one swipe away.
 Similar apps: Finch (pet scene with a sheet and tabs), Pou and Tamagotchi
 style (stats over the scene), the Interpreter Hub (capsule tab bar and
 sheets).
+
+## After Merlin's first try (2026-11-13): "takes too much of the screen"
+- Resting, the sheet is one slim row of the five needs (no heading, no big
+  card): about 13% of a 390 x 844 screen; sheet plus dock about 22%.
+- The big card and its button show when the sheet is open; resting, the
+  care button for what she needs most glows (`.wants`; the fountain camera
+  button for water).
+- Slimmer dock; camera buttons icons only; no Day chip on phones.
+- The room view may run off the left and right edges on a phone held
+  upright (`ROOM_CROP` .6 in `roomFrame`, `?crop=` to compare), so she is
+  bigger.
