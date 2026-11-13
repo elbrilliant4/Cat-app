@@ -248,25 +248,64 @@
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="module">
-// Fresh files on every new build. A phone (above all the home-screen app)
-// keeps old copies of the app's files; the site's version.json is never
-// kept, so when its build differs from the one last seen here, the app's
-// own files are fetched again (which renews the kept copies) and the page
-// is loaded once more, so the picture, the styles and the code all come
-// from the same build (a page that mixed old styles with new code drew the
-// title screen as a strip). The app starts meanwhile, as always: nothing
-// here holds it up. No version.json (a local run) or offline: nothing happens.
+// The offline copy, and a fresh app on every new build (phase 18; sw.js says
+// how it works). At each launch: a build that finished coming in last time
+// is put to use and the page loads again at once; then the site's
+// version.json (never kept on the phone) is read, and a build that is not
+// here yet is fetched whole, in the background. It is put to use now only
+// while the title screen is still up, or when this is the first copy;
+// otherwise at the next launch. So the page, the styles and the code always
+// come from one build (a page that mixed old styles with new code drew the
+// title screen as a strip). Nothing here holds the app up. No version.json
+// (a local run) or no signal: nothing happens. `?sw=off`, or `"sw": false`
+// in version.json, removes the offline copy.
 (async () => {
-  try {
-    const v = await fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null);
-    const now = v && `${v.build}:${v.commit}`, had = localStorage.getItem('pk-build');
+  const sw = navigator.serviceWorker, here = new URL('./', location.href);
+  const version = () => fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
+  const ask = (w, msg) => new Promise(done => { const c = new MessageChannel(); c.port1.onmessage = e => done(e.data); w.postMessage(msg, [c.port2]); });
+  const remove = async () => {
+    for (const r of await sw.getRegistrations()) if (r.scope === here.href) await r.unregister();
+    for (const k of await caches.keys()) if (k.startsWith(`pk:${here.pathname}:`)) await caches.delete(k);
+  };
+  // Without the offline copy (a browser that has none, or `?sw=off`): the
+  // app's own files are fetched again on a new build, then one more load.
+  const plain = async () => {
+    const v = await version(), now = v && `${v.build}:${v.commit}`, had = localStorage.getItem('pk-build');
     if (!now || had === now) return;
     // (A first visit with nothing kept is already fresh: no second load.)
     const kept = performance.getEntriesByType('resource').some(e => /\/(style\.css|app\.js)(\?|$)/.test(e.name) && !(e.transferSize > 0));
-    const files = ['index.html', 'style.css', 'app.js', 'cat-rig.js', 'decor.js', 'face-sculpt.js', 'kitchen.js', 'meows.js', 'motion-cat.js', 'motion.js', 'pet-state.js', 'real-cat.js', 'room.js', 'save.js', 'sound.js', 'title-fx.js'];
+    const files = ['index.html', 'style.css', 'app.js', 'away.js', 'cat-rig.js', 'decor.js', 'face-sculpt.js', 'kitchen.js', 'meows.js', 'motion-cat.js', 'motion.js', 'pet-state.js', 'real-cat.js', 'rewards.js', 'room.js', 'save.js', 'sound.js', 'title-fx.js'];
     await Promise.all(files.map(f => fetch('./' + f, {cache: 'reload'}).then(r => r.arrayBuffer()).catch(() => {})));
     localStorage.setItem('pk-build', now);
     if (had !== null || kept) location.reload();
+  };
+  try {
+    const off = new URLSearchParams(location.search).get('sw') === 'off';
+    if (!sw || !window.caches || off) { if (sw && window.caches && off) await remove(); return await plain(); }
+    if (sw.controller) { const r = await ask(sw.controller, {cmd: 'launch'}); if (r.flipped) return location.reload(); }
+    const v = await version();
+    if (!v) return;
+    if (v.sw === false) return await remove();
+    await sw.register('./sw.js', {updateViaCache: 'none'});
+    const worker = (await sw.ready).active, now = `${v.build}:${v.commit}`, had = localStorage.getItem('pk-build');
+    const s = await ask(worker, {cmd: 'state'});
+    window.__offline = {build: s.current, staged: s.staged};
+    if (s.current === now) { localStorage.setItem('pk-build', now); return; }
+    const kinds = [matchMedia('(pointer: coarse)').matches ? 'phone' : 'web', ...(navigator.connection && navigator.connection.saveData ? [] : ['film'])];
+    // (The first copy waits until she is home: her model comes first.)
+    const loading = document.querySelector('#loading');
+    if (!s.current && loading) await new Promise(done => { const look = () => loading.classList.contains('done') && (seen.disconnect(), done()), seen = new MutationObserver(look); seen.observe(loading, {attributes: true}); look(); });
+    const {ok} = await ask(worker, {cmd: 'stage', build: now, kinds});
+    window.__offline.staged = ok ? now : null;
+    if (!ok) return;
+    // The first copy: this page came off the network just now, so it is the
+    // same build, unless the phone had kept files of an older one.
+    const first = !s.current, onTitle = document.documentElement.classList.contains('title');
+    if (!first && !onTitle) return;
+    await ask(worker, {cmd: 'launch'});
+    window.__offline = {build: now, staged: null};
+    localStorage.setItem('pk-build', now);
+    if (!first || (had !== null && had !== now)) location.reload();
   } catch {}
 })();
 </script>
