@@ -2388,6 +2388,8 @@ let pinch = null;
 function seedPinch() {
   const [p1, p2] = [...touches.values()];
   pinch = {d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2, a: Math.atan2(p2.y - p1.y, p2.x - p1.x), twist: 0};
+  // (A new pinch aims afresh, however soon after the last.)
+  view.zoomedAt = -100;
 }
 function setPointer(e) {
   const r = host.getBoundingClientRect();
@@ -2615,7 +2617,9 @@ function zoomBy(f, at) {
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
   if (view.mode !== 'room' && view.mode !== 'follow' && f > 1) {
     if (to < from * f - 1e-3) view.push += Math.log(f);
-    if (to > 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
+    // (Crossing out past the room's edge, or a clear pinch against the
+    // far end: a view already that far out, say the turned whole room, stays.)
+    if (to > 9 && from <= 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
   }
   const k = to / from;
   g.dist = to;
@@ -2654,7 +2658,7 @@ function goClose(x, y) {
   const p = thingUnder(x, y);
   if (!p) return;
   p.y = Math.max(p.y, .3);
-  if (view.mode !== 'room' && view.shown < 3 && p.distanceTo(view.goal.focus) < .8) { CAMERA_VIEWS.room(); return; }
+  if (view.mode !== 'room' && view.shown < 4.5 && p.distanceTo(view.goal.focus) < .8) { CAMERA_VIEWS.room(); return; }
   const from = Math.min(view.goal.dist, view.shown);
   if (view.mode === 'room') setCamMode('free');
   view.goal.focus.copy(p);
@@ -2802,9 +2806,11 @@ const CAMERA_VIEWS = {
     view.home = {yaw: fit.yaw, pitch: fit.pitch};
     setCamMode('room');
   },
-  follow() {
+  // (`yaw`: from where to look at her; left out, from where the camera is.
+  // Never from beyond the ends of the turn.)
+  follow(yaw) {
     Object.assign(view.goal, {dist: ready ? clamp(fitDistance(framing(false).radius), 2.6, 6) : tallScreen() ? 4.2 : 3.4, pitch: .26});
-    view.goal.yaw = Math.atan2(camera.position.x - brain.pos.x, camera.position.z - brain.pos.z);
+    view.goal.yaw = clamp(typeof yaw === 'number' ? yaw : Math.atan2(camera.position.x - brain.pos.x, camera.position.z - brain.pos.z), -TURN_MAX, TURN_MAX);
     setCamMode('follow');
   },
   food: () => lookAtSpot(bowl.position, {y: .15}),
@@ -2816,7 +2822,7 @@ const CAM_PREF = 'mochi-cam';
 const camPref = () => { try { return storage.getItem(CAM_PREF); } catch { return null; } };
 // (After the title, or in a new room: back to her if that was your mode.
 // Not while the first steps are being shown: they are framed for the room.)
-function keepCamMode() { if (camPref() === 'mochi' && !teachStep()) CAMERA_VIEWS.follow(); }
+function keepCamMode() { if (camPref() === 'mochi' && !teachStep()) CAMERA_VIEWS.follow(view.goal.yaw); }
 for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => {
   CAMERA_VIEWS[b.dataset.cam]();
   try { storage.setItem(CAM_PREF, view.mode === 'follow' ? 'mochi' : 'explore'); } catch {}
@@ -2875,10 +2881,11 @@ host.addEventListener('pointermove', e => {
     // (Measured from where the pinch began: fingers report one at a time,
     // so the spot between them jitters even in a straight pinch. Not from the
     // whole-room view: there a pinch comes in first.)
-    const sx = pinch.sx ?? mx, sy = pinch.sy ?? my;
-    let slide = pinch.slide || Math.hypot(mx - sx, my - sy) > 22;
+    // (Both fingers going the same way: one finger alone is a pinch.)
+    const sx = pinch.sx ?? mx, sy = pinch.sy ?? my, d0 = pinch.d0 ?? d, went = Math.hypot(mx - sx, my - sy);
+    const slide = pinch.slide || went > 22 && Math.abs(d - d0) < went * 1.5;
     if (slide && (view.mode === 'free' || view.mode === 'spot') && !titleOn) pan(mx - pinch.mx, my - pinch.my);
-    pinch = {d, mx, my, a, twist, slide, sx, sy};
+    pinch = {d, mx, my, a, twist, slide, sx, sy, d0};
     return;
   }
   trackPointer(e);
@@ -2949,6 +2956,20 @@ function endGesture(e) {
   // Explore: two quick taps on a thing go close to it.
   if (gesture && !gesture.moved && !gesture.onCat && !gesture.panning && brain.mode !== 'play' && e.timeStamp - gesture.t0 < 400 && view.mode !== 'follow' && secondTap(e.clientX, e.clientY, e.timeStamp)) {
     goClose(e.clientX, e.clientY);
+    gesture = null;
+    host.classList.remove('stroking', 'dragging');
+    return;
+  }
+  // (Explore: a tap on the fountain or a perch waits a moment, in case a
+  // second tap makes it a look closer; then it does what it always did.)
+  if (gesture && !gesture.moved && (gesture.onPerch || gesture.onFountain) && view.mode !== 'follow' && lastFloor && e.timeStamp - gesture.t0 < 400) {
+    const tap = lastFloor, g = gesture, px = e.clientX - g.rect.left, py = e.clientY - g.rect.top;
+    later(.34, () => {
+      if (lastFloor !== tap) return;
+      lastFloor = null;
+      if (g.onFountain) { if (pet.sleeping) toast('Shh… wake your kitten first.'); else act('drink'); }
+      else { pawAt(px, py); invite(g.onPerch); }
+    });
     gesture = null;
     host.classList.remove('stroking', 'dragging');
     return;
@@ -3034,10 +3055,12 @@ function goTo(id) {
   brain.heading = pet.sleeping ? place.layoutCache.sleepHeading ?? .6 : 0;
   setActivity(pet.sleeping ? 'sleep' : 'sit');
   toy.position.copy(TOY_HOME); toyTarget.copy(TOY_HOME);
+  const withHer = view.mode === 'follow';
   CAMERA_VIEWS.room();
   view.focus.copy(view.goal.focus);
   Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
-  keepCamMode();
+  // (In Mochi mode the new room opens on her too.)
+  if (withHer) CAMERA_VIEWS.follow(view.goal.yaw);
   pet.place = id;
   save();
   refresh();
