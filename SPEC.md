@@ -51,7 +51,7 @@ the phone's browser and can be added to the home screen.
   stroking is felt all along the stroke; rolling over is hers to decide, not
   every third pat; a single tap on the floor calls her there unless she is
   busy or asleep (`tools/qa/camera.mjs`).
-- **Opening film** (preview, phase 15). Done when: on the first launch of
+- **Opening film** (live, phase 15). Done when: on the first launch of
   the day, by day, in the plain study, with the long-haired Mochi and an
   upright screen, Enter plays the film "Mochi and the yarn ball" (9.8 s,
   its music only with "Enter with sound"); a tap skips it; it fades into
@@ -59,7 +59,7 @@ the phone's browser and can be added to the home screen.
   seasonal look, with the first Mochi or on a wide screen the zoomies
   sequence plays instead; a film that cannot load never leaves a black or
   stuck screen (`tools/qa/title.mjs`).
-- **First steps** (preview, phase 15). Done when: a new player sees "Tap the
+- **First steps** (live, phase 15). Done when: a new player sees "Tap the
   pink ball" once, a tap on the ball starts play at once, then one "give her
   a stroke" hint, and neither shows again, also after a reload; a save from
   before never sees them; the ball stays tappable for good.
