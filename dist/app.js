@@ -181,8 +181,10 @@ function refresh() {
   const lows = NEEDS.filter(n => pet[n.key] < n.low);
   const hero = pet.sleeping ? NEEDS.find(n => n.key === 'energy') : [...NEEDS].sort((a, b) => pet[a.key] / a.low - pet[b.key] / b.low)[0];
   const tip = pet.sleeping ? 'Resting restores energy, even while you’re away.' : lows.length ? hero.tip : 'All good. Just be here.';
+  // On a phone with the sheet resting, the needs are one slim row (no big card).
+  const compact = sheetMQ.matches && !document.body.classList.contains('sheet-open');
   for (const n of NEEDS) {
-    const el = $('#ring-' + n.key), on = n === hero;
+    const el = $('#ring-' + n.key), on = n === hero && !compact;
     if (on && !el.classList.contains('hero')) { el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); }
     el.classList.toggle('hero', on);
     el.classList.toggle('dream', on && pet.sleeping);
@@ -191,6 +193,10 @@ function refresh() {
     el.querySelector('.need-btn').hidden = !on || pet.sleeping || !lows.includes(n);
   }
   $('#care-tip-live').textContent = tip;
+  // The care button for what she needs most glows (the fountain button for water).
+  const wantAct = !pet.sleeping && lows.includes(hero) ? {food: 'feed', happiness: 'play', energy: 'sleep', cleanliness: 'brush'}[hero.key] : null;
+  for (const b of document.querySelectorAll('.dock [data-action]')) b.classList.toggle('wants', b.dataset.action === wantAct);
+  $('[data-cam="water"]').classList.toggle('wants', !pet.sleeping && hero.key === 'water' && lows.includes(hero));
   const pill = $('#needs-pill');
   pill.textContent = pet.sleeping ? 'Asleep' : lows.length ? (lows.length === 1 ? '1 needs you' : `${lows.length} need you`) : 'All good';
   pill.dataset.state = pet.sleeping ? 'sleep' : lows.length ? 'low' : 'good';
@@ -2685,6 +2691,7 @@ const ROOM_FRAME = {
   top: [],
 };
 const fitCam = new THREE.PerspectiveCamera(), fitPt = new THREE.Vector3(), fitOff = new THREE.Vector3();
+let ROOM_CROP = +(new URLSearchParams(location.search).get('crop') ?? .6);
 function roomFrame() {
   const W = Math.max(1, host.clientWidth), H = Math.max(1, host.clientHeight), box = host.getBoundingClientRect();
   if (!ROOM_FRAME.top.length && room.printSize) {
@@ -2704,7 +2711,11 @@ function roomFrame() {
     if (cams?.width && cams.left - box.left > W / 2) { right = cams.left - box.left - 6; camsBottom = 1 - (cams.bottom - box.top + 6) / H * 2; }
     if (dock?.height && (sheetMQ.matches || dock.top - box.top > H / 2)) bottom = dock.top - box.top - 10;
   }
-  const L = -1 + 20 / W, Rcams = right / W * 2 - 1, Redge = 1 - 14 / W, B = 1 - bottom / H * 2, T = 1 - 16 / H;
+  // On a phone held upright the room may run a little off the left and right
+  // edges, so the camera comes closer and she is bigger (Merlin 2026-11-13:
+  // "the cat more visible"); the spare height would otherwise be bare floor.
+  const crop = sheetMQ.matches && W / Math.max(1, bottom) < .8 ? ROOM_CROP : 0;
+  const L = -1 + 20 / W - crop, Rcams = right / W * 2 - 1 + crop, Redge = 1 - 14 / W + crop, B = 1 - bottom / H * 2, T = 1 - 16 / H;
   fitCam.fov = camera.fov; fitCam.aspect = W / H; fitCam.updateProjectionMatrix();
   const tanV = Math.tan(THREE.MathUtils.degToRad(fitCam.fov / 2)), tanH = tanV * fitCam.aspect;
   // (?roomview=full keeps the earlier phone view, for comparison.)
@@ -3785,12 +3796,13 @@ function sheetOpen(on) {
   sheetGrip.setAttribute('aria-expanded', String(on));
   sheetGrip.ariaLabel = on ? 'Show less' : 'Show more';
   if (!on) sheet.scrollTop = 0;
+  refresh();
   // Resting, what's below the needs can't be reached by keyboard either.
   for (const el of sheet.querySelectorAll('.bond-card, .log, footer')) el.inert = sheetMQ.matches && !on;
   if (!on) requestAnimationFrame(sheetPeek);
 }
 function sheetPeek() {
-  if (!sheetMQ.matches) return;
+  if (!sheetMQ.matches || isSheetOpen()) return;
   const p = sheet.getBoundingClientRect(), n = $('.panel .needs').getBoundingClientRect();
   const px = Math.round(n.bottom - p.top + sheet.scrollTop + 14);
   const was = parseFloat(document.documentElement.style.getPropertyValue('--peek-px')) || 0;

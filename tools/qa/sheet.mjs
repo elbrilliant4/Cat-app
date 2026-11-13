@@ -30,15 +30,17 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   const {page, step, close} = await start(0, false);
   await page.screenshot({path: `${OUT}/resting.png`});
   const m = await page.evaluate(() => {
-    const b = document.querySelector('.need.hero .need-btn').getBoundingClientRect();
+    const b = document.querySelector('.dock [data-action="feed"]');
     const d = document.querySelector('.dock').getBoundingClientRect(), s = document.querySelector('#sheet').getBoundingClientRect();
-    return {scroll: document.scrollingElement.scrollHeight - innerHeight, btn: [b.top, b.bottom, b.width], dockBottom: d.bottom, sheetTop: s.top, peek: getComputedStyle(document.documentElement).getPropertyValue('--peek-px')};
+    return {scroll: document.scrollingElement.scrollHeight - innerHeight, glow: b.classList.contains('wants'), rest: (innerHeight - s.top) / innerHeight, bar: (innerHeight - d.top) / innerHeight, dockBottom: d.bottom, sheetTop: s.top, peek: getComputedStyle(document.documentElement).getPropertyValue('--peek-px')};
   });
   ok(m.scroll <= 0, `page does not scroll (extra ${m.scroll}px)`);
-  ok(m.btn[2] > 0 && m.btn[0] > 0 && m.btn[1] < 844, `top need's button on screen (${m.btn.map(Math.round)})`);
+  ok(m.glow, 'Tummy is low: the Feed button glows');
+  ok(m.rest <= .2, `resting sheet is a slim row (${Math.round(m.rest * 100)}% of the screen)`);
+  ok(m.bar <= .3, `sheet and care buttons together under 30% of the screen (${Math.round(m.bar * 100)}%)`);
   ok(m.dockBottom <= m.sheetTop + 1, `dock above the resting sheet (dock ${Math.round(m.dockBottom)}, sheet ${Math.round(m.sheetTop)}, peek ${m.peek})`);
   const top = m.sheetTop;
-  await drag(page, 200, top + 160, top - 260);
+  await drag(page, 200, top + 50, top - 300);
   ok(await isOpen(page), 'a swipe up on the resting sheet opens it');
   await page.screenshot({path: `${OUT}/open.png`});
   const g = await page.evaluate(() => { const r = document.querySelector('#sheet-grip').getBoundingClientRect(); return r.top + r.height / 2; });
@@ -54,7 +56,7 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   await page.waitForTimeout(500);
   await page.mouse.click(200, 30); await page.waitForTimeout(900);
   const pk = await page.evaluate(() => { const s = document.querySelector('#sheet').getBoundingClientRect(), d = document.querySelector('.dock').getBoundingClientRect(); return {top: s.top, dock: d.bottom}; });
-  ok(pk.top > 400 && pk.top < 700 && pk.dock <= pk.top + 1, `resting height kept after a change while scrolled (sheet top ${Math.round(pk.top)}, dock ${Math.round(pk.dock)})`);
+  ok(pk.top > 640 && pk.dock <= pk.top + 1, `resting height kept after a change while scrolled (sheet top ${Math.round(pk.top)}, dock ${Math.round(pk.dock)})`);
   const inert = await page.evaluate(() => ['.bond-card', '.log', '#sheet footer'].every(q => document.querySelector(q).inert));
   ok(inert, 'resting: friendship, moments and footer are out of keyboard reach');
   await page.evaluate(() => { kitten.pet.food = 22; kitten.pet.water = 77; kitten.refresh(); });
@@ -65,8 +67,9 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   const t = await page.evaluate(() => { const el = document.querySelector('.toast'), r = el.getBoundingClientRect(), sh = document.querySelector('#sheet').getBoundingClientRect(); const z = +getComputedStyle(el).zIndex > +getComputedStyle(document.querySelector('#sheet')).zIndex; kitten.pet.sleeping = false; kitten.refresh(); return {text: el.textContent, top: el.classList.contains('visible') && (z || r.bottom <= sh.top)}; });
   ok(t.top, `a message shows on top ("${t.text}")`);
   await step(240);
+  await page.click('#sheet-grip'); await page.waitForTimeout(700);
   await page.click('.need.hero .need-btn'); await page.waitForTimeout(700);
-  ok(await page.evaluate(() => document.querySelector('#feed-dialog').open), 'Feed on the resting sheet opens the snack menu');
+  ok(await page.evaluate(() => document.querySelector('#feed-dialog').open && !document.body.classList.contains('sheet-open')), 'Feed on the open sheet closes it and opens the snack menu');
   await close();
 }
 {

@@ -561,6 +561,36 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
   .panel footer { padding: 8px 4px 0; }
   .panel .bond-card { align-self: auto; }
 }
+/* Phones, after Merlin's "takes too much of the screen" (2026-11-13): the
+   resting sheet is one slim row of the five needs, the dock is slimmer, the
+   camera buttons are icons only, and the care button for what she needs most
+   glows (app.js adds .wants). */
+.dock button.wants .dock-icon, .cam-buttons .icon-btn.wants { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alert) 70%, transparent), 0 0 18px color-mix(in srgb, var(--alert) 45%, transparent); animation: wants 1.6s ease-in-out infinite; }
+.dock button.wants::after, .cam-buttons .icon-btn.wants::after { content: ""; position: absolute; top: 4px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--alert); box-shadow: 0 0 0 2px var(--card-solid); }
+.cam-buttons .icon-btn.wants { position: relative; }
+.cam-buttons .icon-btn.wants::after { top: -2px; right: -2px; }
+@keyframes wants { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--alert) 35%, transparent), 0 0 24px color-mix(in srgb, var(--alert) 30%, transparent); } }
+@media (max-width: 720px) and (orientation: portrait) {
+  body:not(.sheet-open) .panel .needs .card-head { display: none; }
+  body:not(.sheet-open) .panel .needs-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  body:not(.sheet-open) .panel .need { height: 62px; padding: 5px 2px 6px; border-radius: 16px; }
+  body:not(.sheet-open) .panel .need .need-icon { width: 30px; height: 30px; }
+  body:not(.sheet-open) .panel .need .need-text { margin-top: 1px; }
+  body:not(.sheet-open) .panel .need strong { font-size: 14px; letter-spacing: -.2px; }
+  body:not(.sheet-open) .panel .need small { display: none; }
+  .panel .sheet-grip { height: 22px; }
+  .dock { left: 10px; right: 10px; bottom: calc(var(--peek) + 8px); padding: 4px 4px; border-radius: 20px; }
+  .dock button { padding: 4px 2px 3px; gap: 1px; font-size: 10.5px; }
+  .dock-icon { width: 36px; height: 36px; border-radius: 13px; }
+  .play-meter { bottom: calc(var(--peek) + 84px); }
+  .toast { bottom: calc(var(--peek) + 84px); }
+  .cam-buttons { gap: 6px; }
+  .cam-buttons .icon-btn { width: 40px; height: 40px; border-radius: 13px; }
+  .cam-buttons .icon-btn span, .cam-buttons .icon-btn .pet-name-slot { display: none; }
+  .panel { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .hud-left .day-chip { display: none; }
+  .hud-left .top-actions .icon-btn { width: 36px; height: 36px; }
+}
 @media (max-width: 720px) and (orientation: portrait) and (prefers-reduced-motion: reduce) { .panel, .sheet-scrim, .dock { transition: none; } }
 /* A first step being taught, on a phone (where the hint line is hidden): a
    pill over the room, under the day row (the dock would cover it lower down). */
