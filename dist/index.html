@@ -32,6 +32,7 @@
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14.5 5.5 4 4L9 19H5v-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 2.8c3.4 4.2 6.6 8 6.6 11.6a6.6 6.6 0 0 1-13.2 0c0-3.6 3.2-7.4 6.6-11.6Z" fill="currentColor"/></symbol>
   <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1.2-1.8h6.2L16.3 6h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-house" viewBox="0 0 24 24"><path d="M3.5 11.2 12 4.2l8.5 7M5.8 9.4v10a1 1 0 0 0 1 1h10.4a1 1 0 0 0 1-1v-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 20.4v-5.2a2 2 0 0 1 4 0v5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-view" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 16l3.6-4.2 2.6 2.8 2-2.2 2.8 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="16.5" cy="9" r="1.4" fill="currentColor"/></symbol>
   <symbol id="i-room" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7v8.5a1 1 0 0 1-1 1h-4.5v-6h-6v6H4.5a1 1 0 0 1-1-1z" fill="currentColor"/></symbol>
@@ -108,9 +109,11 @@
             <button class="icon-btn glass" data-cam="water" aria-label="Show the water fountain" aria-pressed="false" title="Water fountain"><svg><use href="#i-drop"/></svg><span>Water</span></button>
             <button class="icon-btn glass" data-cam="bed" aria-label="Show the bed" aria-pressed="false" title="Bed"><svg><use href="#i-bed"/></svg><span>Bed</span></button>
             <button class="icon-btn glass" id="watch-btn" aria-label="Watch full screen" aria-pressed="false" title="Watch"><svg><use href="#i-expand"/></svg><span>Watch</span></button>
+            <button class="icon-btn glass" id="photo-btn" aria-label="Take a photo" title="Photo"><svg><use href="#i-camera"/></svg><span>Photo</span></button>
           </div>
         </div>
 
+        <div class="photo-flash" id="photo-flash" aria-hidden="true"></div>
         <div class="play-meter" id="play-meter" hidden><span>Playtime</span><div><i id="play-fill"></i></div><b id="play-score">0 catches</b></div>
 
         <div class="dock glass" role="toolbar" aria-label="Care actions">
@@ -140,6 +143,7 @@
           <h2 id="bond-title"><span id="bond-label">New friends</span></h2>
           <div class="xp" role="progressbar" aria-label="Friendship to next level" aria-valuemin="0" aria-valuemax="100" id="xp-bar"><i id="xp-fill"></i></div>
           <div class="bond-meta" id="bond-next">15 to go</div>
+          <div class="bond-gift" id="bond-gift" hidden></div>
         </div>
       </section>
 
@@ -174,6 +178,31 @@
     <button data-snack="kibble" style="--tint:var(--energy)"><span><svg><use href="#i-kibble"/></svg></span><strong>Crunchy kibble</strong><small>Everyday favourite · +24</small></button>
     <button data-snack="salmon" style="--tint:var(--food)"><span><svg><use href="#i-fish"/></svg></span><strong>Salmon bites</strong><small>A special treat · +30</small></button>
     <button data-snack="chicken" style="--tint:var(--happy)"><span><svg><use href="#i-drum"/></svg></span><strong>Chicken morsels</strong><small>Soft &amp; savoury · +27</small></button>
+  </div>
+</dialog>
+
+<dialog id="toy-dialog" aria-labelledby="toy-title">
+  <form method="dialog"><button class="close" aria-label="Close toy basket">×</button></form>
+  <span class="eyebrow">The toy basket</span>
+  <h2 id="toy-title">What shall we play with?</h2>
+  <div class="snacks" id="toy-options"></div>
+</dialog>
+
+<dialog id="news-dialog" class="news" aria-labelledby="news-title">
+  <span class="eyebrow" id="news-eyebrow"></span>
+  <h2 id="news-title"></h2>
+  <ul class="news-list" id="news-list"></ul>
+  <form method="dialog"><button class="primary" id="news-ok">Lovely</button></form>
+</dialog>
+
+<dialog id="photo-dialog" class="photo" aria-labelledby="photo-title">
+  <form method="dialog"><button class="close" aria-label="Close photo">×</button></form>
+  <span class="eyebrow">Say cheese</span>
+  <h2 id="photo-title">A photo of <span class="pet-name-slot">Mochi</span></h2>
+  <img id="photo-img" alt="The photo you just took">
+  <div class="button-row">
+    <button type="button" class="secondary" id="photo-share" hidden>Share…</button>
+    <a class="secondary" id="photo-save" download="mochi.jpg">Save photo</a>
   </div>
 </dialog>
 

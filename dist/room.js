@@ -1260,6 +1260,36 @@ export class Room {
     this.bowl = g;
   }
 
+  // Her name painted round the front of her bowl (a gift of friendship;
+  // '' takes it off). A curved strip just outside the bowl's wall, drawn
+  // on a canvas in the olive of the band.
+  setBowlName(name) {
+    const g = this.bowl;
+    if (!g) return;
+    if (!name) { if (g.userData.label) g.userData.label.visible = false; return; }
+    let label = g.userData.label;
+    if (!label) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 96;
+      const map = new THREE.CanvasTexture(canvas);
+      map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      const arc = 1.5;
+      label = new THREE.Mesh(new THREE.CylinderGeometry(.2725, .2725, .05, 40, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({map, transparent: true, roughness: .35, depthWrite: false}));
+      label.position.y = .012 + .082;
+      label.userData.canvas = canvas;
+      g.add(label);
+      g.userData.label = label;
+    }
+    const c = label.userData.canvas, x = c.getContext('2d');
+    x.clearRect(0, 0, c.width, c.height);
+    x.fillStyle = '#4e5a2a'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    let size = 64;
+    do { x.font = `italic 700 ${size}px Georgia, 'Times New Roman', serif`; size -= 4; } while (x.measureText(name).width > c.width - 40 && size > 20);
+    x.fillText(name, c.width / 2, c.height / 2 + 2);
+    label.material.map.needsUpdate = true;
+    label.visible = true;
+  }
+
   // Olive ceramic fountain: domed spout, bubbling top and rippling water.
   buildFountain() {
     const M = this.materials, g = new THREE.Group();

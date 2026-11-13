@@ -25,23 +25,25 @@ const parse = text => {
   try { const v = JSON.parse(text); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch { return null; }
 };
 
-// Returns {pet, source}: source is 'save', 'backup', 'live' (a preview's
-// first copy) or 'new'.
+// Returns {pet, source, left}: source is 'save', 'backup', 'live' (a preview's
+// first copy) or 'new'; left is when the player was last here (the save's
+// own time, read before restore() moves it to now), or null.
 export function load(store, k = keys(), now = Date.now()) {
   const get = key => { try { return key ? store.getItem(key) : null; } catch { return null; } };
   const set = (key, value) => { try { store.setItem(key, value); } catch {} };
   const text = get(k.main), raw = parse(text);
+  const left = r => Number.isFinite(r.updated) && r.updated <= now ? r.updated : null;
   if (raw) {
     set(k.backup, text);
-    return {pet: restore(raw, now), source: 'save'};
+    return {pet: restore(raw, now), source: 'save', left: left(raw)};
   }
   // Something is there but can't be read: keep it, never write over it.
   if (text) set(k.unreadable, text);
   const backup = parse(get(k.backup));
-  if (backup) return {pet: restore(backup, now), source: 'backup'};
+  if (backup) return {pet: restore(backup, now), source: 'backup', left: left(backup)};
   const seed = parse(get(k.seed));
-  if (seed) return {pet: restore(seed, now), source: 'live'};
-  return {pet: fresh(now), source: 'new'};
+  if (seed) return {pet: restore(seed, now), source: 'live', left: null};
+  return {pet: fresh(now), source: 'new', left: null};
 }
 
 export function store(storage, pet, k = keys()) {

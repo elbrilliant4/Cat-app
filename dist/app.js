@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import {fresh, advance, care, mood} from './pet-state.js';
+import {fresh, advance, care, mood, JOURNAL_MAX} from './pet-state.js';
+import {AWAY_MIN, awayStory} from './away.js';
+import {TOYS, nextGift, newGifts, owns, toysAt} from './rewards.js';
 import {DECORS, applyDecor, inSeason, decorNow, applyKitchenDecor} from './decor.js';
 import {load as loadSave, store as storeSave, keepStorage, toCode, fromCode} from './save.js';
 import {RealCat, EXPRESSIONS} from './real-cat.js';
@@ -39,6 +41,9 @@ let storage = null;
 try { storage = localStorage; } catch {}
 const loaded = storage ? loadSave(storage) : null;
 let pet = loaded ? loaded.pet : fresh();
+// "While you were away" (away.js): kept in the save until the card has been
+// seen, so closing the app during the opening doesn't lose the story.
+if (loaded?.left && Date.now() - loaded.left >= AWAY_MIN) pet.away = {from: loaded.left, to: Date.now(), asleep: pet.sleeping};
 // First steps, shown once to a new player: "tap the ball", then "give her a
 // stroke". A save from before this existed has nothing to learn.
 function ensureTaught() { if (pet.taught && typeof pet.taught === 'object') return; const isNew = !pet.bond && !pet.cuddles && (pet.journal?.length ?? 0) <= 1; pet.taught = {ball: !isNew, pet: !isNew}; }
@@ -98,7 +103,7 @@ function levelInfo(bond) {
   const lo = LEVELS[i], hi = LEVELS[i + 1] ?? lo + 500;
   return {level: i + 1, name: LEVEL_NAMES[i], progress: clamp((bond - lo) / (hi - lo), 0, 1), toGo: Math.max(0, Math.ceil(hi - bond))};
 }
-let shownLevel = levelInfo(pet.bond).level;
+let shownLevel = levelInfo(pet.bond).level, shownBowlName = '';
 
 const MOOD_COLORS = {'Dreaming softly': '#8f9cff', 'A little hungry': '#f28c5b', 'A little thirsty': '#5b8def', 'Ready for a nap': '#e9ad2f', 'Needs a little brush': '#3fb3c9', 'Missing you': '#b48ad8', 'Feeling lovely': '#5cc489'};
 
@@ -157,6 +162,14 @@ function refresh() {
   $('#bond-next').textContent = lv.level >= LEVELS.length ? 'Top level. Nothing left to prove.' : `${lv.toGo} more care to reach “${LEVEL_NAMES[lv.level]}”`;
   $('#xp-bar').setAttribute('aria-valuenow', Math.round(lv.progress * 100));
   $('#bond-count').textContent = pet.cuddles + ' cuddle' + (pet.cuddles === 1 ? '' : 's');
+  // Gifts of friendship (rewards.js): the next one on the card, her name on
+  // her bowl once that is hers.
+  const gift = nextGift(lv.level);
+  $('#bond-gift').hidden = !gift;
+  if (gift) $('#bond-gift').textContent = `Level ${gift.level} gift: ${gift.short}`;
+  const bowlName = owns(lv.level, 'bowl') ? pet.name : '';
+  if (bowlName !== shownBowlName) { room.setBowlName(bowlName); shownBowlName = bowlName; }
+  if (toyChoice() !== usedToy) useToy();
   if (lv.level > shownLevel) {
     const badge = $('.level-badge');
     badge.classList.remove('up'); void badge.offsetWidth; badge.classList.add('up');
@@ -165,6 +178,7 @@ function refresh() {
     if (ready) { express('joy', 2); burst('sparkle', 8); }
   }
   shownLevel = lv.level;
+  if (news.length || pet.away || newGifts(lv.level, pet.gifts).length) setTimeout(pumpNews, 1200);
   $('#sleep-label').textContent = pet.sleeping ? 'Wake' : 'Rest';
   { const src = `assets/icons/clay/${pet.sleeping ? 'sun' : 'moon'}.webp`; if (!$('#sleep-icon').src.endsWith(src)) $('#sleep-icon').src = src; }
   document.body.classList.toggle('night', night);
@@ -211,7 +225,7 @@ function refresh() {
   const step = brain.mode === 'play' || pet.sleeping || titleOn && titleStage !== 'off' ? null : teachStep();
   $('#scene-hint').classList.toggle('teach', !!step);
   $('#scene-hint').textContent = brain.mode === 'play' ? 'Steer the toy · hold it still near your kitten to tempt a pounce'
-    : step === 'ball' ? `Tap ${room.altToy ? 'her toy' : 'the pink ball'} to play with ${pet.name}`
+    : step === 'ball' ? `Tap ${altToy() ? 'her toy' : 'the pink ball'} to play with ${pet.name}`
     : step === 'pet' ? `Now give ${pet.name} a stroke`
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
     : view.mode !== 'follow' ? (matchMedia('(pointer: coarse)').matches ? 'Explore · drag to turn · pinch towards anything · double tap to go close' : 'Explore · drag to turn · scroll towards anything · double click to go close')
@@ -234,7 +248,7 @@ function showDeltas(before) {
 
 function moment(text, iconId = 'i-heart') {
   pet.journal.unshift({text, icon: iconId, time: Date.now()});
-  pet.journal = pet.journal.slice(0, 12);
+  pet.journal = pet.journal.slice(0, JOURNAL_MAX);
   renderJournal(true);
   save();
 }
@@ -250,7 +264,7 @@ function dayLabel(t) {
 function renderJournal(fresh = false) {
   const list = $('#journal');
   list.replaceChildren();
-  const shown = pet.journal.slice(0, journalAll ? 12 : 5);
+  const shown = pet.journal.slice(0, journalAll ? JOURNAL_MAX : 5);
   let lastDay = null;
   shown.forEach((m, i) => {
     const day = dayLabel(m.time);
@@ -278,6 +292,60 @@ function renderJournal(fresh = false) {
   more.textContent = journalAll ? 'Show fewer' : `Show all ${pet.journal.length}`;
   $('#journal-count').textContent = pet.journal.length;
 }
+
+// News cards (#news-dialog): "While you were away" and gifts of friendship.
+// One at a time, once she is idle in the room and nothing else is open.
+const news = [];
+let awayQueued = false, giftsQueued = false;
+function gatherNews() {
+  const a = pet.away;
+  if (a && !awayQueued) {
+    const story = a && Number.isFinite(a.from) && Number.isFinite(a.to) ? awayStory(a.from, a.to, {asleep: a.asleep === true, decor: room.decor}) : null;
+    if (!story) delete pet.away;
+    else {
+      awayQueued = true;
+      news.push({eyebrow: `Away ${story.label}`, title: 'While you were away', rows: story.lines, button: `Hello, ${pet.name}`, shown() {
+        const l = story.lines[0];
+        delete pet.away; awayQueued = false;
+        moment(`While you were away: ${l.text[0].toLowerCase()}${l.text.slice(1)}`, l.icon);
+      }});
+    }
+  }
+  const got = newGifts(levelInfo(pet.bond).level, pet.gifts);
+  if (got.length && !giftsQueued) {
+    giftsQueued = true;
+    news.push({eyebrow: 'A gift of friendship', title: got.length > 1 ? `${pet.name} has ${got.length} gifts for you` : `${pet.name} has a gift for you`, rows: got.map(g => ({text: g.name, sub: g.text, icon: g.icon, gift: true})), button: 'Lovely', shown() {
+      pet.gifts = [...new Set([...(Array.isArray(pet.gifts) ? pet.gifts : []), ...got.map(g => g.id)])];
+      giftsQueued = false;
+      if (ready && !pet.sleeping) { express('joy', 2); burst('sparkle', 8); }
+      moment(`A gift of friendship: ${got.map(g => g.short).join(', ')}.`, 'i-sparkle');
+    }});
+  }
+}
+function pumpNews() {
+  if (!ready || titleOn || brain.mode !== 'idle' || document.querySelector('dialog[open]')) return;
+  gatherNews();
+  const n = news.shift();
+  if (!n) return;
+  $('#news-eyebrow').textContent = n.eyebrow;
+  $('#news-title').textContent = n.title;
+  $('#news-ok').textContent = n.button;
+  const list = $('#news-list');
+  list.replaceChildren();
+  for (const r of n.rows) {
+    const li = document.createElement('li');
+    if (r.gift) li.className = 'gift';
+    li.style.setProperty('--tint', `var(${ICON_TINT[r.icon] || '--love'})`);
+    li.innerHTML = `<img src="assets/icons/clay/${CLAY_ICONS[r.icon] || 'heart'}.webp" alt="" width="44" height="44"><strong></strong>${r.sub ? '<small></small>' : ''}`;
+    li.querySelector('strong').textContent = r.text;
+    if (r.sub) li.querySelector('small').textContent = r.sub;
+    list.append(li);
+  }
+  $('#news-dialog').showModal();
+  n.shown();
+}
+$('#news-dialog').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('#news-dialog').addEventListener('close', () => setTimeout(pumpNews, 500));
 
 // Speech bubble beside the kitten's head. She mostly speaks through what she
 // does; words are kept for things you need to know (`important`) and the odd
@@ -413,6 +481,34 @@ toy.position.copy(TOY_HOME);
 mesh(new THREE.TorusGeometry(.121, .012, 6, 32), mat('#ffe2a8'), toy).rotation.x = .6;
 mesh(new THREE.TorusGeometry(.121, .012, 6, 32), mat('#ffe2a8'), toy).rotation.y = 1.2;
 const toyTarget = TOY_HOME.clone(), toyVel = new THREE.Vector3(), toyLast = toy.position.clone();
+// Gift toys (rewards.js): the felt mouse and the fabric fish stand in for
+// the ball when picked from the toy basket, the way a decor's own toy does
+// (`room.altToy`, Halloween's felt bat). Loaded the first time each is picked.
+const giftToys = {};
+let giftToy = null, usedToy = null;
+const altToy = () => titleOn ? room.altToy : giftToy || room.altToy;
+async function loadGiftToy(t) {
+  const loader = new GLTFLoader();
+  try { loader.setMeshoptDecoder((await import('./vendor/meshopt_decoder.module.js')).MeshoptDecoder); } catch { return null; }
+  return new Promise(done => loader.load(`./assets/models/${t.file}.glb`, g => {
+    const o = g.scene, box = new THREE.Box3().setFromObject(o), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const k = t.size / Math.max(size.x, size.y, size.z), holder = new THREE.Group();
+    // (Standing on the floor, centred over its spot.)
+    o.scale.setScalar(k); o.position.set(-c.x * k, -box.min.y * k, -c.z * k);
+    o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    holder.add(o);
+    holder.visible = false;
+    scene.add(holder);
+    done(giftToys[t.id] = holder);
+  }, undefined, () => done(null)));
+}
+const toyChoice = () => owns(levelInfo(pet.bond).level, pet.toy) && TOYS.some(t => t.id === pet.toy) ? pet.toy : 'ball';
+function useToy() {
+  const id = usedToy = toyChoice(), t = TOYS.find(t => t.id === id);
+  if (!t.file) { giftToy = null; return; }
+  if (giftToys[id]) { giftToy = giftToys[id]; return; }
+  loadGiftToy(t).then(o => { if (o && toyChoice() === id) giftToy = o; });
+}
 
 // Grooming brush (shown while brushing).
 const brushRig = new THREE.Group();
@@ -614,7 +710,7 @@ cat.load(LONGHAIR ? './assets/mochi-longhair-hq.glb' : './assets/mochi-ragdoll.g
   host.classList.add('ready');
   $('#loading').classList.add('done');
   setTimeout(() => $('#loading').hidden = true, 900);
-  if (titleOn) titleReady(); else greet(true);
+  if (titleOn) titleReady(); else { greet(true); setTimeout(pumpNews, 2600); }
 }).catch(e => {
   titleOff();
   $('#loading strong').textContent = 'Your kitten couldn’t load.';
@@ -2264,8 +2360,9 @@ function updatePlay(dt, t) {
   toy.rotation.z -= toyVel.x * dt / .12;
   // A decor can swap the ball for its own toy (Halloween's felt bat): it
   // slides and wobbles where the ball would roll.
-  const alt = room.altToy;
+  const alt = altToy();
   toy.visible = !alt;
+  for (const id in giftToys) giftToys[id].visible = giftToys[id] === alt;
   if (alt) {
     const speed = toyVel.length();
     alt.position.set(toy.position.x, 0, toy.position.z);
@@ -2307,7 +2404,7 @@ function updatePlay(dt, t) {
     }
     if (brain.activity === 'walk') setActivity('play');
     if (brain.activity !== 'play' || t < brain.pounceReadyAt || t - brain.stillSince < .5) return;
-    if (room.altToy && !brain.stalked) {
+    if (altToy() && !brain.stalked) {
       // The felt bat: she stalks it (low, tail twitching, a little wiggle),
       // taps it, pauses to watch, then pounces.
       brain.stalked = true;
@@ -2400,7 +2497,7 @@ function setPointer(e) {
 function catHit() { return ready ? ray.intersectObjects(cat.meshes, false)[0] || null : null; }
 function hitsCat() { return !!catHit(); }
 // The ball on the floor: a tap near it starts a game. (A finger is wide: near counts.)
-function hitsToy() { return ready && (room.altToy || toy).visible !== false && ray.ray.distanceToPoint((room.altToy || toy).getWorldPosition(new THREE.Vector3())) < .26; }
+function hitsToy() { const o = altToy() || toy; return ready && o.visible !== false && ray.ray.distanceToPoint(o.getWorldPosition(new THREE.Vector3())) < .26; }
 function hitsFountain() { return ready && ray.intersectObjects(room.clickables, false).length > 0; }
 // Which perch (if any) is under the pointer: the window and its sill, the
 // chair, or the fireplace and its mantel.
@@ -3004,8 +3101,81 @@ $('.dock').addEventListener('click', e => {
   if (a === 'feed') {
     if (brain.mode !== 'idle') { toast('One thing at a time — almost done!'); return; }
     $('#feed-dialog').showModal();
-  } else act(a);
+  } else if (a === 'play' && brain.mode === 'idle' && toysAt(levelInfo(pet.bond).level).length > 1) openToys();
+  else act(a);
 });
+// The toy basket: shown on Play once she has more than the ball.
+function openToys() {
+  const now = toyChoice(), box = $('#toy-options');
+  box.replaceChildren();
+  for (const t of toysAt(levelInfo(pet.bond).level)) {
+    const b = document.createElement('button');
+    b.dataset.toy = t.id;
+    b.style.setProperty('--tint', `var(${t.tint})`);
+    b.setAttribute('aria-pressed', String(t.id === now));
+    b.innerHTML = `<span>${icon(t.id === 'fish' ? 'i-fish' : t.id === 'mouse' ? 'i-paw' : 'i-yarn')}</span><strong></strong><small></small>`;
+    b.querySelector('strong').textContent = t.name;
+    b.querySelector('small').textContent = t.note;
+    box.append(b);
+  }
+  $('#toy-dialog').showModal();
+}
+$('#toy-options').addEventListener('click', e => {
+  const b = e.target.closest('[data-toy]');
+  if (!b) return;
+  $('#toy-dialog').close();
+  pet.toy = b.dataset.toy; save(); useToy();
+  act('play');
+});
+// A photo of the room as it is now, without the buttons: her name and the
+// date at the foot, then Share or Save.
+let photoBusy = false, photoUrl = null;
+async function takePhoto() {
+  if (!ready || titleOn || photoBusy) return;
+  photoBusy = true;
+  try {
+    // (Drawn and copied in one go: the picture is gone once the browser has shown it.)
+    renderer.render(scene, camera);
+    const src = renderer.domElement, r = src.getBoundingClientRect(), k = src.width / Math.max(1, r.width);
+    // On a phone the care buttons and the sheet cover the foot of the room: stop above them.
+    let h = src.height;
+    if (sheetMQ.matches && !document.body.classList.contains('watch')) h = Math.round(clamp(($('.dock').getBoundingClientRect().top - r.top - 8) * k, src.height * .5, src.height));
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = h;
+    const g = c.getContext('2d'), u = c.width / 100;
+    g.fillStyle = night ? '#1c1612' : '#f7f1ea'; g.fillRect(0, 0, c.width, h);
+    g.drawImage(src, 0, 0, src.width, h, 0, 0, src.width, h);
+    const shade = g.createLinearGradient(0, h - 16 * u, 0, h);
+    shade.addColorStop(0, 'rgba(24, 16, 10, 0)'); shade.addColorStop(1, 'rgba(24, 16, 10, .5)');
+    g.fillStyle = shade; g.fillRect(0, h - 16 * u, c.width, 16 * u);
+    const font = getComputedStyle(document.body).fontFamily;
+    g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+    g.font = `800 ${4.6 * u}px ${font}`; g.fillText(pet.name, 4 * u, h - 7.4 * u);
+    g.font = `600 ${2.9 * u}px ${font}`; g.globalAlpha = .9;
+    g.fillText(`Pocket Kitten · ${new Date().toLocaleDateString(undefined, {day: 'numeric', month: 'long', year: 'numeric'})}`, 4 * u, h - 3.4 * u);
+    g.globalAlpha = 1;
+    const flash = $('#photo-flash');
+    flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+    const blob = await new Promise(done => c.toBlob(done, 'image/jpeg', .92));
+    if (!blob) { toast('The photo didn’t come out. Try once more.'); return; }
+    const d = new Date(), name = `${pet.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'kitten'}-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.jpg`;
+    const file = new File([blob], name, {type: 'image/jpeg'});
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    photoUrl = URL.createObjectURL(blob);
+    $('#photo-img').src = photoUrl;
+    $('#photo-save').href = photoUrl; $('#photo-save').download = name;
+    let can = false;
+    try { can = !!navigator.canShare?.({files: [file]}); } catch {}
+    $('#photo-share').hidden = !can;
+    $('#photo-share').onclick = () => navigator.share({files: [file], title: `${pet.name} · Pocket Kitten`}).catch(() => {});
+    document.querySelectorAll('.pet-name-slot').forEach(el => el.textContent = pet.name);
+    $('#photo-dialog').showModal();
+    pet.photos = (Number.isFinite(pet.photos) ? pet.photos : 0) + 1;
+    if (pet.photos === 1) moment(`The first photo of ${pet.name}.`, 'i-sparkle'); else save();
+    if (params.has('debug')) window.kitten.photo = {w: c.width, h, bytes: blob.size, name};
+  } finally { photoBusy = false; }
+}
+$('#photo-btn').onclick = takePhoto;
 $('.snacks').addEventListener('click', e => {
   const b = e.target.closest('[data-snack]');
   if (b) { $('#feed-dialog').close(); act('feed', {snack: b.dataset.snack}); }
@@ -3200,7 +3370,10 @@ let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   advance(pet); refresh(); save();
   if (document.hidden) hiddenAt = Date.now();
-  else if (!titleOn && Date.now() - hiddenAt > 45000) greet();
+  else {
+    if (!titleOn && Date.now() - hiddenAt > 45000) greet();
+    if (hiddenAt && Date.now() - hiddenAt >= AWAY_MIN) { pet.away = {from: hiddenAt, to: Date.now(), asleep: pet.sleeping}; save(); setTimeout(pumpNews, 2600); }
+  }
 });
 window.addEventListener('pagehide', save);
 setInterval(() => { advance(pet); refresh(); save(); }, 15000);
@@ -3687,6 +3860,7 @@ function endTitle() {
   keepCamMode();
   if (pet.sleeping) greet(true);
   refresh();
+  setTimeout(pumpNews, 2600);
   if (teachStep() === 'ball' && !pet.sleeping) setTimeout(() => { if (teachStep() === 'ball' && brain.mode !== 'play') say('Tap my ball!', 5000, true); }, 1600);
 }
 Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
@@ -3969,7 +4143,7 @@ sheet.addEventListener('touchcancel', sheetPullEnd);
 sheetScrim.addEventListener('click', () => sheetOpen(false));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && isSheetOpen()) sheetOpen(false); });
 
-if (params.has('debug')) window.kitten = {brain, renderJournal, sheetOpen, sheetPeek, cat, get clock() { return clockNow; }, SWAT, express, endPlay, get teach() { return teachStep(); }, get title() { return {stage: titleStage, cine, film, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
+if (params.has('debug')) window.kitten = {news, pumpNews, takePhoto, useToy, openToys, get giftToy() { return giftToy; }, brain, renderJournal, sheetOpen, sheetPeek, cat, get clock() { return clockNow; }, SWAT, express, endPlay, get teach() { return teachStep(); }, get title() { return {stage: titleStage, cine, film, fx: titleFx, full: titleFull, toys: titleToys}; }, ridePendant, dash, dogLife, nightLife, nightZoomies, shadowPounce, dockHunt, isNight, get night() { return night; }, setNight(v) { forcedNight = v; refresh(); }, act, yawn, slowBlink, meow, hop, view, setActivity, walkTo, jumpTo, jumpDown, startSolo, knockBook, knockVase, tapCups, knockItem: knockThing, stroll, garlandNap, sinkSit, inSink, hopFrom, stealSalmon, drinkFaucet, vacuumRide, vacuumAttack, invite, zoneAt, touchCat, callTo, zoneUnder(x, y) { setPointer({clientX: x, clientY: y}); const h = catHit(); return h ? zoneAt(h.point) : null; }, refresh, goTo, get place() { return place; }, get kitchen() { return kitchen; }, room, get PERCHES() { return PERCHES; }, get SUN_SPOT() { return SUN_SPOT; }, renderer, orbit, pan, zoomBy, toy, toyTarget, sounds, pet, say, CAMERA_VIEWS, camera,
   step(dt = 1 / 24, n = 1, drawAll = true) { for (let i = 0; i < n; i++) { virtualNow += dt * 1000; skipDraw = !drawAll && i < n - 1; frame(virtualNow); } skipDraw = false; }};
 
 renderer?.setAnimationLoop(now => { if (manual) return; if (!document.hidden) frame(now); else last = now; });
