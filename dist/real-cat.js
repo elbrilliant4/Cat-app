@@ -7,6 +7,29 @@
 // grooming, eating, kneading, pouncing and rolling over.
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
+import {MeshoptDecoder} from './vendor/meshopt_decoder.module.js';
+
+// A packed model (meshopt: whole-number positions, normals and texture
+// coordinates, with the true size kept on the mesh's node) back as plain
+// floats in the model's own space, which the rig and the fur measure in.
+// A model that was never packed comes back as it is.
+function plainGeometry(mesh) {
+  const g = mesh.geometry;
+  mesh.updateWorldMatrix(true, false);
+  const packed = ['position', 'normal', 'uv'].some(n => g.attributes[n] && !(g.attributes[n].array instanceof Float32Array && !g.attributes[n].isInterleavedBufferAttribute));
+  if (!packed && mesh.matrixWorld.equals(new THREE.Matrix4())) return g;
+  const out = new THREE.BufferGeometry();
+  out.setIndex(g.index);
+  for (const n of ['position', 'normal', 'uv']) {
+    const a = g.attributes[n];
+    if (!a) continue;
+    const f = new Float32Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) f[i * a.itemSize + k] = a.getComponent(i, k);
+    out.setAttribute(n, new THREE.BufferAttribute(f, a.itemSize));
+  }
+  out.applyMatrix4(mesh.matrixWorld);
+  return out;
+}
 import {useModel, buildSkeleton, computeWeights, computeWeights2, syncHelpers, BONES, BONES2, FACE, GROUND_Y, MIDLINE_X} from './cat-rig.js';
 import {sculptFace, MOUTH, fade} from './face-sculpt.js';
 
@@ -281,7 +304,7 @@ export class RealCat {
   }
 
   load(url, onProgress) {
-    return new Promise((resolve, reject) => new GLTFLoader().load(url, gltf => { this.build(gltf); resolve(this); }, onProgress, reject));
+    return new Promise((resolve, reject) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(url, gltf => { this.build(gltf); resolve(this); }, onProgress, reject));
   }
 
   build(gltf) {
@@ -308,12 +331,13 @@ export class RealCat {
     // Real mouth, rounded eyeballs, and no whisker clumps (face-sculpt.js).
     // (The long-haired model keeps its face as made, for now: no cut mouth.)
     let geometry;
+    const srcGeometry = plainGeometry(src);
     if (this.longhair) {
-      geometry = src.geometry.clone();
+      geometry = srcGeometry.clone();
       const n = geometry.attributes.position.count;
       geometry.setAttribute('facePatch', new THREE.BufferAttribute(new Float32Array(n), 1));
       geometry.setAttribute('patchColor', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-    } else geometry = sculptFace(src.geometry, sampleUV);
+    } else geometry = sculptFace(srcGeometry, sampleUV);
     const uv = geometry.attributes.uv, pos = geometry.attributes.position;
     const texel = i => texelAt(uv.getX(i), uv.getY(i));
     const bright = i => { const k = texel(i); return Math.max(px[k], px[k + 1], px[k + 2]) / 255; };

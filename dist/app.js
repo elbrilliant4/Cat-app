@@ -533,6 +533,10 @@ const CLASSIC_MOTION = new URLSearchParams(location.search).get('motion') === 'c
 // 2026-11-12, Merlin's pick. ?mochi=first: the first Mochi, the kitten (and
 // with ?motion=classic, which is hers alone).
 const LONGHAIR = new URLSearchParams(location.search).get('mochi') !== 'first' && new URLSearchParams(location.search).get('motion') !== 'classic';
+// Her model, packed (tools/mochi-longhair/web.sh, from mochi-longhair-hq.glb):
+// the same shape in both; a phone gets the textures at half size (2.2 MB
+// against 4.8 MB). `?model=phone`, `web` or `hq` (the unpacked source) picks one by hand.
+const CAT_FILE = `./assets/mochi-longhair-${{phone: 'phone', hq: 'hq'}[new URLSearchParams(location.search).get('model') || (matchMedia('(pointer: coarse)').matches ? 'phone' : 'web')] || 'web'}.glb`;
 const cat = new RealCat(LONGHAIR ? {rig: 2, model: 'longhair'} : CLASSIC_MOTION ? {} : {rig: 2});
 scene.add(cat.root);
 cat.root.add(brushRig);
@@ -697,7 +701,7 @@ function onRug(v) {
 const randomRugPoint = () => place !== room ? place.randomFloorPoint() : onRug(new THREE.Vector3(rand(-1.4, 1.4), 0, rand(-.7, 1.2)));
 
 let ready = false;
-cat.load(LONGHAIR ? './assets/mochi-longhair-hq.glb' : './assets/mochi-ragdoll.glb', p => {
+cat.load(LONGHAIR ? CAT_FILE : './assets/mochi-ragdoll.glb', p => {
   if (!p.total) return;
   const pct = Math.round(p.loaded / p.total * 100);
   $('#load-fill').style.width = pct + '%';
