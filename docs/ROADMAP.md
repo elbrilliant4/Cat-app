@@ -24,6 +24,7 @@ One phase per session (see `WORKFLOW.md`). Briefs are in `docs/phases/`.
 | 08 | [Friendly app screens: the room fills the phone, the rest in a pull-up sheet](phases/08-app-sheet.md) | live (build 323) | Merlin 2026-11-12 picked the pull-up sheet over swipe cards and needs-on-the-room, and approved the plan ("build it here"). The panel and dock redesign before it are live (builds 284, 294). |
 | 17 | [Reasons to come back](phases/17-reasons-to-return.md) | preview | Merlin 2026-11-13, after a review of the whole app. Built: "While you were away" card, a gift at friendship levels 2 to 4 (felt mouse, fabric fish, her name on her bowl), a toy basket on Play, a photo button, Moments keeps 40. Also fixed: the friendship card squeezed to a strip on phones. `tools/qa/return.mjs` 23 of 23. Awaiting Merlin and Lettuce on a real phone. |
 | 17b | Gifts for levels 5 to 9 | todo | Proposed: ribbon collar, yarn ball, a photo framed on the study wall, fairy lights, gold name tag. Merlin to pick. |
+| 18 | [Phone speed and an offline copy](phases/18-phone-speed-offline.md) | doing | Merlin picked it 2026-11-13 and approved the plan, speed and offline together. Pack the cat file (trial 8.9 to 5.3 MB), half-size textures on phones, minify three.js, a quality step-down in the room, a service worker for offline, `?fps` readout. Needs his and Lettuce's phone models. |
 | 09 | Small test group | todo | Share with 10-20 people (different phones) with a way to send feedback, before the 1000-member group. |
 
 ## Done (live build 174, `97f11c8`)
