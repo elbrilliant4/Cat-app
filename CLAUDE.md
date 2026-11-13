@@ -92,6 +92,8 @@ asked to do one of these, first say what it does and what can't be undone.
   templates): read and follow `docs/assets.md`. Budget: $50 total.
 - Before building or changing any screen or UI: read and follow
   `docs/design-rules.md` and `DESIGN.md`.
+- Added a file the app loads → run `node tools/offline-list.mjs` (the
+  offline copy's list; `npm run check` fails when it is out of date).
 
 ## Environment and installs
 - Anything to save outside this session (API key, env variable, setup
