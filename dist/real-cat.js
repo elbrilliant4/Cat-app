@@ -646,6 +646,18 @@ export class RealCat {
     material.needsUpdate = true;
   }
 
+  // Fewer fur layers for a phone that cannot keep up (app.js, "Quality").
+  // `share` of the layers she was made with; the hairs are drawn out
+  // further along their length when there are few, to stay soft.
+  furLayers(share) {
+    const f = this.furLook;
+    if (!f) return 0;
+    const n = Math.max(4, Math.round(f.full * share));
+    f.g.instanceCount = n; f.u.furShells.value = n;
+    if (n <= 9) f.u.furStretch.value = 9;
+    return n;
+  }
+
   addFur(skinned, baseMaterial) {
     // (?fur=phone: a phone's fewer layers on a computer, to look at them.)
     const coarse = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).get('fur') === 'phone';
@@ -657,6 +669,7 @@ export class RealCat {
     g.instanceCount = shells;
     // (Long coat: cells per model unit, about 2.3 mm across in the room, and how far they're drawn out along the hair: further with fewer layers.)
     const u = {furShells: {value: shells}, furDensity: {value: long ? 410 : 380}, furStretch: {value: coarse ? 9 : 4}};
+    this.furLook = {u, g, full: shells};
     const m = new THREE.MeshStandardMaterial({map: baseMaterial.map, roughness: 1, metalness: 0});
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, u);

@@ -1,6 +1,6 @@
 # Phase 18: phone speed and an offline copy
 
-Status: **approved by Merlin 2026-11-13, speed and offline together.** Building.
+Status: **built, on the preview** (2026-11-13). Merlin approved the plan, speed and offline together.
 
 ## Why
 The test group (phase 09) opens the app on their own phones and data plans.
@@ -78,3 +78,27 @@ for several days before any "Go live".
 
 ## Needed from Merlin
 - His and Lettuce's phone models.
+
+## What was built (2026-11-13)
+- First open on a phone, until she is on screen: **2.8 MB** in 45 requests
+  (`tools/qa/load.mjs`; counted the same way, the build before was about
+  9.8 MB). Her model 8.9 to 2.2 MB on a phone, 4.8 MB on a computer;
+  three.js 2.1 to 0.77 MB. Side-by-side stills of the three models showed
+  no difference to the eye.
+- The offline copy comes in after she is home: about 6 MB more (film, toys,
+  sounds), once. A later build costs only the files that changed.
+- Checked in the test browser: opens with the server gone, save intact; a
+  new build never mixes with the old; both off switches.
+- Quality steps 1 to 3, remembered a week; `?fps` readout.
+
+## Changed from the plan
+- No build step at publish time (the publish script runs from `main`), so
+  the list of files to keep is a checked-in file with a check.
+- The step-down rule is "two seconds of slow frames", not a frame count.
+- The portrait icon was never loaded at start; nothing to fix there.
+
+## Not verified (needs a real phone)
+- Frame rate on Merlin's and Lettuce's phones: open with `?fps` at the end
+  of the address and read the top-left box.
+- Offline from an iPhone home-screen icon, and the film playing offline in
+  Safari. If the film does not play offline the zoomies title shows.

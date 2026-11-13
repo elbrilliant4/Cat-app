@@ -4030,7 +4030,62 @@ function frame(now) {
     placeSpeech();
   }
   if (skipDraw) return;
-  if (titleFx) titleFx.render(dt, t); else renderer.render(scene, camera);
+  if (titleFx) titleFx.render(dt, t); else { renderer.render(scene, camera); qualityTick(now); }
+  if (fpsChip) fpsTick(now);
+}
+// Quality (phase 18): a phone that cannot keep up gets an easier picture, one
+// step at a time, and keeps it: 1 a less sharp picture, 2 two thirds of the
+// fur layers, 3 a plain-sharpness picture and smaller shadows. A step is
+// taken after about two seconds under 25 frames a second, measured on real
+// time over a run of frames (one slow frame, or coming back to the app, does
+// not count). Never while the title's own picture is up (title-fx.js has its
+// own steps). Remembered for a week, so a slow phone does not stutter at
+// every launch but gets another try later. `?q=0` to `?q=3` fixes the level;
+// `?fps` shows frames a second and the level on screen.
+const QUALITY_KEY = 'pk-quality', QUALITY_DAYS = 7;
+const quality = {level: 0, slow: 0, lastAt: 0, fixed: /^[0-3]$/.test(new URLSearchParams(location.search).get('q') || ''), want: 0, layers: 0};
+if (quality.fixed) quality.want = +new URLSearchParams(location.search).get('q');
+else try { const k = JSON.parse(localStorage.getItem(QUALITY_KEY) || 'null'); if (k && Date.now() - k.at < QUALITY_DAYS * 864e5 && k.level >= 0 && k.level <= 3) quality.want = k.level | 0; } catch {}
+function setQuality(level) {
+  if (!renderer) return;
+  quality.level = level;
+  const sharp = Math.min(devicePixelRatio, 2);
+  renderer.setPixelRatio(level >= 3 ? 1 : level >= 1 ? Math.min(sharp, 1.5) : sharp);
+  renderer.setSize(host.clientWidth, host.clientHeight);
+  quality.layers = cat.furLayers(level >= 2 ? 2 / 3 : 1);
+  if (level >= 3 && !quality.shadows) {
+    quality.shadows = true;
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow.mapSize.x > 512) { o.shadow.mapSize.multiplyScalar(.5); o.shadow.map?.dispose(); o.shadow.map = null; } });
+  }
+}
+// (The first frame after the app was out of sight is not a slow frame.)
+document.addEventListener('visibilitychange', () => { quality.lastAt = 0; fps.lastAt = 0; });
+function qualityTick(now) {
+  if (!ready || manual) return;
+  if (quality.level < quality.want) setQuality(quality.want);
+  const took = quality.lastAt ? now - quality.lastAt : 0;
+  quality.lastAt = now;
+  if (quality.fixed || quality.level >= 3 || document.hidden || !(took > 0)) return;
+  // (Slow time adds up, time at a good pace takes it away again.)
+  quality.slow = Math.max(0, quality.slow + (took > 40 ? Math.min(took, 500) : -took));
+  if (quality.slow > 2000) {
+    quality.slow = 0; quality.want = quality.level + 1;
+    setQuality(quality.want);
+    try { localStorage.setItem(QUALITY_KEY, JSON.stringify({level: quality.level, at: Date.now()})); } catch {}
+  }
+}
+// `?fps`: frames a second (over the last second), the slowest frame in it,
+// and what the picture is set to. For reading off a real phone.
+const fpsChip = new URLSearchParams(location.search).has('fps') ? document.body.appendChild(Object.assign(document.createElement('div'), {id: 'fps-chip', textContent: 'fps'})) : null;
+if (fpsChip) fpsChip.style.cssText = 'position:fixed;left:8px;top:calc(env(safe-area-inset-top, 0px) + 8px);z-index:9999;padding:4px 8px;border-radius:8px;background:rgba(20,16,12,.78);color:#fff;font:600 12px/1.3 ui-monospace,Menlo,monospace;pointer-events:none;white-space:pre';
+const fps = {n: 0, worst: 0, since: 0, lastAt: 0};
+function fpsTick(now) {
+  const took = fps.lastAt ? now - fps.lastAt : 0; fps.lastAt = now;
+  if (took > 0) { fps.n++; fps.worst = Math.max(fps.worst, took); }
+  if (now - fps.since < 1000) return;
+  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+  fpsChip.textContent = `${(r => r < 10 ? r.toFixed(1) : Math.round(r))(fps.n * 1000 / (now - fps.since))} fps · slowest ${Math.round(fps.worst)} ms\nquality ${titleFx ? 'title' : quality.level} · ${size.x}x${size.y} · fur ${quality.layers || cat.furLook?.full || '-'}`;
+  Object.assign(fps, {n: 0, worst: 0, since: now});
 }
 let skipDraw = false; // (debug stepping can skip drawing the in-between frames)
 

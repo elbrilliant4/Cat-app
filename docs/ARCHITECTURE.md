@@ -143,6 +143,38 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
   Share (`navigator.canShare` with a file) and Save (a download link).
 - Moments: `JOURNAL_MAX` (pet-state.js) = 40.
 
+## Phone speed and the offline copy (phase 18)
+- **Her model**: the source is `assets/mochi-longhair-hq.glb` (8.9 MB, kept
+  for the tools and `rig-check.html`). The app loads a packed copy made by
+  `tools/mochi-longhair/web.sh` (meshopt): `-web.glb` (4.8 MB) or, on a
+  touch device, `-phone.glb` (2.2 MB, textures at 1024). `?model=hq|web|phone`
+  picks one. A packed file stores whole-number positions with the true size
+  on the mesh's node; `plainGeometry` in `real-cat.js` turns that back into
+  plain floats in the model's own space before the rig and fur read it.
+  Change the source model → run `web.sh` again.
+- **three.js** in `vendor/` is minified (esbuild); the readable source is
+  the three.js repository at r180.
+- **Offline copy**: `dist/sw.js` (how it works is at its top) and the
+  script at the foot of `index.html`. A build is fetched whole into its own
+  cache ("stage") and put to use only at a launch ("launch"), so a running
+  app never mixes builds. The first copy starts once she is home. What is
+  kept is `dist/offline-files.json`, written by `node tools/offline-list.mjs`
+  (every script reachable from `app.js`, plus pictures, sounds, toys; her
+  model for the device; the film unless the phone asks to save data).
+  `npm run check` fails when that list is out of date: **add a file the app
+  loads → run the tool.** `version.json`, `sw.js` and the list are never
+  served from the copy. Cache names carry the path (`pk:/Cat-app/preview/:`)
+  because live and preview share an address. Off switches: `?sw=off`, or
+  `"sw": false` in `version.json`. No `version.json` (local run): no worker.
+- **Nothing is built at publish time** for this: `pages.yml` runs from
+  `main`, so the preview cannot rely on a changed build script.
+- **Quality** (`app.js`, "Quality"): after two seconds of frames slower than
+  40 ms the room's picture steps down: 1 sharpness to 1.5, 2 two thirds of
+  the fur layers (`cat.furLayers`), 3 sharpness 1 and half-size shadows.
+  Kept for a week in `pk-quality`. Not during the title (`title-fx.js` has
+  its own steps) and not under `?debug&frames`. `?q=0..3` fixes it, `?fps`
+  shows frames a second and the level.
+
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 

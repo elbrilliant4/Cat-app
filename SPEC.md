@@ -124,6 +124,15 @@ the phone's browser and can be added to the home screen.
   (`tools/qa/vacuum.mjs`). The study keeps its classic look, with pine
   and a brass lantern on the mantel and a plaid cushion on the armchair
   (seen through the doorway).
+- **Quick on a phone, and there without signal** (phase 18, preview).
+  Done when: the first open on a phone downloads under 6 MB before she is
+  on screen; after one open with signal the app opens and plays with no
+  signal, from the browser and from the home screen, save intact; a new
+  build shows after at most one reopen, never a mix of old and new; a phone
+  that cannot hold 25 frames a second gets an easier picture by itself;
+  on a computer she looks as before (`tools/qa/load.mjs`,
+  `tools/qa/quality.mjs`). Not in it: notifications, an "update ready"
+  banner, a lighter cat shape.
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
   volume for her and the room.
