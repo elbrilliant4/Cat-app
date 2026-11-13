@@ -44,6 +44,10 @@ export class TitleFx {
     c.addPass(this.grade);
     c.addPass(new OutputPass());
     c.setSize(size.x, size.y);
+    // (Kept for the slow-phone step in render(): until the room is next
+    // resized nothing else has told us our size, and stepping down to a
+    // smaller picture without it left only a strip of the picture drawn.)
+    this.w = size.x; this.h = size.y;
 
     // Sun shafts: thin sheets of light fanned from the window down to the
     // sunlight on the floor.
