@@ -1,28 +1,26 @@
-# Handoff: 2026-11-13, next is a full review of the app
+# Handoff: 2026-11-13, review done, waiting for Merlin's pick
 
 ## Next step
-Merlin (2026-11-13): "Really analyze the visuals, the camera, the touch
-screen movement when moving around, and how fun the app is. The intention
-is to fine tune it here to release it on the App Store in the future."
-
-Do a **review, not changes**: play the preview build the way a new player
-would, on a phone-sized screen (390 x 844, touch), with stills and short
-clips (`tools/qa/`, `docs/QA.md`; `camera.mjs` drives real two-finger
-touch). Four parts: how it looks (her, the rooms, the buttons and sheet,
-day and night); the camera (Mochi and Explore modes, framing, how small she
-is in the room view); moving around by touch (drag, pinch, double tap,
-what feels wrong or slow); how fun it is (first minute, what there is to do
-after five minutes, reasons to come back). Compare with 2 or 3 pet apps
-that are on the App Store. Give Merlin findings ranked by how much they
-matter for a release, each with a picture, then a picker of what to fix
-first. No code changes until he picks. The test machine draws in software,
-so it cannot judge smoothness: say so, and use his `?fps` numbers if he
-has sent them.
-
-The App Store is new: SPEC.md says the app runs in the phone's browser.
-It is noted under "Later" in SPEC.md; what a store release needs (a
-wrapper app, Apple's rules for web-only apps, a developer account at $99 a
-year) is a question to raise in the review, not to build.
+The full review is done (no app changes). Merlin picks what to fix first.
+Review page with pictures: https://claude.ai/artifact/YRrnVJZKRBrARzXUnccHH7
+Findings, most important first (390 x 844, touch):
+1. Fun (big): all three gifts can be earned in about two minutes (Brush
+   gives 3 friendship each time, no limit); needs drop 1 to 2.5 an hour and
+   never under 30; levels 5 to 9 give nothing. Needs a plan and Lettuce.
+2. She is 57 points tall (7% of the screen) in the Explore view the app
+   opens in; 179 in Mochi mode. Open in Mochi mode, bring the room view in.
+3. In Explore, Brush and Cuddle can land on a cat who is off screen.
+4. Pinched all the way in, her face is behind the care buttons (the camera
+   centres on the whole screen, not the free part above the buttons).
+5. Film and three taps on every launch: suggest first launch only.
+6. Day looks washed out next to night.
+7. Kitchen room view, Bed view and the turned study view are badly framed
+   on an upright phone.
+8. Buttons under Apple's 44 points (40, 36, 30); labels 10 to 10.5 points.
+9. The first hint covers the sound panel.
+App Store: guideline 4.2 (not a repackaged website) is the main risk; a
+privacy policy is required; offline inside a wrapper is not confirmed.
+Not judged: smoothness, the film at true speed, sound, real-phone sharing.
 
 ## Also waiting
 Phases 17 and 18 are both on the preview (build 374, `281e611`), waiting
