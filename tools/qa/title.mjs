@@ -117,7 +117,7 @@ await run('film: plays after Enter, a tap skips, then the first steps (ball, str
   await page.screenshot({path: `${OUT}/film-into-title.png`, timeout: 120000});
   await tapOut(page);
   await page.waitForTimeout(5000);
-  const hint = () => page.evaluate(() => { const h = document.getElementById('scene-hint'); return {t: h.textContent, teach: h.classList.contains('teach'), step: kitten.teach, mode: kitten.brain.mode}; });
+  const hint = () => page.evaluate(() => { const h = document.getElementById('scene-hint'), r = h.getBoundingClientRect(); return {t: h.textContent, teach: h.classList.contains('teach') && getComputedStyle(h).display !== 'none' && r.width > 40 && r.top > 0 && r.bottom < innerHeight * .6, step: kitten.teach, mode: kitten.brain.mode}; });
   let h = await hint();
   if (!h.teach || !/Tap the pink ball/.test(h.t)) throw new Error('no ball prompt: ' + JSON.stringify(h));
   await page.screenshot({path: `${OUT}/first-step-ball.png`, timeout: 120000});
