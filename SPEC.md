@@ -52,10 +52,12 @@ the phone's browser and can be added to the home screen.
   every third pat; a single tap on the floor calls her there unless she is
   busy or asleep (`tools/qa/camera.mjs`).
 - **Opening film** (live, phase 15). Done when: on the first launch of
-  the day, by day, in the plain study, with the long-haired Mochi and an
+  the day, by day or night, in the plain study, with the long-haired Mochi and an
   upright screen, Enter plays the film "Mochi and the yarn ball" (9.8 s,
   its music only with "Enter with sound"); a tap skips it; it fades into
-  the living title with no visible jump in the room; at night, in a
+  the living title (by day with no visible jump in the room; at night the
+  sunny film fades into the night room, Merlin's choice 2026-11-13 so
+  evening players see it); in a
   seasonal look, with the first Mochi or on a wide screen the zoomies
   sequence plays instead; a film that cannot load never leaves a black or
   stuck screen (`tools/qa/title.mjs`).

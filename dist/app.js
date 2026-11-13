@@ -3246,10 +3246,12 @@ const titleToday = () => { try { return storage.getItem(TITLE_DAY) === new Date(
 const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short' && (introParam === 'full' || !titleToday());
 let titleLiveAt = 0;
 // The opening film (assets/title/mochi-opening.mp4): in place of the zoomies
-// sequence when the room looks like the film does: by day, the plain study,
-// the long-haired Mochi, an upright screen. ?film=0 keeps the sequence.
+// sequence when the room looks like the film does: the plain study, the
+// long-haired Mochi, an upright screen. By night too (Merlin, 2026-11-13:
+// evening players should see it; the sunny film then fades into the night
+// room). ?film=0 keeps the sequence.
 const FILM_SRC = './assets/title/mochi-opening.mp4';
-const filmOK = () => titleFull && !night && room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
+const filmOK = () => titleFull && room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
 let film = null;
 function titleView() {
   if (titleStage === 'live') {

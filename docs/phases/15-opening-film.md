@@ -13,7 +13,8 @@ Done when: see SPEC.md, "Opening film" and "First steps".
   `sources/title/film-v3/` and HANDOFF.md of 2026-11-12. The last frame was
   made from a still of the real living title (`real-room.webp`).
 - Plays on the first launch of every day (Merlin), only where the room looks
-  like the film: day, plain study, long-haired Mochi, upright screen.
+  like the film: plain study, long-haired Mochi, upright screen. At first day
+  only; from 2026-11-13 by night too (Merlin: evening players never saw it).
   Everything else keeps the zoomies sequence. `?film=0` forces the sequence.
 - First steps show once ever, only to new saves (Merlin approved the plan).
 - Not in this version: teaching other care, a replay button, night or

@@ -152,6 +152,17 @@ await run('film: with sound, plays to its end and fades into the title', '?debug
   await liveOK(page);
   await tapOut(page);
 });
+await run('film: at night too, into the night room', '?debug&intro=full&night=1&filmwait=90000', PHONE, async page => {
+  await withFilm(page);
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.film.rolling', {timeout: 120000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
+  await page.waitForFunction(() => kitten.title.stage === 'live', null, {timeout: 600000});
+  await liveOK(page);
+  if (!await page.evaluate(() => kitten.night)) throw new Error('it is not night');
+  await page.screenshot({path: `${OUT}/film-into-night-title.png`, timeout: 120000});
+  await tapOut(page);
+});
 await run('film file missing: the sequence plays instead', '?debug&intro=full&night=0', PHONE, async page => {
   await page.route('**/mochi-opening.mp4', r => r.abort());
   await page.waitForSelector('#title.gate', {timeout: 120000});
@@ -163,7 +174,7 @@ await run('film file missing: the sequence plays instead', '?debug&intro=full&ni
   await page.waitForSelector('#title.reveal', {timeout: 60000});
   await tapOut(page);
 });
-for (const [name, q, opts] of [['night', '?debug&intro=full&night=1', PHONE], ['the Christmas look', '?debug&intro=full&night=0&decor=christmas', PHONE], ['the first Mochi', '?debug&intro=full&night=0&mochi=first', PHONE], ['a wide screen', '?debug&intro=full&night=0', DESK]])
+for (const [name, q, opts] of [['the Christmas look', '?debug&intro=full&night=0&decor=christmas', PHONE], ['the first Mochi', '?debug&intro=full&night=0&mochi=first', PHONE], ['a wide screen', '?debug&intro=full&night=0', DESK]])
   await run('no film in ' + name + ': the sequence', q, opts, async page => {
     await withFilm(page);
     if (/decor=christmas/.test(q)) { await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; localStorage[k] = JSON.stringify({v: 2, name: 'Mochi', decor: 'christmas', updated: Date.now()}); }); await page.reload(); }

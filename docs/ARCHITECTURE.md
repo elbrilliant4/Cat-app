@@ -50,7 +50,7 @@ tap: `titleTap`) tidies: vase home (`room.resetVase`), she is put at `HOME`,
 lens and camera back, name in (`.reveal`).
 
 **The film** (`startOpening`, `filmOK`, `startFilm`, `endFilm`, `stopFilm`):
-after Enter, `filmOK()` (full title, day, `room.decor === 'classic'`,
+after Enter, `filmOK()` (full title, day or night, `room.decor === 'classic'`,
 `LONGHAIR`, `tallScreen()`, not `?film=0`) picks stage `film` instead of
 `cine`. `<video id="title-film">` (in `.title-fx`) gets its `src` only then;
 it is muted unless `pet.sound`. Under it the room is already the film's last
