@@ -1,3 +1,18 @@
+# Handoff: 2026-11-13, camera modes are live
+
+## Next step
+Live now: build 345, `8fb63a4` (phase 16, Explore and Mochi camera modes,
+camera only; before it build 339, `7beff45`; rolling back is a force push:
+ask first). Merlin said "Go live" before trying it on a phone, so next is
+his and Lettuce's notes on how it feels. Known and not done: on phones the
+two mode buttons are icons only (offer the words Explore and Mochi); a game
+started from an Explore close-up may play off screen; the last full
+`tools/qa/camera.mjs` run was 24 of 25, the 25th (double tap on her) was
+fixed and checked alone, so run the script once more. Still held on the
+preview, no "Go live" yet: the 20 s opening film. No `docs/CLEANUP.md`:
+offer the cleanup audit.
+
+---
 # Handoff: 2026-11-13, opening film and first steps are live
 
 ## Next step

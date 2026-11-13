@@ -28,7 +28,7 @@ the phone's browser and can be added to the home screen.
   no leg stretched more than ~4 cm (`tools/qa/legs.mjs`).
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
-- **Looking around: two camera modes** (preview, phase 16; Merlin
+- **Looking around: two camera modes** (live, phase 16; Merlin
   2026-11-13, after "still really bad": replaces the one-finger map drag
   and the automatic view changes of phase 14). Done when: the Explore and
   Mochi buttons pick the mode and it is remembered; a pinch, drag or tap

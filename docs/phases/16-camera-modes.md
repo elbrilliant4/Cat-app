@@ -3,7 +3,7 @@
 Merlin, 2026-11-13: moving with fingers is "still really bad": the aim is
 off, roaming is hard and heads for the walls, no full turn, getting back to
 her is hard. He wants one mode that stays on the cat and one for admiring
-the rooms. Status: **built on preview, awaiting Merlin and Lettuce.**
+the rooms. Status: **live, build 345 (`8fb63a4`, Merlin's "Go live" 2026-11-13, before he or Lettuce had tried it on a phone: their notes are the next step).**
 
 ## What it does
 Two buttons on the room screen work as a switch, remembered between visits
