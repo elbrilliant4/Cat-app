@@ -22,6 +22,7 @@ brings that version's app back.
 | Live build 323, same build | `72e3372` | 2026-11-13. Also in it: the opening film "Mochi and the yarn ball" after Enter (day, plain study, upright screen), first steps for new players (tap the ball, a stroke), and the phone layout with the pull-up panel (phase 08). Before it: `cdd41b3`. |
 | Live build 330 | `8624a88` | 2026-11-13. The opening film plays at night too (Merlin: evening players never saw it); the sunny film then fades into the night room. Before it: `72e3372`. |
 | Live build 333 | `f16091b` | 2026-11-13. The opening film in its long cut, 13.5 s (Merlin: 9.8 s was too short): the same four shots at nearly full length. Also a link can open straight into a look and a room (other session). Before it: `8624a88`. |
+| Live build 339 | `7beff45` | 2026-11-13. Fixes on top of build 333 (main plus five picked commits, not the whole preview branch): the title screen's glow keeps its size on a slow phone and is drawn without smoothed edges on phones (an iPhone showed the title as a black screen with a strip of picture; not confirmed fixed on Merlin's phone yet; `?fx=0` shows the title with no effects); the page fetches fresh files when a new build is out, then loads once more; the Christmas look is offered in the picker from November. Not included: the two camera modes and the 20 s opening film, still on the preview. |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
 Her face, expressions, proportions, rig and movement may keep improving;
