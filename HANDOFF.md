@@ -1,26 +1,30 @@
-# Handoff: 2026-11-13, phase 17 (reasons to come back) on the preview
+# Handoff: 2026-11-13, phases 17 and 18 on the preview
 
 Older handoffs (film cuts, Christmas kitchen, the fork's publishing) were
 stacked here, 262 lines; they are in git history (`git log -p HANDOFF.md`).
 
 ## Next step
-Merlin picked (2026-11-13): **phone speed and an offline copy** as the next
-phase (18). It is a big change: look at how 2 or 3 similar web apps load 3D
-on phones, then plan mode, wait for his OK. Facts measured this session:
-first load 12.5 MB in 46 requests; the cat `assets/mochi-longhair-hq.glb`
-is 8.9 MB (3.3 MB of it two JPEG textures), 93,356 triangles, fur 9 layers
-on a phone and 20 on a computer; three.js 2 MB, not minified; no service
-worker; no quality step-down in the room (only `title-fx.js` has one); the
-meshopt decoder is already in `dist/vendor/`. Frame rate on a real phone
-has never been measured: ask Merlin for his and Lettuce's phone models.
-Also check "Deploy site" run 43461836073 published phase 17 (preview
-`version.json` should show `aecd788`).
+Phases 17 and 18 are both on the preview (build 374, `281e611`), waiting
+for Merlin and Lettuce to try them on a real phone:
+https://jvtomax99.github.io/Cat-app/preview/ . Then notes or "Go live".
 
-Meanwhile, phase 17: Merlin and Lettuce try phase 17 on a phone at
-https://jvtomax99.github.io/Cat-app/preview/ and give notes or "Go live".
-Brief: `docs/phases/17-reasons-to-return.md`. To see the cards without
-waiting: play until friendship level 2 (15 care), or leave the app closed
-for 30 minutes.
+Phase 18 (phone speed and an offline copy), brief:
+`docs/phases/18-phone-speed-offline.md`. To check on a phone:
+- Add `?fps` to the address: the top-left box shows frames a second and
+  the quality level. Wanted: Merlin's and Lettuce's numbers and phone models.
+- Open once with signal, wait a minute, turn on airplane mode, open again
+  (browser, and the home-screen icon). Does the opening film play offline
+  on an iPhone?
+Going live puts a service worker on the live site for the first time: keep
+it on the preview a few days first. Off switch if it misbehaves: publish a
+`version.json` with `"sw": false` (needs a line in `tools/build-site.sh`).
+
+Phase 17, brief: `docs/phases/17-reasons-to-return.md`. To see the cards
+without waiting: play until friendship level 2 (15 care), or leave the app
+closed for 30 minutes.
+
+A fresh cloud session can start with the local branch label on an old
+commit: check `git log -1` matches the remote tip before committing.
 
 ## Done (preview branch)
 - "While you were away" card, gifts at friendship levels 2 to 4 (felt
@@ -33,13 +37,13 @@ for 30 minutes.
 ## Not verified
 - Share and Save of a photo on a real iPhone and Android phone (the test
   browser cannot press a real share sheet).
-- Frame rate on a real phone (never measured for this app; the cat is an
-  8.9 MB file and the fur draws her 9 times over on a phone).
+- Phase 18: frame rate on a real phone (`?fps`), offline from an iPhone
+  home-screen icon, the film offline in Safari.
 
 ## Waiting on Merlin
 - Gifts for levels 5 to 9 (phase 17b; proposals in SPEC.md "Later").
 - Should needs drop faster while away? Today a week away reads "All good".
-- From the review, not started: phone speed and an offline copy; a feedback
+- From the review, not started: a feedback
   button before the test group (phase 09); Mochi is small in the room view,
   labels are 10.5 px; the opening now plays on every launch (three taps to
   reach her).
@@ -53,6 +57,5 @@ for 30 minutes.
 "Reasons to come back" in `docs/ARCHITECTURE.md`.
 
 ## Paste into a new chat
-> Read CLAUDE.md and HANDOFF.md. Do the next step there: plan phase 18,
-> phone speed and an offline copy. Phase 17 is on the preview waiting for
-> Merlin's notes.
+> Read CLAUDE.md and HANDOFF.md. Phases 17 and 18 are on the preview
+> waiting for Merlin's notes; ask him for them and his phone's `?fps` numbers.
