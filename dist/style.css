@@ -598,3 +598,30 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
   .scene-hint.teach { display: block; position: absolute; left: 12px; top: calc(138px + env(safe-area-inset-top)); z-index: 6; max-width: calc(100% - 90px); padding: 9px 16px 10px; border-radius: 999px; white-space: nowrap; font-size: 14px; background: rgba(255, 250, 244, .94); border: 1px solid var(--glass-line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 6px 16px -10px rgba(74, 46, 25, .45); }
   body.sheet-open .scene-hint.teach { display: none; }
 }
+
+/* Phase 17: reasons to come back. The friendship card's next gift, the news
+   card ("While you were away", gifts), the toy basket and the photo. */
+.bond-gift { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 99px; font-size: 12.5px; font-weight: 800; background: rgba(255, 255, 255, .22); }
+.bond-gift::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .9; }
+dialog.news { text-align: left; }
+dialog.news h2 { margin-bottom: 14px; }
+.news-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.news-list li { display: grid; grid-template-columns: 44px 1fr; align-items: center; column-gap: 12px; padding: 10px 12px; border-radius: 18px; border: 1px solid var(--line); background: color-mix(in srgb, var(--tint, var(--accent)) 7%, transparent); }
+.news-list img { width: 44px; height: 44px; grid-row: span 2; }
+.news-list strong { font-size: 15px; line-height: 1.35; font-weight: 700; }
+.news-list li.gift strong { font-weight: 800; }
+.news-list small { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.news-list li:not(.gift) strong { grid-row: span 2; }
+#toy-options button[aria-pressed="true"] { border-color: var(--tint); background: color-mix(in srgb, var(--tint) 12%, transparent); }
+#toy-options span img { width: 34px; height: 34px; }
+dialog.photo img { display: block; width: 100%; max-height: 52vh; object-fit: contain; border-radius: 18px; background: var(--bg-2); }
+dialog.photo .button-row { margin-top: 14px; }
+dialog.photo a.secondary { text-align: center; text-decoration: none; color: inherit; }
+.photo-flash { position: absolute; inset: 0; z-index: 9; background: #fff; opacity: 0; pointer-events: none; }
+.photo-flash.on { animation: photoflash .45s ease-out; }
+@keyframes photoflash { 0% { opacity: .85; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .photo-flash.on { animation: none; } }
+/* The open sheet scrolls: its cards keep their own height. (A card that
+   clips its content, the friendship card, was squeezed to a strip as soon
+   as the sheet's content was taller than the screen.) */
+@media (max-width: 720px) and (orientation: portrait) { .panel { grid-auto-rows: max-content; } }

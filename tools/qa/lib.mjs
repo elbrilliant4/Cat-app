@@ -12,7 +12,8 @@ async function chromium() {
   return (await import('/opt/node22/lib/node_modules/playwright/index.mjs')).chromium;
 }
 
-export async function open({seed = null, kitchen = false, night = 0, flags = '', width = 420, height = 760, quiet = true} = {}) {
+// init: [fn, arg], run in the page before the app starts (e.g. to put a save in storage).
+export async function open({seed = null, kitchen = false, night = 0, flags = '', width = 420, height = 760, quiet = true, init = null} = {}) {
   // MOCHI=first: the first Mochi (the kitten); the app's default is the long-haired Mochi.
   if (process.env.MOCHI === 'first') flags += '&mochi=first';
   const srv = http.createServer((q, r) => {
@@ -47,6 +48,7 @@ export async function open({seed = null, kitchen = false, night = 0, flags = '',
       }
     };
   });
+  if (init) await page.addInitScript(init[0], init[1]);
   await page.goto(`http://127.0.0.1:${port}/index.html?debug&frames&night=${night}${flags}`);
   await page.waitForFunction(() => window.kitten && kitten.cat.ready && kitten.cat.motion && kitten.kitchen, null, {timeout: 900000});
   // (Let the start-up timeouts finish on real time, then start the random
