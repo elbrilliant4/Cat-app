@@ -3249,12 +3249,13 @@ const TITLE_DAY = 'pocket-kitten-title-day', introParam = new URLSearchParams(lo
 const titleToday = () => { try { return storage.getItem(TITLE_DAY) === new Date().toDateString(); } catch { return false; } };
 const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short' && (introParam === 'full' || !titleToday());
 let titleLiveAt = 0;
-// The opening film (assets/title/mochi-opening.mp4): in place of the zoomies
+// The opening film (assets/title/mochi-opening-v4.mp4): in place of the zoomies
 // sequence when the room looks like the film does: the plain study, the
 // long-haired Mochi, an upright screen. By night too (Merlin, 2026-11-13:
 // evening players should see it; the sunny film then fades into the night
 // room). ?film=0 keeps the sequence.
-const FILM_SRC = './assets/title/mochi-opening.mp4';
+// (A new film gets a new file name, so no phone keeps playing an old one.)
+const FILM_SRC = './assets/title/mochi-opening-v4.mp4';
 const filmOK = () => titleFull && room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
 let film = null;
 function titleView() {
@@ -3510,7 +3511,7 @@ function startFilm(withSound) {
     (titleToys || []).forEach(o => placeTitleToy(o, -1));
     // A film that stalls, breaks or is paused by the phone ends at once;
     // and whatever happens it is over a little after its length.
-    film.watch = setTimeout(endFilm, Math.max(18000, wait));
+    film.watch = setTimeout(endFilm, Math.max(25000, wait));
   };
   v.onended = endFilm;
   v.onpause = () => { if (film?.rolling && !v.ended) endFilm(); };

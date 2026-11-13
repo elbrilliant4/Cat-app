@@ -91,7 +91,7 @@ await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&
 // The opening film (by day, plain study, long-haired Mochi, upright screen).
 // (This browser cannot play the real mp4: it is handed a WebM copy.)
 const FILM = new URL('../../fixtures/mochi-opening.webm', import.meta.url).pathname;
-const withFilm = page => page.route('**/mochi-opening.mp4', r => r.fulfill({path: FILM, contentType: 'video/webm'}));
+const withFilm = page => page.route('**/mochi-opening*.mp4', r => r.fulfill({path: FILM, contentType: 'video/webm'}));
 const stage = page => page.evaluate(() => kitten.title.stage);
 const liveOK = async page => {
   await page.waitForSelector('#title.reveal', {timeout: 120000});
@@ -164,7 +164,7 @@ await run('film: at night too, into the night room', '?debug&intro=full&night=1&
   await tapOut(page);
 });
 await run('film file missing: the sequence plays instead', '?debug&intro=full&night=0', PHONE, async page => {
-  await page.route('**/mochi-opening.mp4', r => r.abort());
+  await page.route('**/mochi-opening*.mp4', r => r.abort());
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
   await page.waitForSelector('#title.cine', {timeout: 60000}).catch(async () => { throw new Error('no sequence, stage ' + await stage(page)); });

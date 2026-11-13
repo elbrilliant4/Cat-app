@@ -22,6 +22,13 @@ Done when: see SPEC.md, "Opening film" and "First steps".
 - First steps show once ever, only to new saves (Merlin approved the plan).
 - Not in this version: teaching other care, a replay button, night or
   Christmas films (SPEC.md "Later").
+- Combined cut (Merlin, 2026-11-13, after comparing the cuts himself):
+  `mochi-film-v4-combo-A.mp4`, 20 s: v3 shot1 0.2-3.0, v3 shot2 0.2-3.0, then
+  from the second cut (`sources/title/film/mochi-film-silent.mp4`) the eye
+  2.0-3.2, v3 shot3's crouch 0-1.6, second cut's run 3.2-5.7, leap 5.7-8.7,
+  catch 8.7-10.9, then v3 shot4 0.1-4.04. Music A looped (0-11.5 crossfaded
+  2 s into 3.5-14.5), faded out from 18.3 s. In the app as
+  `mochi-opening-v4.mp4`; a new film gets a new file name.
 
 ## Check
 `node tools/qa/title.mjs` (needs `npm run dev`). The test browser cannot
