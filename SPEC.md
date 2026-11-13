@@ -71,7 +71,7 @@ the phone's browser and can be added to the home screen.
   Merlin changed his mind on a generated film (2026-11-12, evening): a
   13 s Runway film, "Mochi and the yarn ball", is cut and waiting for his
   pick of music; it is NOT in the app yet (`HANDOFF.md`).
-- **The screen on a phone** (preview, phase 08; Merlin 2026-11-12 picked
+- **The screen on a phone** (live, build 323, phase 08; Merlin 2026-11-12 picked
   the pull-up sheet over swipe cards and needs-on-the-room). Done when: on
   a phone the room fills the screen and never scrolls; a sheet at the bottom
   shows what she needs most with its button and the other four needs; a
