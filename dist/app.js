@@ -480,7 +480,9 @@ function studyLayout() {
     limits: {dist: [1.1, 13], pitch: [.04, 1.25], x: [-4.1, 4.1], z: [-2.9, 3.8], y: [.08, 2.4]},
     // The camera stays inside the room (it may stand back past the open
     // front) and out of the tall furniture: [x, z, radius, height].
-    camBox: {x: [-4.3, 3.75], y: [.2, 6.5], z: [-3.1, 16]},
+    // (Past the right wall the camera may step outside: that wall and its
+    // fireplace hide, so the turn towards it sees the room, not the back of the armchair.)
+    camBox: {x: [-4.3, 9.5], y: [.2, 6.5], z: [-3.1, 16]},
     camSolids: [[2.45, -2.0, 1.3, 2.3], [.55, -2.85, .75, 2.6], [4.0, -1.45, .6, 3.2], [4.2, 1.1, .7, 2.8], [-2.35, -1.75, 1.0, .55]],
   };
 }
