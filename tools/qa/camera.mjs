@@ -78,7 +78,9 @@ let far4 = null;
 for (const [dx, dz] of [[.9, .3], [-.9, .3], [.8, -.4], [-.8, -.4], [.6, .6], [-.6, .6]]) {
   const w = await page.evaluate(([dx, dz]) => { const p = kitten.brain.pos; return [p.x + dx, 0, p.z + dz]; }, [dx, dz]);
   [x0, y0] = await screenOf(w);
-  if (x0 > 40 && x0 < 320 && y0 > 140 && y0 < 620 && !(await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x0, y0]))) { far4 = w; break; }
+  // (Not the ball either: a tap on it starts the ball game.)
+  const [bx, by] = await screenOf(await page.evaluate(() => kitten.toy.position.toArray()));
+  if (x0 > 40 && x0 < 320 && y0 > 140 && y0 < 620 && Math.hypot(x0 - bx, y0 - by) > 60 && !(await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x0, y0]))) { far4 = w; break; }
 }
 if (!far4) { far4 = [0, 0, 0]; console.log('FAIL  no bare floor on screen near her'); }
 const p0 = await pos();
