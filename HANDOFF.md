@@ -1,6 +1,23 @@
-# Handoff: 2026-11-13, camera fixes from the review on the preview
+# Handoff: 2026-11-13, next is a plan for the fun changes
 
 ## Next step
+Merlin picked (2026-11-13): **plan the fun changes**. Plan only, no
+building: this is a big change (new kinds of saved data), so follow "Big
+vs small" in CLAUDE.md: look at how 2 or 3 pet apps do it (the review page
+has Tom 2, Neko Atsume and Finch), then plan mode, assumptions listed
+separately, wait for his OK, and remind him to check it with Lettuce.
+The problem, from the review: all three gifts can be earned in about two
+minutes (Brush gives 3 friendship each press with no limit, 4 seconds
+each; levels at 15, 40, 100); levels 5 to 9 give nothing; needs drop 1 to
+2.5 an hour and never under 30, so nothing asks for you; the ball game
+adds joy that is already full. The plan should cover: friendship earned
+over days (each action counts fully a few times a day, then a little),
+gifts for levels 5 to 9 (proposals in SPEC.md "Later"), one small new
+thing each day, and whether needs drop faster while away (open question
+for Merlin and Lettuce). Rules live in `dist/pet-state.js` (`care`,
+`advance`), levels in `dist/app.js` (`LEVELS`), gifts in `dist/rewards.js`.
+
+## Camera fixes (on the preview, build 384, waiting for a phone try)
 Merlin picked the three camera fixes from the review (page:
 https://claude.ai/artifact/YRrnVJZKRBrARzXUnccHH7). Done and pushed
 (`496b210`, test tools `fdcf723`); waiting for him to try them on a phone:
