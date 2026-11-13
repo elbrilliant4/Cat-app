@@ -2679,7 +2679,7 @@ function doubleTap() {
   if (view.mode === 'follow') return;
   const fr = framing(false);
   view.goal.focus.copy(fr.center);
-  view.goal.dist = clamp(fitDistance(fr.radius) * .6, LIMITS.dist[0], 6);
+  view.goal.dist = clamp(fitDistance(fr.radius) * .45, LIMITS.dist[0], 6);
   setCamMode('free');
   view.zoomHeld = true;
   clampGoal();
