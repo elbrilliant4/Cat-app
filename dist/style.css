@@ -211,7 +211,7 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .night .scene-hint { color: #c9b29a; }
 /* A first step being taught ("Tap the pink ball"): it stands out and breathes. */
 .scene-hint.teach { font-size: 14px; font-weight: 800; color: var(--accent); animation: teach-pulse 1.8s ease-in-out infinite; }
-@keyframes teach-pulse { 50% { opacity: .55; } }
+@keyframes teach-pulse { 50% { opacity: .72; } }
 @media (prefers-reduced-motion: reduce) { .scene-hint.teach { animation: none; } }
 
 .play-meter { position: absolute; z-index: 4; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 99px; background: var(--card-solid); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 750; white-space: nowrap; animation: pop .5s var(--spring); }
@@ -514,7 +514,7 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
    app.js sets --peek-px (the resting height) and body.sheet-open. */
 .hud-left { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .sheet-grip, .sheet-scrim { display: none; }
-@media (max-width: 720px) {
+@media (max-width: 720px) and (orientation: portrait) {
   :root { --peek: calc(var(--peek-px, 300px) + env(safe-area-inset-bottom)); }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .topbar { display: none; }
@@ -528,10 +528,13 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
   .hud-left .top-actions .icon-btn { width: 38px; height: 38px; border-radius: 13px; font-size: 17px; background: var(--glass); border-color: var(--glass-line); box-shadow: 0 6px 16px -10px rgba(74, 46, 25, .45); }
   .hud-left .chip { height: 38px; padding: 0 11px; border-radius: 13px; background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   .hud-left .sound-panel { left: 0; right: auto; }
+  .hud-left .build-chip { display: none !important; }
+  body.watch .hud-left .top-actions { display: none; }
   .dock { bottom: calc(var(--peek) + 10px); transition: opacity .4s, bottom .4s var(--ease); }
   .play-meter { bottom: calc(var(--peek) + 104px); }
+  .toast { z-index: 50; bottom: calc(var(--peek) + 104px); }
 
-  .panel { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; height: calc(100dvh - 56px - env(safe-area-inset-top)); display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; padding: 0 14px calc(18px + env(safe-area-inset-bottom)); overflow: hidden; overscroll-behavior: contain; border-radius: 30px 30px 0 0; background: var(--bg); box-shadow: 0 -1px 0 0 rgba(255, 255, 255, .6), 0 -16px 40px -18px rgba(74, 46, 25, .45); transform: translateY(calc(100% - var(--peek))); transition: transform .55s cubic-bezier(.2, .8, .2, 1), background 1.2s var(--ease); touch-action: none; will-change: transform; }
+  .panel { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; height: calc(100vh - 56px - env(safe-area-inset-top)); height: calc(100dvh - 56px - env(safe-area-inset-top)); display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; padding: 0 14px calc(18px + env(safe-area-inset-bottom)); overflow: hidden; overscroll-behavior: contain; border-radius: 30px 30px 0 0; background: var(--bg); box-shadow: 0 -1px 0 0 rgba(255, 255, 255, .6), 0 -16px 40px -18px rgba(74, 46, 25, .45); transform: translateY(calc(100% - var(--peek))); transition: transform .55s cubic-bezier(.2, .8, .2, 1), background 1.2s var(--ease); touch-action: none; will-change: transform; }
   .panel.dragging { transition: none; }
   .sheet-open .panel { transform: translateY(0); overflow-y: auto; touch-action: pan-y; }
   .panel .log { grid-column: auto; }
@@ -558,4 +561,10 @@ body.watch .cam-buttons .icon-btn:not(#watch-btn) { display: none; }
   .panel footer { padding: 8px 4px 0; }
   .panel .bond-card { align-self: auto; }
 }
-@media (max-width: 720px) and (prefers-reduced-motion: reduce) { .panel, .sheet-scrim, .dock { transition: none; } }
+@media (max-width: 720px) and (orientation: portrait) and (prefers-reduced-motion: reduce) { .panel, .sheet-scrim, .dock { transition: none; } }
+/* A first step being taught, on a phone (where the hint line is hidden): a
+   pill over the room, under the day row (the dock would cover it lower down). */
+@media (max-width: 720px) and (orientation: portrait) {
+  .scene-hint.teach { display: block; position: absolute; left: 12px; top: calc(138px + env(safe-area-inset-top)); z-index: 6; max-width: calc(100% - 90px); padding: 9px 16px 10px; border-radius: 999px; white-space: nowrap; font-size: 14px; background: rgba(255, 250, 244, .94); border: 1px solid var(--glass-line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 6px 16px -10px rgba(74, 46, 25, .45); }
+  body.sheet-open .scene-hint.teach { display: none; }
+}
