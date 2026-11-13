@@ -27,7 +27,7 @@ const drag = async (page, x, y0, y1) => {
 };
 const isOpen = page => page.evaluate(() => document.body.classList.contains('sheet-open'));
 {
-  const {page, close} = await start(0, false);
+  const {page, step, close} = await start(0, false);
   await page.screenshot({path: `${OUT}/resting.png`});
   const m = await page.evaluate(() => {
     const b = document.querySelector('.need.hero .need-btn').getBoundingClientRect();
@@ -59,10 +59,12 @@ const isOpen = page => page.evaluate(() => document.body.classList.contains('she
   ok(inert, 'resting: friendship, moments and footer are out of keyboard reach');
   await page.evaluate(() => { kitten.pet.food = 22; kitten.pet.water = 77; kitten.refresh(); });
   await page.waitForTimeout(600);
-  // A message shows above the sheet.
-  const t = await page.evaluate(async () => { kitten.pet.sleeping = true; kitten.refresh(); document.querySelector('.dock [data-action="feed"]').click(); await new Promise(r => setTimeout(r, 600)); const el = document.querySelector('.toast'), r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); kitten.pet.sleeping = false; kitten.refresh(); return {text: el.textContent, top: !!hit && el.contains(hit)}; });
+  // A message shows above the sheet (it ignores touches, so compare layers).
+  await page.evaluate(() => { kitten.pet.sleeping = true; kitten.refresh(); document.querySelector('.dock [data-action="feed"]').click(); });
+  await step(20); await page.waitForTimeout(700);
+  const t = await page.evaluate(() => { const el = document.querySelector('.toast'), r = el.getBoundingClientRect(), sh = document.querySelector('#sheet').getBoundingClientRect(); const z = +getComputedStyle(el).zIndex > +getComputedStyle(document.querySelector('#sheet')).zIndex; kitten.pet.sleeping = false; kitten.refresh(); return {text: el.textContent, top: el.classList.contains('visible') && (z || r.bottom <= sh.top)}; });
   ok(t.top, `a message shows on top ("${t.text}")`);
-  await page.waitForTimeout(3000);
+  await step(240);
   await page.click('.need.hero .need-btn'); await page.waitForTimeout(700);
   ok(await page.evaluate(() => document.querySelector('#feed-dialog').open), 'Feed on the resting sheet opens the snack menu');
   await close();
