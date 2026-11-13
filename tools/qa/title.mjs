@@ -23,7 +23,8 @@ async function run(name, query, opts, body) {
   try {
     await page.goto(BASE + query);
     await body(page);
-    const stuck = await page.evaluate(() => document.querySelectorAll('[inert]').length + (document.querySelector('.stage').getAttribute('style') ? 1 : 0));
+    // (Only what the title itself locks: on a phone the resting sheet keeps its hidden cards and the footer inert.)
+    const stuck = await page.evaluate(() => document.querySelectorAll('.topbar[inert], .panel[inert]').length + (document.querySelector('.stage').getAttribute('style') ? 1 : 0));
     if (await titleOn(page)) throw new Error('title still up');
     if (stuck) throw new Error('page left locked');
     if (errors.length) throw new Error('page errors: ' + errors.join(' | '));
