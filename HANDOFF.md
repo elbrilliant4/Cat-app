@@ -1,8 +1,9 @@
 # Handoff: 2026-11-13, opening film and first steps are live
 
 ## Next step
-Live now: build 330, `8624a88` (film at night too, Merlin's "Go live"
-2026-11-13; before it `72e3372`). In this fork a push to `main` does not
+Live now: build 333, `f16091b` (the film's long cut, 13.5 s, Merlin's "Go
+live" 2026-11-13; before it build 330, `8624a88`, film at night too; before
+that `72e3372`). In this fork a push to `main` does not
 publish: run the "Deploy site" workflow after it. Merlin compared the
 second cut (eye close-up, leap) and chose to keep the third.
 Phase 15 first went live as build 323, `72e3372` (Merlin: "Go live with everything",

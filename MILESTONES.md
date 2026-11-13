@@ -21,6 +21,7 @@ brings that version's app back.
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 | Live build 323, same build | `72e3372` | 2026-11-13. Also in it: the opening film "Mochi and the yarn ball" after Enter (day, plain study, upright screen), first steps for new players (tap the ball, a stroke), and the phone layout with the pull-up panel (phase 08). Before it: `cdd41b3`. |
 | Live build 330 | `8624a88` | 2026-11-13. The opening film plays at night too (Merlin: evening players never saw it); the sunny film then fades into the night room. Before it: `72e3372`. |
+| Live build 333 | `f16091b` | 2026-11-13. The opening film in its long cut, 13.5 s (Merlin: 9.8 s was too short): the same four shots at nearly full length. Also a link can open straight into a look and a room (other session). Before it: `8624a88`. |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
 Her face, expressions, proportions, rig and movement may keep improving;
