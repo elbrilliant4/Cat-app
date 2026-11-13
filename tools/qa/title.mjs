@@ -108,8 +108,8 @@ await run('film: plays after Enter, a tap skips, then the first steps (ball, str
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
   await page.waitForSelector('#title.film.rolling', {timeout: 120000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
   if (await page.evaluate(() => !document.getElementById('title-film').muted)) throw new Error('film has sound after Enter without sound');
-  // (The film is held still for the tap: on this slow machine it would be over first.)
-  await page.evaluate(() => { document.getElementById('title-film').pause(); window.__at = null; document.getElementById('title').addEventListener('click', () => { window.__at = kitten.title.stage; }, true); });
+  // (The film is slowed right down for the tap: on this slow machine it would be over first.)
+  await page.evaluate(() => { document.getElementById('title-film').playbackRate = .07; window.__at = null; document.getElementById('title').addEventListener('click', () => { window.__at = kitten.title.stage; }, true); });
   await page.waitForFunction(() => kitten.clock - kitten.title.film.at > .5, null, {timeout: 60000});
   await page.click('#title', {timeout: 120000, noWaitAfter: true});
   if (await page.evaluate(() => window.__at) !== 'film') throw new Error('the tap came after the film: this machine is too slow to test the skip');
