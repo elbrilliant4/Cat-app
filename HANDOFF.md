@@ -1,9 +1,30 @@
-# Handoff: 2026-11-13, phases 17 and 18 on the preview
-
-Older handoffs (film cuts, Christmas kitchen, the fork's publishing) were
-stacked here, 262 lines; they are in git history (`git log -p HANDOFF.md`).
+# Handoff: 2026-11-13, next is a full review of the app
 
 ## Next step
+Merlin (2026-11-13): "Really analyze the visuals, the camera, the touch
+screen movement when moving around, and how fun the app is. The intention
+is to fine tune it here to release it on the App Store in the future."
+
+Do a **review, not changes**: play the preview build the way a new player
+would, on a phone-sized screen (390 x 844, touch), with stills and short
+clips (`tools/qa/`, `docs/QA.md`; `camera.mjs` drives real two-finger
+touch). Four parts: how it looks (her, the rooms, the buttons and sheet,
+day and night); the camera (Mochi and Explore modes, framing, how small she
+is in the room view); moving around by touch (drag, pinch, double tap,
+what feels wrong or slow); how fun it is (first minute, what there is to do
+after five minutes, reasons to come back). Compare with 2 or 3 pet apps
+that are on the App Store. Give Merlin findings ranked by how much they
+matter for a release, each with a picture, then a picker of what to fix
+first. No code changes until he picks. The test machine draws in software,
+so it cannot judge smoothness: say so, and use his `?fps` numbers if he
+has sent them.
+
+The App Store is new: SPEC.md says the app runs in the phone's browser.
+It is noted under "Later" in SPEC.md; what a store release needs (a
+wrapper app, Apple's rules for web-only apps, a developer account at $99 a
+year) is a question to raise in the review, not to build.
+
+## Also waiting
 Phases 17 and 18 are both on the preview (build 374, `281e611`), waiting
 for Merlin and Lettuce to try them on a real phone:
 https://jvtomax99.github.io/Cat-app/preview/ . Then notes or "Go live".
@@ -57,5 +78,6 @@ commit: check `git log -1` matches the remote tip before committing.
 "Reasons to come back" in `docs/ARCHITECTURE.md`.
 
 ## Paste into a new chat
-> Read CLAUDE.md and HANDOFF.md. Phases 17 and 18 are on the preview
-> waiting for Merlin's notes; ask him for them and his phone's `?fps` numbers.
+> Read CLAUDE.md and HANDOFF.md. Do the next step there: a full review of
+> the app (visuals, camera, touch movement, how fun it is) for a future App
+> Store release. Review only, with pictures; no changes until I pick.

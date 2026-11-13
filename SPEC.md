@@ -158,6 +158,9 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
   ended.
 
 ## Later
+- An App Store release (Merlin, 2026-11-13: "in the future"; today it runs
+  in the phone's browser). Needs a wrapper app, an Apple developer account
+  ($99 a year) and a look at Apple's rules for apps that are a website.
 - A true 360 turn: needs a fourth wall in both rooms (phase 16 chose a
   wide turn). Also from phase 16: an arrow pointing to Mochi when she is
   off screen, walking through the room at eye level. (The photo button
