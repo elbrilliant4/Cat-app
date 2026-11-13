@@ -394,6 +394,8 @@ const {bowl, kibbles, fountain} = room;
 let bed = room.bed;
 // (A seasonal look is stored away out of season: ?decor=halloween shows one anyway.)
 const DECOR_FORCE = new URLSearchParams(location.search).get('decor');
+// (It also dresses the rooms in that look straight away: a link that shows it with no tapping.)
+if (DECOR_FORCE && DECORS[DECOR_FORCE] && pet.decor !== DECOR_FORCE) { pet.decor = DECOR_FORCE; save(); }
 if (pet.decor !== decorNow(pet.decor, DECOR_FORCE)) { pet.decor = decorNow(pet.decor, DECOR_FORCE); save(); }
 applyDecor(room, pet.decor);
 // The study's lamp light belongs to the scene, so it can hang over whichever
@@ -581,6 +583,8 @@ function buildKitchen() {
   return kitchen;
 }
 // (The title screen opens on her bed in the study.)
+// (?room=kitchen or ?room=study opens in that room; the title screen still starts in the study.)
+{ const r = new URLSearchParams(location.search).get('room'); if (r === 'kitchen' || r === 'study') pet.place = r === 'kitchen' ? 'kitchen' : 'room'; }
 if (titleOn) pet.place = 'room';
 if (pet.place === 'kitchen') buildKitchen();
 usePlace(pet.place === 'kitchen' ? kitchen : room);
