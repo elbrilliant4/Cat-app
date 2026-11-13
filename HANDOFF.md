@@ -1,26 +1,24 @@
-# Handoff: 2026-11-13, review done, waiting for Merlin's pick
+# Handoff: 2026-11-13, camera fixes from the review on the preview
 
 ## Next step
-The full review is done (no app changes). Merlin picks what to fix first.
-Review page with pictures: https://claude.ai/artifact/YRrnVJZKRBrARzXUnccHH7
-Findings, most important first (390 x 844, touch):
-1. Fun (big): all three gifts can be earned in about two minutes (Brush
-   gives 3 friendship each time, no limit); needs drop 1 to 2.5 an hour and
-   never under 30; levels 5 to 9 give nothing. Needs a plan and Lettuce.
-2. She is 57 points tall (7% of the screen) in the Explore view the app
-   opens in; 179 in Mochi mode. Open in Mochi mode, bring the room view in.
-3. In Explore, Brush and Cuddle can land on a cat who is off screen.
-4. Pinched all the way in, her face is behind the care buttons (the camera
-   centres on the whole screen, not the free part above the buttons).
-5. Film and three taps on every launch: suggest first launch only.
-6. Day looks washed out next to night.
-7. Kitchen room view, Bed view and the turned study view are badly framed
-   on an upright phone.
-8. Buttons under Apple's 44 points (40, 36, 30); labels 10 to 10.5 points.
-9. The first hint covers the sound panel.
-App Store: guideline 4.2 (not a repackaged website) is the main risk; a
-privacy policy is required; offline inside a wrapper is not confirmed.
-Not judged: smoothness, the film at true speed, sound, real-phone sharing.
+Merlin picked the three camera fixes from the review (page:
+https://claude.ai/artifact/YRrnVJZKRBrARzXUnccHH7). Done and pushed
+(`496b210`, test tools `fdcf723`); waiting for him to try them on a phone:
+- With no mode picked yet the app opens in Mochi mode (after the first
+  steps for a new player). A player who pressed Explore keeps Explore.
+- In Mochi mode the picture slides up by half of what the care buttons
+  cover (the camera does not move); pinched close, her face is centred.
+- Brush, Cuddle or Play pressed in Explore while she is out of the picture
+  turns the view to her.
+Checked: `npm run check`, `camera.mjs` 25 of 25, `sheet.mjs` 14, `return.mjs` 24.
+Not checked: a real phone; the kitchen in Mochi mode at closest zoom.
+
+Still open from the review, most important first: (1) fun: all gifts in
+about two minutes of Brush, nothing after level 4, needs a plan and
+Lettuce; (5) film on every launch; (6) washed-out day; (7) kitchen room
+view, Bed view and turned study view framing; (8) buttons under 44 points,
+labels 10 points; (9) the first hint covers the sound panel. App Store:
+guideline 4.2, privacy policy, offline inside a wrapper not confirmed.
 
 ## Also waiting
 Phases 17 and 18 are both on the preview (build 374, `281e611`), waiting
