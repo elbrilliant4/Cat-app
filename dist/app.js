@@ -2870,12 +2870,13 @@ host.addEventListener('pointermove', e => {
     }
     // Explore: sliding both fingers moves the view (once it is clearly a
     // slide, so a plain pinch stays where it is).
-    let slide = pinch.slide || 0;
-    if (view.mode !== 'follow' && !titleOn) {
-      const sdx = mx - pinch.mx, sdy = my - pinch.my;
-      if (slide < 14) slide += Math.hypot(sdx, sdy); else pan(sdx, sdy);
-    }
-    pinch = {d, mx, my, a, twist, slide};
+    // (Measured from where the pinch began: fingers report one at a time,
+    // so the spot between them jitters even in a straight pinch. Not from the
+    // whole-room view: there a pinch comes in first.)
+    const sx = pinch.sx ?? mx, sy = pinch.sy ?? my;
+    let slide = pinch.slide || Math.hypot(mx - sx, my - sy) > 22;
+    if (slide && (view.mode === 'free' || view.mode === 'spot') && !titleOn) pan(mx - pinch.mx, my - pinch.my);
+    pinch = {d, mx, my, a, twist, slide, sx, sy};
     return;
   }
   trackPointer(e);
