@@ -7,7 +7,10 @@ an opening that ends in something the player does ("Tap the ball").
 Done when: see SPEC.md, "Opening film" and "First steps".
 
 ## What was decided
-- Film: third cut, 9.8 s, four shots (wake, spots the ball, crouch and
+- Film: third cut, four shots, first 9.8 s; from 2026-11-13 the long cut,
+  13.5 s, the same shots at nearly full length (Merlin: "too short";
+  `mochi-film-v3-long-A.mp4`: shot1 0.2-3.0, shot2 0.2-3.0, shot3 0-4.0,
+  shot4 0.1-4.04, music from 0, faded out from 12.0 s). Four shots (wake, spots the ball, crouch and
   pounce, nudges the ball to the viewer and waits), music A (storybook
   orchestra). Sources, key pictures and Runway task ids:
   `sources/title/film-v3/` and HANDOFF.md of 2026-11-12. The last frame was

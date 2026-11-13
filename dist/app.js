@@ -3510,7 +3510,7 @@ function startFilm(withSound) {
     (titleToys || []).forEach(o => placeTitleToy(o, -1));
     // A film that stalls, breaks or is paused by the phone ends at once;
     // and whatever happens it is over a little after its length.
-    film.watch = setTimeout(endFilm, Math.max(13000, wait));
+    film.watch = setTimeout(endFilm, Math.max(18000, wait));
   };
   v.onended = endFilm;
   v.onpause = () => { if (film?.rolling && !v.ended) endFilm(); };

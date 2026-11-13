@@ -53,7 +53,7 @@ the phone's browser and can be added to the home screen.
   busy or asleep (`tools/qa/camera.mjs`).
 - **Opening film** (live, phase 15). Done when: on the first launch of
   the day, by day or night, in the plain study, with the long-haired Mochi and an
-  upright screen, Enter plays the film "Mochi and the yarn ball" (9.8 s,
+  upright screen, Enter plays the film "Mochi and the yarn ball" (13.5 s,
   its music only with "Enter with sound"); a tap skips it; it fades into
   the living title (by day with no visible jump in the room; at night the
   sunny film fades into the night room, Merlin's choice 2026-11-13 so
