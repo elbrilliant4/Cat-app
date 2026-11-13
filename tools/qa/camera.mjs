@@ -73,12 +73,18 @@ const bm = await page.evaluate(() => kitten.brain.mode);
 line('tap the floor in Explore, she stays', Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) < .3 && await mode() !== 'follow' && bm === 'idle', `tapped at ${x0.toFixed(0)}, ${y0.toFixed(0)}: she moved ${Math.hypot(e1[0] - e0[0], e1[1] - e0[1]).toFixed(2)} m (${bm}), mode ${await mode()}`);
 await page.evaluate(() => document.querySelector('[data-cam="follow"]').click()); await step(80);
 line('the buttons are remembered', prefE === 'explore' && await pref() === 'mochi', `kept "${prefE}" after Explore, "${await pref()}" after Mochi`);
-const far4 = await page.evaluate(() => { const p = kitten.brain.pos; return [p.x < 0 ? p.x + 1.3 : p.x - 1.3, 0, p.z + .5]; });
-[x0, y0] = await screenOf(far4);
+// (A spot of bare floor near her that is on the screen in her close view.)
+let far4 = null;
+for (const [dx, dz] of [[.9, .3], [-.9, .3], [.8, -.4], [-.8, -.4], [.6, .6], [-.6, .6]]) {
+  const w = await page.evaluate(([dx, dz]) => { const p = kitten.brain.pos; return [p.x + dx, 0, p.z + dz]; }, [dx, dz]);
+  [x0, y0] = await screenOf(w);
+  if (x0 > 40 && x0 < 320 && y0 > 140 && y0 < 620 && !(await page.evaluate(([x, y]) => kitten.zoneUnder(x, y), [x0, y0]))) { far4 = w; break; }
+}
+if (!far4) { far4 = [0, 0, 0]; console.log('FAIL  no bare floor on screen near her'); }
 const p0 = await pos();
 await page.mouse.move(x0, y0); await page.mouse.down(); await page.mouse.up(); await step(8); await shot('4-tap-floor');
 await step(240); const p1 = await pos(); await shot('4b-she-came');
-line('tap the floor in Mochi, she comes', Math.hypot(p1[0] - far4[0], p1[1] - far4[2]) < .5 && await mode() === 'follow', `she was ${Math.hypot(p0[0] - far4[0], p0[1] - far4[2]).toFixed(1)} m from the spot, now ${Math.hypot(p1[0] - far4[0], p1[1] - far4[2]).toFixed(2)} m (${await mode()})`);
+line('tap the floor in Mochi, she comes', Math.hypot(p1[0] - far4[0], p1[1] - far4[2]) < .5 && await mode() === 'follow', `tapped at ${x0.toFixed(0)}, ${y0.toFixed(0)}: she was ${Math.hypot(p0[0] - far4[0], p0[1] - far4[2]).toFixed(1)} m from the spot, now ${Math.hypot(p1[0] - far4[0], p1[1] - far4[2]).toFixed(2)} m (${await mode()})`);
 
 // 4c. One finger turns the view about what it looks at, and the view stays where you leave it.
 await page.evaluate(() => document.querySelector('[data-cam="room"]').click()); await step(120);
@@ -108,6 +114,8 @@ await look(SIDE); await step(2);
 [x0, y0] = await screenOf(FIRE); await dbl(x0, y0); await step(40); const fp = await state(); await shot('4e-double-tap-fireplace');
 line('double tap the fireplace', Math.hypot(fp.focus[0] - FIRE[0], fp.focus[2] - FIRE[2]) < .9 && fp.dist < 4.2 && fp.mode === 'free', `looking at [${fp.focus}] from ${fp.dist.toFixed(1)} m (fireplace at [${FIRE}]), tapped at ${x0.toFixed(0)}, ${y0.toFixed(0)}`);
 // 5. Double tap on her in Explore: a close look at her; the mode stays Explore.
+// (She is set in the open middle first: earlier checks may have sent her off.)
+await page.evaluate(() => { kitten.brain.perch = null; kitten.brain.jump = null; kitten.brain.target = null; kitten.brain.pos.set(0, 0, .3); kitten.cat.root.position.set(0, 0, .3); kitten.brain.mode = 'idle'; }); await step(20);
 await look({...HOME, dist: 6}); await step(2);
 const head = await page.evaluate(() => { const p = kitten.cat.root.position.clone(); p.y += .22; return p.toArray(); });
 [x0, y0] = await screenOf(head); await dbl(x0, y0); await step(40); const k = await state(); await shot('5-double-tap-her');
