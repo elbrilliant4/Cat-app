@@ -1,6 +1,6 @@
-// Title screen. Full (the first launch of the day): the Enter buttons, the
+// Title screen. Full (every launch): the Enter buttons, the
 // zoomies cinematic, her name, a tap leaves it; a tap skips the sequence and
-// the room is tidy after; the second launch that day is the short one.
+// the room is tidy after; the second launch that day is full again.
 // Short: "wake her", a tap leaves it and the app is left usable. Phone and
 // desktop, plus: already asleep (tiptoe in), reduced motion (no sequence),
 // ?intro=0 and ?debug (both: no title). Needs `npm run dev` running.
@@ -46,7 +46,7 @@ const tapOut = async page => {
   // (A tap in the first moment after her name comes in doesn't count: tap again.)
   for (let i = 0; i < 40 && await titleOn(page); i++) { await page.click('#title', {timeout: 120000, noWaitAfter: true}).catch(() => {}); await page.waitForTimeout(1500); }
 };
-await run('full: Enter, the sequence, her name, tap; then short the same day', '?night=0&film=0', PHONE, async page => {
+await run('full: Enter, the sequence, her name, tap; then full again on the next launch', '?night=0&film=0', PHONE, async page => {
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.screenshot({path: `${OUT}/title-gate.png`, timeout: 120000});
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
@@ -57,9 +57,11 @@ await run('full: Enter, the sequence, her name, tap; then short the same day', '
   await page.screenshot({path: `${OUT}/title-live.png`, timeout: 120000});
   await tapOut(page);
   await page.goto(BASE + '?night=0');
-  await page.waitForSelector('#title.lit', {timeout: 120000});
-  if (await page.evaluate(() => document.getElementById('title').classList.contains('full'))) throw new Error('full again the same day');
-  await through('second')(page);
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  if (!await page.evaluate(() => document.getElementById('title').classList.contains('full'))) throw new Error('the second launch the same day is not the full opening');
+  await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+  await page.waitForSelector('#title.cine', {timeout: 60000});
+  await tapOut(page);
 });
 await run('full: with sound, a tap skips, the room is tidy', '?debug&intro=full&night=0&film=0', PHONE, async page => {
   await page.waitForSelector('#title.gate', {timeout: 120000});

@@ -30,7 +30,7 @@ header, panel and footer are `inert`. `titleStage` says where it is:
 `load`, `gate`, `cine`, `live`, `still`.
 
 Two kinds (`titleFull`, decided once at start):
-- **Full**: the first launch of the day (localStorage `pocket-kitten-title-day`),
+- **Full**: every launch,
   not with reduced motion, not if she was put to bed. `gate`: two Enter
   buttons ("with sound" sets `pet.sound` and saves; "without" leaves the
   save alone). `cine`: the zoomies sequence. `live`: her name, she sits at

@@ -3259,18 +3259,17 @@ view.focus.copy(view.goal.focus);
 
 // ---------------------------------------------------------------------------
 // Title screen. Two kinds:
-//   full   the first launch of the day: one "Enter" tap (so sound may play),
+//   full   every launch (Merlin, 2026-11-13): one "Enter" tap (so sound may play),
 //          the zoomies cinematic (about 8 s: SHOTS and CUES below), then her
 //          name over the room and "Tap to start". A tap skips the sequence
 //          at any moment.
-//   still  the other launches, reduced motion, or she was put to bed: she
+//   still  reduced motion, or she was put to bed: she
 //          sleeps under her name; a tap wakes her (or you tiptoe in).
 // Either way the camera then glides out to the room and the screen shrinks
-// to its card. ?intro=full and ?intro=short force one.
+// to its card. ?intro=short forces the still one.
 // ---------------------------------------------------------------------------
-const TITLE_DAY = 'pocket-kitten-title-day', introParam = new URLSearchParams(location.search).get('intro');
-const titleToday = () => { try { return storage.getItem(TITLE_DAY) === new Date().toDateString(); } catch { return false; } };
-const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short' && (introParam === 'full' || !titleToday());
+const introParam = new URLSearchParams(location.search).get('intro');
+const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short';
 let titleLiveAt = 0;
 // The opening film (assets/title/mochi-opening-v4.mp4): in place of the zoomies
 // sequence when the room looks like the film does: the plain study, the
@@ -3508,7 +3507,6 @@ function startFilm(withSound) {
   if (titleStage !== 'gate') return;
   const el = $('#title'), v = $('#title-film');
   titleStage = 'film';
-  try { storage.setItem(TITLE_DAY, new Date().toDateString()); } catch {}
   el.classList.remove('gate');
   el.classList.add('film', 'lit', 'soft');
   $('#title-gate').hidden = true;
@@ -3571,7 +3569,6 @@ function endFilm() {
 function startCine() {
   if (titleStage !== 'gate') return;
   titleStage = 'cine';
-  try { storage.setItem(TITLE_DAY, new Date().toDateString()); } catch {}
   const el = $('#title');
   el.classList.remove('gate');
   el.classList.add('cine', 'lit');

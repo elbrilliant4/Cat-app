@@ -50,8 +50,8 @@ the phone's browser and can be added to the home screen.
   stroking is felt all along the stroke; rolling over is hers to decide, not
   every third pat; a single tap on the floor calls her there unless she is
   busy or asleep (in Mochi mode; in Explore the floor is for looking) (`tools/qa/camera.mjs`).
-- **Opening film** (live, phase 15). Done when: on the first launch of
-  the day, by day or night, in the plain study, with the long-haired Mochi and an
+- **Opening film** (live, phase 15). Done when: on every launch (Merlin,
+  2026-11-13; before: only the first of the day), by day or night, in the plain study, with the long-haired Mochi and an
   upright screen, Enter plays the film "Mochi and the yarn ball" (20 s,
   its music only with "Enter with sound"); a tap skips it; it fades into
   the living title (by day with no visible jump in the room; at night the
@@ -64,11 +64,12 @@ the phone's browser and can be added to the home screen.
   pink ball" once, a tap on the ball starts play at once, then one "give her
   a stroke" hint, and neither shows again, also after a reload; a save from
   before never sees them; the ball stays tappable for good.
-- **Opening screen.** Done when: the first launch of the day plays the
+- **Opening screen.** Done when: every launch plays the
   zoomies sequence with the real Mochi and ends on the Pocket Kitten logo
   with her name under it (the name can be changed, the logo cannot), her
   toys on the rug beside her and "Play with <name>"; a tap skips at any
-  moment; other launches show the short title (`tools/qa/title.mjs`).
+  moment; the short title (she sleeps, "Tap to wake her") shows only with
+  reduced motion or when she was put to bed (`tools/qa/title.mjs`).
   Merlin changed his mind on a generated film (2026-11-12, evening): a
   13 s Runway film, "Mochi and the yarn ball", is cut and waiting for his
   pick of music; it is NOT in the app yet (`HANDOFF.md`).
