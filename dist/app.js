@@ -49,7 +49,7 @@ if (loaded?.left && Date.now() - loaded.left >= AWAY_MIN) pet.away = {from: load
 function ensureTaught() { if (pet.taught && typeof pet.taught === 'object') return; const isNew = !pet.bond && !pet.cuddles && (pet.journal?.length ?? 0) <= 1; pet.taught = {ball: !isNew, pet: !isNew}; }
 ensureTaught();
 const teachStep = () => !pet.taught.ball ? 'ball' : !pet.taught.pet ? 'pet' : null;
-function learned(step) { if (pet.taught[step]) return; pet.taught[step] = true; save(); refresh(); }
+function learned(step) { if (pet.taught[step]) return; pet.taught[step] = true; save(); refresh(); if (!teachStep()) setTimeout(() => { if (view.mode === 'room' && !titleOn) keepCamMode(); }, 1500); }
 keepStorage();
 let saveWarned = false;
 function save() {
@@ -2926,7 +2926,35 @@ const CAM_PREF = 'mochi-cam';
 const camPref = () => { try { return storage.getItem(CAM_PREF); } catch { return null; } };
 // (After the title, or in a new room: back to her if that was your mode.
 // Not while the first steps are being shown: they are framed for the room.)
-function keepCamMode() { if (camPref() === 'mochi' && !teachStep()) CAMERA_VIEWS.follow(view.goal.yaw); }
+// (2026-11-13: with no pick yet it is Mochi mode. In the whole-room view she
+// is 7% of a phone screen; the app is about her.)
+function keepCamMode() { if (camPref() !== 'explore' && !teachStep()) CAMERA_VIEWS.follow(view.goal.yaw); }
+// The part of the picture not under the care buttons and the sheet (px from
+// the top of the room's element), read at most twice a second.
+let clearCache = {at: -1, bottom: 0, h: 1};
+function clearArea() {
+  if (clockNow - clearCache.at < .5 && clockNow >= clearCache.at) return clearCache;
+  const H = Math.max(1, host.clientHeight), box = host.getBoundingClientRect();
+  let bottom = H;
+  if (!document.body.classList.contains('watch')) {
+    const dock = $('.dock')?.getBoundingClientRect();
+    if (dock?.height && (sheetMQ.matches || dock.top - box.top > H / 2)) bottom = clamp(dock.top - box.top, H / 2, H);
+  }
+  return clearCache = {at: clockNow, bottom, h: H};
+}
+// Is her head in the clear part of the picture?
+function herInPicture() {
+  const p = cat.headCenter(tmpV).project(camera), a = clearArea(), W = Math.max(1, host.clientWidth);
+  const x = (p.x + 1) / 2 * W, y = (1 - p.y) / 2 * a.h;
+  // (The view buttons run down the right edge on a phone.)
+  return p.z < 1 && x > 24 && x < W - (sheetMQ.matches ? 64 : 24) && y > 40 && y < a.bottom - 10;
+}
+// A care button pressed while she is out of the picture (Explore does not
+// follow her): look at her first. Still Explore; Mochi mode has her already.
+function showHer() {
+  if (view.mode === 'follow' || !ready || herInPicture()) return;
+  lookAtSpot(brain.pos, {dist: 3.4, pitch: .3, y: brain.elevation + .7});
+}
 for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => {
   CAMERA_VIEWS[b.dataset.cam]();
   try { storage.setItem(CAM_PREF, view.mode === 'follow' ? 'mochi' : 'explore'); } catch {}
@@ -3105,6 +3133,7 @@ $('.dock').addEventListener('click', e => {
   if (!b) return;
   const a = b.dataset.action;
   if (pet.sleeping && a !== 'sleep') { toast('Shh… wake your kitten first.'); twitchEar(); return; }
+  if (a === 'brush' || a === 'pet' || a === 'play') showHer();
   if (a === 'feed') {
     if (brain.mode !== 'idle') { toast('One thing at a time — almost done!'); return; }
     $('#feed-dialog').showModal();
@@ -3901,7 +3930,11 @@ function updateCamera(dt) {
     // Zoomed in closer than her whole body: look at her face, not at the
     // middle of body and tail.
     const fit = fitDistance(frame.radius);
-    if (view.zoomHeld && !playing && g.dist < fit) frame.center.lerp(cat.headTop(framePt).setY(framePt.y - .12), clamp((fit - g.dist) / (fit * .45), 0, 1));
+    if (view.zoomHeld && !playing && g.dist < fit) frame.center.lerp(cat.headCenter(framePt), clamp((fit - g.dist) / (fit * .45), 0, 1));
+    // The care buttons and the sheet cover the bottom of the picture: aim a
+    // little under her, so she sits in the middle of the part you can see.
+    const clear = clearArea();
+    frame.center.y -= (1 - clear.bottom / clear.h) * view.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.cos(view.pitch);
     if (frame.center.distanceTo(g.focus) > (playing ? .2 : .3) * clamp(g.dist / 3, .35, 1)) g.focus.copy(frame.center);
     clampGoal();
     // Your own zoom stays until you pick a view again. (While playing it

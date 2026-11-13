@@ -43,6 +43,12 @@ the phone's browser and can be added to the home screen.
   looks down over the room; a flick glides on; one tap on Mochi brings her
   back from any view; Watch shows the whole room (`tools/qa/camera.mjs`,
   every line `PASS`).
+  After the review of 2026-11-13 (preview): with no mode picked yet the
+  app opens in Mochi mode once the first steps are done (in the room view
+  she was 7% of a phone screen); in Mochi mode she sits in the middle of
+  the part of the screen above the care buttons, and pinched close it is
+  her face that is centred; Brush, Cuddle or Play pressed in Explore while
+  she is out of the picture turns the view to her (still Explore).
 - **Touching her** (preview, phase 14). Done when: she takes a touch by
   where it lands: head and back welcome, chin the favourite, tail and paws
   not for touching (ears flick, a look, a word, no friendship; kept up, she

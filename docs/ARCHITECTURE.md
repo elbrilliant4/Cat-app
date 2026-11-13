@@ -196,6 +196,12 @@ way), with a little give that `updateCamera` springs back. The camera
 stays inside `CAM_BOX`: turned to a side, the arm shortens. `view.shown` is
 how far the camera really is (walls, `boxArm`, furniture); zoom starts from
 it. `view.zoomHeld` = the player chose the zoom, so follow leaves it.
+`clearArea()` = the part of the picture above the care buttons and the
+sheet; in `follow` the focus is lowered so she sits in the middle of it,
+and close in it aims at `cat.headCenter`. `keepCamMode`: Mochi mode unless
+the player picked Explore (also called when the first steps end, from
+`learned`). `showHer()`: a care button pressed in Explore while
+`herInPicture()` is false looks at her (`lookAtSpot`, mode `spot`).
 `view.fling` = the glide after a flick. Touch times come from `e.timeStamp`
 (the QA freezes `performance.now`).
 
