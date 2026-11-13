@@ -28,29 +28,28 @@ the phone's browser and can be added to the home screen.
   no leg stretched more than ~4 cm (`tools/qa/legs.mjs`).
 - **Two rooms.** Done when: she walks between the study and the kitchen
   through the doorway, and the player can switch rooms and views.
-- **Looking around** (live, phase 14; plan A, Merlin 2026-11-12, then
-  "moving around still off", "two fingers to move is off" and "zoom goes to
-  the walls, hard to aim": pinch aims at the fingers, tilt follows zoom,
-  turning stops before a wall). Done when:
-  in the room, one finger drags you about it like a map (the floor stays
-  under the finger) and the view stays where you leave it; around her, one
-  finger circles her; two fingers pinch to zoom towards the spot between them
-  (on her: to her; never into a wall) and twist to turn, and a turn stops
-  before the camera would back into a wall; closer in, the view tilts down
-  to her level, further out it looks down over the room; a double tap on the floor goes closer to that spot (again
-  when close: the whole room); pinching in from the whole room goes where the fingers are,
-  and pinching far out from anywhere gives the room back; zooming in always
-  moves the camera, even after a wall stopped it; a flick glides on; a
-  double tap on her gives a close-up that follows; following her keeps the
-  player's zoom; Watch shows the whole room (`tools/qa/camera.mjs`, every
-  line `PASS`).
+- **Looking around: two camera modes** (preview, phase 16; Merlin
+  2026-11-13, after "still really bad": replaces the one-finger map drag
+  and the automatic view changes of phase 14). Done when: the Explore and
+  Mochi buttons pick the mode and it is remembered; a pinch, drag or tap
+  never changes it. Mochi: the camera stays on her, one finger circles her,
+  a pinch zooms on her. Explore: one finger turns the view from one side
+  wall round to the other (about 200 degrees; past the end it gives and
+  springs back; no full circle, the rooms have three walls), a pinch zooms
+  to the thing under the fingers (on the fireplace: to the fireplace), two
+  fingers sliding move the view and twisting turns it, a double tap on a
+  thing goes close to it (again on it: the whole room), pinching far out
+  gives the whole room; closer in, the view tilts down, further out it
+  looks down over the room; a flick glides on; one tap on Mochi brings her
+  back from any view; Watch shows the whole room (`tools/qa/camera.mjs`,
+  every line `PASS`).
 - **Touching her** (preview, phase 14). Done when: she takes a touch by
   where it lands: head and back welcome, chin the favourite, tail and paws
   not for touching (ears flick, a look, a word, no friendship; kept up, she
   moves away), belly only as a good friend (otherwise a playful trap);
   stroking is felt all along the stroke; rolling over is hers to decide, not
   every third pat; a single tap on the floor calls her there unless she is
-  busy or asleep (`tools/qa/camera.mjs`).
+  busy or asleep (in Mochi mode; in Explore the floor is for looking) (`tools/qa/camera.mjs`).
 - **Opening film** (live, phase 15). Done when: on the first launch of
   the day, by day or night, in the plain study, with the long-haired Mochi and an
   upright screen, Enter plays the film "Mochi and the yarn ball" (20 s,
@@ -133,6 +132,9 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - **(Merlin?)** Payments, ads, notifications?
 
 ## Later
+- A true 360 turn: needs a fourth wall in both rooms (phase 16 chose a
+  wide turn). Also from phase 16: an arrow pointing to Mochi when she is
+  off screen, walking through the room at eye level, a photo mode.
 - First steps for food, water, brushing and sleep (ChatGPT's review of the
   opening film, 2026-11-12; v1 teaches only the ball and a stroke).
 - A "watch the film again" button; a film for night and for Christmas.

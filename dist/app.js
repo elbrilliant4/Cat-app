@@ -214,7 +214,8 @@ function refresh() {
     : step === 'ball' ? `Tap ${room.altToy ? 'her toy' : 'the pink ball'} to play with ${pet.name}`
     : step === 'pet' ? `Now give ${pet.name} a stroke`
     : pet.sleeping ? 'Shh… tap Wake when it’s time to play'
-    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · drag to move around · tap the floor to call her · twist two fingers to turn` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to move around, right-drag to turn · scroll to come closer`;
+    : view.mode !== 'follow' ? (matchMedia('(pointer: coarse)').matches ? 'Explore · drag to turn · pinch towards anything · double tap to go close' : 'Explore · drag to turn · scroll towards anything · double click to go close')
+    : matchMedia('(pointer: coarse)').matches ? `Stroke ${pet.name} · drag to circle her · pinch to zoom · tap the floor to call her` : `Stroke ${pet.name} · click the floor to call her, or ${perchHint()} to invite her up · drag to circle her · scroll to come closer`;
 }
 
 function showDeltas(before) {
@@ -2356,15 +2357,16 @@ function updatePlay(dt, t) {
 // Input: stroke the kitten, drag to orbit, steer the toy, look at the pointer
 // ---------------------------------------------------------------------------
 // Camera: an orbit around a focus point. Everything is eased toward `goal`.
-//   one finger / left mouse  in the room: move about it, like a map; around her: circle her (both glide on after a flick)
-//   pinch / wheel            closer or further, towards the spot between the fingers
-//                            (on her: to her); the view tilts down to her level as
-//                            it comes closer; far out from anywhere, the whole room
-//   two fingers              twisting: turn the view (never round into a wall)
-//   right drag (mouse)       turn the view
-//   tap                      her: a pat, by where it lands; the floor: she comes
-//   double tap               on her: a close-up that follows; on the floor: closer to that spot
-//   buttons                  whole room, follow Mochi, food, water, bed
+// Two modes, chosen with the Explore and Mochi buttons and by nothing else:
+// Mochi (`follow`) stays on her; Explore (`room`, `free`, `spot`) is yours.
+//   one finger / left mouse  turns the view about what it looks at (glides on after a flick)
+//   pinch / wheel            Explore: closer or further, towards the thing under the fingers;
+//                            far out gives the whole room. Mochi: closer to her or further.
+//   two fingers              twisting turns; in Explore, sliding both moves the view
+//   tap                      her: a pat, by where it lands; the floor, in Mochi: she comes
+//   double tap               Explore: go close to that thing (again on it: the whole room)
+//   the turn                 runs from one side wall to the other (the rooms have no
+//                            front wall); past the end it gives a little and springs back
 const view = {
   focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7,
   goal: {focus: new THREE.Vector3(0, .7, -.2), yaw: 0, pitch: .3, dist: 7},
@@ -2479,8 +2481,11 @@ function liftFocus() {
 function setCamMode(mode) {
   if (view.mode === 'room' && mode !== 'room') liftFocus();
   if (mode !== 'free') { view.fling = null; view.zoomHeld = false; }
+  const swapped = (view.mode === 'follow') !== (mode === 'follow');
   view.mode = mode;
-  for (const b of document.querySelectorAll('[data-cam]')) b.setAttribute('aria-pressed', String(b.dataset.cam === mode));
+  // (The hint under the room says what fingers do in this mode.)
+  if (swapped && ready && !titleOn) refresh();
+  for (const b of document.querySelectorAll('[data-cam]')) b.setAttribute('aria-pressed', String(b.dataset.cam === (mode === 'follow' ? 'follow' : 'room')));
 }
 function clampGoal() {
   const g = view.goal;
@@ -2494,71 +2499,28 @@ function clampGoal() {
   g.focus.y = clamp(g.focus.y, LIMITS.y[0], view.farY);
   g.focus.z = clamp(g.focus.z, ...LIMITS.z);
 }
-// Turn the view, but never so the camera backs into a wall: a turn that
-// would shorten the camera's arm against the room stops there, like a map
-// stops at its edge. (Turning away from a wall is always fine.)
-const turnOff = new THREE.Vector3();
-// (Following her, the camera may stand further back than your zoom: measure that.)
-const armWant = () => Math.max(view.goal.dist, view.mode === 'follow' ? view.auto : 0);
-function armAt(yaw, want) {
-  const g = view.goal;
-  turnOff.set(Math.sin(yaw) * Math.cos(g.pitch), Math.sin(g.pitch), Math.cos(yaw) * Math.cos(g.pitch));
-  return boxArm(g.focus, turnOff, want);
-}
+// Turn the view. The rooms are open at the front, so the turn runs from one
+// side wall round to the other and no further: past the end it gives a
+// little, like a rubber band, and springs back when you let go (`updateCamera`).
+const TURN_MAX = 1.75, TURN_OVER = .16;
 function turnBy(da) {
   if (!da) return;
-  const g = view.goal, want = armWant();
-  // (Already pressed against a wall, say she walked into a corner: turning
-  // is free, so the view can never get stuck.)
-  if (armAt(g.yaw, want) >= want - .05 && armAt(g.yaw + da, want) < want - .05) return;
-  g.yaw += da;
+  const g = view.goal, past = Math.abs(g.yaw) - TURN_MAX;
+  if (past > 0 && da * g.yaw > 0) da *= .3 * Math.max(0, 1 - past / TURN_OVER);
+  let to = g.yaw + da;
+  if (Math.abs(to) > Math.abs(g.yaw)) to = Math.sign(to) * Math.min(Math.abs(to), Math.max(Math.abs(g.yaw), TURN_MAX + TURN_OVER));
+  g.yaw = to;
 }
 // How the tilt changes with distance: the last few metres in drop the view
 // to her level (the way a pet game frames her); further out it holds.
 // (Used as a change, so each view keeps its own angle.)
 const tiltFor = d => .12 + .16 * smoothstep(d, 1.1, 3.2);
 function orbit(dx, dy) {
+  if (view.mode === 'room') setCamMode('free');
   turnBy(-dx * .008);
   view.goal.pitch += dy * .006;
   view.lastDrag = clockNow;
   clampGoal();
-}
-// Drag the room like a map: the bit of floor under the finger stays under it.
-const grabA = new THREE.Vector3(), grabB = new THREE.Vector3(), floorY0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-function floorUnder(x, y, out) {
-  const r = host.getBoundingClientRect();
-  pointer.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1);
-  ray.setFromCamera(pointer, camera);
-  return ray.ray.intersectPlane(floorY0, out) && out.distanceTo(camera.position) < 40 ? out : null;
-}
-const panOff = new THREE.Vector3(), panPt = new THREE.Vector3();
-function grabPan(x0, y0, x1, y1) {
-  const a = floorUnder(x0, y0, grabA), b = floorUnder(x1, y1, grabB);
-  // (Above the horizon there is no floor to hold: slide by the finger's travel instead.)
-  if (!a || !b) { pan(x1 - x0, y1 - y0); return; }
-  let dx = a.x - b.x, dz = a.z - b.z;
-  // (Far floor, seen at a low angle, races under a finger: never more than
-  // about twice what a plain slide would do.)
-  const len = Math.hypot(dx, dz), most = Math.hypot(x1 - x0, y1 - y0) * view.shown * .0032;
-  if (len > most) { dx *= most / len; dz *= most / len; }
-  const gx = view.goal.focus.x, gz = view.goal.focus.z;
-  // (A move that would push the camera into the room's edge stops there,
-  // like a map at its border, instead of pulling the camera in, which looks
-  // like a zoom under the finger.)
-  const g = view.goal, cp = Math.cos(g.pitch), want = Math.max(g.dist, LIMITS.dist[0]);
-  panOff.set(Math.sin(g.yaw) * cp, Math.sin(g.pitch), Math.cos(g.yaw) * cp);
-  const armNow = boxArm(g.focus, panOff, want);
-  const fits = (mx, mz) => boxArm(panPt.set(gx + mx, g.focus.y, gz + mz), panOff, want) >= Math.min(want, armNow) - .02;
-  if (!fits(dx, dz)) {
-    if (fits(dx, 0)) dz = 0; else if (fits(0, dz)) dx = 0;
-    else { let k = 1; while (k > .05 && !fits(dx * k, dz * k)) k /= 2; dx *= k > .05 ? k : 0; dz *= k > .05 ? k : 0; }
-  }
-  view.goal.focus.x += dx; view.goal.focus.z += dz;
-  view.lastDrag = clockNow;
-  setCamMode('free');
-  clampGoal();
-  // (The picture moves at once, and stops with the view at the room's edge.)
-  view.focus.x += view.goal.focus.x - gx; view.focus.z += view.goal.focus.z - gz;
 }
 function pan(dx, dy) {
   const k = view.goal.dist * .0016, yaw = view.goal.yaw;
@@ -2596,44 +2558,47 @@ function pointUnder(x, y) {
   zoomPt.z = clamp(zoomPt.z, LIMITS.z[0] + .4, LIMITS.z[1] - .4);
   return zoomPt;
 }
+// The thing under a screen position, for Explore: whatever is drawn there
+// (furniture, a wall, a picture), else the floor. Looked up once per pinch
+// or tap, not every frame: it tests the whole room.
+const aimPt = new THREE.Vector3();
+const drawn = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function thingUnder(x, y) {
+  const r = host.getBoundingClientRect();
+  pointer.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(pointer, camera);
+  const hit = ready && place.group && ray.intersectObject(place.group, true).find(h => h.distance < 40 && h.object.isMesh && drawn(h.object) && h.object.material?.blending !== THREE.AdditiveBlending && !(h.object.material?.transparent && h.object.material.opacity < .5));
+  if (!hit) { const p = pointUnder(x, y); return p ? aimPt.copy(p) : null; }
+  aimPt.copy(hit.point);
+  aimPt.x = clamp(aimPt.x, LIMITS.x[0] - .2, LIMITS.x[1] + .2);
+  aimPt.z = clamp(aimPt.z, LIMITS.z[0] - .2, LIMITS.z[1] + .2);
+  aimPt.y = clamp(aimPt.y, LIMITS.y[0], LIMITS.y[1]);
+  return aimPt;
+}
 // Zoom by a factor, towards the screen point `at` if given (the fingers, the
 // mouse): that point stays under them. Zoom always starts from where the
 // camera really is, so a wall or a piece of furniture holding it closer
 // never leaves a stretch of pinching that does nothing.
-const herOnScreen = new THREE.Vector3(), tiltAxis = new THREE.Vector3(), tiltV = new THREE.Vector3(), tiltQ = new THREE.Quaternion();
+const tiltAxis = new THREE.Vector3(), tiltV = new THREE.Vector3(), tiltQ = new THREE.Quaternion();
 function zoomBy(f, at) {
   const g = view.goal;
-  // One line in and out, always about her: her face, all of her, the whole
-  // room. From the whole room, pinching in goes to her; from her, pinching
-  // out far enough gives the whole room back.
-  if (clockNow - view.zoomedAt > .5) view.push = 0;
-  // Pinching in aims where the fingers are: on her (or close by her), her
-  // view; anywhere else, that spot on the floor.
-  const aim = at && f < 1 ? pointUnder(at.x, at.y) : null;
-  // (Near her = on screen, where you see her: within a fingertip or two.)
-  // (Decided once per pinch: as the view moves towards her she slides out
-  // from under the fingers, and that must not change what you aimed at.)
-  const fresh = clockNow - view.zoomedAt > .5;
-  let nearHer = fresh ? false : view.aimHer;
-  if (fresh && at && f < 1 && ready) {
-    const r = host.getBoundingClientRect(), q = herOnScreen.copy(cat.root.position).setY(cat.root.position.y + .2).project(camera);
-    nearHer = zoomOnCat || (q.z < 1 && Math.hypot(r.left + (q.x + 1) / 2 * r.width - at.x, r.top + (1 - q.y) / 2 * r.height - at.y) < (view.mode === 'follow' ? 160 : 70));
+  // Explore: in and out about the thing under the fingers; far out, the
+  // whole room. Mochi: in and out about her. A pinch never changes the mode.
+  if (clockNow - view.zoomedAt > .5) {
+    view.push = 0;
+    // (Decided once per pinch: the thing must not change as the view moves.)
+    view.aim = at && view.mode !== 'follow' && !titleOn ? thingUnder(at.x, at.y)?.clone() ?? null : null;
   }
-  if (fresh) view.aimHer = nearHer;
   if (view.mode === 'room') {
     view.zoomedAt = clockNow;
     view.push -= Math.log(f);
     if (f >= 1 || view.push < .06 || !ready) return;
     const from = Math.min(g.dist, view.shown, 8.5);
-    setCamMode(at && !nearHer ? 'free' : 'follow');
+    setCamMode('free');
     g.dist = from; view.zoomHeld = true; view.push = 0;
-  } else if (view.mode === 'free' && f < 1 && nearHer && ready) {
-    // (A view of your own: pinching in on her goes to her.)
+  } else if (view.mode === 'spot' && view.aim && f < 1) {
+    // (From the bowl, fountain or bed view: a pinch elsewhere goes there.)
     g.dist = Math.min(g.dist, view.shown);
-    setCamMode('follow');
-    view.zoomHeld = true;
-  } else if (view.mode === 'follow' && aim && !nearHer) {
-    g.dist = Math.min(view.mode === 'follow' && !view.zoomHeld ? view.auto : g.dist, view.shown);
     setCamMode('free');
   }
   // (Following her with the zoom left to the camera: start from what it chose.)
@@ -2646,7 +2611,7 @@ function zoomBy(f, at) {
   if (f < 1 && held && view.shown < g.dist) { view.dist = view.shown; view.cut = 0; }
   const reach = Math.max(from, boxArm(view.focus, camOffset, LIMITS.dist[1]));
   const to = clamp(Math.min(from * f, reach), LIMITS.dist[0], Math.max(LIMITS.dist[1], from));
-  if (view.mode !== 'room' && f > 1) {
+  if (view.mode !== 'room' && view.mode !== 'follow' && f > 1) {
     if (to < from * f - 1e-3) view.push += Math.log(f);
     if (to > 9 || view.push > .35) { view.push = 0; CAMERA_VIEWS.room(); view.zoomedAt = clockNow; return; }
   }
@@ -2658,7 +2623,7 @@ function zoomBy(f, at) {
   view.zoomHeld = true;
   // (Only in a view of your own; her view and the bowl, fountain and bed views stay on their subject.)
   if (at && view.mode === 'free' && Math.abs(k - 1) > 1e-4) {
-    const p = pointUnder(at.x, at.y);
+    const p = view.aim;
     if (p) {
       g.focus.sub(p).multiplyScalar(k).add(p);
       // (The tilt turns the camera about that spot, so it stays under the fingers.)
@@ -2674,34 +2639,44 @@ function zoomBy(f, at) {
   g.pitch += dp;
   clampGoal();
 }
-// Taps on the floor. One: she comes (after a moment, in case a second tap
-// follows). Two quick ones: the camera goes closer to that spot; already
-// close, back to the whole room.
+// Two quick taps in one place (not on her)?
 let lastFloor = null;
-function floorTap(x, y, ts) {
-  if (lastFloor && ts - lastFloor.t < 340 && Math.hypot(x - lastFloor.x, y - lastFloor.y) < 40) {
-    lastFloor = null;
-    if (view.mode !== 'room' && view.shown < 3) { CAMERA_VIEWS.room(); return; }
-    const p = pointUnder(x, y);
-    if (!p) return;
-    p.y = Math.max(p.y, .3);
-    view.goal.focus.copy(p);
-    view.goal.dist = Math.max(LIMITS.dist[0], Math.min(Math.min(view.goal.dist, view.shown) * .45, 4));
-    setCamMode('free');
-    view.zoomHeld = true;
-    clampGoal();
-    return;
-  }
-  const tap = lastFloor = {t: ts, x, y};
-  later(.34, () => { if (lastFloor === tap) { lastFloor = null; callTo(x, y); } });
+function secondTap(x, y, ts) {
+  const twice = lastFloor && ts - lastFloor.t < 340 && Math.hypot(x - lastFloor.x, y - lastFloor.y) < 40;
+  lastFloor = twice ? null : {t: ts, x, y};
+  return !!twice;
 }
-// A double tap on her: a close-up that follows her.
-function doubleTap() {
-  // (Already following her: quick pats stay pats.)
-  if (view.mode === 'follow') return;
-  CAMERA_VIEWS.follow();
-  view.goal.dist = clamp(fitDistance(framing(false).radius) * .5, LIMITS.dist[0], 6);
+// Explore, a double tap: go close to that thing and make it the centre of
+// the view. On the thing you are already close to: back to the whole room.
+function goClose(x, y) {
+  const p = thingUnder(x, y);
+  if (!p) return;
+  p.y = Math.max(p.y, .3);
+  if (view.mode !== 'room' && view.shown < 3 && p.distanceTo(view.goal.focus) < .8) { CAMERA_VIEWS.room(); return; }
+  const from = Math.min(view.goal.dist, view.shown);
+  if (view.mode === 'room') setCamMode('free');
+  view.goal.focus.copy(p);
+  view.goal.dist = Math.max(LIMITS.dist[0], Math.min(from * .45, 4));
+  view.goal.pitch += tiltFor(view.goal.dist) - tiltFor(from);
+  setCamMode('free');
   view.zoomHeld = true;
+  clampGoal();
+}
+// A tap on the bare floor. Mochi mode: she comes. (Explore: looking round
+// the room does not move her about; two taps go closer, see `endGesture`.)
+function floorTap(x, y) {
+  if (view.mode === 'follow') callTo(x, y);
+}
+// A double tap on her in Explore: a close look at her, where she is now.
+// (In Mochi mode quick pats stay pats.)
+function doubleTap() {
+  if (view.mode === 'follow') return;
+  const fr = framing(false);
+  view.goal.focus.copy(fr.center);
+  view.goal.dist = clamp(fitDistance(fr.radius) * .6, LIMITS.dist[0], 6);
+  setCamMode('free');
+  view.zoomHeld = true;
+  clampGoal();
 }
 
 // Ready-made views. Tall (phone) screens stand back a little further.
@@ -2834,7 +2809,16 @@ const CAMERA_VIEWS = {
   water: () => lookAtSpot(fountain.position, {y: .2}),
   bed: () => lookAtSpot(bed.position, {dist: 3, y: .3}),
 };
-for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => CAMERA_VIEWS[b.dataset.cam]());
+// The mode you picked is kept for next time.
+const CAM_PREF = 'mochi-cam';
+const camPref = () => { try { return storage.getItem(CAM_PREF); } catch { return null; } };
+// (After the title, or in a new room: back to her if that was your mode.
+// Not while the first steps are being shown: they are framed for the room.)
+function keepCamMode() { if (camPref() === 'mochi' && !teachStep()) CAMERA_VIEWS.follow(); }
+for (const b of document.querySelectorAll('[data-cam]')) b.addEventListener('click', () => {
+  CAMERA_VIEWS[b.dataset.cam]();
+  try { storage.setItem(CAM_PREF, view.mode === 'follow' ? 'mochi' : 'explore'); } catch {}
+});
 
 host.addEventListener('contextmenu', e => e.preventDefault());
 host.addEventListener('wheel', e => {
@@ -2884,7 +2868,14 @@ host.addEventListener('pointermove', e => {
       if (Math.abs(twist) < .14) { twist += da; da = Math.abs(twist) < .14 ? 0 : twist - Math.sign(twist) * .14; }
       if (da) { turnBy(da); view.lastDrag = clockNow; clampGoal(); }
     }
-    pinch = {d, mx, my, a, twist};
+    // Explore: sliding both fingers moves the view (once it is clearly a
+    // slide, so a plain pinch stays where it is).
+    let slide = pinch.slide || 0;
+    if (view.mode !== 'follow' && !titleOn) {
+      const sdx = mx - pinch.mx, sdy = my - pinch.my;
+      if (slide < 14) slide += Math.hypot(sdx, sdy); else pan(sdx, sdy);
+    }
+    pinch = {d, mx, my, a, twist, slide};
     return;
   }
   trackPointer(e);
@@ -2915,10 +2906,8 @@ host.addEventListener('pointermove', e => {
     orbit(sx, sy);
     host.classList.add('dragging');
   } else if (brain.mode !== 'play' && gesture.moved) {
-    // One finger: around her (or the bowl, fountain, bed), circle round;
-    // in the room, move about it, the floor staying under the finger.
-    gesture.slide = view.mode !== 'follow' && view.mode !== 'spot';
-    if (gesture.slide) grabPan(gesture.lastX, gesture.lastY, e.clientX, e.clientY); else orbit(sx, sy);
+    // One finger turns the view about what it is looking at.
+    orbit(sx, sy);
     host.classList.add('dragging');
     // (How fast the finger is going, for the glide after a flick.)
     const ms = Math.max(4, e.timeStamp - gesture.lastT), mix = Math.min(1, ms / 60);
@@ -2953,7 +2942,14 @@ function endGesture(e) {
     lastTap = e.timeStamp - gesture.t0 < 320 ? {t: e.timeStamp, x: e.clientX, y: e.clientY} : null;
   } else lastTap = null;
   // Let go mid-flick: the view glides on and settles.
-  if (gesture?.turning && e.timeStamp - gesture.lastT < 90 && Math.hypot(gesture.vx, gesture.vy) > 260) view.fling = gesture.slide ? {vx: clamp(gesture.vx, -900, 900) * .5, vy: clamp(gesture.vy, -900, 900) * .5, slide: true} : {vx: clamp(gesture.vx, -800, 800), vy: clamp(gesture.vy * .5, -400, 400)};
+  if (gesture?.turning && e.timeStamp - gesture.lastT < 90 && Math.hypot(gesture.vx, gesture.vy) > 260) view.fling = {vx: clamp(gesture.vx, -800, 800), vy: clamp(gesture.vy * .5, -400, 400)};
+  // Explore: two quick taps on a thing go close to it.
+  if (gesture && !gesture.moved && !gesture.onCat && !gesture.panning && brain.mode !== 'play' && e.timeStamp - gesture.t0 < 400 && view.mode !== 'follow' && secondTap(e.clientX, e.clientY, e.timeStamp)) {
+    goClose(e.clientX, e.clientY);
+    gesture = null;
+    host.classList.remove('stroking', 'dragging');
+    return;
+  }
   // A tap on her ball: play.
   if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && brain.mode !== 'play' && e.timeStamp - gesture.t0 < 400 && (setPointer(e), hitsToy())) {
     if (pet.sleeping) toast('Shh… wake your kitten first.'); else act('play');
@@ -2968,7 +2964,7 @@ function endGesture(e) {
   if (gesture && !gesture.moved && gesture.onPerch) { pawAt(e.clientX - gesture.rect.left, e.clientY - gesture.rect.top); invite(gesture.onPerch); }
   if (gesture && !gesture.moved && gesture.onCat) touchCat(gesture.zone, {at: {x: e.clientX - gesture.rect.left, y: e.clientY - gesture.rect.top}});
   // A tap on the bare floor calls her there; two quick taps go closer to that spot instead.
-  if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && e.timeStamp - gesture.t0 < 400 && brain.mode !== 'play') floorTap(e.clientX, e.clientY, e.timeStamp);
+  if (gesture && !gesture.moved && !gesture.onCat && !gesture.onFountain && !gesture.onPerch && !gesture.panning && e.timeStamp - gesture.t0 < 400 && brain.mode !== 'play') floorTap(e.clientX, e.clientY);
   gesture = null;
   host.classList.remove('stroking', 'dragging');
 }
@@ -3038,6 +3034,7 @@ function goTo(id) {
   CAMERA_VIEWS.room();
   view.focus.copy(view.goal.focus);
   Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal.dist, cut: 0, lift: 0});
+  keepCamMode();
   pet.place = id;
   save();
   refresh();
@@ -3662,6 +3659,7 @@ function endTitle() {
   if (hadFocus) $('[data-cam="room"]')?.focus({preventScroll: true});
   resize();
   CAMERA_VIEWS.room();
+  keepCamMode();
   if (pet.sleeping) greet(true);
   refresh();
   if (teachStep() === 'ball' && !pet.sleeping) setTimeout(() => { if (teachStep() === 'ball' && brain.mode !== 'play') say('Tap my ball!', 5000, true); }, 1600);
@@ -3671,14 +3669,18 @@ Object.assign(view, {yaw: view.goal.yaw, pitch: view.goal.pitch, dist: view.goal
 function updateCamera(dt) {
   if (view.fling) {
     const fl = view.fling;
-    if (fl.slide) pan(fl.vx * dt, fl.vy * dt);
-    else { turnBy(-fl.vx * dt * .008); view.goal.pitch += fl.vy * dt * .006; }
+    turnBy(-fl.vx * dt * .008); view.goal.pitch += fl.vy * dt * .006;
     const k = Math.exp(-5.5 * dt);
     fl.vx *= k; fl.vy *= k;
     if (Math.hypot(fl.vx, fl.vy) < 25) view.fling = null;
     clampGoal();
   }
   const g = view.goal, following = view.mode === 'follow' && ready;
+  // Let go past the end of the turn: it springs back to the end.
+  if (!touches.size && !view.fling && !titleOn) {
+    const over = Math.abs(g.yaw) - TURN_MAX;
+    if (over > 0 && over < .5) g.yaw = damp(g.yaw, Math.sign(g.yaw) * TURN_MAX, 9, dt);
+  }
   let distGoal = g.dist;
   if (following) {
     // Keep Mochi (and, while playing, the toy) comfortably in frame. The
