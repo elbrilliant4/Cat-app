@@ -20,7 +20,9 @@ const line = (name, ok, text) => console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}: 
 
 // 1. Zoom to the pointer: a spot on the rug, off-centre, stays under the mouse.
 await look(HOME); await step(2);
-const W = [1.4, 0, .9];
+// (Was [1.4, 0, .9]: off the side of a 390 px phone since the room fills the
+// screen there, phase 08; this spot is still off-centre and on screen.)
+const W = [.9, 0, .6];
 let [x0, y0] = await screenOf(W);
 await page.mouse.move(x0, y0); await shot('1a-before-zoom');
 const before = await state();
