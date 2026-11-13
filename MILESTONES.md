@@ -19,6 +19,7 @@ brings that version's app back.
 | Live build 294 | `cdd41b3` | The dock over the room uses the glossy icons (bowl, yarn, heart, brush; a moon for Rest that becomes a sun for Wake). Also carries the other session's camera commit (pinching in on her from a view of your own) and test-only changes. |
 | Live build 323 | `72e3372` | Camera that's easy to aim: a pinch zooms towards the spot between the fingers (on her: to her), never into a wall; the view tilts down to her level as it comes closer; turning stops before the camera backs into a wall; on a phone, leaving the whole-room view no longer jumps and dragging stops at the room's edge. Also carries the other session's opening film after Enter, first steps and the phone's pull-up panel. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
+| Live build 323, same build | `72e3372` | 2026-11-13. Also in it: the opening film "Mochi and the yarn ball" after Enter (day, plain study, upright screen), first steps for new players (tap the ball, a stroke), and the phone layout with the pull-up panel (phase 08). Before it: `cdd41b3`. |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
 Her face, expressions, proportions, rig and movement may keep improving;
