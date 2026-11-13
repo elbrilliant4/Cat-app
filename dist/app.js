@@ -2577,8 +2577,7 @@ function boxArm(focus, off, d) {
 // The point in the room under a screen position: on her if she is there,
 // otherwise on the floor, kept inside the room (fingers over a wall aim at
 // the floor at its foot, never into the wall). `onCat` says which.
-// (Aimed at her height above the floor, so a close look is at her level, not at the boards.)
-const zoomPt = new THREE.Vector3(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.28);
+const zoomPt = new THREE.Vector3();
 let zoomOnCat = false;
 function pointUnder(x, y) {
   const r = host.getBoundingClientRect();
@@ -2588,7 +2587,7 @@ function pointUnder(x, y) {
   zoomOnCat = !!hit;
   if (hit) return zoomPt.copy(hit.point);
   // (Above the horizon there is no floor: straight in.)
-  if (!ray.ray.intersectPlane(aimPlane, zoomPt) || zoomPt.distanceTo(camera.position) > 40) return null;
+  if (!ray.ray.intersectPlane(groundPlane, zoomPt) || zoomPt.distanceTo(camera.position) > 40) return null;
   zoomPt.x = clamp(zoomPt.x, LIMITS.x[0] + .4, LIMITS.x[1] - .4);
   zoomPt.z = clamp(zoomPt.z, LIMITS.z[0] + .4, LIMITS.z[1] - .4);
   return zoomPt;
@@ -2597,7 +2596,7 @@ function pointUnder(x, y) {
 // mouse): that point stays under them. Zoom always starts from where the
 // camera really is, so a wall or a piece of furniture holding it closer
 // never leaves a stretch of pinching that does nothing.
-const herOnScreen = new THREE.Vector3();
+const herOnScreen = new THREE.Vector3(), tiltAxis = new THREE.Vector3(), tiltV = new THREE.Vector3(), tiltQ = new THREE.Quaternion();
 function zoomBy(f, at) {
   const g = view.goal;
   // One line in and out, always about her: her face, all of her, the whole
@@ -2650,7 +2649,7 @@ function zoomBy(f, at) {
   const k = to / from;
   g.dist = to;
   // (Closer looks lower, further looks down over the room.)
-  g.pitch += tiltFor(to) - tiltFor(from);
+  const dp = tiltFor(to) - tiltFor(from);
   view.lastDrag = view.zoomedAt = clockNow;
   view.zoomHeld = true;
   // (Only in a view of your own; her view and the bowl, fountain and bed views stay on their subject.)
@@ -2658,8 +2657,17 @@ function zoomBy(f, at) {
     const p = pointUnder(at.x, at.y);
     if (p) {
       g.focus.sub(p).multiplyScalar(k).add(p);
+      // (The tilt turns the camera about that spot, so it stays under the fingers.)
+      if (dp) {
+        tiltAxis.set(Math.cos(g.yaw), 0, -Math.sin(g.yaw));
+        tiltQ.setFromAxisAngle(tiltAxis, -dp);
+        tiltV.set(Math.sin(g.yaw) * Math.cos(g.pitch), Math.sin(g.pitch), Math.cos(g.yaw) * Math.cos(g.pitch)).applyQuaternion(tiltQ);
+        if (Math.abs(Math.asin(clamp(tiltV.y, -1, 1)) - (g.pitch + dp)) > Math.abs(dp) * .5) tiltQ.setFromAxisAngle(tiltAxis, dp);
+        g.focus.sub(p).applyQuaternion(tiltQ).add(p);
+      }
     }
   }
+  g.pitch += dp;
   clampGoal();
 }
 // Taps on the floor. One: she comes (after a moment, in case a second tap
