@@ -20,6 +20,7 @@ brings that version's app back.
 | Live build 323 | `72e3372` | Camera that's easy to aim: a pinch zooms towards the spot between the fingers (on her: to her), never into a wall; the view tilts down to her level as it comes closer; turning stops before the camera backs into a wall; on a phone, leaving the whole-room view no longer jumps and dragging stops at the room's edge. Also carries the other session's opening film after Enter, first steps and the phone's pull-up panel. |
 | Motion trial, first review | `6dbfb4d` | Repaired rig and authored walk, sit and lie-down (trial page only). |
 | Live build 323, same build | `72e3372` | 2026-11-13. Also in it: the opening film "Mochi and the yarn ball" after Enter (day, plain study, upright screen), first steps for new players (tap the ball, a stroke), and the phone layout with the pull-up panel (phase 08). Before it: `cdd41b3`. |
+| Live build 330 | `8624a88` | 2026-11-13. The opening film plays at night too (Merlin: evening players never saw it); the sunny film then fades into the night room. Before it: `72e3372`. |
 
 Direction (Merlin and Orion): preserve her identity, not her imperfections.
 Her face, expressions, proportions, rig and movement may keep improving;
