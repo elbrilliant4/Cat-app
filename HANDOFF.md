@@ -1,6 +1,10 @@
 # Handoff: 2026-11-13, next is a plan for the fun changes
 
 ## Next step
+**Update, later on 2026-11-13: the plan is written:
+`docs/phases/17b-fun-over-days.md`. Waiting for Merlin's OK and his three
+answers at the foot of it. Nothing is built.**
+
 Merlin picked (2026-11-13): **plan the fun changes**. Plan only, no
 building: this is a big change (new kinds of saved data), so follow "Big
 vs small" in CLAUDE.md: look at how 2 or 3 pet apps do it (the review page
