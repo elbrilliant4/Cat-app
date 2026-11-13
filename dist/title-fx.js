@@ -34,7 +34,9 @@ export class TitleFx {
     this.renderer = renderer; this.scene = scene; this.camera = camera; this.parent = parent;
     this.ratio = Math.min(renderer.getPixelRatio(), mobile ? 1.5 : 2);
     const size = renderer.getSize(new THREE.Vector2());
-    const target = new THREE.WebGLRenderTarget(size.x * this.ratio, size.y * this.ratio, {type: THREE.HalfFloatType, samples: 4});
+    // (No smoothed edges on phones: an iPhone drew only some blocks of a
+    // smoothed picture of this kind and left the rest black.)
+    const target = new THREE.WebGLRenderTarget(size.x * this.ratio, size.y * this.ratio, {type: THREE.HalfFloatType, samples: mobile ? 0 : 4});
     const c = this.composer = new EffectComposer(renderer, target);
     c.setPixelRatio(this.ratio);
     c.addPass(new RenderPass(scene, camera));

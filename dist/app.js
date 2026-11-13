@@ -3291,6 +3291,8 @@ function titleTap() {
 // the title is up; without it the plain renderer draws.
 function startTitleFx() {
   if (!renderer || titleFx) return;
+  // (?fx=0: the title with the plain picture, to tell an effects fault from any other.)
+  if (new URLSearchParams(location.search).get('fx') === '0') return;
   const w = room.windowGroup;
   try {
     titleFx = new TitleFx(renderer, scene, camera, {parent: room.group, night, mobile: matchMedia('(pointer: coarse)').matches, patch: room.sunPatch,
