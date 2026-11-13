@@ -7,6 +7,9 @@
 import {open} from './lib.mjs'; import fs from 'node:fs';
 const OUT = process.env.OUT || 'qa-out/camera'; fs.mkdirSync(OUT, {recursive: true});
 const {page, step, look, close} = await open({seed: 3, width: 390, height: 844});
+// (On a phone the panel is a pull-up sheet over the bottom of the room: the
+// checks' fingers pass through it, so a touch there can't open it and cover the room.)
+await page.evaluate(() => { const s = document.querySelector('#sheet'); if (s) s.style.pointerEvents = 'none'; kitten.sheetOpen?.(false); });
 const box = await page.evaluate(() => { const r = document.querySelector('#scene, .scene').getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; });
 const HOME = {focus: [0, .7, -.2], yaw: 0, pitch: .3, dist: 7};
 const state = () => page.evaluate(() => { const v = kitten.view, c = kitten.camera; return {mode: v.mode, camY: +c.position.y.toFixed(2), yaw: v.yaw, goalDist: v.goal.dist, dist: c.position.distanceTo(v.focus), focus: v.focus.toArray().map(x => +x.toFixed(2))}; });

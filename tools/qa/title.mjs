@@ -94,7 +94,7 @@ const withFilm = page => page.route('**/mochi-opening.mp4', r => r.fulfill({path
 const stage = page => page.evaluate(() => kitten.title.stage);
 const liveOK = async page => {
   await page.waitForSelector('#title.reveal', {timeout: 120000});
-  await page.waitForFunction(() => kitten.title.toys?.filter(o => o.visible && o.scale.x > .9).length === 3, null, {timeout: 120000}).catch(() => { throw new Error('her three toys are not out'); });
+  await page.waitForFunction(() => kitten.title.toys?.filter(o => o.visible && o.scale.x > .9).length === 3, null, {timeout: 120000}).catch(async () => { throw new Error('her three toys are not out: ' + await page.evaluate(() => JSON.stringify({n: kitten.title.toys?.length, toys: kitten.title.toys?.map(o => [o.visible, +o.scale.x.toFixed(2), o.userData.born && +o.userData.born.toFixed(1)]), clock: +kitten.clock.toFixed(1), stage: kitten.title.stage}))); });
   await page.waitForTimeout(1500);
   const st = await page.evaluate(() => { const b = kitten.brain, f = document.getElementById('title-film'), i = document.querySelector('.title-logo'); return {stage: kitten.title.stage, at: Math.hypot(b.pos.x, b.pos.z - .3), a: b.activity, film: +getComputedStyle(f).opacity, src: f.getAttribute('src'), logo: getComputedStyle(i).visibility, go: document.getElementById('title-go').textContent, name: kitten.pet.name}; });
   if (st.stage !== 'live' || st.at > .05) throw new Error('she is not sitting at home: ' + JSON.stringify(st));
@@ -107,15 +107,17 @@ await run('film: plays after Enter, a tap skips, then the first steps (ball, str
   await page.waitForSelector('#title.gate', {timeout: 120000});
   await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
   await page.waitForSelector('#title.film.rolling', {timeout: 120000}).catch(async () => { throw new Error('the film did not start, stage ' + await stage(page)); });
-  await page.waitForTimeout(2500);
-  await page.screenshot({path: `${OUT}/film-playing.png`, timeout: 120000});
   if (await page.evaluate(() => !document.getElementById('title-film').muted)) throw new Error('film has sound after Enter without sound');
+  // (The film is slowed right down for the tap: on this slow machine it would be over first.)
+  await page.evaluate(() => { document.getElementById('title-film').playbackRate = .07; window.__at = null; document.getElementById('title').addEventListener('click', () => { window.__at = kitten.title.stage; }, true); });
+  await page.waitForFunction(() => kitten.clock - kitten.title.film.at > .5, null, {timeout: 60000});
   await page.click('#title', {timeout: 120000, noWaitAfter: true});
+  if (await page.evaluate(() => window.__at) !== 'film') throw new Error('the tap came after the film: this machine is too slow to test the skip');
   await liveOK(page);
   await page.screenshot({path: `${OUT}/film-into-title.png`, timeout: 120000});
   await tapOut(page);
   await page.waitForTimeout(5000);
-  const hint = () => page.evaluate(() => { const h = document.getElementById('scene-hint'); return {t: h.textContent, teach: h.classList.contains('teach'), step: kitten.teach, mode: kitten.brain.mode}; });
+  const hint = () => page.evaluate(() => { const h = document.getElementById('scene-hint'), r = h.getBoundingClientRect(); return {t: h.textContent, teach: h.classList.contains('teach') && getComputedStyle(h).display !== 'none' && r.width > 40 && r.top > 0 && r.bottom < innerHeight * .6, step: kitten.teach, mode: kitten.brain.mode}; });
   let h = await hint();
   if (!h.teach || !/Tap the pink ball/.test(h.t)) throw new Error('no ball prompt: ' + JSON.stringify(h));
   await page.screenshot({path: `${OUT}/first-step-ball.png`, timeout: 120000});
