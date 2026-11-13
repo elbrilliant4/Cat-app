@@ -38,13 +38,14 @@ assert.equal(awayStory(at(9), at(9) + 30 * 24 * H).lines.length, 3, 'a month awa
 assert.deepEqual(giftsAt(1), []);
 assert.deepEqual(giftsAt(4).map(g => g.id), ['mouse', 'fish', 'bowl']);
 assert.equal(nextGift(1).id, 'mouse');
-assert.equal(nextGift(4), null, 'no promise past the last gift');
+assert.equal(nextGift(4).id, 'yarn');
+assert.equal(nextGift(9), null, 'no promise past the last gift');
 assert.deepEqual(toysAt(1).map(t => t.id), ['ball'], 'the ball is hers from the start');
 assert.deepEqual(toysAt(3).map(t => t.id), ['ball', 'mouse', 'fish']);
 assert.ok(owns(9, 'bowl') && !owns(3, 'bowl') && !owns(9, 'crown'));
-assert.deepEqual(newGifts(5, undefined).map(g => g.id), ['mouse', 'fish', 'bowl'], 'a save from before gifts gets them all');
-assert.deepEqual(newGifts(5, ['mouse']).map(g => g.id), ['fish', 'bowl']);
-assert.deepEqual(newGifts(5, ['mouse', 'fish', 'bowl']), []);
+assert.deepEqual(newGifts(4, undefined).map(g => g.id), ['mouse', 'fish', 'bowl'], 'a save from before gifts gets them all');
+assert.deepEqual(newGifts(4, ['mouse']).map(g => g.id), ['fish', 'bowl']);
+assert.deepEqual(newGifts(4, ['mouse', 'fish', 'bowl']), []);
 assert.ok(TOYS.filter(t => t.file).every(t => GIFTS.some(g => g.id === t.id)), 'every toy but the ball is a gift');
 
 // The save: when the player left, the longer Moments list, new fields kept.

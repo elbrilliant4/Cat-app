@@ -15,6 +15,32 @@ export function restore(raw,now=Date.now()){const d=fresh(now);if(!raw||typeof r
 // missing you, never in trouble. (Care actions can still move them freely.)
 export const FLOOR=30;
 const ease=(v,d)=>v>FLOOR?Math.max(FLOOR,v-d):v;
-export function advance(p,now=Date.now()){const hours=Math.max(0,Math.min(12,(now-p.updated)/3600000));p.food=clamp(ease(p.food,hours*2));p.water=clamp(ease(Number.isFinite(p.water)?p.water:85,hours*(p.sleeping?1:2.5)));p.happiness=clamp(ease(p.happiness,hours*(p.sleeping?.7:1.5)));p.cleanliness=clamp(ease(p.cleanliness,hours*1));p.energy=clamp(p.sleeping?p.energy+hours*120:ease(p.energy,hours*1.5));p.updated=now;return p;}
-export function care(p,action,snack='kibble'){if(p.sleeping&&action!=='sleep')return {ok:false,message:'A little sleepy. Wake your kitten first.'};if(action==='feed'){if(p.food>94)return {ok:false,message:'That tummy is full. Save a snack for later.'};p.food=clamp(p.food+({kibble:24,salmon:30,chicken:27}[snack]??24));p.happiness=clamp(p.happiness+5);p.cleanliness=clamp(p.cleanliness-2);p.bond+=3;}else if(action==='drink'){if(p.water>94)return {ok:false,message:'Not thirsty right now.'};p.water=clamp(p.water+35);p.happiness=clamp(p.happiness+2);p.bond+=1;}else if(action==='play'){if(p.energy<15)return {ok:false,message:'A little rest first. Playtime can wait.'};p.happiness=clamp(p.happiness+18);p.energy=clamp(p.energy-10);p.food=clamp(p.food-3);p.bond+=6;}else if(action==='brush'){p.cleanliness=clamp(p.cleanliness+30);p.happiness=clamp(p.happiness+5);p.bond+=3;}else if(action==='pet'){p.happiness=clamp(p.happiness+3);p.cuddles++;p.bond++;}else if(action==='sleep'){p.sleeping=!p.sleeping;}else return {ok:false,message:'Unknown action'};return {ok:true};}
+// How fast each need eases down, in points an hour (phase 17b: left overnight
+// she is a little hungry and thirsty in the morning, left a whole day she is
+// missing you too; before, nothing ever asked). Time away counts for a day
+// at most.
+export const DROP={food:5.5,water:6,waterAsleep:2.5,happiness:3,happinessAsleep:1.5,cleanliness:1.5,energy:1.5};
+export const AWAY_MAX_HOURS=24;
+export function advance(p,now=Date.now()){const hours=Math.max(0,Math.min(AWAY_MAX_HOURS,(now-p.updated)/3600000));p.food=clamp(ease(p.food,hours*DROP.food));p.water=clamp(ease(Number.isFinite(p.water)?p.water:85,hours*(p.sleeping?DROP.waterAsleep:DROP.water)));p.happiness=clamp(ease(p.happiness,hours*(p.sleeping?DROP.happinessAsleep:DROP.happiness)));p.cleanliness=clamp(ease(p.cleanliness,hours*DROP.cleanliness));p.energy=clamp(p.sleeping?p.energy+hours*120:ease(p.energy,hours*DROP.energy));p.updated=now;return p;}
+// Friendship is earned over days (phase 17b). Each kind of care counts in
+// full a few times a day (DAY_FULL), then a tenth, and the tenths stop at
+// DAY_EXTRA more a day. She reacts to every touch as ever; only the number
+// slows. The day turns at 4 in the morning by the phone's clock; a clock set
+// backwards does not start a second day. `p.day` = {key, n: times each care
+// was given today, extra: tenths earned, wish, wishDone, last: yesterday's
+// wish} (the wish: wish.js).
+export const DAY_FULL={pet:10,brush:2,feed:3,drink:3,play:3};
+export const DAY_EXTRA=5;
+export const WORTH={feed:3,drink:1,play:6,brush:3,pet:1};
+const two=n=>String(n).padStart(2,'0');
+export function dayKey(now=Date.now()){const d=new Date(now-4*3600000);return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;}
+const tenth=v=>Math.round(v*10)/10;
+export function today(p,now=Date.now()){const key=dayKey(now);let d=p.day;const ok=d&&typeof d==='object'&&!Array.isArray(d)&&typeof d.key==='string';if(!ok||d.key<key)d=p.day={key,n:{},extra:0,...(ok&&typeof d.wish==='string'?{last:d.wish}:{})};if(!d.n||typeof d.n!=='object'||Array.isArray(d.n))d.n={};if(!Number.isFinite(d.extra))d.extra=0;return d;}
+// Adds the friendship one care is worth today and returns what it added.
+export function earn(p,action,now=Date.now()){const worth=WORTH[action]||0,d=today(p,now),n=Number.isFinite(d.n[action])?d.n[action]:0;d.n[action]=n+1;let gain=worth;if(n>=(DAY_FULL[action]??0)){gain=tenth(Math.max(0,Math.min(worth/10,DAY_EXTRA-d.extra)));d.extra=tenth(d.extra+gain);}p.bond=tenth(p.bond+gain);return gain;}
+// The main kinds of care (the ones nothing else holds back) have all counted
+// in full today: "more tomorrow".
+export function dayFull(p,now=Date.now()){const d=today(p,now);return ['pet','brush','play'].every(a=>(d.n[a]||0)>=DAY_FULL[a]);}
+// `o.auto`: she did it by herself (a drink at her fountain): no friendship.
+export function care(p,action,snack='kibble',o={}){const now=o.now??Date.now(),add=()=>{if(!o.auto)earn(p,action,now);};if(p.sleeping&&action!=='sleep')return {ok:false,message:'A little sleepy. Wake your kitten first.'};if(action==='feed'){if(p.food>94)return {ok:false,message:'That tummy is full. Save a snack for later.'};p.food=clamp(p.food+({kibble:24,salmon:30,chicken:27}[snack]??24));p.happiness=clamp(p.happiness+5);p.cleanliness=clamp(p.cleanliness-2);add();}else if(action==='drink'){if(p.water>94)return {ok:false,message:'Not thirsty right now.'};p.water=clamp(p.water+35);p.happiness=clamp(p.happiness+2);add();}else if(action==='play'){if(p.energy<15)return {ok:false,message:'A little rest first. Playtime can wait.'};p.happiness=clamp(p.happiness+18);p.energy=clamp(p.energy-10);p.food=clamp(p.food-3);add();}else if(action==='brush'){p.cleanliness=clamp(p.cleanliness+30);p.happiness=clamp(p.happiness+5);add();}else if(action==='pet'){p.happiness=clamp(p.happiness+3);p.cuddles++;add();}else if(action==='sleep'){p.sleeping=!p.sleeping;}else return {ok:false,message:'Unknown action'};return {ok:true};}
 export function mood(p){if(p.sleeping)return 'Dreaming softly';if(p.food<40)return 'A little hungry';if(p.water<40)return 'A little thirsty';if(p.energy<35)return 'Ready for a nap';if(p.cleanliness<40)return 'Needs a little brush';if(p.happiness<45)return 'Missing you';return 'Feeling lovely';}
