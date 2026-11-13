@@ -1270,12 +1270,12 @@ export class Room {
     let label = g.userData.label;
     if (!label) {
       const canvas = document.createElement('canvas');
-      canvas.width = 512; canvas.height = 96;
+      canvas.width = 768; canvas.height = 80;
       const map = new THREE.CanvasTexture(canvas);
       map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
       const arc = 1.5;
-      label = new THREE.Mesh(new THREE.CylinderGeometry(.2725, .2725, .05, 40, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({map, transparent: true, roughness: .35, depthWrite: false}));
-      label.position.y = .012 + .082;
+      label = new THREE.Mesh(new THREE.CylinderGeometry(.2725, .2725, .04, 40, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({map, transparent: true, roughness: .35, depthWrite: false}));
+      label.position.y = .012 + .088;
       label.userData.canvas = canvas;
       g.add(label);
       g.userData.label = label;
@@ -1283,7 +1283,7 @@ export class Room {
     const c = label.userData.canvas, x = c.getContext('2d');
     x.clearRect(0, 0, c.width, c.height);
     x.fillStyle = '#4e5a2a'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    let size = 64;
+    let size = 60;
     do { x.font = `italic 700 ${size}px Georgia, 'Times New Roman', serif`; size -= 4; } while (x.measureText(name).width > c.width - 40 && size > 20);
     x.fillText(name, c.width / 2, c.height / 2 + 2);
     label.material.map.needsUpdate = true;

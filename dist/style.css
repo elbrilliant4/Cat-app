@@ -625,3 +625,4 @@ dialog.photo a.secondary { text-align: center; text-decoration: none; color: inh
    clips its content, the friendship card, was squeezed to a strip as soon
    as the sheet's content was taller than the screen.) */
 @media (max-width: 720px) and (orientation: portrait) { .panel { grid-auto-rows: max-content; } }
+dialog.photo .photo-note { margin: 12px 0 0; font-size: 12.5px; text-align: center; color: var(--muted); }

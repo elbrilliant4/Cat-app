@@ -507,7 +507,8 @@ function useToy() {
   const id = usedToy = toyChoice(), t = TOYS.find(t => t.id === id);
   if (!t.file) { giftToy = null; return; }
   if (giftToys[id]) { giftToy = giftToys[id]; return; }
-  loadGiftToy(t).then(o => { if (o && toyChoice() === id) giftToy = o; });
+  // (A toy that didn't arrive is asked for again at the next refresh.)
+  loadGiftToy(t).then(o => { if (!o) { if (usedToy === id) usedToy = null; } else if (toyChoice() === id) giftToy = o; });
 }
 
 // Grooming brush (shown while brushing).
@@ -2363,6 +2364,8 @@ function updatePlay(dt, t) {
   const alt = altToy();
   toy.visible = !alt;
   for (const id in giftToys) giftToys[id].visible = giftToys[id] === alt;
+  // (A decor's own toy is put away while a gift toy is out.)
+  if (room.altToy && giftToy && !titleOn) room.altToy.visible = false; else if (room.altToy) room.altToy.visible = true;
   if (alt) {
     const speed = toyVel.length();
     alt.position.set(toy.position.x, 0, toy.position.z);
@@ -3101,7 +3104,7 @@ $('.dock').addEventListener('click', e => {
   if (a === 'feed') {
     if (brain.mode !== 'idle') { toast('One thing at a time — almost done!'); return; }
     $('#feed-dialog').showModal();
-  } else if (a === 'play' && brain.mode === 'idle' && toysAt(levelInfo(pet.bond).level).length > 1) openToys();
+  } else if (a === 'play' && brain.mode === 'idle' && pet.energy >= 15 && toysAt(levelInfo(pet.bond).level).length > 1) openToys();
   else act(a);
 });
 // The toy basket: shown on Play once she has more than the ball.
@@ -3303,6 +3306,8 @@ $('#backup-form').onsubmit = e => {
   // In place: other parts of the app hold on to this object.
   for (const key of Object.keys(pet)) delete pet[key];
   Object.assign(pet, incoming);
+  // (Cards waiting for the kitten that was here are not for this one.)
+  news.length = 0; awayQueued = giftsQueued = false;
   ensureTaught();
   save();
   refresh(); renderJournal();
