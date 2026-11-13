@@ -2454,7 +2454,26 @@ function trackPointer(e) {
   return r;
 }
 
+// The whole-room view may look at a point below the floor (on a phone the
+// room is framed that way). Leaving it, raise that point to the floor and
+// aim at it from where the camera already is: the picture tilts a few
+// degrees instead of jumping when you start to drag, turn or zoom.
+function liftFocus() {
+  const y0 = LIMITS.y[0] + .02;
+  for (const v of [view, view.goal]) {
+    if (v.focus.y >= y0) continue;
+    const cp = Math.cos(v.pitch);
+    const cx = v.focus.x + Math.sin(v.yaw) * cp * v.dist, cy = v.focus.y + Math.sin(v.pitch) * v.dist, cz = v.focus.z + Math.cos(v.yaw) * cp * v.dist;
+    v.focus.y = y0;
+    const dx = cx - v.focus.x, dy = cy - y0, dz = cz - v.focus.z;
+    v.dist = Math.hypot(dx, dy, dz);
+    v.yaw = Math.atan2(dx, dz) + Math.round((v.yaw - Math.atan2(dx, dz)) / (Math.PI * 2)) * Math.PI * 2;
+    v.pitch = Math.asin(dy / v.dist);
+  }
+  view.far = Math.max(view.far, view.goal.dist);
+}
 function setCamMode(mode) {
+  if (view.mode === 'room' && mode !== 'room') liftFocus();
   if (mode !== 'free') { view.fling = null; view.zoomHeld = false; }
   view.mode = mode;
   for (const b of document.querySelectorAll('[data-cam]')) b.setAttribute('aria-pressed', String(b.dataset.cam === mode));
@@ -2508,6 +2527,7 @@ function floorUnder(x, y, out) {
   ray.setFromCamera(pointer, camera);
   return ray.ray.intersectPlane(floorY0, out) && out.distanceTo(camera.position) < 40 ? out : null;
 }
+const panOff = new THREE.Vector3(), panPt = new THREE.Vector3();
 function grabPan(x0, y0, x1, y1) {
   const a = floorUnder(x0, y0, grabA), b = floorUnder(x1, y1, grabB);
   // (Above the horizon there is no floor to hold: slide by the finger's travel instead.)
@@ -2518,6 +2538,17 @@ function grabPan(x0, y0, x1, y1) {
   const len = Math.hypot(dx, dz), most = Math.hypot(x1 - x0, y1 - y0) * view.shown * .0032;
   if (len > most) { dx *= most / len; dz *= most / len; }
   const gx = view.goal.focus.x, gz = view.goal.focus.z;
+  // (A move that would push the camera into the room's edge stops there,
+  // like a map at its border, instead of pulling the camera in, which looks
+  // like a zoom under the finger.)
+  const g = view.goal, cp = Math.cos(g.pitch), want = Math.max(g.dist, LIMITS.dist[0]);
+  panOff.set(Math.sin(g.yaw) * cp, Math.sin(g.pitch), Math.cos(g.yaw) * cp);
+  const armNow = boxArm(g.focus, panOff, want);
+  const fits = (mx, mz) => boxArm(panPt.set(gx + mx, g.focus.y, gz + mz), panOff, want) >= Math.min(want, armNow) - .02;
+  if (!fits(dx, dz)) {
+    if (fits(dx, 0)) dz = 0; else if (fits(0, dz)) dx = 0;
+    else { let k = 1; while (k > .05 && !fits(dx * k, dz * k)) k /= 2; dx *= k > .05 ? k : 0; dz *= k > .05 ? k : 0; }
+  }
   view.goal.focus.x += dx; view.goal.focus.z += dz;
   view.lastDrag = clockNow;
   setCamMode('free');
@@ -2583,7 +2614,7 @@ function zoomBy(f, at) {
   let nearHer = fresh ? false : view.aimHer;
   if (fresh && at && f < 1 && ready) {
     const r = host.getBoundingClientRect(), q = herOnScreen.copy(cat.root.position).setY(cat.root.position.y + .2).project(camera);
-    nearHer = zoomOnCat || (q.z < 1 && Math.hypot(r.left + (q.x + 1) / 2 * r.width - at.x, r.top + (1 - q.y) / 2 * r.height - at.y) < 70);
+    nearHer = zoomOnCat || (q.z < 1 && Math.hypot(r.left + (q.x + 1) / 2 * r.width - at.x, r.top + (1 - q.y) / 2 * r.height - at.y) < (view.mode === 'follow' ? 160 : 70));
   }
   if (fresh) view.aimHer = nearHer;
   if (view.mode === 'room') {

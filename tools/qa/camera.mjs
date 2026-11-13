@@ -81,12 +81,10 @@ line('drag moves about the room', off < 30 && Math.hypot(h2.focus[0] - h1.focus[
 
 // 4d. Double tap on the floor: closer to that spot, and she stays put.
 await look(HOME); await step(2);
-// (Spots moved in for phase 08's full-screen room: [1.2, 0, 1.0] and
-// [-1.2, 0, .6] are now off the side of a 390 px phone.)
-[x0, y0] = await screenOf([.6, 0, .4]); const q0 = await pos();
+[x0, y0] = await screenOf([.6, 0, -.8]); const q0 = await pos(); // (on a phone screen, off her)
 await page.mouse.move(x0, y0); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(60);
 const dd = await state(); const q1 = await pos(); await shot('4d-double-tap-floor');
-line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - .6, dd.focus[2] - .4) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
+line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - .6, dd.focus[2] + .8) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
 
 const dbl = async (x, y) => { await page.mouse.move(x, y); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(50); };
 // 5. Double tap on her: a close-up that follows.
@@ -108,7 +106,7 @@ const cdp = await page.context().newCDPSession(page);
 await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
 const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', {type, touchPoints: pts.map(([x, y], id) => ({x, y, id}))});
 await look(HOME); await step(2);
-const P = [-.3, 0, .2]; [x0, y0] = await screenOf(P);
+const P = [-.7, 0, -.6]; [x0, y0] = await screenOf(P); // (on a phone screen, off her)
 const s0 = await state();
 await touch('touchStart', [[x0 - 30, y0], [x0 + 30, y0]]);
 for (let i = 1; i <= 10; i++) { await touch('touchMove', [[x0 - 30 - i * 8, y0], [x0 + 30 + i * 8, y0]]); await step(2); }

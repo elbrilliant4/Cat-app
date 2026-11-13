@@ -122,7 +122,7 @@ towards `view.goal`. Modes: `room` (the whole room, `roomFrame`), `follow`
 in `room`/`free` drags the floor like a map (`grabPan`); in `follow`/`spot` it
 circles. `zoomBy` aims at the fingers: `pointUnder` gives the spot on her or
 on a plane at her height, clamped inside the floor (never a wall); a pinch
-on or near her (70 px on screen) goes to `follow`, elsewhere to `free` towards that
+on or near her (70 px on screen; 160 px while already following her) goes to `follow`, elsewhere to `free` towards that
 spot; far out from anywhere gives `room` back. Tilt follows zoom
 (`tiltFor(dist)`, applied as a change, so each view keeps its own angle).
 `turnBy` is the only way the view turns (drag, twist, flick): it refuses a
