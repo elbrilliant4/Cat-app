@@ -89,7 +89,7 @@ for several days before any "Go live".
   sounds), once. A later build costs only the files that changed.
 - Checked in the test browser: opens with the server gone, save intact; a
   new build never mixes with the old; both off switches.
-- Quality steps 1 to 3, remembered a week; `?fps` readout.
+- Quality steps 1 to 3, remembered a day; `?fps` readout.
 
 ## Changed from the plan
 - No build step at publish time (the publish script runs from `main`), so

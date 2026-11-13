@@ -253,8 +253,8 @@
 // is put to use and the page loads again at once; then the site's
 // version.json (never kept on the phone) is read, and a build that is not
 // here yet is fetched whole, in the background. It is put to use now only
-// while the title screen is still up, or when this is the first copy;
-// otherwise at the next launch. So the page, the styles and the code always
+// while the title screen is still up, or for a new player's first copy;
+// otherwise at the next launch, and never while the app is open twice. So the page, the styles and the code always
 // come from one build (a page that mixed old styles with new code drew the
 // title screen as a strip). Nothing here holds the app up. No version.json
 // (a local run) or no signal: nothing happens. `?sw=off`, or `"sw": false`
@@ -262,7 +262,8 @@
 (async () => {
   const sw = navigator.serviceWorker, here = new URL('./', location.href);
   const version = () => fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
-  const ask = (w, msg) => new Promise(done => { const c = new MessageChannel(); c.port1.onmessage = e => done(e.data); w.postMessage(msg, [c.port2]); });
+  // (A worker that does not answer in `wait` ms must not hold up the rest.)
+  const ask = (w, msg, wait = 0) => new Promise(done => { const c = new MessageChannel(); c.port1.onmessage = e => done(e.data || {}); w.postMessage(msg, [c.port2]); if (wait) setTimeout(() => done({}), wait); });
   const remove = async () => {
     for (const r of await sw.getRegistrations()) if (r.scope === here.href) await r.unregister();
     for (const k of await caches.keys()) if (k.startsWith(`pk:${here.pathname}:`)) await caches.delete(k);
@@ -282,13 +283,15 @@
   try {
     const off = new URLSearchParams(location.search).get('sw') === 'off';
     if (!sw || !window.caches || off) { if (sw && window.caches && off) await remove(); return await plain(); }
-    if (sw.controller) { const r = await ask(sw.controller, {cmd: 'launch'}); if (r.flipped) return location.reload(); }
+    // (Only this app's own worker: a preview page can be under the live site's.)
+    if (sw.controller && sw.controller.scriptURL === new URL('./sw.js', here).href) { const r = await ask(sw.controller, {cmd: 'launch'}, 4000); if (r.flipped) return location.reload(); }
     const v = await version();
     if (!v) return;
     if (v.sw === false) return await remove();
     await sw.register('./sw.js', {updateViaCache: 'none'});
     const worker = (await sw.ready).active, now = `${v.build}:${v.commit}`, had = localStorage.getItem('pk-build');
-    const s = await ask(worker, {cmd: 'state'});
+    const s = await ask(worker, {cmd: 'state'}, 4000);
+    if (!('current' in s)) return;
     window.__offline = {build: s.current, staged: s.staged};
     if (s.current === now) { localStorage.setItem('pk-build', now); return; }
     const kinds = [matchMedia('(pointer: coarse)').matches ? 'phone' : 'web', ...(navigator.connection && navigator.connection.saveData ? [] : ['film'])];
@@ -300,12 +303,16 @@
     if (!ok) return;
     // The first copy: this page came off the network just now, so it is the
     // same build, unless the phone had kept files of an older one.
-    const first = !s.current, onTitle = document.documentElement.classList.contains('title');
-    if (!first && !onTitle) return;
-    await ask(worker, {cmd: 'launch'});
+    // A player from before the offline copy may run kept files of an older
+    // build: like any other change of build, that waits for the title or
+    // the next launch, and is never sprung on someone playing.
+    const fresh = !s.current && (had === null || had === now), onTitle = document.documentElement.classList.contains('title');
+    if (!fresh && !onTitle) return;
+    const r = await ask(worker, {cmd: 'launch'}, 4000);
+    if (!r.flipped) return;
     window.__offline = {build: now, staged: null};
     localStorage.setItem('pk-build', now);
-    if (!first || (had !== null && had !== now)) location.reload();
+    if (!fresh) location.reload();
   } catch {}
 })();
 </script>

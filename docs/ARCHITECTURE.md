@@ -171,7 +171,7 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 - **Quality** (`app.js`, "Quality"): after two seconds of frames slower than
   40 ms the room's picture steps down: 1 sharpness to 1.5, 2 two thirds of
   the fur layers (`cat.furLayers`), 3 sharpness 1 and half-size shadows.
-  Kept for a week in `pk-quality`. Not during the title (`title-fx.js` has
+  Kept for a day in `pk-quality`. Not during the title (`title-fx.js` has
   its own steps) and not under `?debug&frames`. `?q=0..3` fixes it, `?fps`
   shows frames a second and the level.
 

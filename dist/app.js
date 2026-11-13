@@ -4039,10 +4039,10 @@ function frame(now) {
 // taken after about two seconds under 25 frames a second, measured on real
 // time over a run of frames (one slow frame, or coming back to the app, does
 // not count). Never while the title's own picture is up (title-fx.js has its
-// own steps). Remembered for a week, so a slow phone does not stutter at
-// every launch but gets another try later. `?q=0` to `?q=3` fixes the level;
+// own steps). Remembered for a day, so a slow phone does not stutter at
+// every launch, and a phone that was only hot gets another try tomorrow. `?q=0` to `?q=3` fixes the level;
 // `?fps` shows frames a second and the level on screen.
-const QUALITY_KEY = 'pk-quality', QUALITY_DAYS = 7;
+const QUALITY_KEY = 'pk-quality', QUALITY_DAYS = 1;
 const quality = {level: 0, slow: 0, lastAt: 0, fixed: /^[0-3]$/.test(new URLSearchParams(location.search).get('q') || ''), want: 0, layers: 0};
 if (quality.fixed) quality.want = +new URLSearchParams(location.search).get('q');
 else try { const k = JSON.parse(localStorage.getItem(QUALITY_KEY) || 'null'); if (k && Date.now() - k.at < QUALITY_DAYS * 864e5 && k.level >= 0 && k.level <= 3) quality.want = k.level | 0; } catch {}
@@ -4061,7 +4061,7 @@ function setQuality(level) {
 // (The first frame after the app was out of sight is not a slow frame.)
 document.addEventListener('visibilitychange', () => { quality.lastAt = 0; fps.lastAt = 0; });
 function qualityTick(now) {
-  if (!ready || manual) return;
+  if (!ready || manual || titleOn) return;
   if (quality.level < quality.want) setQuality(quality.want);
   const took = quality.lastAt ? now - quality.lastAt : 0;
   quality.lastAt = now;
@@ -4069,7 +4069,8 @@ function qualityTick(now) {
   // (Slow time adds up, time at a good pace takes it away again.)
   quality.slow = Math.max(0, quality.slow + (took > 40 ? Math.min(took, 500) : -took));
   if (quality.slow > 2000) {
-    quality.slow = 0; quality.want = quality.level + 1;
+    // (Step 1 changes nothing on a screen that is not sharper than 1.5.)
+    quality.slow = 0; quality.want = quality.level + (quality.level === 0 && devicePixelRatio <= 1.5 ? 2 : 1);
     setQuality(quality.want);
     try { localStorage.setItem(QUALITY_KEY, JSON.stringify({level: quality.level, at: Date.now()})); } catch {}
   }

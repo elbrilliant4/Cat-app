@@ -74,10 +74,13 @@ function stage(build, kinds) {
   staging = {build, done};
   return done;
 }
-// A staged build becomes the one served.
-async function launch() {
+// A staged build becomes the one served. Not while the app is open in a
+// second window: that one would get the rest of its files from the new build.
+async function launch(asker) {
   const s = await readState();
   if (!s.staged) return {current: s.current, flipped: false};
+  const open = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+  if (open.some(c => c.id !== asker && new URL(c.url).pathname.startsWith(SCOPE) && !/^(review|preview)\//.test(new URL(c.url).pathname.slice(SCOPE.length)))) return {current: s.current, flipped: false};
   await writeState({current: s.staged, staged: null});
   await tidy();
   return {current: s.staged, flipped: true};
@@ -85,9 +88,10 @@ async function launch() {
 
 self.addEventListener('message', e => {
   const m = e.data || {}, reply = x => e.ports[0] && e.ports[0].postMessage(x);
-  if (m.cmd === 'launch') e.waitUntil(launch().then(reply));
-  else if (m.cmd === 'state') e.waitUntil(readState().then(reply));
-  else if (m.cmd === 'stage') e.waitUntil(stage(m.build, m.kinds || []).then(ok => reply({ok})));
+  // (Always an answer: the page waits for it.)
+  if (m.cmd === 'launch') e.waitUntil(launch(e.source && e.source.id).catch(() => ({flipped: false})).then(reply));
+  else if (m.cmd === 'state') e.waitUntil(readState().catch(() => ({})).then(reply));
+  else if (m.cmd === 'stage') e.waitUntil(stage(m.build, m.kinds || []).catch(() => false).then(ok => reply({ok})));
 });
 
 // A piece of a kept file (films are asked for in pieces).
@@ -118,7 +122,7 @@ self.addEventListener('fetch', e => {
       const s = await readState();
       if (s.current) {
         const hit = await (await caches.open(cacheOf(s.current))).match(SCOPE + path);
-        if (hit) return req.headers.has('range') ? slice(hit, req.headers.get('range')) : hit;
+        if (hit) return req.headers.has('range') ? await slice(hit, req.headers.get('range')) : hit;
       }
     } catch {}
     return fetch(req);

@@ -101,6 +101,24 @@ const phone = () => browser.newContext({viewport: {width: 390, height: 844}, has
   say(await page.evaluate(async () => !(await navigator.serviceWorker.getRegistrations()).length), '?sw=off leaves no offline copy');
   await ctx.close();
 }
+// 5. A player from before the offline copy (the phone remembers an older
+// build, no worker yet), in the middle of playing: no sudden reload; the
+// copy waits and the next open uses it.
+{
+  site.build = 7; site.sw = true;
+  const ctx = await phone(), page = await ctx.newPage(); page.setDefaultTimeout(900000);
+  await page.addInitScript(() => { if (!localStorage.getItem('pk-build')) localStorage.setItem('pk-build', '5:old'); });
+  let loads = 0; page.on('load', () => loads++);
+  await page.goto(base + '?intro=0'); await home(page);
+  await page.waitForFunction(() => window.__offline?.staged === '7:test7', null, {timeout: 300000});
+  await page.waitForTimeout(3000);
+  say(loads === 1, `an earlier player in the middle of playing is not reloaded (${loads} load)`);
+  site.down = true;
+  await page.goto(base + '?intro=0').catch(() => {}); await home(page);
+  say(await page.evaluate(() => document.body.dataset.mark) === '7', 'and their next open comes from the offline copy');
+  site.down = false;
+  await ctx.close();
+}
 await browser.close(); srv.close();
 console.log(fails ? `${fails} FAILED` : 'all passed');
 process.exit(fails ? 1 : 0);
