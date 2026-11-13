@@ -81,10 +81,12 @@ line('drag moves about the room', off < 30 && Math.hypot(h2.focus[0] - h1.focus[
 
 // 4d. Double tap on the floor: closer to that spot, and she stays put.
 await look(HOME); await step(2);
-[x0, y0] = await screenOf([1.2, 0, 1.0]); const q0 = await pos();
+// (Spots moved in for phase 08's full-screen room: [1.2, 0, 1.0] and
+// [-1.2, 0, .6] are now off the side of a 390 px phone.)
+[x0, y0] = await screenOf([.6, 0, .4]); const q0 = await pos();
 await page.mouse.move(x0, y0); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(60);
 const dd = await state(); const q1 = await pos(); await shot('4d-double-tap-floor');
-line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - 1.2, dd.focus[2] - 1.0) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
+line('double tap the floor, look closer', dd.dist < 4 && Math.hypot(dd.focus[0] - .6, dd.focus[2] - .4) < .6 && Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) < .3, `camera ${dd.dist.toFixed(1)} m from [${dd.focus}]; she moved ${Math.hypot(q1[0] - q0[0], q1[1] - q0[1]).toFixed(2)} m`);
 
 const dbl = async (x, y) => { await page.mouse.move(x, y); for (let i = 0; i < 2; i++) { await page.mouse.down(); await page.mouse.up(); } await step(50); };
 // 5. Double tap on her: a close-up that follows.
@@ -106,7 +108,7 @@ const cdp = await page.context().newCDPSession(page);
 await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
 const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', {type, touchPoints: pts.map(([x, y], id) => ({x, y, id}))});
 await look(HOME); await step(2);
-const P = [-1.2, 0, .6]; [x0, y0] = await screenOf(P);
+const P = [-.3, 0, .2]; [x0, y0] = await screenOf(P);
 const s0 = await state();
 await touch('touchStart', [[x0 - 30, y0], [x0 + 30, y0]]);
 for (let i = 1; i <= 10; i++) { await touch('touchMove', [[x0 - 30 - i * 8, y0], [x0 + 30 + i * 8, y0]]); await step(2); }
@@ -115,8 +117,9 @@ await touch('touchEnd', []); await step(30);
 line('pinch at the fingers', Math.hypot(x1 - x0, y1 - y0) < 30 && s1.dist < s0.dist * .6, `spot moved ${Math.hypot(x1 - x0, y1 - y0).toFixed(0)} px while pinching ${s0.dist.toFixed(1)} m to ${s1.dist.toFixed(1)} m`);
 // (Pinching while following her keeps following; from the whole-room view a small pinch is a small move.)
 await page.evaluate(() => document.querySelector('[data-cam="follow"]').click()); await step(60);
-await touch('touchStart', [[150, 400], [240, 400]]);
-for (let i = 1; i <= 5; i++) { await touch('touchMove', [[150 - i * 4, 400], [240 + i * 4, 400 + i]]); await step(2); }
+const [hx, hy] = await page.evaluate(() => { const c = kitten.camera, p = kitten.cat.root.position.clone(); p.y += .2; p.project(c); const r = document.querySelector('.scene').getBoundingClientRect(); return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; });
+await touch('touchStart', [[hx - 45, hy], [hx + 45, hy]]);
+for (let i = 1; i <= 5; i++) { await touch('touchMove', [[hx - 45 - i * 4, hy], [hx + 45 + i * 4, hy + i]]); await step(2); }
 await touch('touchEnd', []); await step(10); const pf = await state();
 line('pinch while following', pf.mode === 'follow', `mode ${pf.mode}, ${pf.dist.toFixed(2)} m`);
 // (The bed view: a pinch keeps it on the bed; a view of your own is not reachable by touch.)
