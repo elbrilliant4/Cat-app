@@ -84,6 +84,19 @@ the phone's browser and can be added to the home screen.
   most is a big coloured card with its button; the rest fill like glasses;
   glossy icons on the needs, dock, moments and guide (made with Meshy, then
   Runway).
+- **Reasons to come back** (preview, phase 17; Merlin 2026-11-13, after a
+  review found nothing changes from one day to the next). Done when: away
+  30 minutes or more, a card tells 2 or 3 things she did, fitting the time
+  away; one tap closes it; it is in Moments; under 30 minutes there is no
+  card; the same absence always tells the same story. Reaching levels 2, 3
+  and 4 gives a felt mouse, a fabric fish and her name on her bowl; the
+  friendship card names the next gift; a save already past a level gets its
+  gifts at the first launch; nothing a player has is ever locked. Play
+  opens a toy basket once she has more than the ball. The photo button
+  gives a picture without buttons that can be shared or saved on iPhone and
+  Android; a phone that cannot share still saves. Moments keeps 40 entries
+  (`return-checks.mjs`, `tools/qa/return.mjs`). Brief:
+  docs/phases/17-reasons-to-return.md.
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.
@@ -131,14 +144,23 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - The dog visit, until there's a proper model (code waits behind `?dog`).
 - **(Merlin?)** Miso: v1 or later?
 - **(Merlin?)** Payments, ads, notifications?
+- From phase 17: a photo gallery inside the app, things she finds and a
+  collection screen, coins or a shop, finding her where the away story
+  ended.
 
 ## Later
 - A true 360 turn: needs a fourth wall in both rooms (phase 16 chose a
   wide turn). Also from phase 16: an arrow pointing to Mochi when she is
-  off screen, walking through the room at eye level, a photo mode.
+  off screen, walking through the room at eye level. (The photo button
+  came in phase 17.)
 - First steps for food, water, brushing and sleep (ChatGPT's review of the
   opening film, 2026-11-12; v1 teaches only the ball and a stroke).
 - A "watch the film again" button; a film for night and for Christmas.
+- Gifts for friendship levels 5 to 9 (phase 17b; proposed: a ribbon collar
+  in a colour you pick, the yarn ball, your best photo framed on the study
+  wall, fairy lights for the study, a gold name tag).
+- Whether her needs should drop faster while you are away (today a week
+  away still reads "All good"): Merlin to decide, with Lettuce.
 - Miso, the second cat (blue British Shorthair), and the cats playing together.
 - Adopting more cats by levelling up.
 - Christmas tree mischief (phase 06, December).

@@ -19,6 +19,8 @@ preview branch.
 | `kitchen.js` | `Kitchen`: island, shelves, sink and faucet, pendant lamp, robot vacuum, terrace, dog (`?dog`). Layout constants in `K`; spots in `layout()`. |
 | `decor.js` | Seasonal decor for both rooms; `pillowGeometry`. Seasonal looks have `months` and are stored away out of season (`inSeason`, `decorNow`; `?decor=halloween` shows one anyway). Christmas (`kitchenChristmas`) dresses the kitchen only; the study stays classic under it. Its evening lights run from `kitchen.updateChristmas`. |
 | `pet-state.js`, `save.js` | Care meters, saves, offline progress. |
+| `away.js` | The "While you were away" story: lines by part of the day, `awayStory(from, to, {asleep, decor})`, seeded by when the player left. No three.js, tested in node. |
+| `rewards.js` | Gifts of friendship: `GIFTS` (level to gift), `TOYS`, what a level owns. Owning is worked out from the level every time; the save keeps only `pet.gifts` (shown) and `pet.toy` (picked). |
 | `sound.js`, `meows.js` | Short sounds and meows (no ambient loops). |
 
 ## Title screen (app.js, "Title screen" block; markup `#title`; styles at the end of style.css; picture in `title-fx.js`)
@@ -112,6 +114,34 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
   reach the room. A capture-phase click handler swallows the click after a
   drag and opens the resting sheet on a tap that isn't on a button.
 - Checks: `tools/qa/sheet.mjs` (phone), `tools/qa/panel.mjs` (tablet).
+
+## Reasons to come back (phase 17)
+- **When the player left**: `save.js` `load()` returns `left` (the save's
+  `updated`, read before `restore()` moves it to now). 30 minutes or more
+  (`AWAY_MIN`): `pet.away = {from, to, asleep}` is put in the save and stays
+  there until the card has been seen (closing the app during the opening
+  does not lose it). Coming back from the background does the same with
+  `hiddenAt`.
+- **News cards** (`#news-dialog`; `news`, `gatherNews`, `pumpNews` in
+  app.js): one queue for the away story and for gifts. `pumpNews()` shows
+  the next card only when she is `ready`, the title is off, `brain.mode` is
+  `idle` and no other dialog is open; it is called a little after load,
+  after `endTitle()`, from `refresh()` when something is waiting, and when
+  a card closes. A card's `shown()` writes the Moment and marks it seen.
+- **Gift toys**: `altToy()` is what stands in for the ball: the picked gift
+  toy (`giftToy`, loaded on first use by `loadGiftToy`, parented to the
+  scene like the ball) or else a decor's own toy (`room.altToy`). During
+  the title only `room.altToy` counts (the title has its own toys).
+  `useToy()` follows `toyChoice()`; `refresh()` calls it when the choice
+  changes (a restored backup too).
+- **Bowl name**: `Room.setBowlName(name)` (room.js), a curved strip with a
+  canvas texture; `refresh()` sets it when level 4 is reached or the name
+  changes.
+- **Photo** (`takePhoto`): draws one frame and copies the canvas in the same
+  task (the renderer has no `preserveDrawingBuffer`), cuts the picture
+  above the dock on a phone, adds the caption, then `#photo-dialog` with
+  Share (`navigator.canShare` with a file) and Save (a download link).
+- Moments: `JOURNAL_MAX` (pet-state.js) = 40.
 
 ## Frame loop (app.js)
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
