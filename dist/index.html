@@ -217,6 +217,22 @@
   </form>
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./app.js"></script>
+<script type="module">
+// Fresh files on every new build. A phone (above all the home-screen app)
+// keeps old copies of the app's files; the site's version.json is never
+// kept, so when its build differs from the one last seen here, the app's
+// own files are fetched again (which renews the kept copies) before the app
+// starts. No version.json (a local run), offline or slow: start as usual.
+try {
+  const v = await Promise.race([fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null), new Promise(r => setTimeout(r, 2500, null))]);
+  const now = v && `${v.build}:${v.commit}`;
+  if (now && localStorage.getItem('pk-build') !== now) {
+    const files = ['index.html', 'style.css', 'app.js', 'cat-rig.js', 'decor.js', 'face-sculpt.js', 'kitchen.js', 'meows.js', 'motion-cat.js', 'motion.js', 'pet-state.js', 'real-cat.js', 'room.js', 'save.js', 'sound.js', 'title-fx.js'];
+    await Promise.all(files.map(f => fetch('./' + f, {cache: 'reload'}).then(r => r.arrayBuffer()).catch(() => {})));
+    localStorage.setItem('pk-build', now);
+  }
+} catch {}
+await import('./app.js');
+</script>
 </body>
 </html>
