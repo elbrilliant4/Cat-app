@@ -117,16 +117,21 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 `frame(now)` → `updateCat(dt, t)` → `updateCamera(dt)` → `updateRoom(dt, t)` → render.
 
 **Camera** (app.js, "Input"): an orbit round `view.focus`; everything eases
-towards `view.goal`. Modes: `room` (the whole room, `roomFrame`), `follow`
-(her), `spot` (bowl, fountain, bed), `free` (a view of your own). One finger
-in `room`/`free` drags the floor like a map (`grabPan`); in `follow`/`spot` it
-circles. `zoomBy` aims at the fingers: `pointUnder` gives the spot on her or
-on a plane at her height, clamped inside the floor (never a wall); a pinch
-on or near her (70 px on screen; 160 px while already following her) goes to `follow`, elsewhere to `free` towards that
-spot; far out from anywhere gives `room` back. Tilt follows zoom
-(`tiltFor(dist)`, applied as a change, so each view keeps its own angle).
-`turnBy` is the only way the view turns (drag, twist, flick): it refuses a
-turn that would shorten the camera's arm against `CAM_BOX`. `view.shown` is
+towards `view.goal`. Two modes for the player (phase 16), changed only by
+the buttons (`CAMERA_VIEWS`, kept in storage as `mochi-cam`, put back by
+`keepCamMode`): Mochi = `follow`; Explore = `room` (the whole room,
+`roomFrame`), `free` (a view of your own), `spot` (bowl, fountain, bed).
+No gesture crosses between `follow` and the rest. One finger always turns
+(`orbit`). `zoomBy`: in Explore it zooms about `view.aim`, the thing under
+the fingers (`thingUnder`: one raycast of `place.group` per pinch, else the
+floor); far out gives `room` back; in `follow` it only changes the
+distance. `goClose` = a double tap in Explore. Two fingers sliding call
+`pan` (Explore only). Tilt follows zoom (`tiltFor(dist)`, applied as a
+change, so each view keeps its own angle). `turnBy` is the only way the
+view turns (drag, twist, flick): `TURN_MAX` each way from the front (the
+rooms have no front wall, and from behind them wall furniture hangs in the
+way), with a little give that `updateCamera` springs back. The camera
+stays inside `CAM_BOX`: turned to a side, the arm shortens. `view.shown` is
 how far the camera really is (walls, `boxArm`, furniture); zoom starts from
 it. `view.zoomHeld` = the player chose the zoom, so follow leaves it.
 `view.fling` = the glide after a flick. Touch times come from `e.timeStamp`
@@ -137,7 +142,7 @@ bones (`real-cat.js`, "colliders"; tail and paws included). `zoneAt(point)`
 names the part (head, chin, back, tail, paws) by the nearest skeleton point,
 `touchCat(zone)` sends welcome touches to `act('pet', {zone})` (`PET_ZONES`,
 `brain.content` builds towards a roll-over) and tail or paws to
-`dislikeTouch`. `callTo(x, y)`: a tap on the floor, she walks there.
+`dislikeTouch`. `callTo(x, y)`: a tap on the floor in Mochi mode, she walks there.
 
 `updateCat` order: idle and night choices (`idleLife`, `nightLife`) →
 movement toward `brain.target` (heading, turn caps) → eyes, head, gaze →
