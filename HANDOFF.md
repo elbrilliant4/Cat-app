@@ -8,7 +8,7 @@ then it can go live), and a decision on the name: "Pocket Kitten" is taken
 on the App Store (`docs/app-store.md`, part 2). Still true: phases 17, 17b,
 18 and the camera fixes have not been tried on a real phone.
 
-## Music (on the preview, 2026-11-14, waiting for a listen on a phone)
+## Music (live, build 396, 2026-11-14; not yet tried on a real phone)
 Three pieces made with ElevenLabs (Music box, Piano, Guitar), picked in the
 sound panel, off unless picked; SPEC.md "Music". Checked: `npm run check`,
 `tools/qa/music.mjs` 15 of 15. Not checked: a real phone (iPhone silent
