@@ -18,7 +18,7 @@ const code = new Set(), walk = f => {
 walk('app.js');
 const dir = (d, ok = () => true) => fs.readdirSync(path.join(DIST, d)).filter(f => fs.statSync(path.join(DIST, d, f)).isFile() && ok(f)).map(f => `${d}/${f}`);
 const list = {
-  app: ['index.html', 'style.css', 'manifest.webmanifest', ...[...code].sort(),
+  app: ['index.html', 'privacy.html', 'style.css', 'manifest.webmanifest', ...[...code].sort(),
     ...dir('art'), ...dir('assets/icons/clay'), ...dir('assets/models'), ...dir('assets/sounds', f => !f.endsWith('.md')),
     ...['apple-touch-icon.png', 'favicon-32.png', 'icon-192.png', 'icon-512.png'].map(f => 'assets/icons/' + f), 'assets/title/pocket-kitten-logo.webp'],
   phone: ['assets/mochi-longhair-phone.glb'],

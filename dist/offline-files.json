@@ -1,6 +1,7 @@
 {
  "app": [
   "index.html",
+  "privacy.html",
   "style.css",
   "manifest.webmanifest",
   "app.js",

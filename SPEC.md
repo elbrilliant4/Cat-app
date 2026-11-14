@@ -160,6 +160,14 @@ the phone's browser and can be added to the home screen.
   on a computer she looks as before (`tools/qa/load.mjs`,
   `tools/qa/quality.mjs`). Not in it: notifications, an "update ready"
   banner, a lighter cat shape.
+- **Privacy page** (preview, phase 19; Merlin 2026-11-14, first step
+  towards the App Store). Done when: `privacy.html` says in plain words
+  what the app keeps on the phone and what leaves it, matches the code (no
+  request to anyone but its own site, nothing sent unless the player
+  presses Share), opens from the footer and the name card, also with no
+  signal, and "Back to your kitten" returns to the app. Open: a contact
+  address (Merlin: a new one, later); the page stays on the preview until
+  then. Anything new that leaves the phone changes this page first.
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
   volume for her and the room.
@@ -188,6 +196,8 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - An App Store release (Merlin, 2026-11-13: "in the future"; today it runs
   in the phone's browser). Needs a wrapper app, an Apple developer account
   ($99 a year) and a look at Apple's rules for apps that are a website.
+  The list: `docs/app-store.md`. The name "Pocket Kitten" is already taken
+  on the store (checked 2026-11-14).
 - A true 360 turn: needs a fourth wall in both rooms (phase 16 chose a
   wide turn). Also from phase 16: an arrow pointing to Mochi when she is
   off screen, walking through the room at eye level. (The photo button
