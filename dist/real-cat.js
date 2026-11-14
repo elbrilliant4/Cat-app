@@ -284,7 +284,7 @@ float furHash(vec2 p) {
 // and `flat` its shape, `tilt` its lean, `tag` the tag's radius. Set by eye
 // (tools/qa/gifts.mjs).
 const COLLAR = {
-  longhair: {at: .55, up: -.03, r: .172, band: .019, wide: 1, flat: 1.3, tilt: -.25, tag: .03},
+  longhair: {at: .45, up: -.02, r: .19, band: .021, wide: 1, flat: 1.3, tilt: -.3, tag: .032},
   first: {at: .5, up: -.02, r: .14, band: .017, wide: 1, flat: 1.3, tilt: -.25, tag: .026},
 };
 export class RealCat {

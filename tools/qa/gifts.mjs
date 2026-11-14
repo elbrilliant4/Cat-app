@@ -114,8 +114,10 @@ if (ONLY.includes('2')) { // 2. A save already at level 9: the later gifts one a
   const onHer = async () => { const p = await page.evaluate(() => { kitten.setActivity('sit'); return kitten.cat.bones.head.getWorldPosition(kitten.brain.pos.clone()).toArray(); }); await look({focus: [p[0], p[1] - .15, p[2]], yaw: await page.evaluate(() => kitten.cat.root.rotation.y), pitch: .1, dist: 2.3}); await step(2); };
   await onHer();
   await page.screenshot({path: `${OUT}/8-collar.png`});
+  for (const [n, turn] of [['side', 1.3], ['quarter', .65]]) { const v = await page.evaluate(() => ({f: kitten.view.focus.toArray(), y: kitten.cat.root.rotation.y})); await look({focus: v.f, yaw: v.y + turn, pitch: .1, dist: 2.3}); await step(2); await page.screenshot({path: `${OUT}/8-collar-${n}.png`}); }
   // The ribbon's colour, in the name card.
   await page.click('#rename');
+  await page.waitForTimeout(700); // (the card grows in: measure once it has)
   s = await page.evaluate(() => ({shown: !document.querySelector('#ribbons').hidden, n: document.querySelectorAll('#ribbon-options button').length, size: document.querySelector('#ribbon-options button').getBoundingClientRect().width}));
   ok(s.shown && s.n === 6 && s.size >= 44, `the name card offers six ribbon colours, each ${s.size} points`);
   await page.click('[data-ribbon="teal"]');
