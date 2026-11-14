@@ -1,5 +1,15 @@
 # Handoff: 2026-11-14, App Store groundwork is on the preview
 
+
+## Auto-update (live, build 400, waiting for Merlin's phone try)
+An app left open looks for a new build on coming back to the front and
+every half hour, and switches on the next return, with no title
+(`watch` at the foot of `dist/index.html`; SPEC.md, phase 18 entry).
+Checked: `tools/qa/load.mjs` 22 of 22. Not checked: a real phone, the
+iPhone home-screen icon above all. Merlin is trying it on the preview
+(build 401 to 402, 2026-11-14). Not built: the offline copy's off switch
+(`"sw": false` needs a line in `tools/build-site.sh`).
+
 ## Next step
 Ask Merlin. Phase 19 (privacy page and `docs/app-store.md`) is built and on
 the preview. Waiting on him: a contact address for the privacy page (he
