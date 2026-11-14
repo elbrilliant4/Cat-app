@@ -3517,6 +3517,16 @@ setInterval(() => { advance(pet); refresh(); save(); }, 15000);
 refresh();
 renderJournal();
 
+// Why the Runway film did not play, when it did not: kept from one open to
+// the next and shown after the build number on the preview, so someone
+// testing on a phone can read it out (a film that gives way to the sequence
+// does so without a word).
+let buildText = '', buildPreview = false;
+function showFilmNote() {
+  let note = ''; try { note = localStorage.getItem('pk-film-note') || ''; } catch {}
+  if (buildText && buildPreview) $('#build-label').textContent = buildText + (note ? ' · film: ' + note : '');
+}
+function noteFilm(why) { try { localStorage.setItem('pk-film-note', why + ' (' + new Date().toTimeString().slice(0, 5) + ')'); } catch {} showFilmNote(); }
 // Build label: version.json is written by the site's deploy workflow (build
 // number = commits on the branch, plus the commit itself). Preview builds
 // show it at the top so reviewers can match what they see to a review pack.
@@ -3524,6 +3534,7 @@ fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).t
   if (!v) return;
   const text = `${v.channel === 'preview' ? 'Preview' : 'Version'} build ${v.build} · ${v.commit}`;
   $('#build-label').textContent = text;
+  buildText = text; buildPreview = v.channel === 'preview'; showFilmNote();
   if (v.channel === 'preview') { $('.topbar').classList.add('has-build'); $('#build-chip').innerHTML = `Preview<span class="long"> · build</span> ${v.build}`; $('#build-chip').hidden = false; $('#review-link').hidden = false; }
 }).catch(() => {});
 
@@ -3817,7 +3828,11 @@ function cineJump(to, toY, perch) {
   brain.jump = {from: brain.pos.clone(), fromY: brain.elevation, to: to.clone(), toY, perch, fromPerch: brain.perch, then: () => setActivity('sit', 9), start: clockNow, ...jumpArc(toY - brain.elevation, Math.hypot(to.x - brain.pos.x, to.z - brain.pos.z)), out: 0};
   setActivity('jump');
 }
-function startOpening(withSound) { if (filmOK()) startFilm(withSound); else startCine(); }
+function startOpening(withSound) {
+  if (filmOK()) return startFilm(withSound);
+  noteFilm('not tried: ' + (room.decor !== 'classic' ? 'the look is "' + room.decor + '"' : !LONGHAIR ? 'first Mochi' : !tallScreen() ? 'wide screen ' + camera.aspect.toFixed(2) : 'switched off'));
+  startCine();
+}
 // The film plays over the room. Under it the room is already set as the
 // film's last picture (she sits at HOME, her toys beside her), so the film
 // can fade straight into it. A film that will not start, or has not started
@@ -3830,8 +3845,10 @@ function startFilm(withSound) {
   el.classList.add('film', 'lit', 'soft');
   $('#title-gate').hidden = true;
   film = {at: clockNow, rolling: false, watch: 0};
-  const fail = () => {
+  const fail = why => {
     if (titleStage !== 'film' || film.rolling) return;
+    const e = v.error;
+    noteFilm('gave way, ' + (typeof why === 'string' ? why : 'play refused: ' + (why && why.name || '?')) + (e ? ', error ' + e.code + ' ' + (e.message || '') : '') + ', ready ' + v.readyState + ', net ' + v.networkState + ', ' + ((clockNow - film.at) || 0).toFixed(1) + ' s');
     stopFilm();
     el.classList.remove('film', 'soft');
     (titleToys || []).forEach(o => { o.visible = false; o.userData.born = null; });
@@ -3842,6 +3859,7 @@ function startFilm(withSound) {
   v.onplaying = () => {
     if (titleStage !== 'film' || film.rolling) return;
     film.rolling = true;
+    noteFilm('played');
     clearTimeout(film.watch);
     el.classList.add('rolling');
     // Under the film the room becomes its last picture. (Only now: if the
@@ -3857,16 +3875,16 @@ function startFilm(withSound) {
   };
   v.onended = endFilm;
   v.onpause = () => { if (film?.rolling && !v.ended) endFilm(); };
-  v.onerror = () => film.rolling ? endFilm() : fail();
+  v.onerror = () => film.rolling ? endFilm() : fail('the film broke');
   // (Its music only with "Enter with sound", whatever the save says.)
   v.muted = !withSound;
   // (Already coming in since the Enter screen: setting it again would start over.)
   if (!v.getAttribute('src')) v.src = FILM_SRC;
   // (A phone may refuse a film with sound: then it plays without.)
-  try { v.play()?.catch(() => { v.muted = true; v.play()?.catch(fail); }); } catch { fail(); }
+  try { v.play()?.catch(() => { v.muted = true; v.play()?.catch(fail); }); } catch (err) { fail(err); }
   // (?filmwait=ms: a longer wait, for the slow test machine. Three seconds
   // proved too short on a phone: the sequence played instead of the film.)
-  film.watch = setTimeout(fail, wait || 8000);
+  film.watch = setTimeout(() => fail('no start in time'), wait || 8000);
   loadTitleToys();
 }
 function stopFilm() {
