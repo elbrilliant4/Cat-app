@@ -48,7 +48,7 @@ const phone = () => browser.newContext({viewport: {width: 390, height: 844}, has
   for (const x of first.slice().sort((a, b) => b.bytes - a.bytes).slice(0, 6)) console.log(`   ${mb(x.bytes)}  ${x.name}`);
   say(total < 6 * 1048576, `the first open is under 6 MB (${mb(total)})`);
   say(first.some(x => x.name.endsWith('mochi-longhair-phone.glb')) && !first.some(x => /mochi-longhair-(hq|web)\.glb/.test(x.name)), 'a phone gets the phone copy of her model');
-  say(!first.some(x => x.name.endsWith('.mp4')), 'the film is not fetched before Enter');
+  say(!first.some(x => x.name.endsWith('.mp4')), 'the film is not fetched before she is home (it comes in behind the Enter screen)');
   if (process.env.ONLY === 'bytes') { await browser.close(); srv.close(); process.exit(fails ? 1 : 0); }
 
   // 2. The offline copy comes in behind the app, and then the app opens with the server gone.

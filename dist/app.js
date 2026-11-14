@@ -3644,6 +3644,15 @@ function titleReady() {
     $('#title').classList.add('gate');
     $('#title-gate').hidden = false;
     $('#enter-sound').focus({preventScroll: true});
+    // The film starts coming in behind the Enter screen (she is home by
+    // now), so a tap plays it at once. Fetched only after the tap, it often
+    // missed its wait on a phone and the sequence played in its place.
+    if (filmOK() && !(navigator.connection && navigator.connection.saveData)) setTimeout(() => {
+      const v = $('#title-film');
+      if (titleStage !== 'gate' || !v || v.getAttribute('src')) return;
+      v.preload = 'auto'; v.src = FILM_SRC;
+      try { v.load(); } catch {}
+    }, 1200);
     return;
   }
   titleStage = 'still';
@@ -3851,11 +3860,13 @@ function startFilm(withSound) {
   v.onerror = () => film.rolling ? endFilm() : fail();
   // (Its music only with "Enter with sound", whatever the save says.)
   v.muted = !withSound;
-  v.src = FILM_SRC;
+  // (Already coming in since the Enter screen: setting it again would start over.)
+  if (!v.getAttribute('src')) v.src = FILM_SRC;
   // (A phone may refuse a film with sound: then it plays without.)
   try { v.play()?.catch(() => { v.muted = true; v.play()?.catch(fail); }); } catch { fail(); }
-  // (?filmwait=ms: a longer wait, for the slow test machine.)
-  film.watch = setTimeout(fail, wait || 3000);
+  // (?filmwait=ms: a longer wait, for the slow test machine. Three seconds
+  // proved too short on a phone: the sequence played instead of the film.)
+  film.watch = setTimeout(fail, wait || 8000);
   loadTitleToys();
 }
 function stopFilm() {
