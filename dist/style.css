@@ -635,6 +635,6 @@ dialog.photo .photo-note { margin: 12px 0 0; font-size: 12.5px; text-align: cent
 .scene.bird .wish, body.watch .wish, body.title .wish { opacity: 0; pointer-events: none; }
 .bond-day { margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
 .ribbons { display: grid; gap: 8px; margin: 14px 0 2px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
-#ribbon-options { display: flex; gap: 6px; flex-wrap: wrap; }
-#ribbon-options button { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 3px solid var(--card, #fff); background: var(--ribbon); box-shadow: 0 0 0 1px rgba(74, 46, 25, .18); cursor: pointer; }
+#ribbon-options { display: flex; gap: 5px; flex-wrap: wrap; }
+#ribbon-options button { flex: none; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 3px solid var(--card, #fff); background: var(--ribbon); box-shadow: 0 0 0 1px rgba(74, 46, 25, .18); cursor: pointer; }
 #ribbon-options button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--accent); }

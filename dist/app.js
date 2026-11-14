@@ -365,6 +365,8 @@ function gatherNews() {
       giftsQueued = false;
       if (ready && !pet.sleeping) { express('joy', 2); burst('sparkle', 8); }
       moment(`A gift of friendship: ${got.map(g => g.short).join(', ')}.`, 'i-sparkle');
+      // (So a gift for the room or for her is there behind the card at once.)
+      refresh();
     }});
   }
 }

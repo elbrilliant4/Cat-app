@@ -11,6 +11,7 @@ import fs from 'node:fs';
 const OUT = process.env.OUT || 'qa-out/gifts';
 fs.mkdirSync(OUT, {recursive: true});
 let fails = 0;
+const ONLY = process.env.ONLY || '123'; // e.g. ONLY=3 runs the third part alone
 const ok = (c, m) => { if (!c) fails++; console.log(c ? 'PASS' : 'FAIL', m); };
 const show = page => page.evaluate(() => { document.documentElement.classList.remove('title', 'title-out'); document.querySelectorAll('.hud, .dock').forEach(e => e.style.visibility = ''); kitten.refresh(); kitten.sheetPeek(); });
 const news = async page => { await page.waitForFunction(() => document.querySelector('#news-dialog').open, null, {timeout: 20000}).catch(() => {}); return page.evaluate(() => { const d = document.querySelector('#news-dialog'); return {open: d.open, title: d.querySelector('h2').textContent, rows: [...d.querySelectorAll('li strong')].map(e => e.textContent)}; }); };
@@ -21,7 +22,7 @@ const save = (o = {}) => [o => {
 }, o];
 const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.pet.day, wish: document.querySelector('#wish').hidden ? null : document.querySelector('#wish-text').textContent, dayLine: !document.querySelector('#bond-day').hidden, first: kitten.pet.journal[0]?.text, toast: document.querySelector('.toast, #toast')?.textContent || ''}));
 
-{ // 1. The wish, and friendship over a day.
+if (ONLY.includes('1')) { // 1. The wish, and friendship over a day.
   const {page, step, close} = await open({width: 390, height: 844, flags: '&intro=0', seed: 3, init: save()});
   await show(page);
   await step(80);
@@ -58,7 +59,8 @@ const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.p
   s = await page.evaluate(() => { const p = kitten.pet; for (let i = 0; i < 6; i++) { p.energy = 90; kitten.act('brush'); kitten.brain.mode = 'idle'; } for (let i = 0; i < 3; i++) { p.energy = 90; p.day.n.play = (p.day.n.play || 0) + 1; } kitten.refresh(); return {bond: p.bond, line: !document.querySelector('#bond-day').hidden, text: document.querySelector('#bond-day').textContent}; });
   ok(s.line && s.text === 'A lovely day together. More tomorrow.', `once stroke, brush and play have all counted: “${s.text}”`);
   ok(s.bond < 30, `a long sitting of strokes and brushes ends at ${s.bond} friendship, short of level 3 (40)`);
-  await page.evaluate(() => { document.body.classList.add('sheet-open'); kitten.refresh(); });
+  await step(40);
+  await page.evaluate(() => { document.querySelector('#news-dialog').close(); document.body.classList.add('sheet-open'); kitten.refresh(); });
   await page.waitForTimeout(900);
   await page.screenshot({path: `${OUT}/3-more-tomorrow.png`});
   s = await page.evaluate(() => { const r = document.querySelector('.bond-card').getBoundingClientRect(), g = document.querySelector('#bond-day').getBoundingClientRect(); return {h: Math.round(r.height), inside: g.bottom <= r.bottom + 1 && g.height > 8}; });
@@ -66,7 +68,7 @@ const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.p
   await close();
 }
 
-{ // 2. A save already at level 9: the later gifts one a day, and each one seen.
+if (ONLY.includes('2')) { // 2. A save already at level 9: the later gifts one a day, and each one seen.
   const {page, step, look, close} = await open({width: 390, height: 844, flags: '&intro=0', seed: 3, night: 1, init: save({bond: 1200, gifts: ['mouse', 'fish', 'bowl']})});
   await show(page);
   let d = await news(page);
@@ -104,14 +106,13 @@ const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.p
   s = await page.evaluate(() => ({line: document.querySelector('#bond-gift').hidden, collar: !!kitten.cat.collar?.visible, tag: !!kitten.cat.collar?.userData.tag.visible, fairy: !!kitten.room.fairy?.g.visible, frame: !!kitten.room.photoFrame?.g.visible, gifts: kitten.pet.gifts.length, pos: kitten.brain.pos.toArray()}));
   ok(s.gifts === 8 && s.line, 'all eight gifts given; the card promises nothing more');
   ok(s.collar && s.tag && s.fairy && s.frame, 'she wears the collar and tag; the lights and the frame are up');
-  await step(60);
   await look({focus: [4.2, 2.9, 1.1], yaw: -1.2, pitch: .1, dist: 6});
   await step(2);
   await page.screenshot({path: `${OUT}/7-lights-night.png`});
   await page.evaluate(() => kitten.setNight(false));
   await step(80);
-  await look({focus: [s.pos[0], .8, s.pos[2]], yaw: 0, pitch: .1, dist: 2.3});
-  await step(2);
+  const onHer = async () => { const p = await page.evaluate(() => { kitten.setActivity('sit'); return kitten.cat.bones.head.getWorldPosition(kitten.brain.pos.clone()).toArray(); }); await look({focus: [p[0], p[1] - .15, p[2]], yaw: await page.evaluate(() => kitten.cat.root.rotation.y), pitch: .1, dist: 2.3}); await step(2); };
+  await onHer();
   await page.screenshot({path: `${OUT}/8-collar.png`});
   // The ribbon's colour, in the name card.
   await page.click('#rename');
@@ -123,7 +124,7 @@ const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.p
   s = await page.evaluate(() => ({collar: kitten.pet.collar, color: '#' + kitten.cat.collar.userData.band.material.color.getHexString(), pressed: document.querySelector('[data-ribbon="teal"]').getAttribute('aria-pressed')}));
   ok(s.collar === 'teal' && s.color === '#2f8f8c' && s.pressed === 'true', `teal is picked and she wears it (${s.color})`);
   await page.click('#close-name');
-  await step(4);
+  await onHer();
   await page.screenshot({path: `${OUT}/10-collar-teal.png`});
   // A photo, hung over the fire.
   await page.evaluate(() => kitten.CAMERA_VIEWS.follow?.());
@@ -144,14 +145,11 @@ const state = page => page.evaluate(() => ({bond: kitten.pet.bond, day: kitten.p
   await close();
 }
 
-{ // 3. Left overnight: she asks for you. A gift toy picked before is kept.
+if (ONLY.includes('3')) { // 3. Left overnight: she asks for you. A gift toy picked before is kept.
   const {page, step, close} = await open({width: 390, height: 844, flags: '&intro=0', seed: 3, init: save({hoursAgo: 10, bond: 50})});
   await show(page);
-  await page.waitForFunction(() => document.querySelector('#news-dialog').open, null, {timeout: 20000}).catch(() => {});
-  await page.click('#news-ok').catch(() => {});
-  await step(30);
-  await page.click('#news-ok').catch(() => {});
-  await step(30);
+  // (The away card, then her gifts: closed without waiting on either.)
+  for (let i = 0; i < 3; i++) { await page.waitForTimeout(1500); await page.evaluate(() => { const d = document.querySelector('#news-dialog'); if (d.open) d.close(); }); await step(30); }
   const s = await page.evaluate(() => ({pill: document.querySelector('#needs-pill').textContent, mood: document.querySelector('#mood-text').textContent, food: Math.round(kitten.pet.food), water: Math.round(kitten.pet.water), joy: Math.round(kitten.pet.happiness), bond: kitten.pet.bond}));
   ok(s.pill === '2 need you' && s.food === 35 && s.water === 30, `ten hours away: ${s.pill} (tummy ${s.food}%, water ${s.water}%, joy ${s.joy}%), “${s.mood}”`);
   ok(s.bond === 50, 'friendship did not drop');
