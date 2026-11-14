@@ -205,13 +205,26 @@ await run('reduced motion: no sequence', '?night=0&intro=full', {...PHONE, reduc
   if (await page.isVisible('#title-gate')) throw new Error('Enter buttons shown');
   await through('reduced')(page);
 });
-await run('already asleep: tiptoe in', '?night=1', PHONE, async page => {
+// (Where the film plays, opening the app wakes her: the case after this one.
+// `film=0` is every place without a film: she sleeps on.)
+await run('already asleep: tiptoe in', '?night=1&film=0', PHONE, async page => {
   await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; let v = {}; try { v = JSON.parse(localStorage[k]) || {}; } catch {} v.sleeping = true; v.updated = Date.now(); localStorage[k] = JSON.stringify(v); });
   await page.reload();
   await page.waitForSelector('#title.lit', {timeout: 120000});
   if (!/tiptoe/.test(await page.textContent('#title-go'))) throw new Error('no tiptoe label');
   await through('asleep')(page);
   if (await page.textContent('#mood-text') !== 'Dreaming softly') throw new Error('she woke up');
+});
+await run('asleep where the film plays: the Enter screen, and she is awake', '', PHONE, async page => {
+  await page.addInitScript(() => { const k = 'pocket-kitten-companion-v1'; let v = {}; try { v = JSON.parse(localStorage[k]) || {}; } catch {} if (!sessionStorage.getItem('once')) { v.sleeping = true; sessionStorage.setItem('once', '1'); } v.updated = Date.now(); localStorage[k] = JSON.stringify(v); });
+  await page.reload();
+  await page.waitForSelector('#title.gate', {timeout: 120000});
+  if (await page.evaluate(() => document.querySelector('#title-gate').hidden)) throw new Error('no Enter screen');
+  if (await page.textContent('#sleep-label') !== 'Rest') throw new Error('she is still asleep');
+  if (await page.textContent('#mood-text') === 'Dreaming softly') throw new Error('her mood still says asleep');
+  // (Out through the opening: a tap skips it, a tap leaves the title.)
+  await page.click('#enter-mute', {timeout: 120000, noWaitAfter: true});
+  for (let i = 0; i < 30 && await titleOn(page); i++) { await page.waitForTimeout(1500); await page.click('#title', {timeout: 120000, noWaitAfter: true}).catch(() => {}); }
 });
 for (const q of ['?debug&intro=short&night=0'])
   await run('chime plays with sound on, ' + q, q, PHONE, async page => {

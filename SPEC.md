@@ -62,9 +62,13 @@ the phone's browser and can be added to the home screen.
   its music only with "Enter with sound"); a tap skips it; it fades into
   the living title (by day with no visible jump in the room; at night the
   sunny film fades into the night room, Merlin's choice 2026-11-13 so
-  evening players see it); in a
+  evening players see it); if she was put to bed, opening the app
+  wakes her and the film plays (Merlin, 2026-11-14: put to bed every
+  night, she was asleep at every open and the film was never seen;
+  preview); in a
   seasonal look, with the first Mochi or on a wide screen the zoomies
-  sequence plays instead; a film that cannot load never leaves a black or
+  sequence plays instead, and a sleeping Mochi sleeps on behind the short
+  title; a film that cannot load never leaves a black or
   stuck screen (`tools/qa/title.mjs`).
 - **First steps** (live, phase 15). Done when: a new player sees "Tap the
   pink ball" once, a tap on the ball starts play at once, then one "give her

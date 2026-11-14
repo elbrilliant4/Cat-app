@@ -3590,6 +3590,17 @@ view.focus.copy(view.goal.focus);
 // to its card. ?intro=short forces the still one.
 // ---------------------------------------------------------------------------
 const introParam = new URLSearchParams(location.search).get('intro');
+// Asleep, and the film would play: the film is her waking up, so opening
+// the app wakes her (Merlin, 2026-11-14: put to bed every night, she was
+// found asleep every morning and the film was never seen). Where there is
+// no film (a seasonal look, a wide screen, the first Mochi, reduced motion)
+// she sleeps on behind the still title, as before.
+const filmFits = () => room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
+if (pet.sleeping && titleOn && renderer && !reduceMotion && introParam !== 'short' && filmFits()) {
+  pet.sleeping = false;
+  moment('Woke up when you came in.', 'i-sun');
+  save(); refresh();
+}
 const titleFull = titleOn && !!renderer && !reduceMotion && !pet.sleeping && introParam !== 'short';
 let titleLiveAt = 0;
 // The opening film (assets/title/mochi-opening-v4.mp4): in place of the zoomies
@@ -3599,7 +3610,7 @@ let titleLiveAt = 0;
 // room). ?film=0 keeps the sequence.
 // (A new film gets a new file name, so no phone keeps playing an old one.)
 const FILM_SRC = './assets/title/mochi-opening-v4.mp4';
-const filmOK = () => titleFull && room.decor === 'classic' && LONGHAIR && tallScreen() && new URLSearchParams(location.search).get('film') !== '0';
+const filmOK = () => titleFull && filmFits();
 let film = null;
 function titleView() {
   if (titleStage === 'live') {
