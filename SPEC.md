@@ -160,7 +160,7 @@ the phone's browser and can be added to the home screen.
   build each time it comes back to the front and every half hour, fetches
   it behind the app, and switches the next time the player comes back to
   it, in one load without the title, never while they play (Merlin
-  2026-11-14, preview); a phone
+  2026-11-14, live, build 400); a phone
   that cannot hold 25 frames a second gets an easier picture by itself;
   on a computer she looks as before (`tools/qa/load.mjs`,
   `tools/qa/quality.mjs`). Not in it: notifications, an "update ready"
