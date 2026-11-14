@@ -82,11 +82,31 @@ const phone = () => browser.newContext({viewport: {width: 390, height: 844}, has
   await page.goto(base + '?intro=0'); await page.waitForFunction(() => document.body.dataset.mark === '2', null, {timeout: 120000}); await home(page);
   m = await marks();
   say(m.page === '2' && m.css === '2', `the next open is the new build, page and styles together (page ${m.page}, styles ${m.css})`);
-  // On the title screen the new build is put to use in the same open.
+  // An app left open (a home-screen app is woken, not launched). Coming back
+  // to it puts a build that is already in to use: one load, no title. With
+  // nothing in yet, coming back looks for a new build (at most once a
+  // minute), fetches it behind the app, and the return after that uses it.
+  const back = () => page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
   site.build = 3;
-  await page.goto(base); await page.waitForFunction(() => document.body.dataset.mark === '3', null, {timeout: 300000});
+  let swaps = 0; page.on('load', () => swaps++);
+  await page.waitForTimeout(62000);
+  await back();
+  await page.waitForFunction(() => window.__offline?.staged === '3:test3', null, {timeout: 300000});
   m = await marks();
-  say(m.page === '3' && m.css === '3', 'on the title screen, a new build comes in during the same open');
+  say(swaps === 0 && m.page === '2', `left open, a new build comes in behind the app and nothing reloads yet (page ${m.page}, ${swaps} loads)`);
+  await page.evaluate(() => history.replaceState(null, '', './'));
+  await back();
+  await page.waitForFunction(() => document.body?.dataset.mark === '3', null, {timeout: 120000}); await home(page);
+  m = await marks();
+  say(m.page === '3' && m.css === '3' && swaps === 1, `coming back to the app puts it to use, page and styles together, in one load (page ${m.page}, styles ${m.css}, ${swaps} load)`);
+  say(await page.evaluate(() => !document.documentElement.classList.contains('title') && sessionStorage.getItem('pk-swap') === null), 'that load shows no title screen, and only that one');
+  await back(); await page.waitForTimeout(3000);
+  say(swaps === 1, `coming back again with nothing new does not reload (${swaps} load)`);
+  // On the title screen the new build is put to use in the same open.
+  site.build = 4;
+  await page.goto(base); await page.waitForFunction(() => document.body.dataset.mark === '4', null, {timeout: 300000});
+  m = await marks();
+  say(m.page === '4' && m.css === '4', 'on the title screen, a new build comes in during the same open');
   const names = await page.evaluate(() => caches.keys());
   say(names.filter(n => n.includes(':build:')).length === 1, `old copies are thrown away (${names.join(', ')})`);
 

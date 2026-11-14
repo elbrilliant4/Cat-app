@@ -12,8 +12,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=portrait">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="stylesheet" href="./style.css">
-<script>/* Title screen: on at every launch, unless ?intro=0 (or ?debug without ?intro=1, full or short). Decided before the first paint. */
-(function(){var q=new URLSearchParams(location.search),i=q.get('intro');if(i?i!=='0':!q.has('debug'))document.documentElement.classList.add('title');})();</script>
+<script>/* Title screen: on at every launch, unless ?intro=0 (or ?debug without ?intro=1, full or short). Not on the load that puts a new build to use while the app was open (pk-swap, set at the foot of this page): she is where the player left her. Decided before the first paint. */
+(function(){var q=new URLSearchParams(location.search),i=q.get('intro'),swap=false;try{swap=sessionStorage.getItem('pk-swap')==='1';sessionStorage.removeItem('pk-swap');}catch(e){}if(!swap&&(i?i!=='0':!q.has('debug')))document.documentElement.classList.add('title');})();</script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body>
@@ -266,6 +266,12 @@
 // title screen as a strip). Nothing here holds the app up. No version.json
 // (a local run) or no signal: nothing happens. `?sw=off`, or `"sw": false`
 // in version.json, removes the offline copy.
+// An app that stays open (a home-screen app is woken, not launched) would
+// never see a new build that way. So version.json is read again each time
+// the app comes back to the front, and every half hour; a new build is
+// fetched whole behind the app, and put to use the next time the player
+// comes back to the app: one more load, without the title, never under
+// their fingers.
 (async () => {
   const sw = navigator.serviceWorker, here = new URL('./', location.href);
   const version = () => fetch('./version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -275,15 +281,46 @@
     for (const r of await sw.getRegistrations()) if (r.scope === here.href) await r.unregister();
     for (const k of await caches.keys()) if (k.startsWith(`pk:${here.pathname}:`)) await caches.delete(k);
   };
+  // While the app stays open. `look` reads version.json and fetches a new
+  // build; it sets `ready`, which puts that build to use (true: done). A
+  // look at most once a minute; the swap only on coming back to the app.
+  let ready = null, looked = Date.now(), busy = false;
+  const watch = look => {
+    const again = async back => {
+      if (busy) return;
+      busy = true;
+      try {
+        if (back && ready && await ready()) {
+          // (Still on the title: it simply starts again.)
+          if (!document.documentElement.classList.contains('title')) try { sessionStorage.setItem('pk-swap', '1'); } catch {}
+          return location.reload();
+        }
+        if (Date.now() - looked < 60000) return;
+        looked = Date.now();
+        await look();
+      } catch {} finally { busy = false; }
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) again(true); });
+    setInterval(() => { if (!document.hidden) again(false); }, 30 * 60000);
+  };
   // Without the offline copy (a browser that has none, or `?sw=off`): the
   // app's own files are fetched again on a new build, then one more load.
+  const refetch = () => {
+    const files = ['index.html', 'style.css', 'app.js', 'away.js', 'cat-rig.js', 'decor.js', 'face-sculpt.js', 'kitchen.js', 'meows.js', 'motion-cat.js', 'motion.js', 'pet-state.js', 'real-cat.js', 'rewards.js', 'room.js', 'save.js', 'sound.js', 'title-fx.js', 'wish.js'];
+    return Promise.all(files.map(f => fetch('./' + f, {cache: 'reload'}).then(r => r.arrayBuffer()).catch(() => {})));
+  };
   const plain = async () => {
+    watch(async () => {
+      const v = await version(), now = v && `${v.build}:${v.commit}`;
+      if (!now || localStorage.getItem('pk-build') === now) return;
+      await refetch();
+      ready = async () => { localStorage.setItem('pk-build', now); return true; };
+    });
     const v = await version(), now = v && `${v.build}:${v.commit}`, had = localStorage.getItem('pk-build');
     if (!now || had === now) return;
     // (A first visit with nothing kept is already fresh: no second load.)
     const kept = performance.getEntriesByType('resource').some(e => /\/(style\.css|app\.js)(\?|$)/.test(e.name) && !(e.transferSize > 0));
-    const files = ['index.html', 'style.css', 'app.js', 'away.js', 'cat-rig.js', 'decor.js', 'face-sculpt.js', 'kitchen.js', 'meows.js', 'motion-cat.js', 'motion.js', 'pet-state.js', 'real-cat.js', 'rewards.js', 'room.js', 'save.js', 'sound.js', 'title-fx.js'];
-    await Promise.all(files.map(f => fetch('./' + f, {cache: 'reload'}).then(r => r.arrayBuffer()).catch(() => {})));
+    await refetch();
     localStorage.setItem('pk-build', now);
     if (had !== null || kept) location.reload();
   };
@@ -300,8 +337,24 @@
     const s = await ask(worker, {cmd: 'state'}, 4000);
     if (!('current' in s)) return;
     window.__offline = {build: s.current, staged: s.staged};
-    if (s.current === now) { localStorage.setItem('pk-build', now); return; }
     const kinds = [matchMedia('(pointer: coarse)').matches ? 'phone' : 'web', ...(navigator.connection && navigator.connection.saveData ? [] : ['film'])];
+    // (The worker can be stopped and started again: ask for it each time.)
+    const flip = async () => {
+      const r = await ask((await sw.ready).active, {cmd: 'launch'}, 4000);
+      if (r.flipped) localStorage.setItem('pk-build', r.current);
+      return !!r.flipped;
+    };
+    watch(async () => {
+      const v = await version();
+      if (!v || v.sw === false) return;
+      const now = `${v.build}:${v.commit}`, w = (await sw.ready).active, s = await ask(w, {cmd: 'state'}, 4000);
+      // (No copy yet: the first one is this launch's own work, below.)
+      if (!s.current || s.current === now) return;
+      if (s.staged !== now && !(await ask(w, {cmd: 'stage', build: now, kinds}, 900000)).ok) return;
+      window.__offline.staged = now;
+      ready = flip;
+    });
+    if (s.current === now) { localStorage.setItem('pk-build', now); return; }
     // (The first copy waits until she is home: her model comes first.)
     const loading = document.querySelector('#loading');
     if (!s.current && loading) await new Promise(done => { const look = () => loading.classList.contains('done') && (seen.disconnect(), done()), seen = new MutationObserver(look); seen.observe(loading, {attributes: true}); look(); });
@@ -314,9 +367,9 @@
     // build: like any other change of build, that waits for the title or
     // the next launch, and is never sprung on someone playing.
     const fresh = !s.current && (had === null || had === now), onTitle = document.documentElement.classList.contains('title');
-    if (!fresh && !onTitle) return;
+    if (!fresh && !onTitle) { ready = flip; return; }
     const r = await ask(worker, {cmd: 'launch'}, 4000);
-    if (!r.flipped) return;
+    if (!r.flipped) { ready = flip; return; }
     window.__offline = {build: now, staged: null};
     localStorage.setItem('pk-build', now);
     if (!fresh) location.reload();

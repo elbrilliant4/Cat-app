@@ -155,7 +155,12 @@ the phone's browser and can be added to the home screen.
   Done when: the first open on a phone downloads under 6 MB before she is
   on screen; after one open with signal the app opens and plays with no
   signal, from the browser and from the home screen, save intact; a new
-  build shows after at most one reopen, never a mix of old and new; a phone
+  build shows after at most one reopen, never a mix of old and new; an app
+  left open (a home-screen app that is woken, not started) looks for a new
+  build each time it comes back to the front and every half hour, fetches
+  it behind the app, and switches the next time the player comes back to
+  it, in one load without the title, never while they play (Merlin
+  2026-11-14, preview); a phone
   that cannot hold 25 frames a second gets an easier picture by itself;
   on a computer she looks as before (`tools/qa/load.mjs`,
   `tools/qa/quality.mjs`). Not in it: notifications, an "update ready"

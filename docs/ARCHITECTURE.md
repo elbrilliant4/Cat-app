@@ -185,7 +185,10 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
 - **Offline copy**: `dist/sw.js` (how it works is at its top) and the
   script at the foot of `index.html`. A build is fetched whole into its own
   cache ("stage") and put to use only at a launch ("launch"), so a running
-  app never mixes builds. The first copy starts once she is home. What is
+  app never mixes builds. An app left open looks again on every return to
+  the front (at most once a minute) and every half hour (`watch` in that
+  script); a build that is in is put to use on the next return, with
+  `pk-swap` in sessionStorage so that one load skips the title. The first copy starts once she is home. What is
   kept is `dist/offline-files.json`, written by `node tools/offline-list.mjs`
   (every script reachable from `app.js`, plus pictures, sounds, toys; her
   model for the device; the film unless the phone asks to save data).

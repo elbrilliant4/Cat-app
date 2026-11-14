@@ -7,8 +7,9 @@
 //   - "stage": every file in offline-files.json is fetched fresh into a cache
 //     of its own, named after the build. Nothing is served from it yet.
 //   - "launch": a fully staged build becomes the one served, and the page
-//     loads itself again at once. Only ever at a launch, so a running app
-//     never gets a mix of two builds.
+//     loads itself again at once. Only at a launch, or when the player comes
+//     back to an app left open (the page looks again then, and every half
+//     hour), so a running app never gets a mix of two builds.
 // The state lives in the caches, not in this script: the worker can be
 // stopped, restarted or replaced by a newer sw.js at any moment.
 // version.json is never served from here. `?sw=off` on the page, or
