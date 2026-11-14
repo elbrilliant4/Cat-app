@@ -1,8 +1,9 @@
 # Phase 17b: fun that lasts more than one sitting
 
 Merlin, 2026-11-13, after the store review (finding 1): a keen player has
-seen everything in one sitting. Status: **plan only, waiting for Merlin's
-OK and a word with Lettuce. Nothing is built.**
+seen everything in one sitting. He approved the plan the same day and
+picked: needs "a bit faster", "wish now, collection later". Status:
+**built, on the preview branch, waiting for Merlin and Lettuce on a phone.**
 
 ## The problem, in numbers (from the rules in `dist/pet-state.js`)
 - A stroke gives 1 friendship and can repeat every 0.9 seconds with no
@@ -114,7 +115,28 @@ OK and a word with Lettuce. Nothing is built.**
   gift, the wish card, the framed photo.
 - Then the separate reviewer on the diff.
 
-## Open for Merlin and Lettuce
-- Needs faster, yes or no (point 4).
-- Wish now and a collection later, or the collection now.
-- Which level Lettuce's save is at.
+## As built (2026-11-14)
+- Rules: `dist/pet-state.js` (`earn`, `today`, `DAY_FULL`, `DROP`),
+  `dist/wish.js`, `dist/rewards.js`. Best day 56 (51 from care, 5 from the
+  wish). Need rates: food 5.5 an hour, water 6 (2.5 asleep), joy 3 (1.5
+  asleep), fluff 1.5, energy unchanged. From 90%: 8 hours leaves food 46,
+  water 42 (all good); 10 hours food 35, water 30 (2 need you); 24 hours
+  food 30, water 30, joy 30, fluff 54.
+- The wish is a button under her name (44 points tall); the open sheet's
+  big card also names it when nothing else is low. She says it once a
+  visit.
+- The fairy lights hang along the front of the mantel; the frame hangs
+  over it; the ribbon colours are in the name card (tap the pencil).
+- The collar on the long-haired Mochi: it peeks through her ruff at the
+  front with the tag, and is under the fur at the sides and back, as on a
+  real long-haired cat. Placed by eye over three rounds of stills. On the
+  first Mochi (`?mochi=first`) its place is a guess: not looked at.
+- Not built from the plan: nothing. Changed: the "more tomorrow" line shows
+  once stroke, brush and play have each counted in full (feed and water
+  are held back by her needs anyway).
+
+## Left for Merlin and Lettuce
+- Try it on a phone. Does the collar look right to you up close?
+- Which level Lettuce's save is at (past level 4 it gets a gift a day).
+- Are the wish lines in her voice? One line each in `dist/wish.js`.
+

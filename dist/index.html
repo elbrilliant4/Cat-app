@@ -101,6 +101,7 @@
               <div class="name-row"><h1 id="pet-name">Mochi</h1><button class="ghost-btn" id="rename" aria-label="Rename kitten"><svg><use href="#i-edit"/></svg></button></div>
               <span class="mood" id="mood"><i></i><span id="mood-text">Feeling lovely</span></span>
             </div>
+            <button class="wish glass" id="wish" type="button" hidden><img src="assets/icons/clay/heart.webp" alt="" width="22" height="22"><span id="wish-text">Wish</span></button>
           </div>
           <div class="hud-buttons cam-buttons" role="toolbar" aria-label="Camera">
             <button class="icon-btn glass" data-cam="room" aria-label="Explore the room" aria-pressed="true" title="Explore the room"><svg><use href="#i-view"/></svg><span>Explore</span></button>
@@ -144,6 +145,7 @@
           <div class="xp" role="progressbar" aria-label="Friendship to next level" aria-valuemin="0" aria-valuemax="100" id="xp-bar"><i id="xp-fill"></i></div>
           <div class="bond-meta" id="bond-next">15 to go</div>
           <div class="bond-gift" id="bond-gift" hidden></div>
+          <div class="bond-day" id="bond-day" hidden>A lovely day together. More tomorrow.</div>
         </div>
       </section>
 
@@ -204,6 +206,7 @@
     <button type="button" class="secondary" id="photo-share" hidden>Share…</button>
     <a class="secondary" id="photo-save" download="mochi.jpg">Save photo</a>
   </div>
+  <button type="button" class="link-btn" id="photo-hang" hidden>Hang it on the wall</button>
   <p class="dialog-note photo-note">Or press and hold the picture to keep it.</p>
 </dialog>
 
@@ -214,6 +217,7 @@
     <h2 id="name-title">A name to come home to.</h2>
     <label for="name-input">Your kitten’s name</label>
     <input id="name-input" maxlength="24" required autocomplete="off">
+    <div class="ribbons" id="ribbons" hidden><span id="ribbons-label">Her ribbon</span><div id="ribbon-options" role="group" aria-labelledby="ribbons-label"></div></div>
     <button class="primary" type="submit">That’s my kitten</button>
     <button type="button" class="link-btn" id="open-backup">Back up or move your kitten</button>
   </form>

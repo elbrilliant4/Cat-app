@@ -1502,6 +1502,70 @@ export class Room {
 
   // away: seen through the doorway from the kitchen, where she is (the lamp
   // light and the lighting of the scene then belong to the kitchen).
+  // Fairy lights along the front of the mantel (a gift of friendship): little
+  // warm bulbs on a wire in shallow swags, and a soft glow round each that
+  // comes up in the evening. Drawn, not lights: three draw calls.
+  setFairyLights(on) {
+    if (this.fairy) { this.fairy.g.visible = !!on; return; }
+    if (!on) return;
+    const g = new THREE.Group(), X = 1.6, Y = 2.62, Z = .73, SWAGS = 4, SAG = .14, N = 26;
+    const at = (u, out) => out.set(-X + u * 2 * X, Y - Math.sin(((u * SWAGS) % 1) * Math.PI) * SAG, Z);
+    const wire = Array.from({length: 97}, (_, i) => at(i / 96, new THREE.Vector3()));
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(wire), new THREE.LineBasicMaterial({color: '#4a4a32'})));
+    const pts = Array.from({length: N}, (_, i) => { const p = at((i + .5) / N, new THREE.Vector3()); p.y -= .028; return p; });
+    const bulbMat = new THREE.MeshBasicMaterial({color: '#ffe3ae'});
+    const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(.024, 8, 6), bulbMat, N), m4 = new THREE.Matrix4();
+    pts.forEach((p, i) => bulbs.setMatrixAt(i, m4.makeTranslation(p.x, p.y, p.z)));
+    g.add(bulbs);
+    const glowTex = canvasTexture(64, 64, (c, w, h) => {
+      const grd = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      grd.addColorStop(0, 'rgba(255,225,165,1)'); grd.addColorStop(.25, 'rgba(255,190,105,.55)'); grd.addColorStop(1, 'rgba(255,150,60,0)');
+      c.fillStyle = grd; c.fillRect(0, 0, w, h);
+    });
+    const glowMat = new THREE.PointsMaterial({map: glowTex, size: .34, sizeAttenuation: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false});
+    const glow = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts), glowMat);
+    glow.frustumCulled = false; g.add(glow);
+    this.fireplace.add(g);
+    this.fairy = {g, glowMat, bulbMat, day: new THREE.Color('#e9d9b4'), lit: new THREE.Color('#ffe3ae')};
+  }
+
+  // A picture frame over the mantel (a gift of friendship): one of the
+  // player's own photos (`image`: anything a canvas can draw), or a paw print
+  // on the mount until one is hung. The picture is cut to the frame, centred.
+  setFrame(on, image = null) {
+    if (!on) { if (this.photoFrame) this.photoFrame.g.visible = false; return; }
+    let f = this.photoFrame;
+    if (!f) {
+      const M = this.materials, g = new THREE.Group(), FW = .8, FH = 1;
+      g.position.set(0, this.mantelTop + 1.08, .012);
+      this.mesh(new THREE.BoxGeometry(FW + .14, FH + .14, .06), M.frame, g).position.z = .03;
+      const canvas = document.createElement('canvas');
+      canvas.width = 480; canvas.height = 600;
+      const map = new THREE.CanvasTexture(canvas);
+      map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      const pic = this.mesh(new THREE.PlaneGeometry(FW, FH), new THREE.MeshStandardMaterial({map, roughness: .55}), g, {cast: false});
+      pic.position.z = .062;
+      this.fireplace.add(g);
+      f = this.photoFrame = {g, canvas, map, image: undefined};
+    }
+    f.g.visible = true;
+    if (f.image === image) return;
+    f.image = image;
+    const c = f.canvas, x = c.getContext('2d'), iw = image && (image.naturalWidth || image.width), ih = image && (image.naturalHeight || image.height);
+    x.fillStyle = '#f3ead9'; x.fillRect(0, 0, c.width, c.height);
+    if (iw && ih) {
+      const k = Math.max(c.width / iw, c.height / ih), w = iw * k, h = ih * k;
+      x.drawImage(image, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    } else {
+      // The empty mount: a paw print, waiting for a photo.
+      x.fillStyle = '#d9c7a8';
+      const cx = c.width / 2, cy = c.height / 2 + 20;
+      x.beginPath(); x.ellipse(cx, cy + 30, 62, 52, 0, 0, Math.PI * 2); x.fill();
+      for (const [dx, dy, r] of [[-78, -38, 26], [-28, -78, 28], [28, -78, 28], [78, -38, 26]]) { x.beginPath(); x.ellipse(cx + dx, cy + dy, r * .82, r, dx * .004, 0, Math.PI * 2); x.fill(); }
+    }
+    f.map.needsUpdate = true;
+  }
+
   update(dt, t, night, {drinking = false, camera = null, away = false} = {}) {
     if (camera) {
       // (In the room's own frame: seen from the kitchen, it's joined on
@@ -1530,6 +1594,11 @@ export class Room {
       this.scene.environmentIntensity = damp(this.scene.environmentIntensity, night ? .35 : .55, 3, dt);
     }
     this.updateFountain(dt, t, drinking);
+    if (this.fairy && this.fairy.g.visible) {
+      const F = this.fairy;
+      F.glowMat.opacity = damp(F.glowMat.opacity, night ? .5 : .05, 3, dt) * (1 + Math.sin(t * 2.1) * .03);
+      F.bulbMat.color.lerp(night ? F.lit : F.day, 1 - Math.exp(-3 * dt));
+    }
     if (this.candleLight) {
       const glow = this.candleLight.material;
       glow.opacity = damp(glow.opacity, night ? .95 : .3, 3, dt) * (1 + Math.sin(t * 13) * .04 + Math.sin(t * 7.3) * .03);

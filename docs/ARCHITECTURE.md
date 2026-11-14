@@ -143,6 +143,34 @@ Sounds: the wake-up chime in the still title (`sounds.play`,
   Share (`navigator.canShare` with a file) and Save (a download link).
 - Moments: `JOURNAL_MAX` (pet-state.js) = 40.
 
+## Fun that lasts (phase 17b)
+- **Friendship over days** (pet-state.js): `care()` no longer adds to
+  `bond` itself; `earn(p, action, now)` does, with `DAY_FULL` (full counts a
+  day), `WORTH`, then a tenth up to `DAY_EXTRA`. `pet.day` = `{key, n, extra,
+  wish, wishDone, last}`; `today()` starts a new one when `dayKey()` (local
+  date, turning at 4 am) is later than the stored key, never when it is
+  earlier. `bond` can now have one decimal. `care(..., {auto: true})` (her
+  own drink) earns nothing. `dayFull()` drives `#bond-day`.
+- **Needs**: `DROP` (points an hour) and `AWAY_MAX_HOURS` (24) in
+  pet-state.js; one rate, app open or closed.
+- **Wish** (wish.js): `WISHES`, `todaysWish(pet, has)`, `grantWish(pet,
+  event, has)`. app.js `wishCheck(e)` is called at the end of `act()` (not
+  for her own drink or Rest) and after a photo; `wishNow()` is null during
+  the first steps. `#wish` (under the nameplate) and the big need card's
+  tip show it; `pumpNews()` has her say it once a visit when no card waits.
+- **Later gifts** (rewards.js, level `LATE` = 5 and up): hers once the card
+  has been shown (`owns(level, id, pet.gifts)`), at most one a day
+  (`pet.giftDay`, `newGifts(level, shown, giftDay, dayKey())`); app.js
+  `has(id)` and `dueGifts()`. `refresh()` applies them:
+  `room.setFairyLights(on)` and `room.setFrame(on, image)` (room.js, both
+  children of the fireplace so they hide with the right wall),
+  `cat.setCollar({color, tag} | null)` (real-cat.js, on the neck bone;
+  placement per model in `COLLAR`, set by eye). Ribbon colours: `RIBBONS`,
+  `pet.collar`, picked in `#name-dialog`.
+- **Framed photo**: "Hang it on the wall" in `#photo-dialog` stores one
+  480 x 600 JPEG as a data URL under the save's key + `-frame` (not in the
+  save or a backup code); `loadFramePhoto()` reads it at start.
+
 ## Phone speed and the offline copy (phase 18)
 - **Her model**: the source is `assets/mochi-longhair-hq.glb` (8.9 MB, kept
   for the tools and `rig-check.html`). The app loads a packed copy made by

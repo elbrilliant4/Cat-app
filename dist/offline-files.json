@@ -34,6 +34,7 @@
   "vendor/shaders/OutputShader.js",
   "vendor/three.core.js",
   "vendor/three.module.js",
+  "wish.js",
   "art/de-heem-vase-of-flowers.jpg",
   "art/shelf-blue-pitcher.jpg",
   "art/shelf-pears.jpg",

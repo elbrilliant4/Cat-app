@@ -39,9 +39,9 @@ const save = (hoursAgo, bond) => [([h, bond]) => {
   await page.screenshot({path: `${OUT}/2-gifts.png`});
   await page.click('#news-ok');
   await page.waitForTimeout(900);
-  s = await page.evaluate(() => ({open: document.querySelector('#news-dialog').open, gifts: kitten.pet.gifts, giftLine: document.querySelector('#bond-gift').hidden, label: kitten.room.bowl.userData.label?.visible, journal: kitten.pet.journal[0].text}));
+  s = await page.evaluate(() => ({open: document.querySelector('#news-dialog').open, gifts: kitten.pet.gifts, giftLine: document.querySelector('#bond-gift').textContent, label: kitten.room.bowl.userData.label?.visible, journal: kitten.pet.journal[0].text}));
   ok(!s.open && s.gifts.length === 3, `gifts are marked as seen and no card comes back (${s.gifts})`);
-  ok(s.giftLine, 'past the last gift the friendship card promises nothing');
+  ok(s.giftLine === 'Level 5 gift: a ball of yarn', `the friendship card names the next gift (“${s.giftLine}”)`);
   ok(s.label === true, 'her name is on her bowl');
   await step(10);
   await look({focus: [2.05, .12, 1.45], yaw: 0, pitch: .32, dist: 1.5});

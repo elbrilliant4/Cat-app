@@ -103,6 +103,25 @@ the phone's browser and can be added to the home screen.
   Android; a phone that cannot share still saves. Moments keeps 40 entries
   (`return-checks.mjs`, `tools/qa/return.mjs`). Brief:
   docs/phases/17-reasons-to-return.md.
+- **Fun that lasts** (preview, phase 17b; Merlin 2026-11-13, after the
+  store review found a keen player had seen everything in one sitting; he
+  picked needs "a bit faster" and "wish now, collection later"). Done when:
+  each kind of care counts in full a few times a day (stroke 10, brush 2,
+  feed 3, water 3, play 3), then a tenth, and the tenths stop at 5 more a
+  day; the day turns at 4 in the morning; she reacts to every touch as
+  before; her drinking by herself gives no friendship; friendship never
+  drops; the level numbers are unchanged; once the day's care has counted
+  the friendship card says "A lovely day together. More tomorrow." Each day
+  she has one wish (about 14, only things this player has, never the same
+  two days running, the same all day): it is under her name, a tap and she
+  says it, granting it is thanked, written in Moments and worth 5. Levels 5
+  to 9 give a ball of yarn, fairy lights along the study mantel (lit in the
+  evening), a ribbon collar (six colours, in the name card), a picture
+  frame over the fire for one of your photos, and a gold tag on the collar;
+  a save already past a level gets these one a day. Left overnight she is a
+  little hungry and thirsty, left a day she is missing you too; never under
+  30 (`fun-checks.mjs`, `tools/qa/gifts.mjs`). Brief:
+  docs/phases/17b-fun-over-days.md.
 - **Care.** Done when: a player can feed, pet, brush, play with and put her
   to sleep, and the meters (food, water, happiness, energy, cleanliness)
   respond.
@@ -174,11 +193,10 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - First steps for food, water, brushing and sleep (ChatGPT's review of the
   opening film, 2026-11-12; v1 teaches only the ball and a stroke).
 - A "watch the film again" button; a film for night and for Christmas.
-- Gifts for friendship levels 5 to 9 (phase 17b; proposed: a ribbon collar
-  in a colour you pick, the yarn ball, your best photo framed on the study
-  wall, fairy lights for the study, a gold name tag).
-- Whether her needs should drop faster while you are away (today a week
-  away still reads "All good"): Merlin to decide, with Lettuce.
+- Things she finds and a collection screen (Merlin 2026-11-13: after the
+  daily wish; the stronger reason to come back in month two).
+- Something after level 9; notifications ("she misses you") with the
+  store wrapper.
 - Miso, the second cat (blue British Shorthair), and the cats playing together.
 - Adopting more cats by levelling up.
 - Christmas tree mischief (phase 06, December).

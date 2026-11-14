@@ -277,6 +277,16 @@ float furHash(vec2 p) {
 }
 `;
 
+// Where the collar sits, per model (on the long-haired Mochi it peeks through
+// her ruff at the front and is under the fur behind, as on a real long-haired
+// cat): `at` along the neck bone (0 its root, 1
+// the head), `up` a nudge, `r` the ring, `band` the ribbon's thickness, `wide`
+// and `flat` its shape, `tilt` its lean, `tag` the tag's radius. Set by eye
+// (tools/qa/gifts.mjs).
+const COLLAR = {
+  longhair: {at: .55, up: -.03, r: .172, band: .019, wide: 1, flat: 1.3, tilt: -.25, tag: .03},
+  first: {at: .5, up: -.02, r: .14, band: .017, wide: 1, flat: 1.3, tilt: -.25, tag: .026},
+};
 export class RealCat {
   // opts.rig: 2 for the motion trial's rig (shoulder blades, new weights).
   // opts.model: 'longhair' for the long-haired candidate (docs/mochi-longhair).
@@ -753,6 +763,41 @@ export class RealCat {
     fur.bind(skinned.skeleton, skinned.bindMatrix);
     skinned.parent.add(fur);
     this.fur = fur;
+  }
+
+  // A ribbon collar round her neck (a gift of friendship), with a small gold
+  // tag at the front once that is hers too. `c` = {color, tag} or null to
+  // take it off. It rides on the neck bone, tilted to sit across the neck.
+  setCollar(c) {
+    if (!this.ready) return;
+    if (!c) { if (this.collar) this.collar.visible = false; return; }
+    const L = this.longhair, R = L ? COLLAR.longhair : COLLAR.first;
+    if (!this.collar) {
+      const g = this.collar = new THREE.Group(), along = this.bones.head.position.clone();
+      const d = along.clone().normalize();
+      g.position.copy(along).multiplyScalar(R.at).add(new THREE.Vector3(0, R.up, 0));
+      g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
+      g.rotateX(R.tilt);
+      const band = new THREE.Mesh(new THREE.TorusGeometry(R.r, R.band, 10, 48), new THREE.MeshStandardMaterial({roughness: .62, metalness: 0}));
+      band.scale.set(R.wide, 1, R.flat);
+      band.castShadow = true;
+      g.add(band);
+      // The tag hangs at the lowest point of the band, facing forwards.
+      const gold = new THREE.MeshStandardMaterial({color: '#e2b53a', metalness: .9, roughness: .25, emissive: '#3a2a08', emissiveIntensity: .35});
+      const tag = new THREE.Group();
+      tag.position.set(0, -R.r - R.band * .5, 0);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R.tag * .32, R.tag * .07, 6, 14), gold);
+      ring.rotation.y = Math.PI / 2;
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(R.tag, R.tag, R.tag * .16, 22), gold);
+      disc.rotation.x = Math.PI / 2; disc.position.y = -R.tag * 1.15;
+      tag.add(ring, disc);
+      g.add(tag);
+      g.userData = {band, tag};
+      this.bones.neck.add(g);
+    }
+    this.collar.visible = true;
+    this.collar.userData.band.material.color.set(c.color || '#d9728a');
+    this.collar.userData.tag.visible = !!c.tag;
   }
 
   // A sparse set of fine, tapered whiskers from the muzzle pads, plus two

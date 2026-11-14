@@ -626,3 +626,15 @@ dialog.photo a.secondary { text-align: center; text-decoration: none; color: inh
    as the sheet's content was taller than the screen.) */
 @media (max-width: 720px) and (orientation: portrait) { .panel { grid-auto-rows: max-content; } }
 dialog.photo .photo-note { margin: 12px 0 0; font-size: 12.5px; text-align: center; color: var(--muted); }
+
+/* Phase 17b: her wish of the day (under her name), the soft "more tomorrow"
+   line on the friendship card, the ribbon colours in the name card. */
+.wish { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; max-width: min(62vw, 260px); padding: 0 14px 0 9px; border-radius: 22px; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink); cursor: pointer; text-align: left; line-height: 1.15; transition: opacity .6s, transform .2s; }
+.wish img { flex: none; width: 22px; height: 22px; }
+.wish:active { transform: scale(.97); }
+.scene.bird .wish, body.watch .wish, body.title .wish { opacity: 0; pointer-events: none; }
+.bond-day { margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.ribbons { display: grid; gap: 8px; margin: 14px 0 2px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+#ribbon-options { display: flex; gap: 6px; flex-wrap: wrap; }
+#ribbon-options button { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 3px solid var(--card, #fff); background: var(--ribbon); box-shadow: 0 0 0 1px rgba(74, 46, 25, .18); cursor: pointer; }
+#ribbon-options button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--accent); }
