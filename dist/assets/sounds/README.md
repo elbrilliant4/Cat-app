@@ -17,3 +17,9 @@ unless a recording is listed for that kind of call; her purr is the recorded sle
 once as she wakes, sound on only. Generated with Runway on Merlin's plan
 (2026-11-11), trimmed and levelled with ffmpeg; Merlin picked it by ear over
 a celesta take. Not listed in `sounds.json` (that is her own voice).
+
+`music-box.mp3`, `music-piano.mp3`, `music-guitar.mp3`: the three pieces of
+music a player can pick in the sound panel (`TUNES` in `../../sound.js`),
+60 s each. Made with ElevenLabs Music (2026-11-14); the originals are in
+`sources/audio/music/`. Levelled to one loudness, faded in and out and
+shrunk with ffmpeg (`loudnorm=I=-24`, 96 kbps). Not listed in `sounds.json`.

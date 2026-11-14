@@ -48,7 +48,9 @@ idea to the live app.
 - Textures are drawn in code from Orion's references. No reference
   pixels are shipped.
 - **Sound:** no vacuum sound and no continuous ambient sounds. Short,
-  occasional sounds only (meows, soft clinks when things land). Spotify
+  occasional sounds only (meows, soft clinks when things land). Music is
+  the one exception (Merlin, 2026-11-14): three pieces the player can pick
+  in the sound panel, off unless picked. Spotify
   is on hold.
 - The decor style is called **Beach House** (not "Hamptons"). Seasonal
   decor (Halloween, Thanksgiving, later Christmas) stays in place day and

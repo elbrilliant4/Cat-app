@@ -9,7 +9,7 @@ import {RealCat, EXPRESSIONS} from './real-cat.js';
 import {MotionCat} from './motion-cat.js';
 import {Room} from './room.js';
 import {Kitchen} from './kitchen.js';
-import {Sounds} from './sound.js';
+import {Sounds, TUNES} from './sound.js';
 import {TitleFx} from './title-fx.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 
@@ -31,7 +31,7 @@ let titleStage = 'load', cine = null, titleFx = null, titleToys = null, titleToy
 let timeRate = 1, clockLag = 0;
 const TITLE_CAM = {dist: 2.3, pitch: .3, y: .62};
 const TITLE_CHIME = 'wake-chime.mp3';
-function titleOff() { titleOn = false; titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, .app > footer').forEach(el => el.inert = false); }
+function titleOff() { titleOn = false; syncMusic(); titleRoot.classList.remove('title', 'title-out'); document.querySelectorAll('.topbar, .panel, .app > footer').forEach(el => el.inert = false); }
 const motion = reduceMotion ? 0.35 : 1;
 
 // ---------------------------------------------------------------------------
@@ -266,6 +266,8 @@ function refresh() {
   $('#sound').innerHTML = icon(pet.sound ? 'i-sound' : 'i-mute');
   $('#sound-on').checked = pet.sound;
   $('#vol-cat').value = pet.catVolume;
+  $('#vol-music').value = pet.musicVolume;
+  for (const b of $('#tunes').children) b.setAttribute('aria-checked', String(b.dataset.tune === (TUNES[pet.music] ? pet.music : '')));
   $('#sound-panel').classList.toggle('muted', !pet.sound);
   const step = brain.mode === 'play' || pet.sleeping || titleOn && titleStage !== 'off' ? null : teachStep();
   $('#scene-hint').classList.toggle('teach', !!step);
@@ -441,7 +443,10 @@ function burst(kind = 'heart', count = 5, at = headScreen) {
 // ---------------------------------------------------------------------------
 const sounds = new Sounds();
 sounds.enabled = pet.sound;
-sounds.volume = {cat: pet.catVolume};
+sounds.volume = {cat: pet.catVolume, music: pet.musicVolume};
+// Music: the piece the player picked, only with sound on, once the opening
+// is over and while the app is in front. Called wherever one of those changes.
+const syncMusic = () => sounds.setMusic(pet.sound && !titleOn && !document.hidden ? TUNES[pet.music]?.file ?? null : null);
 function meow(kind = 'meow', priority = 'reply') {
   const m = sounds.meow(kind, priority);
   if (!m) return false;
@@ -455,7 +460,7 @@ const purr = seconds => sounds.purr(seconds);
 // Browsers only allow audio after a tap; start it on the first one anywhere.
 // (iPhones only count the end of a touch, or a click, as permission; and
 // after the app has been in the background its audio needs waking again.)
-for (const ev of ['pointerdown', 'touchend', 'click']) document.addEventListener(ev, () => { if (pet.sound) sounds.setEnabled(true); }, {capture: true, passive: true});
+for (const ev of ['pointerdown', 'touchend', 'click']) document.addEventListener(ev, () => { if (pet.sound) { sounds.setEnabled(true); syncMusic(); } }, {capture: true, passive: true});
 
 // ---------------------------------------------------------------------------
 // 3D room
@@ -3429,6 +3434,8 @@ $('#backup-form').onsubmit = e => {
   ensureTaught();
   save();
   refresh(); renderJournal();
+  // (Her sound settings came with her.)
+  sounds.setEnabled(pet.sound); sounds.setVolume('cat', pet.catVolume); sounds.setVolume('music', pet.musicVolume); syncMusic();
   $('#backup-dialog').close();
   toast(`Welcome home, ${pet.name}`);
   if (ready && !pet.sleeping) { express('joy', 1.6); meow('mew'); }
@@ -3454,10 +3461,17 @@ document.addEventListener('pointerdown', e => { if (!e.target.closest('.sound-wr
 $('#sound-on').onchange = e => {
   pet.sound = e.target.checked;
   sounds.setEnabled(pet.sound);
+  syncMusic();
   refresh(); save();
   if (pet.sound) { meow('mew'); twitchEar(0); twitchEar(1); }
 };
-for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume']]) {
+$('#tunes').innerHTML = [['', 'Off'], ...Object.entries(TUNES).map(([k, t]) => [k, t.name])].map(([k, name]) => `<button type="button" role="radio" data-tune="${k}" aria-checked="${k === (TUNES[pet.music] ? pet.music : '')}">${name}</button>`).join('');
+$('#tunes').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  pet.music = b.dataset.tune;
+  refresh(); save(); syncMusic();
+};
+for (const [id, kind, key] of [['#vol-cat', 'cat', 'catVolume'], ['#vol-music', 'music', 'musicVolume']]) {
   $(id).oninput = e => { pet[key] = +e.target.value; sounds.setVolume(kind, pet[key]); };
   $(id).onchange = () => { save(); if (kind === 'cat' && pet.sound) meow('mew'); };
 }
@@ -3491,7 +3505,7 @@ for (const d of document.querySelectorAll('dialog')) {
 
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
-  advance(pet); refresh(); save();
+  advance(pet); refresh(); save(); syncMusic();
   if (document.hidden) hiddenAt = Date.now();
   else {
     if (!titleOn && Date.now() - hiddenAt > 45000) greet();

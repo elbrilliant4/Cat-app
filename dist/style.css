@@ -126,7 +126,10 @@ img.brand-mark { object-fit: cover; background: none; padding: 0; }
 .sp-row { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .sp-row input[type=range] { width: 100%; accent-color: var(--accent, #e8799b); }
 .sp-switch input { justify-self: end; width: 20px; height: 20px; accent-color: var(--accent, #e8799b); }
-.sound-panel.muted .sp-row:not(.sp-switch) { opacity: .45; }
+.sp-tunes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sp-tunes button { min-height: 44px; padding: 0 8px; border-radius: 12px; border: 1px solid var(--line); background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.sp-tunes button[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.sound-panel.muted .sp-row:not(.sp-switch), .sound-panel.muted .sp-tunes { opacity: .45; }
 
 /* Layout */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 22px; align-items: start; }

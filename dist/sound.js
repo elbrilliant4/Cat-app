@@ -7,6 +7,10 @@
 // soft knock when something she's sent over lands: a ceramic clink, a glass
 // tink, a plate's rattle or a book's thud, on her volume.
 //
+// Music (Merlin, 2026-11-14) is the player's choice and off until they pick
+// a piece: one of TUNES, on its own volume, played through with a quiet
+// pause before it comes round again so it never drones.
+//
 // Meows never overlap and leave quiet gaps between them. Each recording's
 // loudness envelope is measured when it loads, so the mouth can open and
 // close with the actual sound.
@@ -19,12 +23,24 @@ export const MEOW_LEVEL = .11;
 
 const MANIFEST = 'sounds.json';
 
+// The pieces of music a player can pick (the key is what the save keeps).
+// (No inherited keys: a save may hold any short word.)
+export const TUNES = Object.assign(Object.create(null), {
+  box: {name: 'Music box', file: 'music-box.mp3'},
+  piano: {name: 'Piano', file: 'music-piano.mp3'},
+  guitar: {name: 'Guitar', file: 'music-guitar.mp3'},
+});
+// Seconds of quiet between one play of a piece and the next.
+const MUSIC_PAUSE = 12;
+
 export class Sounds {
   constructor(base = './assets/sounds/') {
     this.base = base;
     this.ctx = null;
     this.enabled = false;
-    this.volume = {cat: .8};
+    this.volume = {cat: .8, music: .3};
+    this.tune = null; // the music file playing (or being fetched)
+    this.tuneTurn = 0;
     this.clips = [];
     this.credits = [];
     // Call timing runs on the page clock (seconds), which keeps going even
@@ -46,7 +62,7 @@ export class Sounds {
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
-      this.bus = {cat: this.ctx.createGain()};
+      this.bus = {cat: this.ctx.createGain(), music: this.ctx.createGain()};
       for (const [k, g] of Object.entries(this.bus)) { g.gain.value = this.volume[k]; g.connect(this.master); }
       this.master.gain.value = this.enabled ? 1 : 0;
       this.loading = this.load();
@@ -88,6 +104,49 @@ export class Sounds {
   setVolume(kind, v) {
     this.volume[kind] = v;
     if (this.ctx) this.bus[kind].gain.setTargetAtTime(v, this.ctx.currentTime, .08);
+  }
+
+  // The music to play now: a file from this folder, or nothing. Safe to call
+  // often (the same file again changes nothing). A piece fades in, plays
+  // through, and comes round again after a quiet pause.
+  setMusic(file = null) {
+    if (!this.ctx || !this.enabled) file = null;
+    if (file === this.tune) return;
+    this.tune = file;
+    const turn = ++this.tuneTurn, ctx = this.ctx;
+    clearTimeout(this.tuneTimer);
+    if (this.tuneSrc) {
+      const now = ctx.currentTime, g = this.tuneGain.gain;
+      const at = g.value;
+      g.cancelScheduledValues(now); g.setValueAtTime(at, now); g.setTargetAtTime(0, now, .2);
+      try { this.tuneSrc.stop(now + 1.2); } catch {}
+      // (A phone stops the audio clock in the background, so a fade would
+      // wait and be heard on coming back: cut it off at once.)
+      if (document.hidden) this.tuneGain.disconnect();
+      this.tuneSrc = null;
+    }
+    if (!file) return;
+    (async () => {
+      try {
+        if (this.tuneKept?.file !== file) this.tuneKept = {file, buffer: await ctx.decodeAudioData(await (await fetch(this.base + file)).arrayBuffer())};
+        const buffer = this.tuneKept.buffer;
+        const round = () => {
+          if (turn !== this.tuneTurn) return;
+          const src = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime + .05;
+          src.buffer = buffer;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1.5);
+          src.connect(g).connect(this.bus.music);
+          src.onended = () => { if (turn === this.tuneTurn) this.tuneTimer = setTimeout(round, MUSIC_PAUSE * 1000); };
+          src.start(t);
+          this.tuneSrc = src; this.tuneGain = g;
+        };
+        round();
+      } catch (e) {
+        // (Weak signal: the next tap after a short while tries again.)
+        console.warn('Music unavailable:', e);
+        setTimeout(() => { if (turn === this.tuneTurn) this.tune = null; }, 20000);
+      }
+    })();
   }
 
   // A one-off sound file from this folder (the title screen's wake-up

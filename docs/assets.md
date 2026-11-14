@@ -7,7 +7,7 @@ Everything in this project is for a public website. All rules below assume that.
 - Orion's reference images are never shipped (we don't hold their rights). Textures drawn in code from them are fine, and so are ready-made textures with a license that fits rule 7.
 - The site is served from dist/, so new assets go in dist/assets/models, dist/assets/textures, dist/assets/images, dist/assets/icons, dist/assets/fonts, dist/assets/sounds. Source files that aren't served (originals, raw recordings) go in models/ or sources/.
 - This repo is public. See rule 9 before adding any paid file.
-- Sounds: short and occasional only, never ambient loops (TEAM-INSTRUCTIONS.md). dist/assets/sounds/README.md has the sound rules.
+- Sounds: short and occasional only, never ambient loops (TEAM-INSTRUCTIONS.md); the player's pick of music is the one exception (2026-11-14). dist/assets/sounds/README.md has the sound rules.
 
 ## 1. Budget
 At the start of a project, ask me one budget that covers all assets and design purchases. Never suggest anything that would go over it without asking first.

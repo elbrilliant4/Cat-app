@@ -8,6 +8,14 @@ then it can go live), and a decision on the name: "Pocket Kitten" is taken
 on the App Store (`docs/app-store.md`, part 2). Still true: phases 17, 17b,
 18 and the camera fixes have not been tried on a real phone.
 
+## Music (on the preview, 2026-11-14, waiting for a listen on a phone)
+Three pieces made with ElevenLabs (Music box, Piano, Guitar), picked in the
+sound panel, off unless picked; SPEC.md "Music". Checked: `npm run check`,
+`tools/qa/music.mjs` 15 of 15. Not checked: a real phone (iPhone silent
+switch, coming back from another app), how it sounds (nobody but Merlin
+has heard it), Lettuce over a long sitting. Before "Go live": Merlin
+confirms his ElevenLabs plan allows a public site (CREDITS.md).
+
 ## Fun changes (phase 17b, on the preview branch, waiting for a phone try)
 Phase 17b is on the preview branch, waiting for Merlin and Lettuce to try
 it on a phone: brief `docs/phases/17b-fun-over-days.md` ("As built" and

@@ -170,7 +170,14 @@ the phone's browser and can be added to the home screen.
   then. Anything new that leaves the phone changes this page first.
 - **Sound.** Done when: sound is off until the player turns it on, only
   short occasional sounds play (meows, purr, soft clinks), with separate
-  volume for her and the room.
+  volume for her and the music.
+- **Music** (preview; Merlin, 2026-11-14, who liked all three takes and
+  wanted the player to choose). Done when: the sound panel offers Off,
+  Music box, Piano and Guitar with a volume of its own; a new player has
+  Off; a picked piece plays only with sound on, after the opening and
+  while the app is in front, plays through, pauses 12 seconds and comes
+  round again; the choice is kept (`tools/qa/music.mjs`). Still to hear
+  from Lettuce: does it tire over a long sitting.
 
 ## Phases
 Build order and status: `docs/ROADMAP.md` (a brief per phase in
@@ -183,7 +190,8 @@ decor, Miso, phase 08 (app screens), phase 09 (test group).
 - **(Merlin?)** What counts as v1: what the test group (phase 09) gets?
 - Accounts, logins, or saves that move between devices (saves stay on the
   phone; backup codes cover moving).
-- Continuous or ambient sound, including the vacuum's sound.
+- Ambient sound (room tone, the fountain, the vacuum's sound). Music is
+  the player's choice since 2026-11-14 (see Music above).
 - Spotify (on hold).
 - The dog visit, until there's a proper model (code waits behind `?dog`).
 - **(Merlin?)** Miso: v1 or later?
