@@ -1,6 +1,31 @@
-# Handoff: 2026-11-14, the fun changes are built (phase 17b)
+# Handoff: 2026-11-14, next is App Store groundwork
 
 ## Next step
+Merlin picked (2026-11-14): **App Store groundwork**. No Apple account,
+no spending, no wrapper build (that needs a Mac). This is "big" in
+CLAUDE.md terms (an outside service): explain the plan in plain words and
+get his OK before writing anything into the app. Wanted:
+1. A privacy policy page (Apple guideline 5.1.1: a link in the listing and
+   inside the app). First find out what the app really stores and sends
+   (saves stay on the phone; check for any outside requests) and write it
+   from that, in plain words. Where it lives and how the app links to it
+   is for the plan.
+2. A written list of what the wrapper app needs: Apple's rule 4.2 (not a
+   repackaged website) and what Mochi can add that only an app can do
+   (a "she misses you" notification, a buzz when she purrs, the phone's
+   share sheet); whether the offline copy works inside a wrapper (not
+   confirmed, has to be tried on an iPhone); screenshot sizes; the $99 a
+   year developer account; who the listing is for (children's rules in
+   1.3); free or paid (open in SPEC.md); the name "Pocket Kitten" free on
+   the store; licences for the film's music and the Meshy model.
+Sources and quotes are on the review page:
+https://claude.ai/artifact/YRrnVJZKRBrARzXUnccHH7 . Check Apple's pages
+again before relying on them.
+Say this to Merlin once: four pieces of work (phases 17, 17b, 18 and the
+camera fixes) are on the preview and none has been tried on a real phone;
+a 20 minute phone test is worth more than more building.
+
+## Fun changes (phase 17b, on the preview branch, waiting for a phone try)
 Phase 17b is on the preview branch, waiting for Merlin and Lettuce to try
 it on a phone: brief `docs/phases/17b-fun-over-days.md` ("As built" and
 "Left for Merlin and Lettuce"). Merlin approved the plan on 2026-11-13 and
