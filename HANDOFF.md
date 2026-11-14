@@ -13,8 +13,8 @@ Three pieces made with ElevenLabs (Music box, Piano, Guitar), picked in the
 sound panel, off unless picked; SPEC.md "Music". Checked: `npm run check`,
 `tools/qa/music.mjs` 15 of 15. Not checked: a real phone (iPhone silent
 switch, coming back from another app), how it sounds (nobody but Merlin
-has heard it), Lettuce over a long sitting. Before "Go live": Merlin
-confirms his ElevenLabs plan allows a public site (CREDITS.md).
+has heard it), Lettuce over a long sitting. Merlin confirmed a paid
+ElevenLabs plan (CREDITS.md).
 
 ## Fun changes (phase 17b, on the preview branch, waiting for a phone try)
 Phase 17b is on the preview branch, waiting for Merlin and Lettuce to try
