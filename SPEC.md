@@ -90,7 +90,7 @@ the phone's browser and can be added to the home screen.
   most is a big coloured card with its button; the rest fill like glasses;
   glossy icons on the needs, dock, moments and guide (made with Meshy, then
   Runway).
-- **Reasons to come back** (preview, phase 17; Merlin 2026-11-13, after a
+- **Reasons to come back** (live, build 392, phase 17; Merlin 2026-11-13, after a
   review found nothing changes from one day to the next). Done when: away
   30 minutes or more, a card tells 2 or 3 things she did, fitting the time
   away; one tap closes it; it is in Moments; under 30 minutes there is no
@@ -103,7 +103,7 @@ the phone's browser and can be added to the home screen.
   Android; a phone that cannot share still saves. Moments keeps 40 entries
   (`return-checks.mjs`, `tools/qa/return.mjs`). Brief:
   docs/phases/17-reasons-to-return.md.
-- **Fun that lasts** (preview, phase 17b; Merlin 2026-11-13, after the
+- **Fun that lasts** (live, build 392, phase 17b; Merlin 2026-11-13, after the
   store review found a keen player had seen everything in one sitting; he
   picked needs "a bit faster" and "wish now, collection later"). Done when:
   each kind of care counts in full a few times a day (stroke 10, brush 2,
@@ -151,7 +151,7 @@ the phone's browser and can be added to the home screen.
   (`tools/qa/vacuum.mjs`). The study keeps its classic look, with pine
   and a brass lantern on the mantel and a plaid cushion on the armchair
   (seen through the doorway).
-- **Quick on a phone, and there without signal** (phase 18, preview).
+- **Quick on a phone, and there without signal** (phase 18, live, build 392).
   Done when: the first open on a phone downloads under 6 MB before she is
   on screen; after one open with signal the app opens and plays with no
   signal, from the browser and from the home screen, save intact; a new

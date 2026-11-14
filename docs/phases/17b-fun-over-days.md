@@ -3,7 +3,8 @@
 Merlin, 2026-11-13, after the store review (finding 1): a keen player has
 seen everything in one sitting. He approved the plan the same day and
 picked: needs "a bit faster", "wish now, collection later". Status:
-**built, on the preview branch, waiting for Merlin and Lettuce on a phone.**
+**live since build 392 (2026-11-14, Merlin's "Go live"). Not yet tried on
+a real phone.**
 
 ## The problem, in numbers (from the rules in `dist/pet-state.js`)
 - A stroke gives 1 friendship and can repeat every 0.9 seconds with no
