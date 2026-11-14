@@ -23,7 +23,7 @@ export const WISHES = [
   {id: 'mouse', label: 'the felt mouse', icon: 'i-yarn', needs: 'mouse', want: 'The felt mouse looked at me funny.', how: 'Play with the felt mouse', thanks: 'The mouse has been dealt with.', moment: 'settled things with the felt mouse', on: e => e.action === 'play' && e.toy === 'mouse'},
   {id: 'fish', label: 'the fabric fish', icon: 'i-yarn', needs: 'fish', want: 'I dreamed about the fabric fish.', how: 'Play with the fabric fish', thanks: 'Better than in the dream.', moment: 'dreamed of the fabric fish, then caught it', on: e => e.action === 'play' && e.toy === 'fish'},
   {id: 'yarn', label: 'the yarn ball', icon: 'i-yarn', needs: 'yarn', want: 'The yarn ball needs unravelling. By me.', how: 'Play with the yarn ball', thanks: 'Unravelled. My work here is done.', moment: 'took the yarn ball apart, as planned', on: e => e.action === 'play' && e.toy === 'yarn'},
-  {id: 'dark', label: 'a game after dark', icon: 'i-moon', want: 'Everything is more fun to chase in the dark.', how: 'Play with her in the evening (or tap the moon)', thanks: 'Night hunting. The best kind.', moment: 'wanted a game after dark', on: e => e.action === 'play' && e.night === true},
+  {id: 'dark', label: 'a game after dark', icon: 'i-moon', want: 'Everything is more fun to chase in the dark.', how: 'Play with her in the evening (or switch to night, top left)', thanks: 'Night hunting. The best kind.', moment: 'wanted a game after dark', on: e => e.action === 'play' && e.night === true},
   {id: 'fountain', label: 'a drink together', icon: 'i-drop', want: 'Water tastes better when you watch.', how: 'Tap her fountain to invite a drink', thanks: 'See? Better with company.', moment: 'wanted company at her fountain', on: e => e.action === 'drink'},
   {id: 'photo', label: 'a photo', icon: 'i-sparkle', want: 'I look especially good today. Someone should take a photo.', how: 'Take a photo of her', thanks: 'My good side. They are all my good side.', moment: 'knew she looked good and wanted a photo', on: e => e.action === 'photo'},
 ];
@@ -33,7 +33,9 @@ function hash(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) 
 // Today's wish. `has(id)`: does she have that gift toy?
 export function todaysWish(p, has = () => false, now = Date.now()) {
   const d = today(p, now);
-  if (!byId(d.wish)) {
+  // (Also when the wish kept is for a toy she does not have: an older save restored.)
+  const kept = byId(d.wish);
+  if (!kept || (kept.needs && !has(kept.needs) && d.wishDone !== true)) {
     const pool = WISHES.filter(w => w.id !== d.last && (!w.needs || has(w.needs)));
     d.wish = pool[hash(d.key + ':' + (Number.isFinite(p.born) ? p.born : 0)) % pool.length].id;
     delete d.wishDone;

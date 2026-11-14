@@ -763,6 +763,8 @@ cat.load(LONGHAIR ? CAT_FILE : './assets/mochi-ragdoll.glb', p => {
 }).then(() => {
   if (!CLASSIC_MOTION) { const motion = new MotionCat(cat); cat.update = (dt, t, ctl) => motion.update(dt, t, ctl); cat.motion = motion; }
   ready = true;
+  // (Her collar goes on now, not at the next tick.)
+  refresh();
   // The kitchen through the study's doorway (built once she's home).
   if (!kitchen) setTimeout(() => { if (!kitchen) { buildKitchen(); joinRooms(); } }, 400);
   host.classList.add('ready');
@@ -3270,7 +3272,7 @@ async function takePhoto() {
       const k = Math.max(f.width / c.width, f.height / c.height), w = c.width * k, hh = c.height * k;
       f.getContext('2d').drawImage(c, (f.width - w) / 2, (f.height - hh) / 2, w, hh);
       const url = f.toDataURL('image/jpeg', .82);
-      try { storage.setItem(FRAME_KEY, url); } catch { toast('There was no room to keep the picture on this phone.'); return; }
+      try { storage.setItem(FRAME_KEY, url); } catch { toast('The picture could not be kept on this phone.'); return; }
       frameImage = f;
       $('#photo-hang').textContent = 'On the wall, over the fire'; $('#photo-hang').disabled = true;
       moment(`A photo of ${pet.name} hangs over the fire.`, 'i-sparkle');

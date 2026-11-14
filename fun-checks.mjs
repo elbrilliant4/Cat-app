@@ -33,7 +33,7 @@ give(p, 'pet', 1, at(14, 3)); assert.equal(p.bond, best, 'three in the morning i
 give(p, 'pet', 1, at(14, 5)); assert.equal(p.bond, best + 1, 'a new day counts in full again');
 assert.equal(dayFull(p, at(14, 5)), false);
 give(p, 'pet', 9, at(13, 5)); assert.equal(p.bond, best + 10, 'a clock set back stays in the same day');
-give(p, 'pet', 50, at(12, 5)); assert.equal(p.bond, best + 10 + DAY_EXTRA, 'and does not start a second one');
+give(p, 'pet', 50, at(13, 6)); assert.equal(p.bond, best + 10 + DAY_EXTRA, 'and does not start a second one');
 // She drinks by herself: no friendship.
 p = fresh(at(13)); p.water = 20; care(p, 'drink', undefined, {now: at(13), auto: true}); assert.equal(p.bond, 0); assert.equal(p.water, 55);
 // The old two minutes: 34 brushes no longer reach level 4 (100).
@@ -45,6 +45,9 @@ assert.ok(days >= 19 && days <= 21, 'best case to level 9: ' + days + ' days');
 // A save with a broken `day` is mended, not thrown.
 p = restore({...fresh(at(13)), day: 'nonsense'}, at(13)); give(p, 'pet', 1, at(13)); assert.equal(p.bond, 1);
 p = restore({...fresh(at(13)), day: {key: '2026-11-13', n: null, extra: 'x'}}, at(13)); give(p, 'pet', 1, at(13)); assert.equal(p.bond, 1);
+// A day from a clock that ran ahead (or a key that is no date) is dropped: nobody is left earning nothing.
+for (const key of ['2027-11-14', 'zzz', '2026-11-15']) { p = restore({...fresh(at(13)), day: {key, n: {pet: 10, brush: 2, play: 3}, extra: 5, wish: 'brush', wishDone: true}}, at(13)); give(p, 'pet', 1, at(13)); assert.equal(p.bond, 1, key); assert.equal(dayFull(p, at(13)), false); assert.equal(wishDone(p, at(13)), false); }
+p = restore({...fresh(at(13)), day: {key: '2026-11-13', n: {}, extra: -1e9}}, at(13)); give(p, 'pet', 600, at(13)); assert.equal(p.bond, 15, 'a nonsense count of tenths is mended');
 // An old save (no `day`) keeps its friendship and goes on.
 p = restore({name: 'Juniper', bond: 240, cuddles: 9}, at(13)); assert.equal(p.bond, 240); give(p, 'play', 1, at(13)); assert.equal(p.bond, 246);
 // The day survives a backup code.
@@ -78,6 +81,7 @@ p = fresh(at(13)); today(p, at(13)).wish = 'fuss';
 for (let i = 1; i <= 5; i++) { care(p, 'pet', undefined, {now: at(13)}); assert.equal(!!grantWish(p, {action: 'pet', zone: 'head'}, none, at(13)), i === 5, 'the fuss is five strokes'); }
 p = fresh(at(13)); today(p, at(13)).wish = 'dark';
 assert.equal(grantWish(p, {action: 'play', toy: 'ball', night: false}, none, at(13)), null); assert.ok(grantWish(p, {action: 'play', toy: 'ball', night: true}, none, at(13)));
+p = fresh(at(13)); today(p, at(13)).wish = 'yarn'; assert.ok(!todaysWish(p, none, at(13)).needs, 'a wish for a toy she does not have is swapped'); assert.equal(todaysWish(p, all, at(13)).needs, undefined);
 // A wish for a toy that is no longer hers (a restored older save) is swapped for one she can have.
 p = fresh(at(13)); today(p, at(13)).wish = 'not-a-wish'; assert.ok(WISHES.includes(todaysWish(p, none, at(13))));
 

@@ -135,6 +135,18 @@ picked: needs "a bit faster", "wish now, collection later". Status:
   once stroke, brush and play have each counted in full (feed and water
   are held back by her needs anyway).
 
+## What the reviewer caught (fixed)
+- A save from a phone whose clock had run ahead would have earned no
+  friendship until that date came. Now a day more than one day off, either
+  way, is dropped. Cost: a clock set back two days or more does start a
+  new day (the plan only promised no defence against clock tricks).
+- The collar came on up to 15 seconds after launch: now at once.
+- The collar card said "tap her name"; only the pencil opens the name card.
+- The "game after dark" hint could be read as the Rest button.
+- A kept wish for a toy she does not have is swapped.
+Left as it is: a different kitten restored from a backup code on the same
+phone keeps the photo that hangs over the fire.
+
 ## Left for Merlin and Lettuce
 - Try it on a phone. Does the collar look right to you up close?
 - Which level Lettuce's save is at (past level 4 it gets a gift a day).

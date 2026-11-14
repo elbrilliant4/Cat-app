@@ -26,7 +26,9 @@ export function advance(p,now=Date.now()){const hours=Math.max(0,Math.min(AWAY_M
 // full a few times a day (DAY_FULL), then a tenth, and the tenths stop at
 // DAY_EXTRA more a day. She reacts to every touch as ever; only the number
 // slows. The day turns at 4 in the morning by the phone's clock; a clock set
-// backwards does not start a second day. `p.day` = {key, n: times each care
+// backwards (by up to a day) does not start a second day; a day further off
+// than that, either way, or one that is not a date, is dropped, so a save
+// from a phone whose clock ran ahead is never left earning nothing. `p.day` = {key, n: times each care
 // was given today, extra: tenths earned, wish, wishDone, last: yesterday's
 // wish} (the wish: wish.js).
 export const DAY_FULL={pet:10,brush:2,feed:3,drink:3,play:3};
@@ -35,7 +37,7 @@ export const WORTH={feed:3,drink:1,play:6,brush:3,pet:1};
 const two=n=>String(n).padStart(2,'0');
 export function dayKey(now=Date.now()){const d=new Date(now-4*3600000);return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;}
 const tenth=v=>Math.round(v*10)/10;
-export function today(p,now=Date.now()){const key=dayKey(now);let d=p.day;const ok=d&&typeof d==='object'&&!Array.isArray(d)&&typeof d.key==='string';if(!ok||d.key<key)d=p.day={key,n:{},extra:0,...(ok&&typeof d.wish==='string'?{last:d.wish}:{})};if(!d.n||typeof d.n!=='object'||Array.isArray(d.n))d.n={};if(!Number.isFinite(d.extra))d.extra=0;return d;}
+export function today(p,now=Date.now()){const key=dayKey(now);let d=p.day;const ok=d&&typeof d==='object'&&!Array.isArray(d)&&typeof d.key==='string'&&/^\d{4}-\d\d-\d\d$/.test(d.key);if(!ok||d.key<key||d.key>dayKey(now+86400000))d=p.day={key,n:{},extra:0,...(ok&&typeof d.wish==='string'?{last:d.wish}:{})};if(!d.n||typeof d.n!=='object'||Array.isArray(d.n))d.n={};if(!(d.extra>=0))d.extra=0;return d;}
 // Adds the friendship one care is worth today and returns what it added.
 export function earn(p,action,now=Date.now()){const worth=WORTH[action]||0,d=today(p,now),n=Number.isFinite(d.n[action])?d.n[action]:0;d.n[action]=n+1;let gain=worth;if(n>=(DAY_FULL[action]??0)){gain=tenth(Math.max(0,Math.min(worth/10,DAY_EXTRA-d.extra)));d.extra=tenth(d.extra+gain);}p.bond=tenth(p.bond+gain);return gain;}
 // The main kinds of care (the ones nothing else holds back) have all counted
