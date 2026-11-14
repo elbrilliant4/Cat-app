@@ -95,7 +95,7 @@ if (ONLY.includes('2')) { // 2. A save already at level 9: the later gifts one a
   await page.evaluate(() => { kitten.endPlay(true); kitten.CAMERA_VIEWS.room(); });
   await step(60);
   // The next days: one gift each.
-  for (const [id, name] of [['lights', 'Fairy lights for the study'], ['collar', 'A ribbon collar'], ['frame', 'A picture frame for the study'], ['tag', 'A gold tag with her name']]) {
+  for (const [id, name] of [['lights', 'Fairy lights for the study'], ['collar', 'A ribbon bow'], ['frame', 'A picture frame for the study'], ['tag', 'A gold tag with her name']]) {
     await page.evaluate(() => { kitten.pet.giftDay = 'yesterday'; kitten.brain.mode = 'idle'; kitten.refresh(); });
     await step(40);
     d = await news(page);
@@ -105,7 +105,7 @@ if (ONLY.includes('2')) { // 2. A save already at level 9: the later gifts one a
   }
   s = await page.evaluate(() => ({line: document.querySelector('#bond-gift').hidden, collar: !!kitten.cat.collar?.visible, tag: !!kitten.cat.collar?.userData.tag.visible, fairy: !!kitten.room.fairy?.g.visible, frame: !!kitten.room.photoFrame?.g.visible, gifts: kitten.pet.gifts.length, pos: kitten.brain.pos.toArray()}));
   ok(s.gifts === 8 && s.line, 'all eight gifts given; the card promises nothing more');
-  ok(s.collar && s.tag && s.fairy && s.frame, 'she wears the collar and tag; the lights and the frame are up');
+  ok(s.collar && s.tag && s.fairy && s.frame, 'she wears the bow and tag; the lights and the frame are up');
   await look({focus: [4.2, 2.9, 1.1], yaw: -1.2, pitch: .1, dist: 6});
   await step(2);
   await page.screenshot({path: `${OUT}/7-lights-night.png`});

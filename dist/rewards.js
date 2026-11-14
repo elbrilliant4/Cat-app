@@ -12,9 +12,9 @@ export const GIFTS = [
   {level: 4, id: 'bowl', name: 'Her name on her bowl', short: 'her name on her bowl', text: 'Look closely at her food bowl.', icon: 'i-bowl'},
   {level: 5, id: 'yarn', name: 'A ball of yarn', short: 'a ball of yarn', text: 'A fourth toy for the basket.', icon: 'i-yarn'},
   {level: 6, id: 'lights', name: 'Fairy lights for the study', short: 'fairy lights for the study', text: 'They come on in the evening, along the mantel.', icon: 'i-sparkle'},
-  {level: 7, id: 'collar', name: 'A ribbon collar', short: 'a ribbon collar', text: 'Tap the pencil by her name to pick its colour.', icon: 'i-heart'},
+  {level: 7, id: 'collar', name: 'A ribbon bow', short: 'a ribbon bow', text: 'Tap the pencil by her name to pick its colour.', icon: 'i-heart'},
   {level: 8, id: 'frame', name: 'A picture frame for the study', short: 'a picture frame for the study', text: 'Take a photo, then hang it on the wall.', icon: 'i-sparkle'},
-  {level: 9, id: 'tag', name: 'A gold tag with her name', short: 'a gold tag with her name', text: 'It hangs from her collar.', icon: 'i-sparkle'},
+  {level: 9, id: 'tag', name: 'A gold tag with her name', short: 'a gold tag with her name', text: 'It hangs from her bow.', icon: 'i-sparkle'},
 ];
 export const LATE = 5;
 // Ribbon colours for the collar (the first is the one she starts with).

@@ -127,13 +127,12 @@ picked: needs "a bit faster", "wish now, collection later". Status:
   visit.
 - The fairy lights hang along the front of the mantel; the frame hangs
   over it; the ribbon colours are in the name card (tap the pencil).
-- The collar on the long-haired Mochi: **not good enough yet.** Her ruff
-  hides most of it: standing, from the front only the gold tag shows; the
-  ribbon shows at the side of her neck; sitting with her head up a strip
-  shows under her chin. So the colour you pick is mostly out of sight.
-  Placed by eye over four rounds of stills. Merlin to pick: a bigger
-  ribbon that sits on top of her fur, a bow instead, or another gift. On
-  the first Mochi (`?mochi=first`) its place is a guess: not looked at.
+- The collar became a bow (Merlin, 2026-11-14): a plain collar was hidden
+  by her ruff, only the tag showed. Now a ribbon bow sits at her throat on
+  top of the fur, the band runs under the fur behind, and the gold tag
+  hangs under the knot. Seen clearly sitting and standing, from the front,
+  three-quarter and side. On the first Mochi (`?mochi=first`) its place is
+  a guess: not looked at.
 - Not built from the plan: nothing. Changed: the "more tomorrow" line shows
   once stroke, brush and play have each counted in full (feed and water
   are held back by her needs anyway).
@@ -151,7 +150,7 @@ Left as it is: a different kitten restored from a backup code on the same
 phone keeps the photo that hangs over the fire.
 
 ## Left for Merlin and Lettuce
-- Try it on a phone. The collar needs your call (see above).
+- Try it on a phone.
 - Which level Lettuce's save is at (past level 4 it gets a gift a day).
 - Are the wish lines in her voice? One line each in `dist/wish.js`.
 

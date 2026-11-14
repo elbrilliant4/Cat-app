@@ -284,8 +284,8 @@ float furHash(vec2 p) {
 // and `flat` its shape, `tilt` its lean, `tag` the tag's radius. Set by eye
 // (tools/qa/gifts.mjs).
 const COLLAR = {
-  longhair: {at: .45, up: -.02, r: .19, band: .021, wide: 1, flat: 1.3, tilt: -.3, tag: .032},
-  first: {at: .5, up: -.02, r: .14, band: .017, wide: 1, flat: 1.3, tilt: -.25, tag: .026},
+  longhair: {at: .45, up: -.02, r: .19, band: .021, wide: 1, flat: 1.3, tilt: -.3, tag: .03, bow: 1, out: .05, drop: 0},
+  first: {at: .5, up: -.02, r: .14, band: .017, wide: 1, flat: 1.3, tilt: -.25, tag: .024, bow: .8, out: .01, drop: 0},
 };
 export class RealCat {
   // opts.rig: 2 for the motion trial's rig (shoulder blades, new weights).
@@ -765,7 +765,7 @@ export class RealCat {
     this.fur = fur;
   }
 
-  // A ribbon collar round her neck (a gift of friendship), with a small gold
+  // A ribbon round her neck with a bow at her throat (a gift of friendship), with a small gold
   // tag at the front once that is hers too. `c` = {color, tag} or null to
   // take it off. It rides on the neck bone, tilted to sit across the neck.
   setCollar(c) {
@@ -782,17 +782,29 @@ export class RealCat {
       band.scale.set(R.wide, 1, R.flat);
       band.castShadow = true;
       g.add(band);
-      // The tag hangs at the lowest point of the band, facing forwards.
+      // The bow: at her throat, out on top of her fur so the colour is always
+      // seen (the band itself is mostly under her ruff). Two loops, a knot
+      // and two tails, lying against her chest. In the collar's own frame
+      // -y is out from her throat and -z is down her chest.
+      const bow = new THREE.Group(), ball = new THREE.SphereGeometry(1, 18, 12), S = R.bow;
+      bow.position.set(0, -R.r - R.out, R.drop);
+      const part = (geo, sx, sy, sz, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, band.material); m.scale.set(sx * S, sy * S, sz * S); m.position.set(x * S, y * S, z * S); m.rotation.y = ry; m.castShadow = true; bow.add(m); return m; };
+      for (const s of [-1, 1]) {
+        part(ball, .062, .018, .04, s * .066, 0, .004, s * .22);
+        part(new THREE.BoxGeometry(1, 1, 1), .03, .007, .085, s * .03, .004, -.062, -s * .32);
+      }
+      part(ball, .022, .024, .026, 0, -.006, 0);
+      g.add(bow);
+      // The tag hangs under the knot.
       const gold = new THREE.MeshStandardMaterial({color: '#e2b53a', metalness: .9, roughness: .25, emissive: '#3a2a08', emissiveIntensity: .35});
       const tag = new THREE.Group();
-      tag.position.set(0, -R.r - R.band * .5, 0);
+      tag.position.set(0, -.012 * S, -.045 * S);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(R.tag * .32, R.tag * .07, 6, 14), gold);
-      ring.rotation.y = Math.PI / 2;
       const disc = new THREE.Mesh(new THREE.CylinderGeometry(R.tag, R.tag, R.tag * .16, 22), gold);
-      disc.rotation.x = Math.PI / 2; disc.position.y = -R.tag * 1.15;
+      disc.position.z = -R.tag * 1.15;
       tag.add(ring, disc);
-      g.add(tag);
-      g.userData = {band, tag};
+      bow.add(tag);
+      g.userData = {band, tag, bow};
       this.bones.neck.add(g);
     }
     this.collar.visible = true;

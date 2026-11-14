@@ -116,8 +116,10 @@ the phone's browser and can be added to the home screen.
   two days running, the same all day): it is under her name, a tap and she
   says it, granting it is thanked, written in Moments and worth 5. Levels 5
   to 9 give a ball of yarn, fairy lights along the study mantel (lit in the
-  evening), a ribbon collar (six colours, in the name card), a picture
-  frame over the fire for one of your photos, and a gold tag on the collar;
+  evening), a ribbon bow at her throat (six colours, in the name card; Merlin
+  2026-11-14: a bow, because a plain collar was hidden by her fur), a
+  picture frame over the fire for one of your photos, and a gold tag under
+  the bow;
   a save already past a level gets these one a day. Left overnight she is a
   little hungry and thirsty, left a day she is missing you too; never under
   30 (`fun-checks.mjs`, `tools/qa/gifts.mjs`). Brief:
